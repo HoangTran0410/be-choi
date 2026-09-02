@@ -1,0 +1,49 @@
+/* Animal + mouth sit in one box so the mouth ring stays glued to the animal's lower half. */
+.feed-board .feed-scene {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* Room below the animal so the ring can hang under its chin without overflowing the board. */
+  padding-bottom: calc(var(--tap) * 0.5);
+}
+.feed-board .feed-animal {
+  font-size: calc(var(--emoji) * 1.6);
+  line-height: 1;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+}
+.feed-board .feed-mouth {
+  position: absolute;
+  left: 50%;
+  /* Centre of the ring at ~70% of the animal's height, i.e. over its mouth. */
+  top: calc(var(--emoji) * 1.6 * 0.7);
+  width: calc(var(--tap) * 1.2);
+  height: calc(var(--tap) * 1.2);
+  margin-left: calc(var(--tap) * -0.6);
+  margin-top: calc(var(--tap) * -0.6);
+  border-radius: 50%;
+  border: 4px dashed rgba(59, 47, 47, 0.3);
+  background: rgba(255, 255, 255, 0.28);
+  transition: background 0.15s, border-color 0.15s;
+}
+.feed-board .feed-mouth.feed-over {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(59, 47, 47, 0.5);
+}
+
+.feed-tray .feed-food {
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+  touch-action: none;
+  cursor: grab;
+}
+.feed-food.placed {
+  pointer-events: none;
+}
+/* Snapped into the mouth: shrink and fade, then index.ts removes it. */
+.feed-food.eaten {
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.3s ease-in, opacity 0.3s ease-in;
+}

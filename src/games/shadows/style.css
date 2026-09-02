@@ -1,0 +1,28 @@
+.shadows-board .shadows-shadow {
+  background: rgba(255, 255, 255, 0.4);
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+}
+.shadows-board .shadows-shadow.revealed {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.65);
+}
+.shadows-glyph {
+  font-size: calc(var(--tap) * 0.9);
+  line-height: 1;
+  filter: brightness(0) opacity(0.75);
+  pointer-events: none;
+}
+.shadows-shadow.revealed .shadows-glyph {
+  display: none;
+}
+.shadows-piece {
+  font-size: calc(var(--tap) * 0.9);
+  touch-action: none;
+  cursor: grab;
+}
+.shadows-piece.dragging {
+  cursor: grabbing;
+}
+.shadows-piece.placed {
+  pointer-events: none;
+}

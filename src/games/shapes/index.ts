@@ -11,12 +11,16 @@ import './style.css';
  */
 function start(ctx: GameContext): void {
   let round = 0;
+  let alive = true;
   let disposers: Array<() => void> = [];
 
   const board = h('div', { class: 'g-board shapes-board' });
   const tray = h('div', { class: 'g-tray shapes-tray' });
   ctx.stage.append(board, tray);
-  ctx.onCleanup(() => disposers.forEach((d) => d()));
+  ctx.onCleanup(() => {
+    alive = false;
+    disposers.forEach((d) => d());
+  });
 
   function play(): void {
     disposers.forEach((d) => d());
@@ -71,6 +75,7 @@ function start(ctx: GameContext): void {
       if (placed === holes.length) {
         ctx.hint.clear();
         void ctx.celebrate().then(() => {
+          if (!alive) return;
           ctx.addStar();
           round++;
           play();

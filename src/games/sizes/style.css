@@ -1,0 +1,59 @@
+/* Big vs small: two drop boxes on the board, four pieces in the tray. */
+.sizes-board {
+  align-items: flex-end;
+}
+
+/* ---- boxes ---- */
+.sizes-box {
+  --sizes-box: calc(var(--tap) * 1.7);
+  width: var(--sizes-box);
+  height: var(--sizes-box);
+  background: rgba(255, 255, 255, 0.4);
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+}
+.sizes-box-small {
+  --sizes-box: calc(var(--tap) * 1.1);
+}
+.sizes-box.sizes-full {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.65);
+}
+.sizes-box-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.75 * var(--sizes-scale, 1));
+  line-height: 1;
+  opacity: 0.3;
+  pointer-events: none;
+}
+.sizes-box.sizes-full .sizes-box-label {
+  display: none;
+}
+.sizes-box-items {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: calc(var(--sizes-box) * 0.04);
+}
+
+/* ---- pieces ---- */
+.sizes-piece {
+  touch-action: none;
+}
+.sizes-piece-emoji {
+  font-size: calc(var(--tap) * 0.75 * var(--sizes-scale, 1));
+  line-height: 1;
+  pointer-events: none;
+}
+/* Placed pieces are no longer tap targets, so they shrink to share the box. */
+.sizes-piece.placed {
+  pointer-events: none;
+  width: calc(var(--sizes-box) * 0.44);
+  height: calc(var(--sizes-box) * 0.44);
+}
+.sizes-piece.placed .sizes-piece-emoji {
+  font-size: calc(var(--sizes-box) * 0.4);
+}

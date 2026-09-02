@@ -1,0 +1,124 @@
+.paint {
+  --paint-btn: clamp(44px, 9vmin, 72px);
+  --paint-gap: clamp(2px, 0.8vmin, 8px);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- drawing area ---- */
+.paint-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #fffdf7;
+}
+.paint-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* ---- toolbar: portrait = rows at the bottom ---- */
+.paint-tools {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--paint-gap);
+  padding: var(--paint-gap);
+  background: rgba(255, 255, 255, 0.55);
+}
+.paint-group {
+  display: flex;
+  gap: var(--paint-gap);
+}
+
+.paint-btn {
+  position: relative;
+  flex: none;
+  width: var(--paint-btn);
+  height: var(--paint-btn);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--paint-btn) * 0.55);
+  line-height: 1;
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+  touch-action: manipulation;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.paint-btn:active {
+  transform: scale(0.92);
+}
+.paint-btn.selected {
+  z-index: 1;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--c-orange);
+}
+
+.paint-swatch {
+  background: var(--paint-color);
+  border: 3px solid #fff;
+}
+.paint-swatch.selected {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59, 47, 47, 0.25);
+}
+.paint-swatch.selected:active {
+  transform: scale(1.05);
+}
+
+.paint-size-dot {
+  display: block;
+  width: min(var(--paint-dot), 82%);
+  height: min(var(--paint-dot), 82%);
+  border-radius: 50%;
+  background: #111;
+  pointer-events: none;
+}
+
+.paint-stamp,
+.paint-eraser,
+.paint-trash {
+  font-size: calc(var(--paint-btn) * 0.55);
+}
+
+/* ---- toolbar: landscape = vertical strip on the right ---- */
+@media (orientation: landscape) {
+  .paint {
+    flex-direction: row;
+  }
+  .paint-tools {
+    display: grid;
+    height: 100%;
+    grid-template-rows: repeat(auto-fill, var(--paint-btn));
+    grid-auto-flow: column;
+    grid-auto-columns: var(--paint-btn);
+    align-content: center;
+    justify-content: start;
+  }
+  .paint-group {
+    flex-direction: column;
+  }
+  .paint-group-colors {
+    grid-row: span 4;
+  }
+  .paint-group-sizes {
+    grid-row: span 3;
+  }
+  .paint-group-stamps {
+    grid-row: span 4;
+  }
+  .paint-group-actions {
+    grid-row: span 2;
+  }
+}

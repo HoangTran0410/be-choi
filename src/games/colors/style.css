@@ -1,0 +1,51 @@
+.colors-board .colors-basket {
+  width: calc(var(--tap) * 1.5);
+  height: calc(var(--tap) * 1.4);
+  border: 6px solid var(--colors-c, #f97316);
+  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--colors-c, #f97316) 18%, #fff);
+}
+.colors-board .colors-basket-svg {
+  position: absolute;
+  left: 10%;
+  top: 6%;
+  width: 80%;
+  height: 80%;
+  pointer-events: none;
+}
+.colors-basket-balls {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 6%;
+  height: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 2%;
+  pointer-events: none;
+}
+.colors-ball .colors-ball-svg {
+  width: 92%;
+  height: 92%;
+  pointer-events: none;
+}
+.colors-ball.placed {
+  width: calc(var(--tap) * 0.6);
+  height: calc(var(--tap) * 0.6);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+}
+.colors-tray {
+  flex-wrap: wrap;
+  align-content: center;
+}
+/* Six balls do not fit one row on a narrow phone: give the tray two rows. */
+@media (orientation: portrait) {
+  .colors-board.colors-many {
+    bottom: calc(var(--tap) * 2.6);
+  }
+  .colors-tray.colors-many {
+    min-height: calc(var(--tap) * 2.6);
+  }
+}

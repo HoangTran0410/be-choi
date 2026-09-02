@@ -1,0 +1,114 @@
+.wash {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  background: linear-gradient(180deg, #ecfeff 0%, #cffafe 55%, #a5f3fc 100%);
+}
+
+/* Square box: 60vmin, capped by 70% of the stage height (landscape phones). */
+.wash-subject {
+  position: relative;
+  height: min(60vmin, 70%);
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 255, 255, 0.6),
+    0 8px 24px rgba(14, 116, 144, 0.15);
+  touch-action: none;
+}
+
+/* ~70% of the 60vmin box. */
+.wash-item {
+  font-size: 42vmin;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.wash-dirt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.wash-sponge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: var(--emoji);
+  height: var(--emoji);
+  margin: calc(var(--emoji) * -0.5) 0 0 calc(var(--emoji) * -0.5);
+  font-size: var(--emoji);
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.2));
+}
+.wash-sponge[hidden] {
+  display: none;
+}
+
+.wash-suds {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: calc(var(--emoji) * var(--wash-suds, 0.3));
+  height: calc(var(--emoji) * var(--wash-suds, 0.3));
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.6) 45%,
+    rgba(165, 243, 252, 0.45) 100%
+  );
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(14, 116, 144, 0.15);
+  animation: wash-float 0.8s ease-out forwards;
+}
+@keyframes wash-float {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--wash-drift, 0px)), calc(-50% - 14vmin)) scale(1.15);
+    opacity: 0;
+  }
+}
+
+.wash-sparkle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  font-size: calc(var(--emoji) * 0.8);
+  line-height: 1;
+  pointer-events: none;
+  animation: wash-sparkle 0.9s ease-out both;
+}
+@keyframes wash-sparkle {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2) rotate(-20deg);
+    opacity: 0;
+  }
+  35% {
+    transform: translate(-50%, -50%) scale(1.25) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.9) rotate(0);
+    opacity: 0;
+  }
+}

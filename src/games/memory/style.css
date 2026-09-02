@@ -1,0 +1,109 @@
+.memory {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  display: grid;
+  place-items: center;
+  padding: 2vmin;
+  background: linear-gradient(180deg, #f3e8ff 0%, #e9d5ff 100%);
+}
+
+/*
+ * The grid always fits the stage: a card is the smallest of
+ *   (stage width  - gaps) / columns,
+ *   (stage height - gaps) / rows,
+ *   a comfortable cap,
+ * and never below the tap size because every viewport we target
+ * leaves more room than that (see index.test.ts / plan Task 18).
+ * The vmin fallback estimates the top bar; container units are exact.
+ */
+.memory-cards {
+  --memory-cols: 2;
+  --memory-rows: 2;
+  --memory-gap: 2vmin;
+  --memory-w: calc(100vw - 4vmin);
+  --memory-h: calc(100dvh - var(--tap) * 0.8 - 7vmin);
+  --memory-card: max(
+    var(--tap),
+    min(
+      (var(--memory-w) - (var(--memory-cols) - 1) * var(--memory-gap)) / var(--memory-cols),
+      (var(--memory-h) - (var(--memory-rows) - 1) * var(--memory-gap)) / var(--memory-rows),
+      var(--tap) * 2.4
+    )
+  );
+  display: grid;
+  gap: var(--memory-gap);
+  grid-template-columns: repeat(var(--memory-cols), var(--memory-card));
+  grid-template-rows: repeat(var(--memory-rows), var(--memory-card));
+}
+@supports (width: 1cqw) {
+  .memory-cards {
+    --memory-w: 96cqw;
+    --memory-h: 96cqh;
+  }
+}
+
+/* landscape (default): wide rows */
+.memory-cards[data-pairs='3'] { --memory-cols: 3; --memory-rows: 2; }
+.memory-cards[data-pairs='4'] { --memory-cols: 4; --memory-rows: 2; }
+
+@media (orientation: portrait) {
+  .memory-cards[data-pairs='3'] { --memory-cols: 2; --memory-rows: 3; }
+  .memory-cards[data-pairs='4'] { --memory-cols: 2; --memory-rows: 4; }
+}
+
+.memory-card {
+  position: relative;
+  width: var(--memory-card);
+  height: var(--memory-card);
+  perspective: 900px;
+  touch-action: none;
+  border-radius: var(--radius);
+}
+.memory-card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.memory-card.flipped .memory-card-inner {
+  transform: rotateY(180deg);
+}
+.memory-card-front,
+.memory-card-back {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  border-radius: var(--radius);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+}
+.memory-card-front {
+  background: var(--memory-pastel, #fde68a);
+  border: 6px solid #fff;
+  font-size: calc(var(--memory-card) * 0.42);
+}
+.memory-card-back {
+  background: #fff;
+  border: 6px solid var(--memory-pastel, #fde68a);
+  transform: rotateY(180deg);
+  font-size: max(var(--emoji), var(--memory-card) * 0.55);
+}
+
+.memory-card.matched {
+  animation: memory-pulse 0.5s ease-out 0.35s;
+}
+.memory-card.matched .memory-card-back {
+  box-shadow:
+    0 0 0 5px rgba(34, 197, 94, 0.35),
+    0 5px 0 rgba(0, 0, 0, 0.1);
+}
+@keyframes memory-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
