@@ -223,3 +223,51 @@ button {
   place-items: center;
   border-radius: var(--radius);
 }
+
+/* ---- shared photo picker (core/photoPicker.ts) ---- */
+.pp-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(28, 25, 23, 0.6);
+  display: grid;
+  place-items: center;
+  padding: 3vmin;
+}
+.pp-panel {
+  width: min(96%, 900px);
+  max-height: 100%;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 3vmin;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(76px, 20vmin, 150px), 1fr));
+  gap: 2vmin;
+}
+.pp-tile {
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background-color: rgba(127, 127, 127, 0.15);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 0 var(--btn-shadow);
+  font-size: clamp(40px, 10vmin, 84px);
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: transform 0.1s;
+}
+.pp-tile:active {
+  transform: scale(0.94);
+}
+.pp-close {
+  position: absolute;
+  top: 2vmin;
+  right: 2vmin;
+  width: calc(var(--tap) * 0.8);
+  height: calc(var(--tap) * 0.8);
+  font-size: calc(var(--tap) * 0.4);
+}
