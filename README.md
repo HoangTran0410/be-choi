@@ -52,8 +52,9 @@ Mỗi vòng xong có confetti + lời khen + 1 ⭐. Cứ **3 ⭐ mở 1 sticker*
 ## Ảnh của bé
 
 Giữ 👪 → **📷 Ảnh của bé** → *Thêm ảnh / chụp ảnh* (iOS hỏi Thư viện ảnh hoặc Camera). Tối đa 12 ảnh,
-thu nhỏ còn 1024 px, lưu IndexedDB **trên máy**, không gửi đi đâu. Ảnh xuất hiện trong Ghép tranh
-(mặc định khi có ảnh), Tô màu (🖼️ nền / ✏️ nét vẽ) và Sinh nhật (ảnh bé trên bánh).
+thu nhỏ còn 1024 px, lưu IndexedDB **trên máy**, không gửi đi đâu. Trong game, bé chạm nút 🖼️ để mở
+bảng chọn ảnh (thumbnail to): Ghép tranh (hoặc chọn 🐣 tranh emoji), Tô màu (chọn ảnh nền, ✏️ biến thành
+nét vẽ để tô, ⬜ bỏ ảnh), Sinh nhật (chạm ảnh trên bánh để đổi, nhớ lựa chọn cho lần sau).
 
 ## Chạy thử
 
