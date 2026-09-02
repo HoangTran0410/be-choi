@@ -1,6 +1,6 @@
 /* Portrait: recipe card on top, tool in the middle, tray at the bottom. */
 .cooking {
-  --cooking-tool: calc(var(--emoji) * 1.8);
+  --cooking-tool: clamp(calc(var(--emoji) * 1.8), 34vmin, calc(var(--emoji) * 2.6));
   --cooking-need: max(40px, calc(var(--tap) * 0.5));
   --cooking-eater: calc(var(--emoji) * 1.6);
   --cooking-dish: calc(var(--tap) * 1.4);
