@@ -12,7 +12,8 @@ describe('bubbles game', () => {
     expect(ctx.stage.querySelectorAll('.bubble').length).toBeGreaterThanOrEqual(5);
     const first = ctx.stage.querySelector('.bubble')!;
     first.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    expect(first.classList.contains('anim-pop')).toBe(true);
+    expect(first.classList.contains('popped')).toBe(true);
+    expect(first.querySelector('.bubble-body')!.classList.contains('anim-pop')).toBe(true);
     ctx.cleanup();
     vi.useRealTimers();
   });

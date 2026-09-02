@@ -74,7 +74,7 @@ await open('bubbles');
 await page.waitForTimeout(800);
 const bubble = page.locator('.bubble').first();
 await tap(bubble);
-check('bubbles: tapped bubble pops', (await page.locator('.bubble.anim-pop').count()) >= 1);
+check('bubbles: tapped bubble pops', (await page.locator('.bubble.popped').count()) >= 1);
 
 // ---- colors ----
 await open('colors');

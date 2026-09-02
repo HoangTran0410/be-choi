@@ -38,11 +38,11 @@ function start(ctx: GameContext): void {
     const spec = makeBubble();
     const size = Math.max(88, Math.round(spec.size * scale()));
     const w = field.clientWidth || 400;
-    const el = h('div', {
-      class: 'bubble',
-      style: `width:${size}px;height:${size}px;font-size:${size}px;--hue:${spec.hue}`,
-    });
-    if (spec.item) el.append(h('span', { class: 'bubble-item' }, spec.item.emoji));
+    // Outer element only moves (transform); the inner body carries the look and the pop
+    // animation, so the pop keyframes never override the position transform.
+    const body = h('div', { class: 'bubble-body' });
+    if (spec.item) body.append(h('span', { class: 'bubble-item' }, spec.item.emoji));
+    const el = h('div', { class: 'bubble', style: `width:${size}px;height:${size}px;font-size:${size}px;--hue:${spec.hue}` }, body);
     const bubble: Live = {
       el,
       x: spec.x * Math.max(0, w - size),
@@ -63,7 +63,9 @@ function start(ctx: GameContext): void {
   function pop(b: Live, name: string | null, baseSize: number): void {
     if (b.popped) return;
     b.popped = true;
-    replay(b.el, 'anim-pop');
+    b.el.classList.add('popped');
+    const body = b.el.firstElementChild;
+    if (body) replay(body, 'anim-pop');
     ctx.audio.pop(popPitch(baseSize));
     navigator.vibrate?.(10);
     if (name) ctx.speak(name);
