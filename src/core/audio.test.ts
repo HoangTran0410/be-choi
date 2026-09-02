@@ -1,0 +1,20 @@
+import { describe, it, expect } from 'vitest';
+import { createAudio } from './audio';
+
+describe('audio', () => {
+  it('never throws without AudioContext', () => {
+    const a = createAudio();
+    a.unlock();
+    a.pop();
+    a.pop(2);
+    a.ding();
+    a.boing();
+    a.chomp();
+    a.tick();
+    a.jingle();
+    a.note(440);
+    expect(a.enabled).toBe(true);
+    a.setEnabled(false);
+    expect(a.enabled).toBe(false);
+  });
+});
