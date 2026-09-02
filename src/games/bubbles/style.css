@@ -1,0 +1,53 @@
+.bubbles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #e0f2fe 0%, #cffafe 60%, #a5f3fc 100%);
+}
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  will-change: transform;
+  touch-action: none;
+  background: radial-gradient(
+    circle at 32% 30%,
+    hsla(var(--hue), 90%, 97%, 0.95) 0%,
+    hsla(var(--hue), 85%, 80%, 0.55) 45%,
+    hsla(var(--hue), 75%, 65%, 0.35) 100%
+  );
+  border: 2px solid hsla(var(--hue), 80%, 90%, 0.9);
+  box-shadow:
+    inset -6px -8px 14px hsla(var(--hue), 70%, 55%, 0.35),
+    0 6px 14px rgba(0, 0, 0, 0.08);
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  top: 14%;
+  width: 24%;
+  height: 16%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  transform: rotate(-30deg);
+}
+.bubble-item {
+  font-size: 55%;
+  line-height: 1;
+  pointer-events: none;
+}
+.bubble.anim-pop {
+  pointer-events: none;
+}
+.bubble-star {
+  position: absolute;
+  font-size: var(--emoji);
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation-duration: 0.7s;
+}

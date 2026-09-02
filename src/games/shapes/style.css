@@ -1,0 +1,27 @@
+.shapes-board .hole {
+  background: rgba(255, 255, 255, 0.35);
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+}
+.shapes-board .hole.filled {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.6);
+}
+.shapes-board .hole-svg {
+  position: absolute;
+  left: 12%;
+  top: 12%;
+  width: 76%;
+  height: 76%;
+  pointer-events: none;
+}
+.shapes-board .hole.filled .hole-svg {
+  display: none;
+}
+.piece .shape-svg {
+  width: 96%;
+  height: 96%;
+  pointer-events: none;
+}
+.piece.placed {
+  pointer-events: none;
+}
