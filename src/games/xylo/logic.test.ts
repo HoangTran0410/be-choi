@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SONGS, type Song } from '../../core/music';
-import { advance, BAR_COLORS, BARS, barLength, expectedBar } from './logic';
+import { advance, BAR_COLORS, BARS, barLength, expectedBar, parseRec, REC_MAX_EVENTS, REC_MAX_MS, serializeRec } from './logic';
 
 const tiny: Song = {
   id: 'tiny',
@@ -65,5 +65,39 @@ describe('xylo logic', () => {
     }
     expect(taps).toBe(playable);
     expect(expectedBar(song, index)).toBeNull();
+  });
+
+  it('serializeRec/parseRec round-trip, drop extra fields, cap at REC_MAX_EVENTS', () => {
+    const events = [
+      { bar: 0, t: 0 },
+      { bar: 7, t: 1234.5 },
+      { bar: 3, t: REC_MAX_MS },
+    ];
+    const json = serializeRec(events);
+    expect(JSON.parse(json)).toEqual(events);
+    expect(parseRec(json)).toEqual(events);
+    expect(parseRec('[]')).toEqual([]);
+    expect(parseRec('[{"bar":2,"t":10,"extra":true}]')).toEqual([{ bar: 2, t: 10 }]);
+
+    const many = Array.from({ length: REC_MAX_EVENTS + 100 }, (_, i) => ({ bar: i % 8, t: i }));
+    expect(JSON.parse(serializeRec(many))).toHaveLength(REC_MAX_EVENTS);
+    expect(parseRec(JSON.stringify(many))).toHaveLength(REC_MAX_EVENTS);
+    expect(REC_MAX_MS).toBe(60000);
+  });
+
+  it('parseRec returns null for invalid JSON or a malformed recording', () => {
+    expect(parseRec('')).toBeNull();
+    expect(parseRec('not json')).toBeNull();
+    expect(parseRec('{"bar":1,"t":2}')).toBeNull();
+    expect(parseRec('null')).toBeNull();
+    expect(parseRec('[1,2]')).toBeNull();
+    expect(parseRec('[{"bar":"1","t":2}]')).toBeNull();
+    expect(parseRec('[{"bar":8,"t":2}]')).toBeNull();
+    expect(parseRec('[{"bar":-1,"t":2}]')).toBeNull();
+    expect(parseRec('[{"bar":1.5,"t":2}]')).toBeNull();
+    expect(parseRec('[{"bar":1,"t":-2}]')).toBeNull();
+    expect(parseRec('[{"bar":1,"t":null}]')).toBeNull();
+    expect(parseRec(`[{"bar":1,"t":${REC_MAX_MS + 1}}]`)).toBeNull();
+    expect(parseRec('[{"bar":1,"t":2},{"bar":1}]')).toBeNull();
   });
 });

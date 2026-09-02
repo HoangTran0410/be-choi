@@ -1,30 +1,68 @@
 import { h, replay } from '../../core/dom';
-import { noteFreq, scaleIndex, schedule, SONGS, type Song } from '../../core/music';
+import { noteFreq, scaleIndex, schedule, type Song } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { advance, BAR_COLORS, BARS, barLength, expectedBar } from './logic';
+import {
+  advance,
+  BAR_COLORS,
+  BARS,
+  barLength,
+  expectedBar,
+  parseRec,
+  REC_MAX_EVENTS,
+  REC_MAX_MS,
+  serializeRec,
+  type RecEvent,
+} from './logic';
+import { ALL_SONGS } from './songs';
 import './style.css';
 
 const NOTE_GLYPHS = ['🎵', '🎶'] as const;
 const NOTE_MS = 700;
 const LIT_MS = 200;
 const TAP_DUR = 0.8;
+/** Keep 🔁 in its "playing" state this long after the last replayed strike. */
+const REPLAY_TAIL_MS = 600;
+const REC_KEY = 'be-choi:xylo-rec';
+
+function loadRec(): RecEvent[] {
+  try {
+    const raw = localStorage.getItem(REC_KEY);
+    return raw ? (parseRec(raw) ?? []) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRec(events: readonly RecEvent[]): void {
+  try {
+    localStorage.setItem(REC_KEY, serializeRec(events));
+  } catch {
+    /* private browsing or full: the recording still replays this session */
+  }
+}
 
 /**
  * Toy xylophone: eight rainbow bars, one octave. Every touch plays a note;
  * sliding a finger across the bars plays each one it crosses (multi-touch).
  * Pick a song and the next bar to hit glows with a pointing finger; ▶ plays
- * the song on its own. No fail state, no timer.
+ * the song on its own. ⏺ records the child's strikes and 🔁 plays them back
+ * (the last recording survives in localStorage). No fail state, no timer.
  */
 function start(ctx: GameContext): void {
   let alive = true;
   let song: Song | null = null;
   let index = 0;
   let stopPlayback: (() => void) | null = null;
+  /** In-progress recording, or null. */
+  let rec: { t0: number; events: RecEvent[] } | null = null;
+  /** The last finished recording (possibly from an earlier session). */
+  let saved: RecEvent[] = loadRec();
+  let cancelReplay: (() => void) | null = null;
 
   const root = h('div', { class: 'xylo' });
   const strip = h('div', { class: 'xylo-songs' });
-  const songEls = SONGS.map((s, i) =>
+  const songEls = ALL_SONGS.map((s, i) =>
     h(
       'button',
       { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title, onpointerdown: () => selectSong(s) },
@@ -32,7 +70,13 @@ function start(ctx: GameContext): void {
     ),
   );
   const playBtn = h('button', { class: 'xylo-play', type: 'button', 'aria-label': 'Phát bài hát', onpointerdown: togglePlay }, '▶');
-  strip.append(...songEls, playBtn);
+  const recBtn = h('button', { class: 'xylo-rec', type: 'button', 'aria-label': 'Ghi âm', onpointerdown: toggleRec }, '⏺');
+  const replayBtn = h(
+    'button',
+    { class: 'xylo-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: saved.length === 0, onpointerdown: toggleReplay },
+    '🔁',
+  );
+  strip.append(...songEls, playBtn, recBtn, replayBtn);
 
   const bars = h('div', { class: 'xylo-bars' });
   const barEls = BARS.map((_, i) =>
@@ -112,7 +156,7 @@ function start(ctx: GameContext): void {
     stop();
     song = s;
     index = 0;
-    songEls.forEach((el, i) => el.classList.toggle('active', SONGS[i] === s));
+    songEls.forEach((el, i) => el.classList.toggle('active', ALL_SONGS[i] === s));
     ctx.speak(s.title);
     showExpected();
     ctx.hint.arm(() => {
@@ -142,6 +186,9 @@ function start(ctx: GameContext): void {
     replay(face, 'anim-bounce');
     navigator.vibrate?.(8);
     spawnNote(x, y);
+    if (rec && rec.events.length < REC_MAX_EVENTS) {
+      rec.events.push({ bar: i, t: Math.max(0, Math.round(performance.now() - rec.t0)) });
+    }
     if (!song) return;
     const r = advance(song, index, i);
     if (!r.correct) return;
@@ -204,9 +251,10 @@ function start(ctx: GameContext): void {
   }
 
   function play(): void {
-    const s = song ?? SONGS[0];
+    const s = song ?? ALL_SONGS[0];
     if (!s) return;
     stop();
+    stopReplay();
     setPlaying(true);
     stopPlayback = schedule(
       s.notes,
@@ -230,6 +278,98 @@ function start(ctx: GameContext): void {
     else play();
   }
 
+  // ---- record & replay ----
+
+  function setRecording(on: boolean): void {
+    recBtn.classList.toggle('xylo-recording', on);
+    recBtn.setAttribute('aria-label', on ? 'Dừng ghi' : 'Ghi âm');
+  }
+
+  function startRec(): void {
+    stopReplay();
+    const r = { t0: performance.now(), events: [] as RecEvent[] };
+    rec = r;
+    setRecording(true);
+    ctx.speak('Bé chơi đi, đàn đang ghi');
+    later(() => {
+      if (rec === r) stopRec();
+    }, REC_MAX_MS);
+  }
+
+  /** End the recording; keep it (and persist it) only when the child actually struck something. */
+  function stopRec(): void {
+    if (!rec) return;
+    const events = rec.events;
+    rec = null;
+    setRecording(false);
+    if (events.length === 0) return;
+    saved = events;
+    saveRec(saved);
+    replayBtn.hidden = false;
+    if (alive) ctx.speak('Ghi xong rồi, bé nghe lại nhé');
+  }
+
+  function toggleRec(): void {
+    if (rec) stopRec();
+    else startRec();
+  }
+
+  function setReplaying(on: boolean): void {
+    replayBtn.textContent = on ? '⏹' : '🔁';
+    replayBtn.classList.toggle('xylo-replaying', on);
+    replayBtn.setAttribute('aria-label', on ? 'Dừng' : 'Nghe lại');
+  }
+
+  function stopReplay(): void {
+    cancelReplay?.();
+    cancelReplay = null;
+    setReplaying(false);
+  }
+
+  /** Light a bar and play its note without recording it or advancing the song. */
+  function sound(i: number): void {
+    const note = BARS[i];
+    const face = faceOf(i);
+    if (!note || !face) return;
+    ctx.audio.note(noteFreq(note), TAP_DUR, 'xylo');
+    replay(face, 'anim-bounce');
+    flash(i);
+  }
+
+  function startReplay(): void {
+    const events = saved;
+    if (events.length === 0) return;
+    stop();
+    stopReplay();
+    setReplaying(true);
+    let i = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    const step = (): void => {
+      if (cancelled) return;
+      const ev = events[i];
+      if (!ev) {
+        cancelReplay = null;
+        setReplaying(false);
+        return;
+      }
+      sound(ev.bar);
+      i++;
+      const next = events[i];
+      timer = setTimeout(step, next ? Math.max(0, next.t - ev.t) : REPLAY_TAIL_MS);
+    };
+    timer = setTimeout(step, events[0]?.t ?? 0);
+    cancelReplay = () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }
+
+  function toggleReplay(): void {
+    if (cancelReplay) stopReplay();
+    else startReplay();
+  }
+
   bars.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
@@ -239,6 +379,8 @@ function start(ctx: GameContext): void {
   ctx.onCleanup(() => {
     alive = false;
     stop();
+    stopReplay();
+    stopRec();
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
