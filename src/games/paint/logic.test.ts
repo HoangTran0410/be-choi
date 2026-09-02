@@ -5,11 +5,15 @@ import {
   ERASER_SCALE,
   MAX_STICKER_STAMPS,
   PALETTE,
+  SAVE_MAX_PX,
+  SAVE_MS,
   STAMPS,
   STAR_AFTER_STROKES,
   colorName,
+  deserializePainting,
   nextPhotoIndex,
   nextTool,
+  serializePainting,
   stampFontPx,
   stampList,
   strokeWidth,
@@ -106,5 +110,29 @@ describe('stroke geometry', () => {
   });
   it('stamp font is three times the size', () => {
     expect(stampFontPx(24)).toBe(72);
+  });
+
+  describe('saving a half-finished picture', () => {
+    const painting = { image: 'data:image/png;base64,AA', w: 320, h: 480, photo: 'p1', lineArt: true };
+
+    it('round-trips', () => {
+      expect(deserializePainting(serializePainting(painting))).toEqual(painting);
+    });
+    it('reads back a plain white background', () => {
+      const plain = { ...painting, photo: null, lineArt: false };
+      expect(deserializePainting(serializePainting(plain))).toEqual(plain);
+    });
+    it('rejects anything it did not write', () => {
+      expect(deserializePainting('{oops')).toBeNull();
+      expect(deserializePainting('null')).toBeNull();
+      expect(deserializePainting('{}')).toBeNull();
+      expect(deserializePainting(JSON.stringify({ ...painting, image: 'javascript:alert(1)' }))).toBeNull();
+      expect(deserializePainting(JSON.stringify({ ...painting, w: 0 }))).toBeNull();
+      expect(deserializePainting(JSON.stringify({ ...painting, h: 'tall' }))).toBeNull();
+    });
+    it('keeps the snapshot small enough for localStorage', () => {
+      expect(SAVE_MAX_PX).toBe(1024);
+      expect(SAVE_MS).toBeGreaterThan(0);
+    });
   });
 });

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
-import game from './index';
-import { BRUSHES, PALETTE, STAMPS } from './logic';
+import game, { STORAGE_KEY } from './index';
+import { BRUSHES, PALETTE, SAVE_MS, STAMPS, deserializePainting, serializePainting } from './logic';
 
 if (!('PointerEvent' in globalThis)) {
   (globalThis as unknown as { PointerEvent: unknown }).PointerEvent = class extends MouseEvent {
@@ -19,7 +19,54 @@ function ptr(type: string, x = 0, y = 0, pointerId = 1): PointerEvent {
   return new PointerEvent(type, { clientX: x, clientY: y, pointerId, button: 0, isPrimary: true, bubbles: true });
 }
 
+/** Enough of a 2d context for the game to draw into; every call is recorded. */
+function fake2d() {
+  return {
+    setTransform: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+    fillText: vi.fn(),
+    drawImage: vi.fn(),
+    lineCap: '',
+    lineJoin: '',
+    lineWidth: 0,
+    strokeStyle: '',
+    fillStyle: '',
+    font: '',
+    textAlign: '',
+    textBaseline: '',
+    globalCompositeOperation: '',
+  };
+}
+
+/** jsdom never loads images; this one reports success on the next tick. */
+class FakeImage extends EventTarget {
+  set src(_value: string) {
+    setTimeout(() => this.dispatchEvent(new Event('load')), 0);
+  }
+}
+
+const SNAPSHOT = 'data:image/png;base64,AA';
+
 describe('paint game', () => {
+  let toDataURL: { mockRestore(): void };
+
+  beforeEach(() => {
+    localStorage.clear();
+    // jsdom has no canvas backend, but the game must still be able to snapshot.
+    toDataURL = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(SNAPSHOT);
+  });
+  afterEach(() => {
+    toDataURL.mockRestore();
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
   it('mounts canvas and tools, moves selection, survives drawing without a 2d context, cleans up', () => {
     vi.useFakeTimers();
     // jsdom has no canvas backend; the game must guard every getContext call.
@@ -206,5 +253,79 @@ describe('paint game', () => {
 
     ctx.cleanup();
     getContext.mockRestore();
+  });
+
+  it('keeps the drawing in localStorage once the child pauses, and on the way out', () => {
+    vi.useFakeTimers();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(() => fake2d() as unknown as CanvasRenderingContext2D);
+    const ctx = fakeContext();
+    game.start(ctx);
+    const canvas = ctx.stage.querySelector<HTMLCanvasElement>('canvas.paint-canvas')!;
+
+    canvas.dispatchEvent(ptr('pointerdown', 10, 10));
+    canvas.dispatchEvent(ptr('pointerup', 10, 10));
+    // Written out only after the child stops drawing.
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    vi.advanceTimersByTime(SAVE_MS);
+    const saved = deserializePainting(localStorage.getItem(STORAGE_KEY) ?? '');
+    expect(saved?.image).toBe(SNAPSHOT);
+    expect(saved?.photo).toBeNull();
+    expect(saved?.lineArt).toBe(false);
+
+    // Holding the bin forgets the picture here and on disk.
+    ctx.stage.querySelector<HTMLElement>('.paint-trash')?.dispatchEvent(ptr('pointerdown'));
+    vi.advanceTimersByTime(700);
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    // Leaving straight after a stroke flushes it without waiting.
+    canvas.dispatchEvent(ptr('pointerdown', 20, 20));
+    canvas.dispatchEvent(ptr('pointerup', 20, 20));
+    ctx.cleanup();
+    expect(deserializePainting(localStorage.getItem(STORAGE_KEY) ?? '')?.image).toBe(SNAPSHOT);
+
+    getContext.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('paints the saved drawing back when the game opens again', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('Image', FakeImage);
+    localStorage.setItem(
+      STORAGE_KEY,
+      serializePainting({ image: SNAPSHOT, w: 100, h: 200, photo: null, lineArt: false }),
+    );
+    const c2d = fake2d();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(() => c2d as unknown as CanvasRenderingContext2D);
+    const ctx = fakeContext();
+    game.start(ctx);
+    expect(c2d.drawImage).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(c2d.drawImage).toHaveBeenCalledTimes(1);
+
+    ctx.cleanup();
+    getContext.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('ignores a saved entry it cannot read', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('Image', FakeImage);
+    localStorage.setItem(STORAGE_KEY, '{oops');
+    const c2d = fake2d();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(() => c2d as unknown as CanvasRenderingContext2D);
+    const ctx = fakeContext();
+    expect(() => game.start(ctx)).not.toThrow();
+    vi.advanceTimersByTime(1);
+    expect(c2d.drawImage).not.toHaveBeenCalled();
+
+    ctx.cleanup();
+    getContext.mockRestore();
+    vi.useRealTimers();
   });
 });

@@ -103,3 +103,43 @@ export function stampFontPx(size: number): number {
 
 /** One star per session after this many finished strokes or stamps. */
 export const STAR_AFTER_STROKES = 20;
+
+/** Everything a half-finished drawing needs to come back the way it was left. */
+export interface SavedPainting {
+  /** PNG data URL of the strokes; transparent wherever the child has not drawn. */
+  image: string;
+  /** Size of the drawing area in CSS px when it was saved, so it can be re-centred. */
+  w: number;
+  h: number;
+  /** Id of the background photo, or `null` for plain white. */
+  photo: string | null;
+  /** The background was showing as a line drawing to colour in. */
+  lineArt: boolean;
+}
+
+/** Longest side of the stored snapshot: keeps a busy drawing inside the localStorage quota. */
+export const SAVE_MAX_PX = 1024;
+/** Quiet time after a stroke before the drawing is written out. */
+export const SAVE_MS = 800;
+
+export function serializePainting(p: SavedPainting): string {
+  return JSON.stringify(p);
+}
+
+/** `null` for anything that is not a painting this version wrote. */
+export function deserializePainting(raw: string): SavedPainting | null {
+  try {
+    const v = JSON.parse(raw) as Partial<SavedPainting>;
+    if (typeof v.image !== 'string' || !v.image.startsWith('data:image/')) return null;
+    if (typeof v.w !== 'number' || typeof v.h !== 'number' || !(v.w > 0) || !(v.h > 0)) return null;
+    return {
+      image: v.image,
+      w: v.w,
+      h: v.h,
+      photo: typeof v.photo === 'string' ? v.photo : null,
+      lineArt: v.lineArt === true,
+    };
+  } catch {
+    return null;
+  }
+}

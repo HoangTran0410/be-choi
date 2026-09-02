@@ -8,12 +8,17 @@ import {
   BRUSHES,
   DEFAULT_TOOL,
   PALETTE,
+  SAVE_MAX_PX,
+  SAVE_MS,
   STAR_AFTER_STROKES,
   colorName,
+  deserializePainting,
   nextTool,
+  serializePainting,
   stampFontPx,
   stampList,
   strokeWidth,
+  type SavedPainting,
   type Tool,
 } from './logic';
 import './style.css';
@@ -29,6 +34,27 @@ const SIZE_NAMES: readonly string[] = ['cỡ nhỏ', 'cỡ vừa', 'cỡ to'];
 const GROUP_SIZE = 4;
 /** Give up on a line drawing that takes longer than this; the photo stays. */
 const LINE_ART_TIMEOUT_MS = 10_000;
+
+/** localStorage key of the drawing in progress. */
+export const STORAGE_KEY = 'be-choi:paint';
+
+function loadSaved(): SavedPainting | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? deserializePainting(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSaved(raw: string | null): void {
+  try {
+    if (raw === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, raw);
+  } catch {
+    /* quota or blocked storage: the drawing lives in memory only */
+  }
+}
 
 /** A toolbar group. The landscape strip is a grid, so the group spans one row per button. */
 function group(cls: string, ...buttons: HTMLElement[]): HTMLDivElement {
@@ -48,6 +74,9 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
  * and an eraser. Several fingers can draw at once. No rounds; one star after
  * the first `STAR_AFTER_STROKES` strokes. A family photo picked by the child
  * can sit under the (transparent) canvas, as-is or as a line drawing to colour in.
+ *
+ * The drawing and the chosen background are kept in localStorage, so leaving the
+ * game and coming back finds the picture exactly where the child left it.
  */
 function start(ctx: GameContext): void {
   const bg = h('img', { class: 'paint-bg', alt: '', hidden: true });
@@ -62,6 +91,17 @@ function start(ctx: GameContext): void {
   const strokes = new Map<number, Point>();
   let done = 0;
   let dpr = 1;
+
+  const saved = loadSaved();
+  /** Last visit's strokes, until they are painted back (or dropped). */
+  let restoreArt: SavedPainting | null = saved;
+  /** Last visit's background, until the photo list arrives. */
+  let restoreBg: SavedPainting | null = saved;
+  /** The child has drawn since the game opened: a late restore must not paint over them. */
+  let touched = false;
+  /** There is something new to write out. */
+  let dirty = false;
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
   function get2d(): CanvasRenderingContext2D | null {
     return canvas.getContext('2d');
@@ -123,6 +163,13 @@ function start(ctx: GameContext): void {
     c.clearRect(0, 0, canvas.width, canvas.height);
     c.restore();
     strokes.clear();
+    // Wiping the picture wipes the copy on disk, and any restore still in flight.
+    restoreArt = null;
+    touched = false;
+    dirty = false;
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    writeSaved(null);
     ctx.audio.tick();
     navigator.vibrate?.(20);
     replay(trash, 'anim-bounce');
@@ -164,11 +211,13 @@ function start(ctx: GameContext): void {
   }
 
   function finished(): void {
+    touched = true;
     done++;
     if (done === STAR_AFTER_STROKES) {
       ctx.addStar();
       ctx.audio.jingle();
     }
+    schedulePersist();
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -339,6 +388,7 @@ function start(ctx: GameContext): void {
     lineArt = false;
     dropConversion();
     renderBackground();
+    schedulePersist();
     if (photoIndex >= 0) ctx.speak('Ảnh của bé');
   }
 
@@ -363,17 +413,11 @@ function start(ctx: GameContext): void {
     openPicker();
   });
 
-  function toggleLineArt(): void {
+  /** Turn the background photo into a line drawing. Call `dropConversion()` first. */
+  function startLineArt(): void {
     const photo = photos[photoIndex];
     if (!photo) return;
-    dropConversion();
-    ctx.audio.tick();
-    lineArt = !lineArt;
-    if (!lineArt) {
-      renderBackground();
-      return;
-    }
-    ctx.speak('Tô màu ảnh nào!');
+    lineArt = true;
     if (lineArtCache.has(photo.id)) {
       renderBackground();
       return;
@@ -398,6 +442,21 @@ function start(ctx: GameContext): void {
       renderBackground();
     }, fail);
   }
+
+  function toggleLineArt(): void {
+    const photo = photos[photoIndex];
+    if (!photo) return;
+    dropConversion();
+    ctx.audio.tick();
+    if (lineArt) {
+      lineArt = false;
+      renderBackground();
+    } else {
+      ctx.speak('Tô màu ảnh nào!');
+      startLineArt();
+    }
+    schedulePersist();
+  }
   lineArtBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     toggleLineArt();
@@ -408,6 +467,10 @@ function start(ctx: GameContext): void {
     const selected = photos[photoIndex]?.id;
     photos = list;
     photoIndex = selected === undefined ? -1 : list.findIndex((p) => p.id === selected);
+    // The first list to arrive brings back the background the child left last time.
+    const want = restoreBg;
+    restoreBg = null;
+    if (want?.photo && photoIndex < 0) photoIndex = list.findIndex((p) => p.id === want.photo);
     if (photoIndex < 0) {
       lineArt = false;
       dropConversion();
@@ -415,6 +478,10 @@ function start(ctx: GameContext): void {
     if (list.length === 0) photoGroup.remove();
     else if (photoGroup.parentNode !== tools) tools.append(photoGroup);
     renderBackground();
+    if (want?.lineArt && photoIndex >= 0 && !lineArt) {
+      dropConversion();
+      startLineArt();
+    }
   }
 
   let disposed = false;
@@ -426,14 +493,80 @@ function start(ctx: GameContext): void {
   );
   const offPhotos = ctx.photos.onChange(setPhotos);
 
+  // ---- keeping the picture ----
+
+  /** The drawing as a PNG small enough to sit in localStorage, or null if unreadable. */
+  function snapshot(): string | null {
+    if (!canvas.width || !canvas.height) return null;
+    try {
+      const scale = Math.min(1, SAVE_MAX_PX / Math.max(canvas.width, canvas.height));
+      if (scale === 1) return canvas.toDataURL('image/png');
+      const small = document.createElement('canvas');
+      small.width = Math.max(1, Math.round(canvas.width * scale));
+      small.height = Math.max(1, Math.round(canvas.height * scale));
+      const sc = small.getContext('2d');
+      if (!sc) return null;
+      sc.drawImage(canvas, 0, 0, small.width, small.height);
+      return small.toDataURL('image/png');
+    } catch {
+      return null;
+    }
+  }
+
+  function persist(): void {
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    if (!dirty) return;
+    dirty = false;
+    const image = snapshot();
+    if (!image) return;
+    writeSaved(
+      serializePainting({
+        image,
+        w: area.clientWidth || canvas.width / dpr,
+        h: area.clientHeight || canvas.height / dpr,
+        photo: photos[photoIndex]?.id ?? null,
+        lineArt,
+      }),
+    );
+  }
+
+  /** Write out once the child pauses; leaving the game flushes it right away. */
+  function schedulePersist(): void {
+    dirty = true;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, SAVE_MS);
+  }
+
+  /** Paint last visit's drawing back, scaled to fit and centred the way a rotation does. */
+  function restoreDrawing(): void {
+    const last = restoreArt;
+    restoreArt = null;
+    if (!last || typeof Image !== 'function') return;
+    const img = new Image();
+    img.addEventListener('load', () => {
+      const c = get2d();
+      // Never paint over strokes the child made while this was loading.
+      if (!c || touched || !canvas.width) return;
+      const w = canvas.width / dpr;
+      const hgt = canvas.height / dpr;
+      const s = Math.min(1, w / last.w, hgt / last.h);
+      c.drawImage(img, (w - last.w * s) / 2, (hgt - last.h * s) / 2, last.w * s, last.h * s);
+    });
+    img.addEventListener('error', () => undefined);
+    img.src = last.image;
+  }
+
   // ---- lifecycle ----
 
   resize();
+  restoreDrawing();
   let raf = 0;
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(resize);
   window.addEventListener('resize', resize);
   ctx.onCleanup(() => {
     disposed = true;
+    persist();
     offPhotos();
     closePicker?.();
     dropConversion();

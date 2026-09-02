@@ -41,7 +41,7 @@ không có "thua", không giới hạn thời gian.
 | 🎂 Sinh nhật | trang trí bánh, cắm nến theo tuổi, thắp nến, nghe "Chúc mừng sinh nhật", thổi vào micro để tắt nến | vui chơi, đếm |
 | 🍳 Nấu ăn | theo công thức bằng hình, bỏ nguyên liệu, khuấy, nấu, đút cho thú ăn | trình tự, chăm sóc |
 | 🪥 Đánh răng | bóp kem, chải sạch từng răng, súc miệng | thói quen vệ sinh |
-| 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, stamp (+ sticker đã mở), chọn ảnh làm nền hoặc biến ảnh thành nét vẽ để tô | sáng tạo |
+| 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, stamp (+ sticker đã mở), chọn ảnh làm nền hoặc biến ảnh thành nét vẽ để tô; tranh tự lưu lại, thoát ra vào lại vẫn còn (giữ 🗑️ để xoá hết) | sáng tạo |
 | 🙈 Ú oà | chạm hộp/cửa/mây/lều — mỗi thứ mở một kiểu, con vật nhảy hẳn ra trước, kêu tiếng của mình và được gọi tên; thỉnh thoảng có bướm/bóng bay/mưa sao bay ra. Cứ vài lượt lại đổi sang lượt "Tìm con mèo!": thú ló đầu ra sau hộp, hộp trượt đổi chỗ, tìm đúng thì có confetti + ⭐ (chọn sai chỉ là một bạn khác chào) | nhân quả, quan sát |
 | 🍎 Cho ăn | kéo đúng món cho con vật đói | chăm sóc, logic |
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
