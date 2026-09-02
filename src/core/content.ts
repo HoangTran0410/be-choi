@@ -1,3 +1,5 @@
+import type { FxKind } from './audio';
+
 export interface Item {
   emoji: string;
   /** Vietnamese name, spoken aloud. */
@@ -71,6 +73,42 @@ export const FOODS: readonly Item[] = [
   { emoji: '🌽', name: 'bắp ngô' },
   { emoji: '🍪', name: 'bánh quy' },
 ];
+
+/**
+ * Animals the synth can actually voice, shared by every game that makes an
+ * animal speak (ú oà, ai kêu đấy, nông trại, bé lái xe).
+ */
+const VOICES: Readonly<Record<string, FxKind>> = {
+  '🐶': 'bark',
+  '🐱': 'meow',
+  '🐮': 'moo',
+  '🐷': 'pig',
+  '🐸': 'frog',
+  '🦁': 'roar',
+  '🐯': 'roar',
+  '🐻': 'roar',
+  '🦆': 'quack',
+  '🐔': 'chirp',
+  '🐧': 'chirp',
+  '🐘': 'elephant',
+  '🐵': 'kazoo',
+  '🐭': 'cricket',
+};
+
+/** Animals with no voice of their own get a soft twinkle instead of a wrong noise. */
+export const DEFAULT_VOICE: FxKind = 'sparkle';
+
+export function voiceOf(item: Item): FxKind {
+  return VOICES[item.emoji] ?? DEFAULT_VOICE;
+}
+
+/** True when the animal has a voice of its own, i.e. it can be guessed by ear. */
+export function hasVoice(item: Item): boolean {
+  return item.emoji in VOICES;
+}
+
+/** Every animal that can be told apart by its voice. */
+export const VOICED_ANIMALS: readonly Item[] = ANIMALS.filter(hasVoice);
 
 export interface ColorDef {
   id: string;

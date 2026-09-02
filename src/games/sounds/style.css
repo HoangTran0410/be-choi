@@ -1,0 +1,76 @@
+.sounds {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The speaker owns the top half: it is the thing to press when in doubt. */
+.sounds-top {
+  flex: 0 0 36%;
+  display: grid;
+  place-items: center;
+  gap: 2vmin;
+  padding: 2vmin;
+}
+.sounds-hint {
+  font-size: clamp(16px, 3.4vmin, 26px);
+  font-weight: 700;
+  color: rgba(76, 29, 149, 0.65);
+}
+/* The sound has to come from somewhere the child can point at and press again. */
+.sounds-speaker {
+  width: min(calc(var(--tap) * 1.6), 46vmin);
+  height: min(calc(var(--tap) * 1.6), 46vmin);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: min(calc(var(--tap) * 0.95), 26vmin);
+  animation: sounds-breathe 2.6s ease-in-out infinite;
+  line-height: 1;
+  background: #fff;
+  box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3);
+  touch-action: none;
+}
+.sounds-speaker:active {
+  transform: scale(0.94);
+}
+.sounds-ringing {
+  animation: sounds-ring 0.6s ease-out;
+}
+/* A slow breath, so a child who has not worked it out yet still sees where to press. */
+@keyframes sounds-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+@keyframes sounds-ring {
+  0% { transform: scale(1); box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3); }
+  30% { transform: scale(1.12); box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3), 0 0 0 2vmin rgba(167, 139, 250, 0.45); }
+  100% { transform: scale(1); box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3), 0 0 0 6vmin rgba(167, 139, 250, 0); }
+}
+
+.sounds-board {
+  position: static;
+  flex: 1;
+  min-height: 0;
+}
+.sounds-card {
+  font-size: min(calc(var(--tap) * 1.3), 24vmin);
+  width: min(calc(var(--tap) * 1.7), 33vmin);
+  height: min(calc(var(--tap) * 1.7), 33vmin);
+  border-radius: 28%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 5px 0 rgba(76, 29, 149, 0.22);
+  transition: transform 0.12s, opacity 0.3s;
+}
+.sounds-card:active {
+  transform: scale(0.94);
+}
+.sounds-card.sounds-right {
+  background: #bbf7d0;
+}
+.sounds-card.sounds-wrong {
+  background: #fecaca;
+}
+.sounds-card.sounds-faded {
+  opacity: 0.35;
+}

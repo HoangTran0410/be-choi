@@ -8,6 +8,8 @@ export type Skill =
   | 'creative'
   | 'music'
   | 'memory'
+  /** Telling things apart by ear. */
+  | 'listening'
   | 'counting'
   | 'care'
   /** Little worlds that run on their own and are nice to just watch. */

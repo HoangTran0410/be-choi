@@ -2,10 +2,13 @@ import type { GameMeta, GameModule } from '../core/types';
 import { meta as bubbles } from '../games/bubbles/meta';
 import { meta as aquarium } from '../games/aquarium/meta';
 import { meta as garden } from '../games/garden/meta';
+import { meta as farm } from '../games/farm/meta';
+import { meta as drive } from '../games/drive/meta';
 import { meta as shapes } from '../games/shapes/meta';
 import { meta as colors } from '../games/colors/meta';
 import { meta as sizes } from '../games/sizes/meta';
 import { meta as shadows } from '../games/shadows/meta';
+import { meta as sounds } from '../games/sounds/meta';
 import { meta as piano } from '../games/piano/meta';
 import { meta as jam } from '../games/jam/meta';
 import { meta as paint } from '../games/paint/meta';
@@ -26,6 +29,7 @@ import { meta as bricks } from '../games/bricks/meta';
 import { meta as birthday } from '../games/birthday/meta';
 import { meta as cooking } from '../games/cooking/meta';
 import { meta as teeth } from '../games/teeth/meta';
+import { meta as bedtime } from '../games/bedtime/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -37,10 +41,13 @@ export const GAMES: readonly GameEntry[] = [
   { ...bubbles, load: () => import('../games/bubbles/index') },
   { ...aquarium, load: () => import('../games/aquarium/index') },
   { ...garden, load: () => import('../games/garden/index') },
+  { ...farm, load: () => import('../games/farm/index') },
+  { ...drive, load: () => import('../games/drive/index') },
   { ...shapes, load: () => import('../games/shapes/index') },
   { ...colors, load: () => import('../games/colors/index') },
   { ...sizes, load: () => import('../games/sizes/index') },
   { ...shadows, load: () => import('../games/shadows/index') },
+  { ...sounds, load: () => import('../games/sounds/index') },
   { ...jam, load: () => import('../games/jam/index') },
   { ...piano, load: () => import('../games/piano/index') },
   { ...paint, load: () => import('../games/paint/index') },
@@ -61,6 +68,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...birthday, load: () => import('../games/birthday/index') },
   { ...cooking, load: () => import('../games/cooking/index') },
   { ...teeth, load: () => import('../games/teeth/index') },
+  { ...bedtime, load: () => import('../games/bedtime/index') },
 ];
 
 export function findGame(id: string): GameEntry | undefined {

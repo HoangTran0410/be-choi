@@ -7,13 +7,13 @@ export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' 
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
 /** Sound effects and (very) approximate animal voices, all synthesized. */
 export type FxKind =
-  | 'laser' | 'honk' | 'whistle' | 'slide' | 'zap' | 'sparkle' | 'kazoo' | 'roll' | 'cheer'
+  | 'laser' | 'honk' | 'siren' | 'whistle' | 'slide' | 'zap' | 'sparkle' | 'kazoo' | 'roll' | 'cheer'
   | 'meow' | 'bark' | 'quack' | 'moo' | 'chirp' | 'roar' | 'frog' | 'pig' | 'owl' | 'elephant' | 'sheep' | 'cricket';
 
 export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax', 'bass'];
 export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell', 'shaker', 'wood', 'ride', 'triangle', 'crash'];
 export const FX: readonly FxKind[] = [
-  'laser', 'honk', 'whistle', 'slide', 'zap', 'sparkle', 'kazoo', 'roll', 'cheer',
+  'laser', 'honk', 'siren', 'whistle', 'slide', 'zap', 'sparkle', 'kazoo', 'roll', 'cheer',
   'meow', 'bark', 'quack', 'moo', 'chirp', 'roar', 'frog', 'pig', 'owl', 'elephant', 'sheep', 'cricket',
 ];
 
@@ -401,6 +401,16 @@ export function createAudio(): AudioEngine {
         tone('square', 230, 0.4, { gain: 0.3, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 900 }, vibrato: { hz: 7, depth: 6 } });
         tone('sawtooth', 345, 0.4, { gain: 0.12, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 1200 } });
         return;
+      case 'siren': {
+        // Two-tone fire engine: a fourth apart, four swaps, kept soft by a lowpass
+        // so it reads as "xe cứu hoả" rather than a real emergency in the room.
+        const swap = 0.22;
+        [740, 988, 740, 988].forEach((f, i) => {
+          tone('square', f, swap, { gain: 0.14, attack: 0.012, at: i * swap, sustain: true, release: 0.05, filter: { type: 'lowpass', freq: 1400 } });
+          tone('sine', f * 2, swap, { gain: 0.05, attack: 0.012, at: i * swap, sustain: true, release: 0.05 });
+        });
+        return;
+      }
       case 'whistle':
         tone('sine', 1500, 0.25, { gain: 0.4, attack: 0.02, slideTo: 2400 });
         tone('sine', 2400, 0.35, { gain: 0.4, attack: 0.01, at: 0.25, slideTo: 1400 });

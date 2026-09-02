@@ -33,9 +33,17 @@ const tap = async (locator) => {
   await page.mouse.click(c.x, c.y);
   await page.waitForTimeout(80);
 };
+/** A sticker reward covers the screen until it is tapped away; clear it before playing. */
+const dismissSticker = async () => {
+  const overlay = page.locator('.sticker-overlay');
+  if ((await overlay.count()) === 0) return;
+  await page.mouse.click(10, 10);
+  await page.waitForTimeout(300);
+};
 const open = async (id) => {
   await page.goto(`${base}/#/g/${id}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
+  await dismissSticker();
 };
 const check = (name, ok, detail = '') => {
   if (!ok) problems.push(`${name}: ${detail}`);
@@ -175,6 +183,80 @@ const grew = await page
   .then(() => true)
   .catch(() => false);
 check('garden: three pickings earn a star', grew);
+await page.waitForTimeout(1800);
+
+// ---- drive: hold a finger ahead and the car drives, picks somebody up, takes them home ----
+await open('drive');
+await page.waitForTimeout(500);
+const driveBox = await page.locator('.drive-canvas').boundingBox();
+check('drive: road and five vehicles', !!driveBox && (await page.locator('.drive-pick').count()) === 5);
+await page.mouse.move(driveBox.x + driveBox.width * 0.9, driveBox.y + driveBox.height * 0.7);
+await page.mouse.down();
+const rider = await page
+  .waitForSelector('.drive-badge:not([hidden])', { timeout: 25000 })
+  .then(() => true)
+  .catch(() => false);
+check('drive: a passenger climbs in', rider);
+const fares = await page
+  .waitForSelector('canvas.confetti', { timeout: 40000 })
+  .then(() => true)
+  .catch(() => false);
+await page.mouse.up();
+check('drive: two fares home earn a star', fares);
+await page.waitForTimeout(1800);
+await tap(page.locator('.drive-pick').nth(1));
+check('drive: the bus can be picked', (await page.locator('.drive-pick.selected').getAttribute('data-vehicle')) === 'bus');
+
+// ---- farm: the yard runs by itself and everybody comes for the feed ----
+await open('farm');
+await page.waitForTimeout(700);
+const farmA = await page.locator('.farm-canvas').evaluate((el) => el.toDataURL().slice(0, 4000));
+await page.waitForTimeout(600);
+const farmB = await page.locator('.farm-canvas').evaluate((el) => el.toDataURL().slice(0, 4000));
+check('farm: the animals are walking', farmA !== farmB);
+check('farm: an empty egg basket to fill', (await page.locator('.farm-basket').textContent())?.includes('0'));
+await tap(page.locator('.farm-feed'));
+const grazed = await page
+  .waitForSelector('canvas.confetti', { timeout: 45000 })
+  .then(() => true)
+  .catch(() => false);
+check('farm: every grain eaten ends in confetti', grazed);
+await page.waitForTimeout(1800);
+
+// ---- sounds: listen, then pick the animal that made the noise ----
+await open('sounds');
+await page.waitForTimeout(900);
+check('sounds: a speaker and two animals', (await page.locator('.sounds-speaker').count()) === 1 && (await page.locator('.sounds-card').count()) === 2);
+await tap(page.locator('.sounds-speaker'));
+for (let round = 0; round < 3; round++) {
+  const cards = await page.locator('.sounds-card').count();
+  for (let i = 0; i < cards; i++) {
+    await tap(page.locator('.sounds-card').nth(i));
+    if ((await page.locator('.sounds-card.sounds-right').count()) > 0) break;
+    await page.waitForTimeout(800);
+  }
+  await page.waitForTimeout(1300);
+}
+check('sounds: three found by ear earn a star', (await page.locator('canvas.confetti').count()) === 1);
+await page.waitForTimeout(1800);
+
+// ---- bedtime: tidy up, lights out, blanket on, lullaby ----
+await open('bedtime');
+check('bedtime: toys on the floor', (await page.locator('.bedtime-toy').count()) >= 2);
+for (const toy of await page.locator('.bedtime-toy').all()) await tap(toy);
+await page.waitForTimeout(1400);
+check('bedtime: the floor is clear', (await page.locator('.bedtime-toy').count()) === 0);
+await tap(page.locator('.bedtime-lamp'));
+check('bedtime: the light goes out', await page.locator('.bedtime').evaluate((el) => el.classList.contains('dark')));
+await tap(page.locator('.bedtime-blanket'));
+check('bedtime: tucked in', await page.locator('.bedtime-blanket').evaluate((el) => el.classList.contains('tucked')));
+await tap(page.locator('.bedtime-moon'));
+const sung = await page
+  .waitForSelector('canvas.confetti', { timeout: 20000 })
+  .then(() => true)
+  .catch(() => false);
+check('bedtime: the lullaby puts the friend to sleep', sung);
+check('bedtime: friend asleep', await page.locator('.bedtime-friend').evaluate((el) => el.classList.contains('asleep')));
 await page.waitForTimeout(1800);
 
 // ---- peekaboo: reveal a few animals, then land in a "find this animal" round ----

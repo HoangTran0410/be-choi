@@ -20,30 +20,8 @@ export const HIDERS: readonly Hider[] = [
   { emoji: '🛖', open: 'lift' },
 ];
 
-/** Animals the synth can actually voice. */
-const VOICES: Readonly<Record<string, FxKind>> = {
-  '🐶': 'bark',
-  '🐱': 'meow',
-  '🐮': 'moo',
-  '🐷': 'pig',
-  '🐸': 'frog',
-  '🦁': 'roar',
-  '🐯': 'roar',
-  '🐻': 'roar',
-  '🦆': 'quack',
-  '🐔': 'chirp',
-  '🐧': 'chirp',
-  '🐘': 'elephant',
-  '🐵': 'kazoo',
-  '🐭': 'cricket',
-};
-
-/** Animals with no voice of their own get a soft twinkle instead of a wrong noise. */
-export const DEFAULT_VOICE: FxKind = 'sparkle';
-
-export function voiceOf(item: Item): FxKind {
-  return VOICES[item.emoji] ?? DEFAULT_VOICE;
-}
+// The voice table lives in core/content: ú oà, ai kêu đấy and the farm all share it.
+export { DEFAULT_VOICE, voiceOf } from '../../core/content';
 
 /** Something other than an animal, so the boxes never feel predictable. */
 export interface Surprise {

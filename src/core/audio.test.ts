@@ -25,6 +25,6 @@ describe('audio', () => {
   it('lists 8 timbres and 6 drums', () => {
     expect(TIMBRES.length).toBe(9);
     expect(DRUMS.length).toBe(11);
-    expect(FX.length).toBe(21);
+    expect(FX.length).toBe(22);
   });
 });

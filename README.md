@@ -4,7 +4,7 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 27 trò chơi
+## 31 trò chơi
 
 **🎵 Âm nhạc**
 
@@ -33,12 +33,20 @@ không có "thua", không giới hạn thời gian.
 | 🔢 Đếm số | chạm từng quả, đọc "một, hai, ba…" | số đếm 1–5 |
 | 🃏 Lật thẻ | lật 2 thẻ giống nhau, 2 → 4 cặp | trí nhớ |
 
+**👂 Nghe**
+
+| Trò chơi | Cách chơi | Kỹ năng |
+|---|---|---|
+| 🔊 Ai kêu đấy? | loa kêu tiếng một con vật, bé chọn đúng con đó trong 2 → 4 thẻ; hai con cùng tiếng (sư tử với hổ) không bao giờ đứng chung một câu; chạm loa để nghe lại | nghe, phân biệt âm thanh |
+
 **🌊 Thế giới nhỏ**
 
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
 | 🌻 Vườn cây | 8 loại cây: chọn hạt rồi chạm luống đất để trồng; chạm cây để tưới, cây lớn dần qua 4 lần tưới; chín thì chạm để hái vào giỏ. Có chu kỳ ngày/đêm (mặt trời, mặt trăng, sao, đom đóm). Ong và bướm bay tới hoa đang nở, bọ rùa đi bộ bằng chân IK, chạm vào thì chúng bay/chạy đi | chăm sóc, quan sát |
 | 🐠 Bể cá | bể cá tự chạy: 12 loài (cá vàng, cá hề, koi, cá thần tiên, cá nóc, cá mập con, sứa, cá đuối, cua…) bơi bằng xương sống thủ công, cua đi bằng chân IK. Trong bể có lâu đài, hang đá chui, rương kho báu, vòng, hải quỳ, đá và rong. Chạm con cá để nghe tên, rê ngón tay thì cá tò mò bơi tới còn cá nhát thì chạy, bấm 🍤 thả thức ăn cho cá đớp | quan sát, chăm sóc |
+
+| 🐔 Nông trại | sân nông trại tự chạy: gà, vịt, bò, heo, cừu, ngựa, thỏ, dê đi lại bằng chân IK hai đốt (chân đạp đất rồi nhấc lên bước tới). Chạm con vật để nghe tiếng và tên, bấm 🌾 rắc thóc cho cả đàn chạy tới ăn, gà đẻ trứng trong cỏ thì chạm để nhặt vào giỏ | quan sát, chăm sóc |
 
 **🎈 Chơi vui**
 
@@ -50,6 +58,8 @@ không có "thua", không giới hạn thời gian.
 | 🪥 Đánh răng | bóp kem, chải sạch từng răng, súc miệng | thói quen vệ sinh |
 | 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, stamp (+ sticker đã mở), chọn ảnh làm nền hoặc biến ảnh thành nét vẽ để tô; tranh tự lưu lại, thoát ra vào lại vẫn còn (giữ 🗑️ để xoá hết) | sáng tạo |
 | 🙈 Ú oà | chạm hộp/cửa/mây/lều — mỗi thứ mở một kiểu, con vật nhảy hẳn ra trước, kêu tiếng của mình và được gọi tên; thỉnh thoảng có bướm/bóng bay/mưa sao bay ra. Cứ vài lượt lại đổi sang lượt "Tìm con mèo!": thú ló đầu ra sau hộp, hộp trượt đổi chỗ, tìm đúng thì có confetti + ⭐ (chọn sai chỉ là một bạn khác chào) | nhân quả, quan sát |
+| 🚗 Bé lái xe | đặt ngón tay chỗ muốn xe tới, xe chạy theo — bánh quay đúng quãng đường, thân xe nghiêng theo dốc. Đón bạn đang đứng ở trạm rồi chở về nhà bạn ấy (cách đó 3 cột đèn), gặp đèn đỏ thì dừng chờ xanh, qua vũng nước thì bắn nước; đổi được ô tô, xe buýt, xe cứu hoả (có còi hú), xe tải, máy cày | nhân quả, quan sát |
+| 🌙 Giờ đi ngủ | bốn việc trước khi ngủ: cất đồ chơi vào giỏ, tắt đèn (cả phòng tối dần), đắp chăn, rồi chạm mặt trăng để nghe ru "Ngôi sao lấp lánh" bằng tiếng chuông trong lúc sao mọc — xong thì bạn nhỏ ngủ 💤 | thói quen, thư giãn |
 | 🍎 Cho ăn | kéo đúng món cho con vật đói | chăm sóc, logic |
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
 

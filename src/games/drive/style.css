@@ -1,0 +1,93 @@
+.drive {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #bae6fd;
+}
+/* The road fills what is left after the vehicle tray. */
+.drive-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.drive-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.drive-horn {
+  position: absolute;
+  right: 2.5vmin;
+  top: 2.5vmin;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
+  touch-action: none;
+  transition: transform 0.1s;
+}
+.drive-horn:active {
+  transform: scale(0.92);
+}
+
+/* Who is in the car right now. */
+.drive-badge {
+  position: absolute;
+  left: 2.5vmin;
+  top: 2.5vmin;
+  min-width: calc(var(--tap) * 0.7);
+  height: calc(var(--tap) * 0.7);
+  padding: 0 1vmin;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.42);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 3px 0 rgba(3, 32, 54, 0.25);
+  pointer-events: none;
+}
+
+/* One row, always: five vehicles have to fit across a phone. */
+.drive-tray {
+  position: static;
+  min-height: 0;
+  flex: none;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5vmin;
+  padding: 1.2vmin;
+  background: rgba(255, 255, 255, 0.55);
+}
+.drive-pick {
+  /* Five have to fit across a phone, and the tray must not eat a landscape screen. */
+  width: min(var(--tap), 16vw, 20vh);
+  height: min(var(--tap), 16vw, 20vh);
+  border-radius: 30%;
+  display: grid;
+  place-items: center;
+  font-size: min(calc(var(--tap) * 0.55), 9vw, 11vh);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.25);
+  touch-action: none;
+  transition: transform 0.12s;
+}
+.drive-pick.selected {
+  transform: scale(1.12);
+  background: #fef08a;
+  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.4);
+}
+.drive-pick:active {
+  transform: scale(0.94);
+}
