@@ -4,7 +4,7 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 26 trò chơi
+## 27 trò chơi
 
 **🎵 Âm nhạc**
 
@@ -37,7 +37,8 @@ không có "thua", không giới hạn thời gian.
 
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
-| 🐠 Bể cá | bể cá tự chạy: 12 loài (cá vàng, cá hề, koi, cá thần tiên, cá nóc, cá mập con, sứa, cá đuối, cua…) bơi bằng xương sống thủ công. Chạm con cá để nghe tên, rê ngón tay thì cá tò mò bơi tới còn cá nhát thì chạy, bấm 🍤 thả thức ăn cho cá đớp | quan sát, chăm sóc |
+| 🌻 Vườn cây | 8 loại cây: chọn hạt rồi chạm luống đất để trồng; chạm cây để tưới, cây lớn dần qua 4 lần tưới; chín thì chạm để hái vào giỏ. Có chu kỳ ngày/đêm (mặt trời, mặt trăng, sao, đom đóm). Ong và bướm bay tới hoa đang nở, bọ rùa đi bộ bằng chân IK, chạm vào thì chúng bay/chạy đi | chăm sóc, quan sát |
+| 🐠 Bể cá | bể cá tự chạy: 12 loài (cá vàng, cá hề, koi, cá thần tiên, cá nóc, cá mập con, sứa, cá đuối, cua…) bơi bằng xương sống thủ công, cua đi bằng chân IK. Trong bể có lâu đài, hang đá chui, rương kho báu, vòng, hải quỳ, đá và rong. Chạm con cá để nghe tên, rê ngón tay thì cá tò mò bơi tới còn cá nhát thì chạy, bấm 🍤 thả thức ăn cho cá đớp | quan sát, chăm sóc |
 
 **🎈 Chơi vui**
 

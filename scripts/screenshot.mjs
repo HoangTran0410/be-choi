@@ -14,7 +14,7 @@ const server = process.env.DEV
   : await preview({ preview: { port: 4173, host: '127.0.0.1' }, logLevel: 'silent' });
 const base = (process.env.BASE_URL ?? server.resolvedUrls?.local[0] ?? 'http://127.0.0.1:4173').replace(/\/$/, '');
 const only = process.argv.slice(2);
-const GAMES = ['bubbles', 'aquarium', 'shapes', 'colors', 'sizes', 'shadows', 'piano', 'paint', 'peekaboo', 'feed', 'wash', 'count', 'memory', 'xylo', 'drums', 'band', 'simon', 'jigsaw', 'blocks', 'pattern', 'orchestra', 'bricks', 'birthday', 'cooking', 'teeth', 'jam'];
+const GAMES = ['bubbles', 'aquarium', 'garden', 'shapes', 'colors', 'sizes', 'shadows', 'piano', 'paint', 'peekaboo', 'feed', 'wash', 'count', 'memory', 'xylo', 'drums', 'band', 'simon', 'jigsaw', 'blocks', 'pattern', 'orchestra', 'bricks', 'birthday', 'cooking', 'teeth', 'jam'];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'phone-land', width: 844, height: 390 },

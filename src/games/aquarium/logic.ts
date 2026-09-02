@@ -1,144 +1,9 @@
 /**
- * The aquarium, with no DOM and no canvas in sight: bodies, brains and the tank
- * they swim in. `index.ts` only draws what this file has already decided.
- *
- * Bodies use the procedural-animation technique from argonaut's
- * animal-proc-anim: a head that leads, and behind it a chain of vertebrae where
- * every joint is held at a fixed distance from the one in front and may not bend
- * past a limit. Those two rules alone are what make a swimming fish look
- * swum rather than slid, and the bend limit is what stops a hard turn from
- * dragging the tail through the head.
+ * The aquarium, with no DOM and no canvas in sight: who lives in the tank, how
+ * they behave and the water they behave in. `index.ts` only draws what this file
+ * has already decided; the bodies themselves come from `core/creature`.
  */
-
-export interface Point {
-  x: number;
-  y: number;
-}
-
-/** Shortest signed way round from `from` to `to`. */
-export function angleDelta(from: number, to: number): number {
-  let delta = (to - from) % (Math.PI * 2);
-  if (delta > Math.PI) delta -= Math.PI * 2;
-  if (delta < -Math.PI) delta += Math.PI * 2;
-  return delta;
-}
-
-/** `angle`, held within `limit` of `anchor`. */
-export function constrainAngle(angle: number, anchor: number, limit: number): number {
-  const delta = angleDelta(anchor, angle);
-  return Math.abs(delta) <= limit ? angle : anchor + (delta > 0 ? limit : -limit);
-}
-
-export interface SpineConfig {
-  /** Half-width at each vertebra, head first. Its length is the joint count. */
-  widths: readonly number[];
-  /** Distance between neighbouring joints. */
-  spacing: number;
-  /** How far one joint may bend from the one ahead of it, radians. */
-  bend: number;
-}
-
-/** A body that is a chain of vertebrae rather than one blob. */
-export class Spine {
-  /** Head first. */
-  readonly joints: Point[] = [];
-  /** Each joint's forward direction — towards the joint ahead of it. */
-  readonly angles: number[] = [];
-
-  constructor(readonly config: SpineConfig) {
-    for (let i = 0; i < config.widths.length; i++) {
-      this.joints.push({ x: 0, y: 0 });
-      this.angles.push(0);
-    }
-  }
-
-  widthAt(index: number): number {
-    return this.config.widths[index] ?? 0;
-  }
-
-  /** Lay the whole body straight out behind the head, right now. */
-  replant(x: number, y: number, angle: number): void {
-    for (let i = 0; i < this.joints.length; i++) {
-      const joint = this.joints[i]!;
-      this.angles[i] = angle;
-      joint.x = x - Math.cos(angle) * this.config.spacing * i;
-      joint.y = y - Math.sin(angle) * this.config.spacing * i;
-    }
-  }
-
-  /**
-   * Move the head to `(x, y)` facing `angle` and let the body catch up. One
-   * pass, head to tail, re-derived every frame: each joint is a function of the
-   * joint ahead of it and nothing else, so nothing can drift.
-   */
-  follow(x: number, y: number, angle: number): void {
-    const head = this.joints[0];
-    if (!head) return;
-    this.angles[0] = angle;
-    head.x = x;
-    head.y = y;
-    for (let i = 1; i < this.joints.length; i++) {
-      const ahead = this.joints[i - 1]!;
-      const here = this.joints[i]!;
-      const towards = Math.atan2(ahead.y - here.y, ahead.x - here.x);
-      const forward = constrainAngle(towards, this.angles[i - 1]!, this.config.bend);
-      this.angles[i] = forward;
-      here.x = ahead.x - Math.cos(forward) * this.config.spacing;
-      here.y = ahead.y - Math.sin(forward) * this.config.spacing;
-    }
-  }
-
-  /** A point on the body's edge at `offset` from this vertebra's forward. */
-  edge(index: number, offset: number): Point {
-    const joint = this.joints[index];
-    if (!joint) return { x: 0, y: 0 };
-    const angle = (this.angles[index] ?? 0) + offset;
-    const width = this.widthAt(index);
-    return { x: joint.x + Math.cos(angle) * width, y: joint.y + Math.sin(angle) * width };
-  }
-
-  /** The closed outline: down one flank, round the tail, up the other, round the snout. */
-  outline(): Point[] {
-    const ring: Point[] = [];
-    const last = this.joints.length - 1;
-    for (let i = 0; i <= last; i++) ring.push(this.edge(i, Math.PI / 2));
-    ring.push(this.edge(last, Math.PI));
-    for (let i = last; i >= 0; i--) ring.push(this.edge(i, -Math.PI / 2));
-    for (const offset of [-Math.PI / 3, 0, Math.PI / 3]) ring.push(this.edge(0, offset));
-    return ring;
-  }
-}
-
-/**
- * Two-bone inverse kinematics: given where a leg starts and where its foot is,
- * where does the knee go. `bend` (1 or -1) picks which of the two mirror-image
- * knees to take. Every degenerate case returns a finite point, because a NaN
- * coordinate draws nothing and looks like a missing leg rather than a bug.
- */
-export function solveTwoBone(
-  hipX: number,
-  hipY: number,
-  footX: number,
-  footY: number,
-  upper: number,
-  lower: number,
-  bend: number,
-): Point {
-  const dx = footX - hipX;
-  const dy = footY - hipY;
-  const distance = Math.hypot(dx, dy);
-  // A foot on its own hip has no direction to extend along: take one rather than divide by zero.
-  if (distance < 1e-6) return { x: hipX + upper, y: hipY };
-  const ux = dx / distance;
-  const uy = dy / distance;
-  // Too far to reach or too close to fold around: a straight leg pointing at the target.
-  if (distance >= upper + lower || distance <= Math.abs(upper - lower)) {
-    return { x: hipX + ux * upper, y: hipY + uy * upper };
-  }
-  const along = (distance * distance + upper * upper - lower * lower) / (2 * distance);
-  const off = Math.sqrt(Math.max(0, upper * upper - along * along));
-  return { x: hipX + ux * along - uy * off * bend, y: hipY + uy * along + ux * off * bend };
-}
+import { Spine, angleDelta } from '../../core/creature';
 
 // ---- who lives in the tank ----
 
@@ -233,7 +98,7 @@ export const SPECIES: readonly Species[] = [
   {
     id: 'ray', name: 'cá đuối', kind: 'ray',
     back: '#7c3aed', belly: '#ddd6fe', fin: '#a78bfa', pattern: 'spots', patternColor: '#ede9fe',
-    size: 1.3, profile: LONG, speed: 0.55, depth: 0.88, curious: 0, count: 1,
+    size: 1.3, profile: LONG, speed: 0.55, depth: 0.78, curious: 0, count: 1,
   },
   {
     id: 'crab', name: 'con cua', kind: 'crab',
@@ -474,7 +339,8 @@ export class Creature {
       this.x = tank.w - margin;
       this.vx = -Math.abs(this.vx);
     }
-    this.y = tank.floor + this.length * 0.16;
+    // Stood a little clear of the sand, so its legs have somewhere to come down to.
+    this.y = tank.floor - this.length * 0.06;
     this.heading = this.vx >= 0 ? 0 : Math.PI;
     this.phase += step * Math.abs(this.vx) * 0.09;
     this.spine.replant(this.x, this.y, this.heading);
@@ -578,6 +444,63 @@ export function makeRocks(tank: Tank, rng: () => number = Math.random): Rock[] {
     squash: 0.45 + rng() * 0.3,
     tint: rng(),
   }));
+}
+
+/** Things that sit in the tank and never move: the furniture. */
+export type DecorKind = 'boulder' | 'castle' | 'arch' | 'chest' | 'hoop' | 'anemone' | 'weed';
+
+export interface Decor {
+  kind: DecorKind;
+  x: number;
+  /** Size in tank units. */
+  size: number;
+  /** Which parallax layer it belongs to. */
+  layer: 'far' | 'mid' | 'near';
+  phase: number;
+  hue: number;
+}
+
+/** Ornaments, laid out in slots across the sand so nothing lands on anything else. */
+export function makeDecor(tank: Tank, rng: () => number = Math.random): Decor[] {
+  const roomy = tank.w > 640;
+  const plan: { kind: DecorKind; size: number; layer: Decor['layer'] }[] = [
+    { kind: 'boulder', size: 1.1, layer: 'far' },
+    { kind: 'castle', size: 2.4, layer: 'far' },
+    { kind: 'arch', size: 1.9, layer: 'far' },
+    { kind: 'anemone', size: 0.8, layer: 'mid' },
+    { kind: 'chest', size: 0.95, layer: 'mid' },
+    ...(roomy
+      ? ([
+          { kind: 'hoop', size: 1.3, layer: 'mid' },
+          { kind: 'anemone', size: 0.7, layer: 'mid' },
+        ] as const)
+      : []),
+    { kind: 'boulder', size: 1.5, layer: 'near' },
+    { kind: 'weed', size: 2.6, layer: 'near' },
+  ];
+  // A narrow tank gets smaller ornaments rather than fewer of them, and every one
+  // is pulled far enough from the glass to stand there whole.
+  const shrink = Math.max(0.55, Math.min(1, tank.w / 720));
+  const slot = tank.w / plan.length;
+  let corner = 0;
+  return plan.map((item, i) => {
+    const size = item.size * shrink;
+    const half = size * tank.unit * 0.8;
+    // Foreground pieces frame the picture from the corners; in the middle they
+    // would spend their time standing in front of whichever fish the child wants.
+    const want =
+      item.layer === 'near'
+        ? tank.w * (corner++ % 2 === 0 ? 0.97 : 0.03)
+        : slot * (i + 0.5) + (rng() - 0.5) * slot * 0.35;
+    return {
+      kind: item.kind,
+      size,
+      layer: item.layer,
+      x: item.layer === 'near' ? want : Math.max(half, Math.min(tank.w - half, want)),
+      phase: rng() * Math.PI * 2,
+      hue: rng(),
+    };
+  });
 }
 
 export interface Bubble {

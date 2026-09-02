@@ -1,0 +1,46 @@
+.garden {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #bae6fd;
+}
+.garden-canvas {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  width: 100%;
+  touch-action: none;
+}
+
+/* The seed tray: one row along the bottom, a column down the side in landscape. */
+.garden-tray {
+  position: static;
+  flex: none;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 1.5vmin;
+  padding: 1.5vmin;
+  background: rgba(255, 255, 255, 0.55);
+}
+.garden-seed {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 30%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.55);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(74, 44, 10, 0.25);
+  touch-action: none;
+  transition: transform 0.12s;
+}
+.garden-seed.selected {
+  transform: scale(1.12);
+  background: #fef08a;
+  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.4);
+}
+.garden-seed:active {
+  transform: scale(0.94);
+}
