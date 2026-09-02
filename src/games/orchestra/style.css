@@ -44,7 +44,7 @@
     inset 0 -1vmin 0 rgba(0, 0, 0, 0.14),
     inset 0 2px 0 rgba(255, 255, 255, 0.35),
     0 4px 10px rgba(0, 0, 0, 0.1);
-  filter: grayscale(0.8) opacity(0.6);
+  filter: saturate(0.85) opacity(0.82);
   transition: filter 0.25s, transform 0.12s, box-shadow 0.25s;
   touch-action: none;
   will-change: transform;
