@@ -8,8 +8,8 @@ describe('bubbles', () => {
     let withItem = 0;
     for (let i = 0; i < 200; i++) {
       const b = makeBubble(rng);
-      expect(b.size).toBeGreaterThanOrEqual(60);
-      expect(b.size).toBeLessThanOrEqual(140);
+      expect(b.size).toBeGreaterThanOrEqual(80);
+      expect(b.size).toBeLessThanOrEqual(160);
       expect(b.x).toBeGreaterThanOrEqual(0);
       expect(b.x).toBeLessThanOrEqual(1);
       expect(b.hue).toBeGreaterThanOrEqual(0);
@@ -21,8 +21,8 @@ describe('bubbles', () => {
     expect(withItem).toBeLessThan(100);
   });
   it('pitch is higher for small bubbles and clamped', () => {
-    expect(popPitch(60)).toBe(2);
-    expect(popPitch(140)).toBe(1);
+    expect(popPitch(80)).toBe(2);
+    expect(popPitch(160)).toBe(1);
     expect(popPitch(1000)).toBe(0.8);
   });
   it('awards a star every 15 pops', () => {

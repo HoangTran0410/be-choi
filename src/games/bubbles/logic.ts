@@ -2,7 +2,7 @@ import { ANIMALS, type Item } from '../../core/content';
 import { randInt } from '../../core/dom';
 
 export interface BubbleSpec {
-  /** Base diameter in px before scaling to the stage (60 … 140). */
+  /** Base diameter in px before scaling to the stage (80 … 160). */
   size: number;
   /** Horizontal position as a fraction of the stage width (0 … 1). */
   x: number;
@@ -23,7 +23,7 @@ export function starEvery(): number {
 }
 
 export function makeBubble(rng: () => number = Math.random, animals: readonly Item[] = ANIMALS): BubbleSpec {
-  const size = randInt(60, 140, rng);
+  const size = randInt(80, 160, rng);
   const x = rng();
   const hue = randInt(0, 359, rng);
   const speed = 70 + rng() * 80;
@@ -33,5 +33,5 @@ export function makeBubble(rng: () => number = Math.random, animals: readonly It
 
 /** Smaller bubbles pop with a higher pitch. */
 export function popPitch(size: number): number {
-  return Math.min(2, Math.max(0.8, 140 / size));
+  return Math.min(2, Math.max(0.8, 160 / size));
 }

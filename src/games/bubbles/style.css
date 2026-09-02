@@ -36,7 +36,7 @@
   transform: rotate(-30deg);
 }
 .bubble-item {
-  font-size: 55%;
+  font-size: 75%;
   line-height: 1;
   pointer-events: none;
 }

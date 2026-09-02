@@ -36,7 +36,7 @@ function start(ctx: GameContext): void {
   function spawn(initial = false): void {
     if (live.filter((b) => !b.popped).length >= MAX_ALIVE) return;
     const spec = makeBubble();
-    const size = Math.max(72, Math.round(spec.size * scale()));
+    const size = Math.max(88, Math.round(spec.size * scale()));
     const w = field.clientWidth || 400;
     const el = h('div', {
       class: 'bubble',
