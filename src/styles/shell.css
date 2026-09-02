@@ -63,19 +63,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  text-align: left;
   font-size: clamp(16px, 3.5vmin, 22px);
   font-weight: 600;
-  min-height: 48px;
+  min-height: 56px;
+  padding: 4px 0;
   cursor: pointer;
+  touch-action: manipulation;
 }
 .switch-label {
   flex: 1;
 }
-.switch input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
+.switch-state {
+  font-size: 0.8em;
+  color: #78716c;
 }
 .switch-track {
   width: 64px;
@@ -98,10 +100,10 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   transition: transform 0.2s;
 }
-.switch input:checked + .switch-track {
+.switch[aria-checked='true'] .switch-track {
   background: var(--c-green);
 }
-.switch input:checked + .switch-track::after {
+.switch[aria-checked='true'] .switch-track::after {
   transform: translateX(28px);
 }
 .panel-btn {

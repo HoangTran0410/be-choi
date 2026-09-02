@@ -69,12 +69,21 @@ document.addEventListener('touchmove', cancelStageTouch, { passive: false });
 // Outside the stage (home grid, panels) we still need scrolling and clicks, so only the
 // second tap of a quick double tap is cancelled, which is what triggers zoom.
 let lastTouchEnd = 0;
+let lastTouchX = 0;
+let lastTouchY = 0;
 document.addEventListener(
   'touchend',
   (e) => {
     const now = Date.now();
-    if (now - lastTouchEnd < 350 && !inStage(e)) e.preventDefault();
+    const t = e.changedTouches[0];
+    const x = t?.clientX ?? 0;
+    const y = t?.clientY ?? 0;
+    const near = Math.abs(x - lastTouchX) < 30 && Math.abs(y - lastTouchY) < 30;
+    // Only a second tap on (almost) the same spot can zoom; two quick taps on different buttons must both work.
+    if (now - lastTouchEnd < 350 && near && !inStage(e)) e.preventDefault();
     lastTouchEnd = now;
+    lastTouchX = x;
+    lastTouchY = y;
   },
   { passive: false },
 );

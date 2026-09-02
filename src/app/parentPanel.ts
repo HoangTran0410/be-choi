@@ -3,11 +3,33 @@ import type { AppDeps } from './deps';
 
 export const STARS_CHANGED = 'be-choi:stars';
 
+/**
+ * A big on/off switch. A real <button> toggled on pointerup instead of a hidden
+ * checkbox + label: iOS Safari is unreliable with label taps, and pointer events keep
+ * working even when the page cancels touch defaults.
+ */
 function toggle(label: string, checked: boolean, onChange: (v: boolean) => void): HTMLElement {
-  const input = h('input', { type: 'checkbox' }) as HTMLInputElement;
-  input.checked = checked;
-  input.addEventListener('change', () => onChange(input.checked));
-  return h('label', { class: 'switch' }, h('span', { class: 'switch-label' }, label), input, h('span', { class: 'switch-track' }));
+  const state = h('span', { class: 'switch-state' }, checked ? 'Bật' : 'Tắt');
+  const btn = h(
+    'button',
+    { class: 'switch', type: 'button', role: 'switch', 'aria-checked': String(checked) },
+    h('span', { class: 'switch-label' }, label),
+    state,
+    h('span', { class: 'switch-track' }),
+  );
+  const flip = (e: Event) => {
+    e.preventDefault();
+    const v = btn.getAttribute('aria-checked') !== 'true';
+    btn.setAttribute('aria-checked', String(v));
+    state.textContent = v ? 'Bật' : 'Tắt';
+    onChange(v);
+  };
+  btn.addEventListener('pointerup', flip);
+  // Keyboard / assistive tech still get a plain click.
+  btn.addEventListener('click', (e) => {
+    if ((e as PointerEvent).pointerType === '' || (e as MouseEvent).detail === 0) flip(e);
+  });
+  return btn;
 }
 
 /** Settings panel for parents. Opened by holding the 👪 button. */
