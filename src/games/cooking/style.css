@@ -94,6 +94,44 @@
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.12));
   pointer-events: none;
 }
+/* What has gone into the pot so far: small emoji chips sitting in the opening. */
+.cooking-inside {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 62%;
+  height: 46%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 2%;
+  pointer-events: none;
+  z-index: 1;
+}
+.cooking-bit {
+  font-size: calc(var(--cooking-tool) * 0.26);
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+  transform: rotate(var(--cooking-tilt, 0deg));
+  animation: cooking-plop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes cooking-plop {
+  0% { transform: translateY(-120%) scale(1.6) rotate(var(--cooking-tilt, 0deg)); opacity: 0; }
+  60% { transform: translateY(10%) scale(0.9) rotate(var(--cooking-tilt, 0deg)); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotate(var(--cooking-tilt, 0deg)); }
+}
+.cooking-stirring .cooking-inside {
+  animation: cooking-swirl 1.4s linear infinite;
+}
+@keyframes cooking-swirl {
+  0% { transform: translateX(-50%) rotate(0deg); }
+  100% { transform: translateX(-50%) rotate(360deg); }
+}
+.cooking-done .cooking-inside {
+  display: none;
+}
 /* Drop ring floating over the opening of the tool. */
 .cooking-bowl {
   position: absolute;

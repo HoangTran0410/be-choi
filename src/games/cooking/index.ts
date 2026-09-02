@@ -54,7 +54,9 @@ function start(ctx: GameContext): void {
 
   const tool = h('div', { class: 'cooking-tool' });
   const bowl = h('div', { class: 'g-target cooking-bowl' });
-  const pot = h('div', { class: 'cooking-pot' }, tool, bowl);
+  // Ingredients stay visible inside the pot until the dish is ready (a child must see what went in).
+  const inside = h('div', { class: 'cooking-inside' });
+  const pot = h('div', { class: 'cooking-pot' }, tool, inside, bowl);
   const dots = Array.from({ length: STIR_TURNS }, () => h('span', { class: 'cooking-dot' }));
   const progress = h('div', { class: 'cooking-progress' }, ...dots);
   const stove = h('button', { class: 'cooking-stove', type: 'button', hidden: true, 'aria-label': 'Bật bếp' }, '🔥');
@@ -176,6 +178,9 @@ function start(ctx: GameContext): void {
     void el.offsetWidth;
     el.classList.add('cooking-into');
     later(() => el.remove(), PLACE_MS);
+    const bit = h('span', { class: 'cooking-bit' }, item.emoji);
+    bit.style.setProperty('--cooking-tilt', `${Math.round(Math.random() * 40 - 20)}deg`);
+    inside.append(bit);
     needs.querySelector(`.cooking-need[data-emoji="${item.emoji}"]`)?.classList.add('done');
     ctx.audio.chomp();
     navigator.vibrate?.(20);
@@ -293,6 +298,7 @@ function start(ctx: GameContext): void {
   }
 
   function finishCook(): void {
+    inside.replaceChildren();
     if (!recipe) return;
     cooking = false;
     stove.classList.remove('on');
@@ -375,6 +381,7 @@ function start(ctx: GameContext): void {
 
     const r = makeCookRound(round, Math.random, excludeId);
     recipe = r.recipe;
+    inside.replaceChildren();
 
     cardDish.textContent = recipe.dish;
     needs.replaceChildren(
