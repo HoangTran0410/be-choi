@@ -261,6 +261,58 @@ const ans = await page.locator('.pattern').getAttribute('data-answer');
 await tap(page.locator(`.pattern-choice[data-emoji="${ans}"]`));
 check('pattern: correct choice fills the slot', (await page.locator('.pattern-slot.filled').count()) === 1);
 
+// ---- orchestra: toggle two animals, stop ----
+await open('orchestra');
+check('orchestra: 6 animals', (await page.locator('.orchestra-animal').count()) === 6);
+await tap(page.locator('.orchestra-animal').nth(0));
+await tap(page.locator('.orchestra-animal').nth(1));
+await page.waitForTimeout(600);
+const activeCls = await page.locator('.orchestra-animal').nth(0).evaluate((el) => el.className);
+check('orchestra: tapped animal is active', /active/.test(activeCls), activeCls);
+await tap(page.locator('.orchestra-stop'));
+
+// ---- bricks: drop a template on the plate ----
+await open('bricks');
+check('bricks: plate + templates', (await page.locator('.bricks-plate').count()) === 1 && (await page.locator('.bricks-piece').count()) === 5);
+await drag(page.locator('.bricks-piece').first(), page.locator('.bricks-plate'));
+await page.waitForTimeout(300);
+check('bricks: brick placed', (await page.locator('.bricks-brick').count()) >= 1);
+
+// ---- birthday: candle, light, blow ----
+await open('birthday');
+const candleBtn = page.locator('.birthday-buttons button', { hasText: '🕯️' });
+await tap(candleBtn);
+await tap(candleBtn);
+check('birthday: 2 candles', (await page.locator('[class*="birthday-candle"]:not(button)').count()) >= 2);
+await tap(page.locator('.birthday-buttons button', { hasText: '🔥' }));
+await page.waitForTimeout(300);
+const candles = page.locator('[class*="birthday-candle"]:not(button)');
+const nC = await candles.count();
+for (let i = 0; i < nC; i++) await tap(candles.nth(i));
+await page.waitForTimeout(500);
+check('birthday: flames lit', (await page.locator('.birthday-flame').count()) >= 1);
+
+// ---- cooking: tray and card ----
+await open('cooking');
+check('cooking: recipe card + tray', (await page.locator('.cooking-need').count()) >= 3 && (await page.locator('.cooking-item').count()) >= 5);
+
+// ---- teeth: paste ----
+await open('teeth');
+check('teeth: 8 teeth', (await page.locator('.teeth-tooth').count()) === 8);
+await tap(page.locator('.teeth-tube'));
+check('teeth: paste on brush', (await page.locator('.teeth-paste').count()) === 1);
+
+// ---- jam: pads, kit switch, beat ----
+await open('jam');
+check('jam: 4 kits + 12 pads', (await page.locator('.jam-kit').count()) === 4 && (await page.locator('.jam-pad').count()) === 12);
+await tap(page.locator('.jam-pad').first());
+await tap(page.locator('.jam-kit').nth(2));
+await tap(page.locator('.jam-pad').nth(3));
+await tap(page.locator('.jam-beat').nth(1));
+await page.waitForTimeout(800);
+check('jam: beat selected', await page.locator('.jam-beat').nth(1).evaluate((el) => el.classList.contains('active')));
+await tap(page.locator('.jam-beat').nth(0));
+
 // ---- home + parent gate ----
 await page.goto(`${base}/#/`, { waitUntil: 'networkidle' });
 const parent = page.locator('.home .parent');

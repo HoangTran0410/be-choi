@@ -4,12 +4,13 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 24 trò chơi
+## 25 trò chơi
 
 **🎵 Âm nhạc**
 
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
+| 🎤 Sân khấu nhạc | 4 bộ âm (trống, nhạc cụ ngũ cung, thú vui, vui nhộn) bấm chồng đa chạm, 3 nhạc nền, thu vòng lặp 1 nhịp và chồng tới 4 lớp | sáng tác nhạc |
 | 🎹 Đàn thú | chạm phím đàn, đa chạm, con vật nhảy | âm nhạc |
 | 🎼 Đàn gõ | xylophone 8 thanh; chọn bài hát thì thanh cần gõ sáng lên để chơi theo; ▶ nghe máy chơi | giai điệu, theo dõi |
 | 🥁 Trống | 6 pad trống synth, nút ▶ bật nhịp nền để gõ theo | nhịp điệu |
