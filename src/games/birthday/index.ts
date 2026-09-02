@@ -1,6 +1,8 @@
 import { h, replay } from '../../core/dom';
 import { hitTest, makeDraggable, type Pt, type Target } from '../../core/drag';
 import { noteFreq, schedule } from '../../core/music';
+import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
+import type { Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
@@ -33,6 +35,9 @@ const MIC_BLOW_GAP_MS = 150;
 /** Keep toppings inside the cake box (percent of its size). */
 const EDGE_PCT = 6;
 const ANIM_CLASSES = ['anim-bounce', 'anim-wiggle', 'anim-pulse', 'anim-pop', 'anim-shake'];
+/** localStorage key: id of the photo on the cake, or NO_PHOTO. */
+const PHOTO_KEY = 'be-choi:birthday-photo';
+const NO_PHOTO = 'none';
 
 type AudioCtor = new () => AudioContext;
 
@@ -52,6 +57,8 @@ function start(ctx: GameContext): void {
   let micBusy = false;
   let candles: HTMLElement[] = [];
   let placed: HTMLElement[] = [];
+  let photos: Photo[] = [];
+  let closePicker: (() => void) | null = null;
   let cancelSong: (() => void) | null = null;
   let micStream: MediaStream | null = null;
   let micCtx: AudioContext | null = null;
@@ -65,7 +72,7 @@ function start(ctx: GameContext): void {
   const main = h('div', { class: 'birthday-main' });
   const cake = h('div', { class: 'birthday-cake' });
   const top = h('div', { class: 'birthday-top' });
-  const topper = h('div', { class: 'birthday-topper', hidden: true });
+  const topper = h('div', { class: 'birthday-topper', hidden: true, onpointerdown: onTopper });
   const decor = h('div', { class: 'birthday-decor' });
   const tierTop = h('div', { class: 'birthday-tier birthday-tier-top' });
   const tierBottom = h('div', { class: 'birthday-tier birthday-tier-bottom' });
@@ -80,10 +87,11 @@ function start(ctx: GameContext): void {
   const flavorBtn = h('button', { class: 'btn-round birthday-flavor', 'aria-label': 'Đổi vị bánh', onpointerdown: onFlavor }, '🎂');
   const candleBtn = h('button', { class: 'btn-round birthday-add-candle', 'aria-label': 'Thêm nến', onpointerdown: onAddCandle }, '🕯️');
   const lightBtn = h('button', { class: 'btn-round birthday-light birthday-dim', 'aria-label': 'Thắp nến', onpointerdown: onLightAll }, '🔥');
+  const photoBtn = h('button', { class: 'btn-round birthday-photo', 'aria-label': 'Chọn ảnh', hidden: true, onpointerdown: onPhotoBtn }, '🖼️');
   // getUserMedia needs a user activation; on touch screens pointerup grants one, pointerdown may not.
   const micBtn = h('button', { class: 'btn-round birthday-mic', 'aria-label': 'Thổi vào micro', hidden: true, onpointerup: onMic }, '🎤');
   const againBtn = h('button', { class: 'btn-round birthday-again', 'aria-label': 'Làm bánh mới', hidden: true, onpointerdown: onAgain }, '🔁');
-  const buttons = h('div', { class: 'birthday-buttons' }, flavorBtn, candleBtn, lightBtn, micBtn, againBtn);
+  const buttons = h('div', { class: 'birthday-buttons' }, flavorBtn, candleBtn, lightBtn, photoBtn, micBtn, againBtn);
 
   const tray = h('div', { class: 'g-tray birthday-tray' });
   for (const item of TOPPINGS) {
@@ -148,6 +156,7 @@ function start(ctx: GameContext): void {
     candleBtn.hidden = !decorate;
     lightBtn.hidden = !decorate;
     lightBtn.classList.toggle('birthday-dim', candles.length === 0);
+    photoBtn.hidden = !decorate || photos.length === 0;
     micBtn.hidden = phase !== 'blow' || micGone;
     if (phase !== 'done') againBtn.hidden = true;
     tray.classList.toggle('birthday-inert', !decorate);
@@ -499,18 +508,90 @@ function start(ctx: GameContext): void {
   window.addEventListener('pointercancel', release);
 
   // ---- photo topper ----
-  void ctx.photos
-    .list()
-    .then((photos) => {
-      const first = photos[0];
-      if (!alive || !first) return;
-      topper.style.backgroundImage = `url("${first.url}")`;
+  function readChoice(): string | null {
+    try {
+      return localStorage.getItem(PHOTO_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function saveChoice(id: string): void {
+    try {
+      localStorage.setItem(PHOTO_KEY, id);
+    } catch {
+      /* private mode: simply not remembered */
+    }
+  }
+
+  /** The saved photo if it still exists, else the first one; NO_PHOTO or no photos → no topper. */
+  function showTopper(): void {
+    const saved = readChoice();
+    const photo = saved === NO_PHOTO ? undefined : (photos.find((p) => p.id === saved) ?? photos[0]);
+    if (photo) {
+      topper.style.backgroundImage = `url("${photo.url}")`;
+      topper.dataset.photo = photo.id;
       topper.hidden = false;
-    })
-    .catch(() => undefined);
+    } else {
+      topper.style.removeProperty('background-image');
+      delete topper.dataset.photo;
+      topper.hidden = true;
+    }
+  }
+
+  function applyPhotos(list: Photo[]): void {
+    if (!alive) return;
+    photos = list;
+    showTopper();
+    syncUi();
+  }
+
+  /** Keep the rest of this gesture on `el`, so the pointerup does not land on a picker tile. */
+  function capture(el: Element, e: Event): void {
+    const id = (e as PointerEvent).pointerId;
+    if (typeof id !== 'number') return;
+    try {
+      el.setPointerCapture(id);
+    } catch {
+      /* jsdom */
+    }
+  }
+
+  function openPicker(): void {
+    if (closePicker || photos.length === 0) return;
+    ctx.hint.touch();
+    ctx.audio.tick();
+    const choices: PickerChoice[] = photos.map((p, i) => ({ id: p.id, url: p.url, label: `Ảnh ${i + 1}` }));
+    choices.push({ id: NO_PHOTO, emoji: '🎂', label: 'Không ảnh' });
+    closePicker = showPhotoPicker(ctx.stage, choices, (choice) => {
+      closePicker = null;
+      if (!alive || !choice) return;
+      saveChoice(choice.id);
+      showTopper();
+      ctx.audio.pop();
+      if (!topper.hidden) anim(topper, 'anim-bounce');
+    });
+  }
+
+  function onTopper(e: Event): void {
+    e.stopPropagation();
+    capture(topper, e);
+    openPicker();
+  }
+
+  function onPhotoBtn(e: Event): void {
+    capture(photoBtn, e);
+    openPicker();
+  }
+
+  void ctx.photos.list().then(applyPhotos).catch(() => undefined);
+  const offPhotos = ctx.photos.onChange(applyPhotos);
 
   ctx.onCleanup(() => {
     alive = false;
+    offPhotos();
+    closePicker?.();
+    closePicker = null;
     cancelSong?.();
     cancelSong = null;
     stopMic();

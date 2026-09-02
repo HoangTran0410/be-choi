@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fakeContext, type FakeContext } from '../../core/testing';
+import { createPhotoStore } from '../../core/photos';
 import { FLAVORS, HAPPY_BIRTHDAY, HAPPY_BIRTHDAY_BPM, MAX_CANDLES } from './logic';
 import game from './index';
 
@@ -63,7 +64,10 @@ async function lightAllAndSing(ctx: FakeContext): Promise<void> {
 }
 
 describe('birthday game', () => {
-  beforeEach(() => vi.useFakeTimers());
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers();
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -401,6 +405,87 @@ describe('birthday game', () => {
       vi.unstubAllGlobals();
       Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
     }
+  });
+
+  it('lets the parent pick which photo tops the cake and remembers it', async () => {
+    const ctx = fakeContext();
+    ctx.photos = createPhotoStore(async (f) => `data:image/jpeg;base64,${f.size}`);
+    const [p1, p2] = await ctx.photos.add([new Blob(['a']), new Blob(['bb'])]);
+    game.start(ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    const topper = q(ctx, '.birthday-topper');
+    expect(topper.hidden).toBe(false);
+    expect(topper.dataset.photo).toBe(p1!.id);
+    const btn = q(ctx, '.birthday-photo');
+    expect(visibleButtons(ctx)).toEqual(['🎂', '🕯️', '🔥', '🖼️']);
+
+    btn.dispatchEvent(ptr('pointerdown'));
+    const overlay = q(ctx, '.pp-overlay');
+    expect(overlay.parentElement).toBe(ctx.stage);
+    expect(all(ctx, '.pp-tile').length).toBe(3);
+    expect(all(ctx, '.pp-tile.pp-photo').length).toBe(2);
+    expect(q(ctx, '.pp-tile[data-id="none"]').textContent).toBe('🎂');
+    // A second tap while it is open does not stack another picker.
+    btn.dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.pp-overlay').length).toBe(1);
+
+    q(ctx, `.pp-tile[data-id="${p2!.id}"]`).dispatchEvent(ptr('pointerup'));
+    expect(all(ctx, '.pp-overlay').length).toBe(0);
+    expect(topper.dataset.photo).toBe(p2!.id);
+    expect(topper.style.backgroundImage).toContain('data:image/jpeg;base64,2');
+    expect(localStorage.getItem('be-choi:birthday-photo')).toBe(p2!.id);
+    // jsdom fires the `storage` event from a 0 ms timer: let it go.
+    await vi.advanceTimersByTimeAsync(0);
+
+    // The topper itself opens the picker; 🎂 means no photo.
+    topper.dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.pp-tile').length).toBe(3);
+    q(ctx, '.pp-tile[data-id="none"]').dispatchEvent(ptr('pointerup'));
+    expect(topper.hidden).toBe(true);
+    expect(localStorage.getItem('be-choi:birthday-photo')).toBe('none');
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Closing without choosing keeps the choice.
+    btn.dispatchEvent(ptr('pointerdown'));
+    q(ctx, '.pp-close').dispatchEvent(ptr('pointerup'));
+    expect(all(ctx, '.pp-overlay').length).toBe(0);
+    expect(topper.hidden).toBe(true);
+
+    // Out of the decorate phase the button goes away; the picker closes on cleanup.
+    addCandlesAndLight(ctx, 1);
+    expect(btn.hidden).toBe(true);
+    ctx.cleanup();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('remembers the chosen photo, falls back to the first when it is gone, and follows photo changes', async () => {
+    const ctx = fakeContext();
+    ctx.photos = createPhotoStore(async (f) => `data:image/jpeg;base64,${f.size}`);
+    const [p1, p2] = await ctx.photos.add([new Blob(['a']), new Blob(['bb'])]);
+    localStorage.setItem('be-choi:birthday-photo', p2!.id);
+    game.start(ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    const topper = q(ctx, '.birthday-topper');
+    expect(topper.dataset.photo).toBe(p2!.id);
+
+    await ctx.photos.remove(p2!.id);
+    expect(topper.hidden).toBe(false);
+    expect(topper.dataset.photo).toBe(p1!.id);
+    expect(q(ctx, '.birthday-photo').hidden).toBe(false);
+
+    await ctx.photos.remove(p1!.id);
+    expect(topper.hidden).toBe(true);
+    expect(q(ctx, '.birthday-photo').hidden).toBe(true);
+    topper.dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.pp-overlay').length).toBe(0);
+
+    // Leaving with the picker open removes it.
+    await ctx.photos.add([new Blob(['c'])]);
+    q(ctx, '.birthday-photo').dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.pp-overlay').length).toBe(1);
+    ctx.cleanup();
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('shows the first family photo as a topper on the cake', async () => {
