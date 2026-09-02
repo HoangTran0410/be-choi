@@ -1,0 +1,334 @@
+/* Portrait: recipe card on top, tool in the middle, tray at the bottom. */
+.cooking {
+  --cooking-tool: calc(var(--emoji) * 1.8);
+  --cooking-need: max(40px, calc(var(--tap) * 0.5));
+  --cooking-eater: calc(var(--emoji) * 1.6);
+  --cooking-dish: calc(var(--tap) * 1.4);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  touch-action: none;
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 60%, #fed7aa 100%);
+}
+.cooking [hidden] {
+  display: none !important;
+}
+
+/* ---- recipe card ---- */
+.cooking-card {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 2vmin;
+  max-width: calc(100% - 4vmin);
+  margin: 1.5vmin 2vmin 0;
+  padding: 1vmin 2vmin;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.08);
+}
+.cooking-card-dish {
+  font-size: calc(var(--emoji) * 0.9);
+  line-height: 1;
+}
+.cooking-needs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1vmin;
+}
+.cooking-need {
+  position: relative;
+  width: var(--cooking-need);
+  height: var(--cooking-need);
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--cooking-need) * 0.68);
+  line-height: 1;
+  border-radius: 30%;
+  background: #fff7ed;
+  box-shadow: inset 0 0 0 2px rgba(59, 47, 47, 0.12);
+  transition: opacity 0.2s;
+}
+.cooking-need.done {
+  opacity: 0.55;
+}
+.cooking-need.done::after {
+  content: '✅';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--cooking-need) * 0.6);
+  line-height: 1;
+}
+
+/* ---- scene: tool, spoon, dish, eater ---- */
+.cooking-scene {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+}
+.cooking-tool-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5vmin;
+  transition: opacity 0.3s;
+}
+.cooking-tool-wrap.cooking-done .cooking-pot {
+  opacity: 0.35;
+}
+.cooking-pot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  transition: opacity 0.3s;
+}
+.cooking-tool {
+  font-size: var(--cooking-tool);
+  line-height: 1;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+}
+/* Drop ring floating over the opening of the tool. */
+.cooking-bowl {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(var(--tap) * 1.3);
+  height: calc(var(--tap) * 0.9);
+  margin-left: calc(var(--tap) * -0.65);
+  margin-top: calc(var(--tap) * -0.25);
+  border-radius: 50%;
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.15s, border-color 0.15s;
+}
+.cooking-bowl.cooking-over {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(59, 47, 47, 0.55);
+}
+.cooking-stirring .cooking-bowl,
+.cooking-done .cooking-bowl {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Ingredient snapped into the bowl: shrink and sink, then index.ts removes it. */
+.cooking-item.placed {
+  position: absolute;
+  pointer-events: none;
+}
+.cooking-item.cooking-into {
+  transform: scale(0.1) translateY(60%);
+  opacity: 0;
+  transition: transform 0.35s ease-in, opacity 0.35s ease-in;
+}
+
+/* Stir progress: one dot per full turn. */
+.cooking-progress {
+  display: flex;
+  gap: 1.5vmin;
+  min-height: calc(var(--tap) * 0.25);
+}
+.cooking-dot {
+  width: calc(var(--tap) * 0.25);
+  height: calc(var(--tap) * 0.25);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 3px rgba(59, 47, 47, 0.15);
+  transition: background 0.2s, transform 0.2s;
+}
+.cooking-dot.on {
+  background: var(--c-orange);
+  transform: scale(1.15);
+}
+
+.cooking-spoon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: var(--emoji);
+  height: var(--emoji);
+  margin: calc(var(--emoji) * -0.85) 0 0 calc(var(--emoji) * -0.15);
+  font-size: var(--emoji);
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* Bubbles, sparks and steam rise out of the tool. */
+.cooking-particle {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  z-index: 4;
+  pointer-events: none;
+  line-height: 1;
+  animation: cooking-rise 0.9s ease-out forwards;
+}
+.cooking-bubble {
+  width: calc(var(--emoji) * 0.3);
+  height: calc(var(--emoji) * 0.3);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 50%, rgba(254, 215, 170, 0.5) 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+.cooking-spark,
+.cooking-steam {
+  font-size: calc(var(--emoji) * 0.6);
+}
+@keyframes cooking-rise {
+  0% {
+    transform: translate(-50%, 0) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--cooking-dx, 0%)), -120%) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* Stove button under the tool. */
+.cooking-stove {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.55);
+  line-height: 1;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+  touch-action: none;
+  transition: transform 0.1s, background 0.2s;
+}
+.cooking-stove:active,
+.cooking-stove.on {
+  transform: scale(0.94);
+  background: #fde68a;
+}
+
+/* Finished dish pops out over the tool and is dragged to the eater. */
+.cooking-dish {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  width: var(--cooking-dish);
+  height: var(--cooking-dish);
+  margin: calc(var(--cooking-dish) * -0.5) 0 0 calc(var(--cooking-dish) * -0.5);
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--emoji) * 1.4);
+  line-height: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+  touch-action: none;
+  cursor: grab;
+  will-change: transform;
+}
+.cooking-dish.placed {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+.cooking-dish.cooking-eaten {
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.6s ease-in, opacity 0.6s ease-in;
+}
+
+/* Hungry friend on the right edge. */
+.cooking-eater {
+  position: absolute;
+  right: 2vmin;
+  top: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.cooking-eater-body {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding-bottom: calc(var(--tap) * 0.5);
+}
+.cooking-eater-face {
+  font-size: var(--cooking-eater);
+  line-height: 1;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.12));
+}
+.cooking-mouth {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--cooking-eater) * 0.9);
+  width: calc(var(--tap) * 1.2);
+  height: calc(var(--tap) * 1.2);
+  margin-left: calc(var(--tap) * -0.6);
+  margin-top: calc(var(--tap) * -0.6);
+  border-radius: 50%;
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.15s, border-color 0.15s;
+}
+.cooking-mouth.cooking-over {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(59, 47, 47, 0.55);
+}
+.cooking-slide {
+  animation: cooking-slide 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+@keyframes cooking-slide {
+  0% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ---- tray ---- */
+.cooking-tray {
+  position: relative;
+  inset: auto;
+  flex-wrap: wrap;
+}
+.cooking-item {
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+  touch-action: none;
+  cursor: grab;
+}
+
+/* ---- landscape: card top-left, tool centre, tray bottom, eater right ---- */
+@media (orientation: landscape) {
+  .cooking {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .cooking-card {
+    position: absolute;
+    left: 2vmin;
+    top: 2vmin;
+    z-index: 2;
+    flex-direction: column;
+    max-width: 30vw;
+    margin: 0;
+  }
+  .cooking-card-dish {
+    font-size: calc(var(--emoji) * 0.8);
+  }
+  .cooking-eater {
+    right: 4vw;
+  }
+}
