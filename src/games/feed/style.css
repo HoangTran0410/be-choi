@@ -1,5 +1,6 @@
 /* Animal + mouth sit in one box so the mouth ring stays glued to the animal's lower half. */
 .feed-board .feed-scene {
+  --feed-animal: clamp(calc(var(--emoji) * 1.6), 30vmin, calc(var(--emoji) * 2.4));
   position: relative;
   display: grid;
   place-items: center;
@@ -7,7 +8,7 @@
   padding-bottom: calc(var(--tap) * 0.5);
 }
 .feed-board .feed-animal {
-  font-size: calc(var(--emoji) * 1.6);
+  font-size: var(--feed-animal);
   line-height: 1;
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.12));
   pointer-events: none;
@@ -15,15 +16,15 @@
 .feed-board .feed-mouth {
   position: absolute;
   left: 50%;
-  /* Centre of the ring at ~70% of the animal's height, i.e. over its mouth. */
-  top: calc(var(--emoji) * 1.6 * 0.7);
+  /* Centre of the ring just under the animal's chin so it never hides the face. */
+  top: calc(var(--feed-animal) * 0.92);
   width: calc(var(--tap) * 1.2);
   height: calc(var(--tap) * 1.2);
   margin-left: calc(var(--tap) * -0.6);
   margin-top: calc(var(--tap) * -0.6);
   border-radius: 50%;
-  border: 4px dashed rgba(59, 47, 47, 0.3);
-  background: rgba(255, 255, 255, 0.28);
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+  background: rgba(255, 255, 255, 0.35);
   transition: background 0.15s, border-color 0.15s;
 }
 .feed-board .feed-mouth.feed-over {

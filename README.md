@@ -43,6 +43,7 @@ Chụp màn hình mọi game ở 3 cỡ (điện thoại dọc/ngang, tablet) v�
 ```bash
 npm run build && node scripts/screenshot.mjs        # ảnh trong ./screenshots
 node scripts/screenshot.mjs shapes memory           # chỉ vài game
+npm run e2e                                         # chơi thật 12 game trong Chromium headless
 ```
 
 ## Cài lên điện thoại / tablet

@@ -34,7 +34,7 @@
   justify-content: center;
   align-items: center;
   gap: var(--paint-gap);
-  padding: var(--paint-gap);
+  padding: var(--paint-gap) max(12px, var(--paint-gap));
   background: rgba(255, 255, 255, 0.55);
 }
 .paint-group {

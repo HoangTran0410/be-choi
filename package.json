@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "screenshot": "node scripts/screenshot.mjs"
+    "screenshot": "node scripts/screenshot.mjs",
+    "e2e": "node scripts/e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
