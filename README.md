@@ -85,7 +85,9 @@ BROWSER=webkit node scripts/screenshot.mjs          # engine WebKit (giống Saf
 3. **Android (Chrome):** giữ nút 👪 trong app 1,5 giây → *Cài lên màn hình chính*, hoặc menu ⋮ → *Cài đặt ứng dụng*.
 4. Mở từ icon: app chạy toàn màn hình, không cần mạng.
 
-Panel phụ huynh (giữ 👪 1,5 giây): bật/tắt âm thanh, bật/tắt giọng nói, cài app, xoá sao.
+Panel phụ huynh (giữ 👪 1,5 giây): bật/tắt âm thanh, bật/tắt giọng nói, giao diện Sáng/Tối/Tự động
+(tối theo hệ thống, nền game dịu 45 % để chơi buổi tối), ảnh của bé, cài app, xoá sao/sticker.
+Màn hình chính nhớ vị trí cuộn khi ra khỏi game.
 Giọng đọc tiếng Việt dùng voice có sẵn của hệ điều hành (iOS: cài trong Cài đặt → Trợ năng →
 Nội dung đọc → Giọng nói → Tiếng Việt; Android: Google TTS). Máy không có voice tiếng Việt thì
 game vẫn chơi bình thường bằng âm thanh.
