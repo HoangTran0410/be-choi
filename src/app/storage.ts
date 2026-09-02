@@ -1,6 +1,9 @@
+export type Theme = 'auto' | 'light' | 'dark';
+
 export interface Settings {
   sound: boolean;
   voice: boolean;
+  theme: Theme;
 }
 
 export interface Store {
@@ -22,7 +25,7 @@ interface State {
 }
 
 const KEY = 'be-choi:v1';
-const DEFAULTS: Settings = { sound: true, voice: true };
+const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto' };
 
 /**
  * Stars per game and parent settings, persisted in localStorage. Every storage

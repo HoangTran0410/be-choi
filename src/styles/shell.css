@@ -10,7 +10,7 @@
   justify-content: space-between;
   gap: 2vmin;
   padding: 1.5vmin 2vmin;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--surface-2);
 }
 .topbar .btn-round {
   width: calc(var(--tap) * 0.8);
@@ -48,7 +48,8 @@
   width: min(92vw, 460px);
   max-height: 92dvh;
   overflow-y: auto;
-  background: #fff;
+  background: var(--surface);
+  color: var(--ink);
   border-radius: var(--radius);
   padding: 5vmin 5vmin 4vmin;
   display: flex;
@@ -77,7 +78,7 @@
 }
 .switch-state {
   font-size: 0.8em;
-  color: #78716c;
+  color: var(--muted);
 }
 .switch-track {
   width: 64px;
@@ -109,7 +110,7 @@
 .panel-btn {
   min-height: 52px;
   border-radius: 16px;
-  background: #f5f5f4;
+  background: rgba(127, 127, 127, 0.15);
   font-size: clamp(16px, 3.5vmin, 20px);
   font-weight: 700;
   padding: 0 16px;
@@ -120,13 +121,29 @@
 }
 .panel-btn.close {
   background: var(--ink);
+  color: var(--surface);
+}
+.panel-seg {
+  display: flex;
+  gap: 8px;
+}
+.panel-seg-btn {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 14px;
+  background: rgba(127, 127, 127, 0.15);
+  font-weight: 700;
+  font-size: clamp(14px, 3.2vmin, 18px);
+}
+.panel-seg-btn.active {
+  background: var(--c-orange);
   color: #fff;
 }
 .panel-note,
 .panel-status,
 .panel-version {
   font-size: clamp(13px, 3vmin, 16px);
-  color: #78716c;
+  color: var(--muted);
   line-height: 1.4;
 }
 .panel-status:empty {
@@ -139,7 +156,7 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 8px;
-  border-top: 1px solid #e7e5e4;
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
 }
 .panel-section h3 {
   font-size: clamp(17px, 3.8vmin, 24px);

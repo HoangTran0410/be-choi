@@ -43,7 +43,11 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
     }),
   );
 
-  const stage = h('div', { class: 'stage', style: `background:${entry.color}` });
+  const stage = h('div', {
+    class: 'stage',
+    // Plain colour first (old browsers), then a mix that darkens the stage when the dark theme is on.
+    style: `background:${entry.color};background:color-mix(in srgb, ${entry.color}, var(--stage-mix) var(--stage-mix-pct))`,
+  });
   const shell = h(
     'div',
     { class: 'shell' },

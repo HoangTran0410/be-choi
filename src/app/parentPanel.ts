@@ -1,6 +1,8 @@
 import { h } from '../core/dom';
 import { MAX_PHOTOS } from '../core/photos';
 import type { AppDeps } from './deps';
+import type { Theme } from './storage';
+import { applyTheme } from './theme';
 
 export const STARS_CHANGED = 'be-choi:stars';
 
@@ -93,6 +95,30 @@ export function openParentPanel(deps: AppDeps): void {
 
   const status = h('p', { class: 'panel-status' });
 
+  // ---- theme: light / dark / follow system ----
+  const THEMES: { id: Theme; label: string }[] = [
+    { id: 'light', label: '🌞 Sáng' },
+    { id: 'dark', label: '🌙 Tối' },
+    { id: 'auto', label: '🌗 Tự động' },
+  ];
+  const themeBtns = THEMES.map((t) =>
+    h(
+      'button',
+      {
+        class: `panel-seg-btn${settings.theme === t.id ? ' active' : ''}`,
+        type: 'button',
+        onClick: () => {
+          store.setSettings({ theme: t.id });
+          applyTheme(t.id);
+          themeBtns.forEach((b, i) => b.classList.toggle('active', THEMES[i]?.id === t.id));
+          audio.tick();
+        },
+      },
+      t.label,
+    ),
+  );
+  const themeRow = h('div', { class: 'panel-section' }, h('h3', null, '🎨 Giao diện'), h('div', { class: 'panel-seg' }, ...themeBtns));
+
   const installRow = install.isStandalone
     ? h('p', { class: 'panel-note' }, '✅ Đã cài lên màn hình chính.')
     : install.available()
@@ -117,6 +143,7 @@ export function openParentPanel(deps: AppDeps): void {
     }),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     installRow,
+    themeRow,
     photoSection,
     h(
       'button',

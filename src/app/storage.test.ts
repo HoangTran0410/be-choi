@@ -42,9 +42,10 @@ describe('store', () => {
   it('settings default and patch persist', () => {
     const s = mem();
     const a = createStore(s);
-    expect(a.settings()).toEqual({ sound: true, voice: true });
+    expect(a.settings()).toEqual({ sound: true, voice: true, theme: 'auto' });
     expect(a.setSettings({ voice: false }).voice).toBe(false);
-    expect(createStore(s).settings()).toEqual({ sound: true, voice: false });
+    expect(createStore(s).settings()).toEqual({ sound: true, voice: false, theme: 'auto' });
+    expect(a.setSettings({ theme: 'dark' }).theme).toBe('dark');
   });
   it('survives a throwing storage', () => {
     const bad = {

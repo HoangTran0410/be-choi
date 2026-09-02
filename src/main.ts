@@ -9,6 +9,7 @@ import { findGame } from './app/registry';
 import { hrefFor, startRouter } from './app/router';
 import { mountShell } from './app/shell';
 import { createStore } from './app/storage';
+import { applyTheme, watchSystemTheme } from './app/theme';
 import './styles/base.css';
 
 const root = document.querySelector<HTMLElement>('#app');
@@ -21,6 +22,8 @@ const photos = createPhotoStore();
 const settings = store.settings();
 audio.setEnabled(settings.sound);
 speech.setEnabled(settings.voice);
+applyTheme(settings.theme);
+watchSystemTheme(() => store.settings().theme);
 
 // ---- PWA install prompt (Android / desktop). iOS needs manual steps. ----
 type BeforeInstallPromptEvent = Event & { prompt(): Promise<void> };

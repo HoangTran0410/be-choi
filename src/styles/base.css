@@ -1,9 +1,21 @@
 :root {
+  color-scheme: light dark;
   --tap: clamp(72px, 14vmin, 140px);
   --emoji: clamp(56px, 12vmin, 120px);
   --radius: 24px;
+  /* light theme */
   --bg: #fff7ed;
   --ink: #3b2f2f;
+  --surface: #ffffff;
+  --surface-2: rgba(255, 255, 255, 0.6);
+  --tray-bg: rgba(255, 255, 255, 0.55);
+  --muted: #78716c;
+  --title: #ea580c;
+  --title-shadow: #fed7aa;
+  --section: #9a3412;
+  --stage-mix: #ffffff;
+  --stage-mix-pct: 0%;
+  --btn-shadow: rgba(0, 0, 0, 0.12);
   --c-red: #ef4444;
   --c-orange: #f97316;
   --c-yellow: #facc15;
@@ -12,6 +24,37 @@
   --c-purple: #a855f7;
   --c-pink: #ec4899;
   --font: -apple-system, "SF Pro Rounded", "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #1c1917;
+    --ink: #f5f5f4;
+    --surface: #292524;
+    --surface-2: rgba(41, 37, 36, 0.88);
+    --tray-bg: rgba(0, 0, 0, 0.35);
+    --muted: #a8a29e;
+    --title: #fb923c;
+    --title-shadow: #7c2d12;
+    --section: #fdba74;
+    --stage-mix: #1c1917;
+    --stage-mix-pct: 45%;
+    --btn-shadow: rgba(0, 0, 0, 0.5);
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #1c1917;
+  --ink: #f5f5f4;
+  --surface: #292524;
+  --surface-2: rgba(41, 37, 36, 0.88);
+  --tray-bg: rgba(0, 0, 0, 0.35);
+  --muted: #a8a29e;
+  --title: #fb923c;
+  --title-shadow: #7c2d12;
+  --section: #fdba74;
+  --stage-mix: #1c1917;
+  --stage-mix-pct: 45%;
+  --btn-shadow: rgba(0, 0, 0, 0.5);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -77,8 +120,8 @@ button {
   place-items: center;
   font-size: calc(var(--tap) * 0.5);
   line-height: 1;
-  background: #fff;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+  background: var(--surface);
+  box-shadow: 0 4px 0 var(--btn-shadow);
   transition: transform 0.1s;
 }
 .btn-round:active { transform: scale(0.92); }
@@ -145,7 +188,7 @@ button {
   align-items: center;
   gap: 2vmin;
   padding: 2vmin;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--tray-bg);
 }
 .g-board {
   position: absolute;

@@ -1,0 +1,165 @@
+/*
+ * Animal band: six animal tiles in a grid (3 × 2 landscape, 2 × 3 portrait)
+ * above a bottom bar with three groove buttons and ⏹. The grid and tiles
+ * share the stage with flex/grid fractions, so nothing is sized in fixed
+ * pixels and the page never scrolls. Inactive animals are greyed out; active
+ * ones show their colour, sway in time, and bump on every beat.
+ */
+.orchestra {
+  --orchestra-gap: 2vmin;
+  /* One quarter-note beat; set from the groove's bpm by the game. */
+  --orchestra-beat: 536ms;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--orchestra-gap);
+  padding: var(--orchestra-gap);
+  overflow: hidden;
+  touch-action: none;
+  background: linear-gradient(180deg, #fef9c3 0%, #fde68a 100%);
+}
+
+.orchestra-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: var(--orchestra-gap);
+}
+
+.orchestra-animal {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.15) 40%, transparent 72%),
+    var(--orchestra-color);
+  box-shadow:
+    inset 0 -1vmin 0 rgba(0, 0, 0, 0.14),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 4px 10px rgba(0, 0, 0, 0.1);
+  filter: grayscale(0.8) opacity(0.6);
+  transition: filter 0.25s, transform 0.12s, box-shadow 0.25s;
+  touch-action: none;
+  will-change: transform;
+  container-type: size;
+}
+.orchestra-animal:focus:not(:focus-visible) {
+  outline: none;
+}
+.orchestra-animal.orchestra-active {
+  filter: none;
+  box-shadow:
+    inset 0 -1vmin 0 rgba(0, 0, 0, 0.14),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 0.6vmin #fff,
+    0 4px 12px rgba(0, 0, 0, 0.16);
+}
+/* On the beat: a quick scale bump, released by the transition above. */
+.orchestra-animal.orchestra-beat {
+  transform: scale(1.06);
+  transition: transform 0.05s;
+}
+
+.orchestra-emoji {
+  display: inline-block;
+  font-size: var(--emoji);
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.18));
+}
+@supports (width: 1cqw) {
+  /* Never taller than the tile on short landscape phones. */
+  .orchestra-emoji {
+    font-size: min(var(--emoji), 72cqh, 60cqw);
+  }
+}
+
+/* Playing: sway from side to side, two beats per cycle. */
+.orchestra-dance .orchestra-emoji {
+  animation: orchestra-dance calc(var(--orchestra-beat) * 2) ease-in-out infinite;
+}
+@keyframes orchestra-dance {
+  0%, 100% { transform: rotate(-8deg) translateY(0); }
+  25% { transform: rotate(0) translateY(-6%); }
+  50% { transform: rotate(8deg) translateY(0); }
+  75% { transform: rotate(0) translateY(-6%); }
+}
+
+/* Idle hint: an animal that is not playing waves for attention. */
+.orchestra-nudge {
+  animation: orchestra-nudge 0.5s ease-in-out 2;
+}
+@keyframes orchestra-nudge {
+  0%, 100% { transform: rotate(0) scale(1); }
+  25% { transform: rotate(-12deg) scale(1.12); }
+  75% { transform: rotate(12deg) scale(1.12); }
+}
+
+.orchestra-bar {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3vmin;
+  min-height: var(--tap);
+}
+.orchestra-groove {
+  background: #fff;
+}
+.orchestra-groove.active {
+  background: #fde68a;
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.12),
+    0 0 0 4px #fff;
+}
+.orchestra-stop {
+  margin-left: 3vmin;
+  background: #fecaca;
+  font-size: calc(var(--tap) * 0.45);
+}
+
+/* Star: floats up from the middle of the band. */
+.orchestra-star {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  font-size: calc(var(--emoji) * 1.4);
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: orchestra-star 0.9s ease-out forwards;
+}
+@keyframes orchestra-star {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, calc(-50% - 16vmin)) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (orientation: portrait) {
+  .orchestra-stage {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orchestra-dance .orchestra-emoji,
+  .orchestra-nudge {
+    animation: none;
+  }
+  .orchestra-animal.orchestra-beat {
+    transform: none;
+  }
+}
