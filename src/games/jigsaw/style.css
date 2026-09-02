@@ -15,21 +15,18 @@
   padding: 2vmin;
 }
 
-/* Square board: 70vmin, capped by the area it sits in. */
+/* Square board: 70vmin, capped by the area it sits in. Slots are placed on it in % from JS. */
 .jigsaw-board {
   position: relative;
   height: min(70vmin, 100%);
   max-width: 100%;
   aspect-ratio: 1 / 1;
-  display: grid;
-  grid-template-columns: repeat(var(--jigsaw-cols, 2), 1fr);
-  grid-template-rows: repeat(var(--jigsaw-rows, 2), 1fr);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.45);
   box-shadow: 0 8px 24px rgba(59, 47, 47, 0.12);
 }
 
-/* The whole picture, faint, under the cells. */
+/* The whole picture, faint, under the pieces. */
 .jigsaw-ghost {
   position: absolute;
   inset: 0;
@@ -47,16 +44,34 @@
   line-height: 1;
 }
 
-.jigsaw-slot {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  border: 3px dashed rgba(59, 47, 47, 0.25);
-  border-radius: 8px;
+/* Dashed cut lines over the ghost. 1000-unit viewBox: dashes scale with the board, the stroke stays 3px. */
+.jigsaw-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
-.jigsaw-slot.filled,
-.jigsaw-board.done .jigsaw-slot {
-  border-color: transparent;
+.jigsaw-lines path {
+  fill: none;
+  stroke: rgba(59, 47, 47, 0.35);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-dasharray: 14 10;
+  vector-effect: non-scaling-stroke;
+}
+.jigsaw-board.done .jigsaw-lines {
+  display: none;
+}
+
+/* Drop target: invisible, shaped like its piece (clip-path from JS); lights up when the hint wiggles it. */
+.jigsaw-slot {
+  position: absolute;
+  pointer-events: none;
+}
+.jigsaw-slot.anim-wiggle {
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .jigsaw-tray {
@@ -68,26 +83,47 @@
   justify-content: center;
 }
 
+/* Tray item = drag handle: never under a tap target, the visual (--w × --h, from JS) centred in it. */
+.jigsaw-item {
+  width: max(var(--tap), var(--w, 0px));
+  height: max(var(--tap), var(--h, 0px));
+}
+
+/* A piece: its part of the picture, clipped to its shape (sizes, background and clip-path from JS). */
 .jigsaw-piece {
-  border: 3px solid #fff;
-  border-radius: 8px;
+  position: relative;
   background-color: #fff;
   background-repeat: no-repeat;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
-  overflow: hidden;
-  touch-action: none;
+  pointer-events: none;
 }
-/* Tray pieces: the cell size measured from the board (--jigsaw-pw), never under a tap target. */
-.jigsaw-tray .jigsaw-piece {
-  width: max(var(--tap), var(--jigsaw-pw, 0px));
-  height: auto;
-  aspect-ratio: var(--jigsaw-ar, 1);
+.jigsaw-piece-plain {
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+}
+/* Same outline as the clip, drawn on top: the outer half of the stroke is clipped away → a thin inner white edge. */
+.jigsaw-piece-edge {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.jigsaw-piece-edge path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 4px;
+  vector-effect: non-scaling-stroke;
 }
 .jigsaw-slot .jigsaw-piece {
   width: 100%;
   height: 100%;
-  box-shadow: none;
-  pointer-events: none;
+}
+/* No seams once the picture is whole. */
+.jigsaw-board.done .jigsaw-piece-edge {
+  display: none;
 }
 
 /* Photo ⇄ emoji toggle: top-left corner of the stage, above the board. */

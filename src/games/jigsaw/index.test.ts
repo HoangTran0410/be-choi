@@ -19,38 +19,73 @@ function ptr(type: string, x: number, y: number): PointerEvent {
   return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
 }
 
-/** jsdom has no layout: give slot (r, c) the rect x ∈ [c·200, c·200+100], y ∈ [r·200, r·200+100]. */
-function layout(slots: HTMLElement[]): void {
-  for (const el of slots) {
-    const left = Number(el.dataset.c) * 200;
-    const top = Number(el.dataset.r) * 200;
-    el.getBoundingClientRect = () => ({
-      x: left, y: top, left, top, width: 100, height: 100, right: left + 100, bottom: top + 100, toJSON: () => ({}),
-    });
+/** Board side in the stubbed layout. */
+const BOARD = 400;
+
+function rect(left: number, top: number, width: number, height: number): DOMRect {
+  return { x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({}) };
+}
+
+/**
+ * jsdom has no layout. Give the board a 400×400 rect at the origin, every slot its
+ * bounding box in px (from its inline % style) and every tray item a 40×40 rect
+ * centred on its drag translate — i.e. a piece sits under the finger.
+ */
+function layout(ctx: { stage: HTMLElement }): void {
+  const board = ctx.stage.querySelector<HTMLElement>('.jigsaw-board');
+  if (board) board.getBoundingClientRect = () => rect(0, 0, BOARD, BOARD);
+  const tray = ctx.stage.querySelector<HTMLElement>('.jigsaw-tray');
+  if (tray) tray.getBoundingClientRect = () => rect(0, 500, BOARD, 200);
+  for (const el of ctx.stage.querySelectorAll<HTMLElement>('.jigsaw-slot')) {
+    const p = (v: string): number => (parseFloat(v) / 100) * BOARD;
+    el.getBoundingClientRect = () => rect(p(el.style.left), p(el.style.top), p(el.style.width), p(el.style.height));
+  }
+  for (const el of ctx.stage.querySelectorAll<HTMLElement>('.jigsaw-item')) {
+    el.getBoundingClientRect = () => {
+      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(el.style.transform);
+      const x = m ? Number(m[1]) : 0;
+      const y = m ? Number(m[2]) : 0;
+      return rect(x - 20, y - 20, 40, 40);
+    };
   }
 }
 
-/** Drag `piece` from the origin and release it at (x, y). */
-function drop(piece: HTMLElement, x: number, y: number): void {
-  piece.dispatchEvent(ptr('pointerdown', 0, 0));
-  piece.dispatchEvent(ptr('pointermove', x, y));
-  piece.dispatchEvent(ptr('pointerup', x, y));
+function centre(el: HTMLElement): { x: number; y: number } {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-/** Release `piece` in the centre of the cell (r, c). */
-function dropAt(piece: HTMLElement, r: number, c: number): void {
-  drop(piece, c * 200 + 50, r * 200 + 50);
+/** Drag `item` from the origin and release it at (x, y). */
+function drop(item: HTMLElement, x: number, y: number): void {
+  item.dispatchEvent(ptr('pointerdown', 0, 0));
+  item.dispatchEvent(ptr('pointermove', x, y));
+  item.dispatchEvent(ptr('pointerup', x, y));
+}
+
+/** Release `item` on the centre of `slot`, `dx`/`dy` off. */
+function dropOn(item: HTMLElement, slot: HTMLElement, dx = 0, dy = 0): void {
+  const c = centre(slot);
+  drop(item, c.x + dx, c.y + dy);
+}
+
+const q = (ctx: { stage: HTMLElement }, sel: string) => [...ctx.stage.querySelectorAll<HTMLElement>(sel)];
+
+function slotOf(ctx: { stage: HTMLElement }, item: HTMLElement): HTMLElement {
+  return ctx.stage.querySelector<HTMLElement>(`.jigsaw-slot[data-id="${item.dataset.id}"]`)!;
+}
+
+/** Place every tray piece on its own slot. */
+function solve(ctx: { stage: HTMLElement }): void {
+  layout(ctx);
+  for (const item of q(ctx, '.jigsaw-tray .jigsaw-item')) dropOn(item, slotOf(ctx, item));
 }
 
 function mount() {
   const ctx = fakeContext();
   game.start(ctx);
-  const slots = [...ctx.stage.querySelectorAll<HTMLElement>('.jigsaw-slot')];
-  layout(slots);
-  return { ctx, slots };
+  layout(ctx);
+  return { ctx, items: q(ctx, '.jigsaw-tray .jigsaw-item'), slots: q(ctx, '.jigsaw-slot') };
 }
-
-const q = (ctx: { stage: HTMLElement }, sel: string) => [...ctx.stage.querySelectorAll<HTMLElement>(sel)];
 
 /** Enough of a 2d context for `renderPicture`: every call is a spy. */
 function fake2d() {
@@ -92,22 +127,37 @@ describe('jigsaw game', () => {
     vi.unstubAllGlobals();
   });
 
-  it('mounts a 2×2 board with ghost and 4 tray pieces, says what to build, cleans up', () => {
+  it('mounts a 2×2 grid: ghost, dashed cut lines, 4 shaped slots and 4 tray pieces; says what to build; cleans up', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const wrap = ctx.stage.querySelector<HTMLElement>('.jigsaw')!;
     expect(wrap).not.toBeNull();
     expect(wrap.classList.contains('jigsaw-many')).toBe(false);
-    expect(q(ctx, '.jigsaw-board .jigsaw-slot').length).toBe(4);
-    expect(q(ctx, '.jigsaw-tray .jigsaw-piece').length).toBe(4);
+    const board = ctx.stage.querySelector<HTMLElement>('.jigsaw-board')!;
+    expect(board.dataset.style).toBe('grid');
+    const slots = q(ctx, '.jigsaw-board .jigsaw-slot');
+    expect(slots.map((s) => s.dataset.id).sort()).toEqual(['0', '1', '2', '3']);
+    // Slots sit on their piece's bounding box, in % of the board.
+    const s1 = board.querySelector<HTMLElement>('.jigsaw-slot[data-id="1"]')!;
+    expect([s1.style.left, s1.style.top, s1.style.width, s1.style.height]).toEqual(['50%', '0%', '50%', '50%']);
+    const lines = board.querySelector<SVGPathElement>('svg.jigsaw-lines path')!;
+    expect(lines).not.toBeNull();
+    expect(lines.getAttribute('d')?.startsWith('M')).toBe(true);
+    expect(lines.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+    const items = q(ctx, '.jigsaw-tray .jigsaw-item');
+    expect(items.length).toBe(4);
+    expect(items.every((i) => i.classList.contains('g-item'))).toBe(true);
+    expect(items.map((i) => i.dataset.id).sort()).toEqual(['0', '1', '2', '3']);
+    const pieces = q(ctx, '.jigsaw-tray .jigsaw-item > .jigsaw-piece');
+    expect(pieces.length).toBe(4);
+    expect(pieces.map((p) => p.dataset.id).sort()).toEqual(['0', '1', '2', '3']);
+    expect(q(ctx, '.jigsaw-piece > svg.jigsaw-piece-edge path[d^="M"]').length).toBe(4);
     const ghost = ctx.stage.querySelector<HTMLElement>('.jigsaw-board .jigsaw-ghost')!;
     expect(ghost).not.toBeNull();
     // No canvas in jsdom: the ghost and pieces fall back to colour + emoji.
     expect(PICTURES.some((i) => i.emoji === ghost.textContent)).toBe(true);
     expect(ghost.classList.contains('jigsaw-ghost-plain')).toBe(true);
     expect(q(ctx, '.jigsaw-piece-plain').length).toBe(4);
-    const cells = q(ctx, '.jigsaw-piece').map((p) => `${p.dataset.r},${p.dataset.c}`).sort();
-    expect(cells).toEqual(['0,0', '0,1', '1,0', '1,1']);
     expect(ctx.spoken.length).toBe(1);
     expect(ctx.spoken[0]?.startsWith('Ghép ')).toBe(true);
     expect(ctx.spoken[0]?.endsWith(' nào!')).toBe(true);
@@ -117,94 +167,115 @@ describe('jigsaw game', () => {
     window.dispatchEvent(new Event('resize'));
   });
 
-  it('springs back from the wrong cell, snaps into the right one', () => {
-    const { ctx, slots } = mount();
+  it('springs back from another slot or far away, snaps into its own', () => {
+    const { ctx, items, slots } = mount();
     const boing = vi.spyOn(ctx.audio, 'boing');
     const ding = vi.spyOn(ctx.audio, 'ding');
-    const piece = ctx.stage.querySelector<HTMLElement>('.jigsaw-piece')!;
-    const r = Number(piece.dataset.r);
-    const c = Number(piece.dataset.c);
-    const wrong = slots.find((s) => Number(s.dataset.r) !== r || Number(s.dataset.c) !== c)!;
+    const item = items[0]!;
+    const piece = item.querySelector<HTMLElement>('.jigsaw-piece')!;
+    const own = slotOf(ctx, item);
+    const wrong = slots.find((s) => s !== own)!;
 
-    dropAt(piece, Number(wrong.dataset.r), Number(wrong.dataset.c));
+    dropOn(item, wrong);
     expect(boing).toHaveBeenCalledTimes(1);
     expect(ding).not.toHaveBeenCalled();
     expect(piece.classList.contains('placed')).toBe(false);
-    expect(piece.classList.contains('spring-back')).toBe(true);
-    expect(piece.parentElement?.classList.contains('jigsaw-tray')).toBe(true);
+    expect(item.classList.contains('spring-back')).toBe(true);
+    expect(item.parentElement?.classList.contains('jigsaw-tray')).toBe(true);
     expect(wrong.classList.contains('filled')).toBe(false);
 
-    // Far from every cell: also a miss.
-    drop(piece, 5000, 5000);
+    drop(item, 5000, 5000);
     expect(boing).toHaveBeenCalledTimes(2);
 
-    dropAt(piece, r, c);
+    dropOn(item, own);
     expect(ding).toHaveBeenCalledTimes(1);
     expect(piece.classList.contains('placed')).toBe(true);
     expect(piece.style.transform).toBe('');
-    const own = slots.find((s) => Number(s.dataset.r) === r && Number(s.dataset.c) === c)!;
     expect(own.classList.contains('filled')).toBe(true);
     expect(own.contains(piece)).toBe(true);
+    expect(item.isConnected).toBe(false);
+    expect(q(ctx, '.jigsaw-tray .jigsaw-item').length).toBe(3);
     expect(ctx.stage.querySelector('.jigsaw-board')?.classList.contains('done')).toBe(false);
     expect(ctx.celebrations).toBe(0);
+    // A placed piece cannot be picked up again.
+    item.dispatchEvent(ptr('pointerdown', 0, 0));
+    expect(item.classList.contains('dragging')).toBe(false);
     ctx.cleanup();
   });
 
-  it('celebrates, awards a star and starts a fresh round with a different picture once all 4 are placed', async () => {
+  it('accepts a drop within 0.28 × board of the slot centre and boings beyond', () => {
+    const { ctx, items } = mount();
+    const boing = vi.spyOn(ctx.audio, 'boing');
+    const ding = vi.spyOn(ctx.audio, 'ding');
+    const near = 0.28 * BOARD - 2;
+    const far = 0.28 * BOARD + 2;
+    const [a, b] = items as [HTMLElement, HTMLElement];
+    dropOn(a, slotOf(ctx, a), far, 0);
+    expect(boing).toHaveBeenCalledTimes(1);
+    dropOn(a, slotOf(ctx, a), near * Math.SQRT1_2, near * Math.SQRT1_2);
+    expect(ding).toHaveBeenCalledTimes(1);
+    expect(ctx.stage.querySelector(`.jigsaw-piece[data-id="${a.dataset.id}"]`)?.classList.contains('placed')).toBe(true);
+    dropOn(b, slotOf(ctx, b), 0, -near);
+    expect(ding).toHaveBeenCalledTimes(2);
+    expect(boing).toHaveBeenCalledTimes(1);
+    ctx.cleanup();
+  });
+
+  it('celebrates, awards a star and deals the next rung (3 strips) with a different picture once all 4 are placed', async () => {
     const { ctx } = mount();
     const ghost = ctx.stage.querySelector<HTMLElement>('.jigsaw-ghost')!;
     const first = ghost.textContent;
-    for (const piece of q(ctx, '.jigsaw-piece')) dropAt(piece, Number(piece.dataset.r), Number(piece.dataset.c));
+    solve(ctx);
     expect(q(ctx, '.jigsaw-slot.filled .jigsaw-piece.placed').length).toBe(4);
+    expect(q(ctx, '.jigsaw-tray .jigsaw-item').length).toBe(0);
     expect(ctx.stage.querySelector('.jigsaw-board')?.classList.contains('done')).toBe(true);
     expect(ctx.spoken.length).toBe(2);
     expect(`Ghép ${ctx.spoken[1]} nào!`).toBe(ctx.spoken[0]);
     await vi.waitFor(() => expect(ctx.stars).toBe(1));
     expect(ctx.celebrations).toBe(1);
-    expect(ctx.stage.querySelector('.jigsaw-board')?.classList.contains('done')).toBe(false);
-    expect(q(ctx, '.jigsaw-slot').length).toBe(4);
+    const board = ctx.stage.querySelector<HTMLElement>('.jigsaw-board')!;
+    expect(board.classList.contains('done')).toBe(false);
+    expect(board.dataset.style).toBe('strips');
+    expect(q(ctx, '.jigsaw-slot').length).toBe(3);
     expect(q(ctx, '.jigsaw-slot.filled').length).toBe(0);
-    expect(q(ctx, '.jigsaw-tray .jigsaw-piece:not(.placed)').length).toBe(4);
+    expect(q(ctx, '.jigsaw-tray .jigsaw-item').length).toBe(3);
+    expect(q(ctx, '.jigsaw-piece:not(.placed)').length).toBe(3);
     expect(ghost.textContent).not.toBe(first);
     expect(ctx.spoken.length).toBe(3);
     expect(ctx.spoken[2]?.startsWith('Ghép ')).toBe(true);
     ctx.cleanup();
   });
 
-  it('grows to 3×2 and 3×3 over the rounds and flags the taller tray', async () => {
+  it('climbs the ladder: grid 2×2 → strips 3 → diag 4 → grid 3×2 → knobs 2×2 → pie 6, flagging the taller tray past 4 pieces', async () => {
     const { ctx } = mount();
     const wrap = ctx.stage.querySelector<HTMLElement>('.jigsaw')!;
     const board = ctx.stage.querySelector<HTMLElement>('.jigsaw-board')!;
-    for (let round = 0; round < 4; round++) {
-      const slots = q(ctx, '.jigsaw-slot');
-      layout(slots);
-      for (const piece of q(ctx, '.jigsaw-tray .jigsaw-piece')) {
-        dropAt(piece, Number(piece.dataset.r), Number(piece.dataset.c));
-      }
+    const rungs: Array<[string, number]> = [['grid', 4], ['strips', 3], ['diag', 4], ['grid', 6], ['knobs', 4], ['pie', 6]];
+    for (const [round, [style, count]] of rungs.entries()) {
+      expect(board.dataset.style).toBe(style);
+      expect(q(ctx, '.jigsaw-slot').length).toBe(count);
+      expect(q(ctx, '.jigsaw-tray .jigsaw-item').length).toBe(count);
+      expect(wrap.classList.contains('jigsaw-many')).toBe(count > 4);
+      solve(ctx);
       await vi.waitFor(() => expect(ctx.stars).toBe(round + 1));
     }
-    expect(q(ctx, '.jigsaw-slot').length).toBe(9);
-    expect(q(ctx, '.jigsaw-tray .jigsaw-piece').length).toBe(9);
-    expect(wrap.classList.contains('jigsaw-many')).toBe(true);
-    expect(board.style.getPropertyValue('--jigsaw-cols')).toBe('3');
-    expect(board.style.getPropertyValue('--jigsaw-rows')).toBe('3');
     ctx.cleanup();
   });
 
-  it('idle hint wiggles the first unplaced piece and its cell', () => {
+  it('idle hint wiggles the first unplaced piece and its slot', () => {
     vi.useFakeTimers();
     const ctx = fakeContext();
     game.start(ctx);
     vi.advanceTimersByTime(6000);
-    const piece = ctx.stage.querySelector<HTMLElement>('.jigsaw-piece')!;
+    const piece = ctx.stage.querySelector<HTMLElement>('.jigsaw-tray .jigsaw-piece')!;
     expect(piece.classList.contains('anim-wiggle')).toBe(true);
-    const slot = ctx.stage.querySelector(`.jigsaw-slot[data-r="${piece.dataset.r}"][data-c="${piece.dataset.c}"]`)!;
+    const slot = ctx.stage.querySelector(`.jigsaw-slot[data-id="${piece.dataset.id}"]`)!;
     expect(slot.classList.contains('anim-wiggle')).toBe(true);
     ctx.cleanup();
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('with a canvas, paints the picture on the ghost and each piece shows its own cell', () => {
+  it('with a canvas, paints the picture on the ghost and clips each piece to its own shape and part of the picture', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fake2d() as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,QUJD');
     const ctx = fakeContext();
@@ -213,14 +284,35 @@ describe('jigsaw game', () => {
     expect(ghost.style.backgroundImage).toContain('data:image/png;base64,QUJD');
     expect(ghost.classList.contains('jigsaw-ghost-plain')).toBe(false);
     expect(ghost.textContent).toBe('');
-    const piece = ctx.stage.querySelector<HTMLElement>('.jigsaw-piece[data-r="0"][data-c="1"]')!;
+    const piece = ctx.stage.querySelector<HTMLElement>('.jigsaw-piece[data-id="1"]')!;
     expect(piece.style.backgroundImage).toContain('data:image/png;base64,QUJD');
-    expect(piece.style.backgroundSize).toBe('200% 200%');
-    expect(piece.style.backgroundPosition).toBe('100% 0%');
     expect(piece.textContent).toBe('');
-    expect(ctx.stage.querySelector<HTMLElement>('.jigsaw-piece[data-r="1"][data-c="0"]')!.style.backgroundPosition).toBe(
-      '0% 100%',
-    );
+    expect(q(ctx, '.jigsaw-piece-plain').length).toBe(0);
+    // Without layout (jsdom) nothing is sized; once the board and tray have rects, everything is in px.
+    expect(piece.style.clipPath).toBe('');
+    layout(ctx);
+    window.dispatchEvent(new Event('resize'));
+    // Tray: 4 cells of 200×200 in 400×200 → half size, minus 3 % slack → 97 px per cell.
+    const item = ctx.stage.querySelector<HTMLElement>('.jigsaw-item[data-id="1"]')!;
+    expect(item.style.getPropertyValue('--w')).toBe('97px');
+    expect(item.style.getPropertyValue('--h')).toBe('97px');
+    expect(piece.style.width).toBe('97px');
+    expect(piece.style.height).toBe('97px');
+    expect(piece.style.backgroundSize).toBe('194px 194px');
+    expect(piece.style.backgroundPosition).toBe('-97px 0px');
+    expect(piece.style.clipPath).toBe('path("M0 0L97 0L97 97L0 97Z")');
+    // The slot is clipped to the same shape at board scale.
+    const slot = ctx.stage.querySelector<HTMLElement>('.jigsaw-slot[data-id="1"]')!;
+    expect(slot.style.clipPath).toBe('path("M0 0L200 0L200 200L0 200Z")');
+    // Placed: fills the slot, picture at board scale, offset to its own part.
+    dropOn(item, slot);
+    expect(piece.classList.contains('placed')).toBe(true);
+    expect(piece.style.width).toBe('100%');
+    expect(piece.style.backgroundSize).toBe('400px 400px');
+    expect(piece.style.backgroundPosition).toBe('-200px 0px');
+    expect(piece.style.clipPath).toBe('path("M0 0L200 0L200 200L0 200Z")');
+    const bottomLeft = ctx.stage.querySelector<HTMLElement>('.jigsaw-piece[data-id="2"]')!;
+    expect(bottomLeft.style.backgroundPosition).toBe('0px -97px');
     ctx.cleanup();
   });
 
@@ -252,7 +344,7 @@ describe('jigsaw game', () => {
     ctx.cleanup();
   });
 
-  it('tapping the toggle switches to emoji mode (📷) and re-deals a round of the same size, and back', async () => {
+  it('tapping the toggle switches to emoji mode (📷) and re-deals a round of the same rung, and back', async () => {
     const ctx = fakeContext();
     await ctx.photos.add([new Blob(['x'])]);
     game.start(ctx);
@@ -266,6 +358,7 @@ describe('jigsaw game', () => {
     expect(after.length).toBe(4);
     expect(after).not.toContain(before[0]);
     expect(q(ctx, '.jigsaw-slot').length).toBe(4);
+    expect(ctx.stage.querySelector<HTMLElement>('.jigsaw-board')?.dataset.style).toBe('grid');
     toggle.dispatchEvent(ptr('pointerdown', 0, 0));
     expect(toggle.textContent).toBe('🐣');
     await vi.waitFor(() => expect(ctx.spoken.length).toBe(4));
@@ -301,6 +394,10 @@ describe('jigsaw game', () => {
     expect(pieces.length).toBe(4);
     for (const piece of pieces) expect(piece.style.backgroundImage).toContain('data:image/jpeg;base64,UEhP');
     expect(q(ctx, '.jigsaw-piece-plain').length).toBe(0);
+    // A solved photo round is celebrated without naming anything.
+    solve(ctx);
+    expect(ctx.spoken.length).toBe(2);
+    await vi.waitFor(() => expect(ctx.stars).toBe(1));
     ctx.cleanup();
   });
 });
