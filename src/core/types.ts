@@ -10,6 +10,8 @@ export type Skill =
   | 'memory'
   | 'counting'
   | 'care'
+  /** Little worlds that run on their own and are nice to just watch. */
+  | 'nature'
   | 'puzzle'
   | 'logic';
 

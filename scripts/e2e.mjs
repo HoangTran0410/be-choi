@@ -135,6 +135,24 @@ const painted = await canvas.evaluate((c) => {
 });
 check('paint: canvas has paint', painted > 0, `${painted} sampled px`);
 
+// ---- aquarium: the tank runs by itself, takes a poke and takes food ----
+await open('aquarium');
+await page.waitForTimeout(700);
+const tankBox = await page.locator('.aquarium-canvas').evaluate((el) => ({ w: el.width, h: el.height }));
+check('aquarium: tank fills the stage', tankBox.w > 0 && tankBox.h > 0, JSON.stringify(tankBox));
+const frameA = await page.locator('.aquarium-canvas').evaluate((el) => el.toDataURL().slice(0, 4000));
+await page.waitForTimeout(600);
+const frameB = await page.locator('.aquarium-canvas').evaluate((el) => el.toDataURL().slice(0, 4000));
+check('aquarium: the fish are swimming', frameA !== frameB);
+await tap(page.locator('.aquarium-canvas'));
+await tap(page.locator('.aquarium-feed'));
+const fed = await page
+  .waitForSelector('canvas.confetti', { timeout: 25000 })
+  .then(() => true)
+  .catch(() => false);
+check('aquarium: every flake eaten ends in confetti', fed);
+await page.waitForTimeout(1800);
+
 // ---- peekaboo: reveal a few animals, then land in a "find this animal" round ----
 await open('peekaboo');
 await tap(page.locator('.peekaboo-spot').first());

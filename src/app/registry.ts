@@ -1,5 +1,6 @@
 import type { GameMeta, GameModule } from '../core/types';
 import { meta as bubbles } from '../games/bubbles/meta';
+import { meta as aquarium } from '../games/aquarium/meta';
 import { meta as shapes } from '../games/shapes/meta';
 import { meta as colors } from '../games/colors/meta';
 import { meta as sizes } from '../games/sizes/meta';
@@ -33,6 +34,7 @@ export interface GameEntry extends GameMeta {
 /** Every game, in home-screen order. Add a new game here after creating its folder. */
 export const GAMES: readonly GameEntry[] = [
   { ...bubbles, load: () => import('../games/bubbles/index') },
+  { ...aquarium, load: () => import('../games/aquarium/index') },
   { ...shapes, load: () => import('../games/shapes/index') },
   { ...colors, load: () => import('../games/colors/index') },
   { ...sizes, load: () => import('../games/sizes/index') },

@@ -4,7 +4,7 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 25 trò chơi
+## 26 trò chơi
 
 **🎵 Âm nhạc**
 
@@ -32,6 +32,12 @@ không có "thua", không giới hạn thời gian.
 | 🐾 Tìm bóng | kéo con vật lên đúng bóng của nó | tri giác thị giác |
 | 🔢 Đếm số | chạm từng quả, đọc "một, hai, ba…" | số đếm 1–5 |
 | 🃏 Lật thẻ | lật 2 thẻ giống nhau, 2 → 4 cặp | trí nhớ |
+
+**🌊 Thế giới nhỏ**
+
+| Trò chơi | Cách chơi | Kỹ năng |
+|---|---|---|
+| 🐠 Bể cá | bể cá tự chạy: 12 loài (cá vàng, cá hề, koi, cá thần tiên, cá nóc, cá mập con, sứa, cá đuối, cua…) bơi bằng xương sống thủ công. Chạm con cá để nghe tên, rê ngón tay thì cá tò mò bơi tới còn cá nhát thì chạy, bấm 🍤 thả thức ăn cho cá đớp | quan sát, chăm sóc |
 
 **🎈 Chơi vui**
 
