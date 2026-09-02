@@ -1,0 +1,157 @@
+/*
+ * Seven square instrument tiles centred on the stage, 🔁 bottom-left and 🎧
+ * bottom-right. `.band` is a size container, so tile size is computed from
+ * the real stage box (not the viewport): it grows to fill the space but is
+ * capped so the grid never overflows and the bottom corners stay free for
+ * the two round buttons.
+ */
+.band {
+  --band-gap: 2vmin;
+  --band-pad: 2vmin;
+  --band-min: calc(var(--tap) * 1.5);
+  --band-max: calc(var(--tap) * 2.4);
+  position: absolute;
+  inset: 0;
+  padding: var(--band-pad);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  touch-action: none;
+  container-type: size;
+}
+
+.band-grid {
+  /* Landscape: 4 columns × 2 rows; the last row (3 tiles) is centred, so the
+     corner buttons need half a tile of free space on each side of it. */
+  /* Fallback for browsers without container-query units (iOS < 16): estimate the stage from the viewport. */
+  --band-tile: clamp(
+    var(--band-min),
+    min(
+      calc((100vw - 3 * var(--band-gap)) / 4),
+      calc((100vw - 4 * var(--band-gap) - 2 * var(--tap)) / 3),
+      calc((100dvh - var(--tap) * 0.8 - 6vmin - var(--band-gap)) / 2)
+    ),
+    var(--band-max)
+  );
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: var(--band-gap);
+  width: calc(4 * var(--band-tile) + 3 * var(--band-gap));
+  max-width: 100%;
+}
+@supports (width: 1cqw) {
+  .band-grid {
+    --band-tile: clamp(
+      var(--band-min),
+      min(
+        calc((100cqw - 3 * var(--band-gap)) / 4),
+        calc((100cqw - 4 * var(--band-gap) - 2 * var(--tap)) / 3),
+        calc((100cqh - var(--band-gap)) / 2)
+      ),
+      var(--band-max)
+    );
+  }
+}
+
+.band-inst {
+  position: relative;
+  flex: none;
+  width: var(--band-tile);
+  height: var(--band-tile);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--band-color);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    0 5px 0 rgba(0, 0, 0, 0.1);
+  touch-action: none;
+  transition: transform 0.1s, opacity 0.25s, box-shadow 0.25s;
+  will-change: transform;
+}
+.band-inst:focus:not(:focus-visible) {
+  outline: none;
+}
+.band-inst:active {
+  transform: scale(0.94);
+}
+.band-emoji {
+  display: inline-block;
+  font-size: var(--emoji);
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.16));
+}
+
+/* Its phrase is playing: glow and bob gently until the last note ends. */
+.band-inst.band-playing {
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 4px #fff,
+    0 0 3vmin 1.5vmin rgba(251, 146, 60, 0.7);
+  animation: band-bob 0.7s ease-in-out infinite;
+}
+@keyframes band-bob {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.05) translateY(-3%); }
+}
+
+/* Not one of this round's options. */
+.band-inst.band-dim {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.band-replay,
+.band-quiz {
+  position: absolute;
+  bottom: var(--band-pad);
+  z-index: 1;
+}
+.band-replay {
+  left: var(--band-pad);
+}
+.band-quiz {
+  right: var(--band-pad);
+}
+.band-quiz.band-on {
+  background: #fdba74;
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.12),
+    0 0 0 4px #fff;
+}
+.band-replay[hidden] {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .band-grid {
+    /* Portrait: 2 columns × 4 rows; the lone last tile is centred, leaving
+       room for a button on each side of it. */
+    --band-tile: clamp(
+      var(--band-min),
+      min(
+        calc((100vw - var(--band-gap)) / 2),
+        calc(100vw - 2 * var(--band-gap) - 2 * var(--tap)),
+        calc((100dvh - var(--tap) * 0.8 - 6vmin - 3 * var(--band-gap)) / 4)
+      ),
+      var(--band-max)
+    );
+    width: calc(2 * var(--band-tile) + var(--band-gap));
+  }
+  @supports (width: 1cqw) {
+    .band-grid {
+      --band-tile: clamp(
+        var(--band-min),
+        min(
+          calc((100cqw - var(--band-gap)) / 2),
+          calc(100cqw - 2 * var(--band-gap) - 2 * var(--tap)),
+          calc((100cqh - 3 * var(--band-gap)) / 4)
+        ),
+        var(--band-max)
+      );
+    }
+  }
+}
