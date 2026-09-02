@@ -40,7 +40,7 @@ function start(ctx: GameContext): void {
     const w = field.clientWidth || 400;
     const el = h('div', {
       class: 'bubble',
-      style: `width:${size}px;height:${size}px;--hue:${spec.hue}`,
+      style: `width:${size}px;height:${size}px;font-size:${size}px;--hue:${spec.hue}`,
     });
     if (spec.item) el.append(h('span', { class: 'bubble-item' }, spec.item.emoji));
     const bubble: Live = {
