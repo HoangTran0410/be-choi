@@ -245,7 +245,7 @@ for (let attempt = 0; attempt < 2; attempt++) {
     await drag(item.locator('.jigsaw-piece'), page.locator(`.jigsaw-slot[data-id="${id}"]`));
   }
 }
-check('jigsaw: all pieces placed', (await page.locator('.jigsaw-item.placed').count()) === pieceCount, `${await page.locator('.jigsaw-item.placed').count()}/${pieceCount}`);
+check('jigsaw: all pieces placed', (await page.locator('.jigsaw-slot.filled').count()) === pieceCount, `${await page.locator('.jigsaw-slot.filled').count()}/${pieceCount}`);
 check('jigsaw: photo button hidden without photos', (await page.locator('.jigsaw-source').count()) === 0);
 
 // ---- blocks: drag blocks to their outlines ----
