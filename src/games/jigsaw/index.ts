@@ -1,8 +1,9 @@
 import { h, replay } from '../../core/dom';
 import { hitTest, makeDraggable } from '../../core/drag';
+import type { Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { makeJigsawRound, renderPicture, trayPieceWidth, type JigsawRound } from './logic';
+import { makeJigsawRound, renderPhotoPicture, renderPicture, trayPieceWidth, type JigsawRound } from './logic';
 import './style.css';
 
 /** Picture bitmap side, clamped: about 70vmin at device resolution. */
@@ -22,7 +23,9 @@ function cellKey(r: number, c: number): string {
 /**
  * Jigsaw: drag the pieces of a picture into their cells on a square grid.
  * 2×2 for two rounds, then 3×2, then 3×3. The picture is an emoji painted on
- * a canvas once per round; every piece shows its cell via background-position.
+ * a canvas once per round, or — when a parent picked family photos — one of
+ * those photos, cycling in order; a 🐣/📷 toggle in the corner switches between
+ * the two. Every piece shows its cell via background-position.
  */
 function start(ctx: GameContext): void {
   let round = 0;
@@ -30,6 +33,12 @@ function start(ctx: GameContext): void {
   let disposers: Array<() => void> = [];
   let current: JigsawRound | null = null;
   let pieces: HTMLElement[] = [];
+  /** Family photos, if any; the toggle exists only while there are some. */
+  let photos: Photo[] = [];
+  let usePhotos = false;
+  let photoIndex = 0;
+  /** Bumped per deal so a slow photo render never builds a stale round. */
+  let deal = 0;
 
   const wrap = h('div', { class: 'jigsaw' });
   const area = h('div', { class: 'jigsaw-area' });
@@ -39,6 +48,28 @@ function start(ctx: GameContext): void {
   area.append(board);
   wrap.append(area, tray);
   ctx.stage.append(wrap);
+
+  const toggle = h('button', { class: 'btn-round jigsaw-source', type: 'button', 'aria-label': 'Đổi ảnh' });
+  toggle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (!photos.length) return;
+    usePhotos = !usePhotos;
+    syncToggle();
+    ctx.audio.pop();
+    void play();
+  });
+
+  function syncToggle(): void {
+    toggle.textContent = usePhotos ? '🐣' : '📷';
+    if (!photos.length) toggle.remove();
+    else if (!toggle.isConnected) ctx.stage.append(toggle);
+  }
+
+  function setPhotos(list: Photo[]): void {
+    photos = list;
+    if (!photos.length) usePhotos = false;
+    syncToggle();
+  }
 
   /** Size tray pieces from the laid-out board and tray. jsdom has no layout: keep the CSS default. */
   function fit(): void {
@@ -62,13 +93,31 @@ function start(ctx: GameContext): void {
     tray.style.setProperty('--jigsaw-pw', `${(w * 0.97).toFixed(1)}px`);
   }
 
-  function play(exclude?: string): void {
+  /**
+   * Deal the current round. In photo mode the next family photo is rendered first
+   * (the old round stays on screen, inert, meanwhile); if that fails the round is
+   * an ordinary emoji round.
+   */
+  async function play(exclude?: string): Promise<void> {
+    const id = ++deal;
     disposers.forEach((d) => d());
     disposers = [];
+    let photoUrl: string | null = null;
+    const photo = usePhotos && photos.length ? photos[photoIndex % photos.length] : undefined;
+    if (photo) {
+      photoIndex++;
+      photoUrl = await renderPhotoPicture(photo.url, pictureSize());
+      if (!alive || id !== deal) return;
+    }
+    build(photoUrl, exclude);
+  }
+
+  function build(photoUrl: string | null, exclude?: string): void {
     const r = makeJigsawRound(round, Math.random, exclude);
     current = r;
     const { cols, rows } = r;
-    const url = renderPicture(r.item.emoji, pictureSize(), r.bg);
+    const isPhoto = photoUrl !== null;
+    const url = photoUrl ?? renderPicture(r.item.emoji, pictureSize(), r.bg);
 
     wrap.classList.toggle('jigsaw-many', r.pieces.length > 4);
     board.classList.remove('done');
@@ -142,10 +191,10 @@ function start(ctx: GameContext): void {
       ctx.audio.ding();
       navigator.vibrate?.(15);
       placed++;
-      if (placed === slots.length) void finish(r);
+      if (placed === slots.length) void finish(r, isPhoto);
     }
 
-    ctx.speak(`Ghép ${r.item.name} nào!`);
+    ctx.speak(isPhoto ? 'Ghép ảnh nào!' : `Ghép ${r.item.name} nào!`);
     ctx.hint.arm(() => {
       const piece = pieces.find((x) => !x.classList.contains('placed'));
       if (!piece) return;
@@ -155,16 +204,17 @@ function start(ctx: GameContext): void {
     });
   }
 
-  async function finish(r: JigsawRound): Promise<void> {
+  async function finish(r: JigsawRound, isPhoto: boolean): Promise<void> {
     board.classList.add('done');
     replay(board, 'anim-bounce');
-    ctx.speak(r.item.name);
+    // A photo has no name to say; the celebration's praise is enough.
+    if (!isPhoto) ctx.speak(r.item.name);
     ctx.hint.clear();
     await ctx.celebrate();
     if (!alive) return;
     ctx.addStar();
     round++;
-    play(r.item.emoji);
+    void play(r.item.emoji);
   }
 
   // Layout may settle after the first paint (fonts, safe areas): fit once more.
@@ -172,14 +222,29 @@ function start(ctx: GameContext): void {
   const onResize = (): void => fit();
   window.addEventListener('resize', onResize);
 
+  const offPhotos = ctx.photos.onChange((list) => {
+    if (alive) setPhotos(list);
+  });
+
   ctx.onCleanup(() => {
     alive = false;
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', onResize);
+    offPhotos();
     disposers.forEach((d) => d());
   });
 
-  play();
+  // First round straight away (emoji); once the photos are known, start over in photo mode.
+  void play();
+  void ctx.photos.list().then((list) => {
+    if (!alive) return;
+    setPhotos(list);
+    if (list.length) {
+      usePhotos = true;
+      syncToggle();
+      void play();
+    }
+  });
 }
 
 const game: GameModule = { ...meta, start };

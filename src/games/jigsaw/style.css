@@ -90,6 +90,14 @@
   pointer-events: none;
 }
 
+/* Photo ⇄ emoji toggle: top-left corner of the stage, above the board. */
+.jigsaw-source {
+  position: absolute;
+  top: 2vmin;
+  left: 2vmin;
+  z-index: 1;
+}
+
 /* More than four pieces do not fit one row on a phone: a taller tray. */
 @media (orientation: portrait) {
   .jigsaw-many .jigsaw-tray {

@@ -5,6 +5,7 @@ import {
   makeJigsawRound,
   PICTURE_BGS,
   PICTURES,
+  renderPhotoPicture,
   renderPicture,
   trayPieceWidth,
 } from './logic';
@@ -25,10 +26,27 @@ function fake2d() {
     createRadialGradient: vi.fn(() => gradient),
     fillRect: vi.fn(),
     fillText: vi.fn(),
+    drawImage: vi.fn(),
   };
 }
 
-afterEach(() => vi.restoreAllMocks());
+/** A stand-in `Image` (jsdom never loads one) that fires `load` or `error` on the next microtask. */
+function fakeImage(ok: boolean, w = 40, h = 30) {
+  return class {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    width = w;
+    height = h;
+    set src(_url: string) {
+      queueMicrotask(() => (ok ? this.onload : this.onerror)?.());
+    }
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('jigsaw gridFor', () => {
   it('2×2 for rounds 0–1, 3×2 for rounds 2–3, then 3×3', () => {
@@ -104,6 +122,34 @@ describe('jigsaw renderPicture', () => {
     expect(c.textBaseline).toBe('middle');
     expect(c.shadowBlur).toBeGreaterThan(0);
     expect(c.fillText).toHaveBeenCalledWith('🐶', 50, expect.any(Number));
+  });
+});
+
+describe('jigsaw renderPhotoPicture', () => {
+  it('resolves null in jsdom (no 2d context) and never throws', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    await expect(renderPhotoPicture('data:image/jpeg;base64,', 64)).resolves.toBeNull();
+  });
+
+  it('resolves null when the image fails to load', async () => {
+    const c = fake2d();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(c as unknown as CanvasRenderingContext2D);
+    vi.stubGlobal('Image', fakeImage(false));
+    await expect(renderPhotoPicture('data:image/jpeg;base64,', 100)).resolves.toBeNull();
+    expect(c.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('paints white, covers the square with the photo and returns a JPEG data URL', async () => {
+    const c = fake2d();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(c as unknown as CanvasRenderingContext2D);
+    const toDataURL = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,UEhP');
+    vi.stubGlobal('Image', fakeImage(true, 200, 100));
+    await expect(renderPhotoPicture('data:image/jpeg;base64,', 100)).resolves.toBe('data:image/jpeg;base64,UEhP');
+    expect(c.fillStyle).toBe('#fff');
+    expect(c.fillRect).toHaveBeenCalledWith(0, 0, 100, 100);
+    // A 200×100 photo covering a 100×100 square keeps its height and is centred horizontally.
+    expect(c.drawImage).toHaveBeenCalledWith(expect.anything(), -50, 0, 200, 100);
+    expect(toDataURL).toHaveBeenCalledWith('image/jpeg', 0.9);
   });
 });
 

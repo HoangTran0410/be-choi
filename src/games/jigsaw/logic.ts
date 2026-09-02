@@ -1,5 +1,6 @@
 import { ANIMALS, FRUITS, VEHICLES, type Item } from '../../core/content';
 import { randInt, shuffle } from '../../core/dom';
+import { drawCover, loadImage } from '../../core/photos';
 
 export interface JigsawPiece {
   /** Row of the cell this piece belongs to. */
@@ -77,6 +78,29 @@ export function renderPicture(emoji: string, size: number, bg: string): string |
   c.shadowOffsetY = size * 0.02;
   c.fillText(emoji, mid, mid + size * 0.02);
   return canvas.toDataURL('image/png');
+}
+
+/**
+ * Paint a family photo on a square `size`×`size` canvas (white behind, cropped
+ * like `object-fit: cover`) and return it as a JPEG data URL. `null` when there
+ * is no 2d context or the image cannot be decoded; never throws. The context is
+ * checked before the image is requested: jsdom fires neither load nor error.
+ */
+export async function renderPhotoPicture(url: string, size: number): Promise<string | null> {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const c = canvas.getContext('2d');
+  if (!c) return null;
+  try {
+    const img = await loadImage(url);
+    c.fillStyle = '#fff';
+    c.fillRect(0, 0, size, size);
+    drawCover(c, img, size, size);
+    return canvas.toDataURL('image/jpeg', 0.9);
+  } catch {
+    return null;
+  }
 }
 
 /**

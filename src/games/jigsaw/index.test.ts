@@ -65,6 +65,20 @@ function fake2d() {
     createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     fillRect: vi.fn(),
     fillText: vi.fn(),
+    drawImage: vi.fn(),
+  };
+}
+
+/** jsdom never loads images: a stand-in `Image` that fires `load` on the next microtask. */
+function fakeImage(w = 40, h = 30) {
+  return class {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    width = w;
+    height = h;
+    set src(_url: string) {
+      queueMicrotask(() => this.onload?.());
+    }
   };
 }
 
@@ -75,6 +89,7 @@ describe('jigsaw game', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('mounts a 2×2 board with ghost and 4 tray pieces, says what to build, cleans up', () => {
@@ -206,6 +221,86 @@ describe('jigsaw game', () => {
     expect(ctx.stage.querySelector<HTMLElement>('.jigsaw-piece[data-r="1"][data-c="0"]')!.style.backgroundPosition).toBe(
       '0% 100%',
     );
+    ctx.cleanup();
+  });
+
+  it('without family photos there is no source toggle', async () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ctx.stage.querySelector('.jigsaw-source')).toBeNull();
+    expect(ctx.spoken.length).toBe(1);
+    ctx.cleanup();
+  });
+
+  it('with family photos starts in photo mode (🐣) and falls back to emoji pieces when the photo cannot be rendered', async () => {
+    const ctx = fakeContext();
+    await ctx.photos.add([new Blob(['x'])]);
+    game.start(ctx);
+    // The emoji round is dealt at once; the photo round replaces it once the store has answered.
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(2));
+    const toggle = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
+    expect(toggle).not.toBeNull();
+    expect(toggle.classList.contains('btn-round')).toBe(true);
+    expect(toggle.getAttribute('aria-label')).toBe('Đổi ảnh');
+    expect(toggle.textContent).toBe('🐣');
+    // loadImage cannot succeed in jsdom: the round is an ordinary emoji round.
+    expect(q(ctx, '.jigsaw-tray .jigsaw-piece').length).toBe(4);
+    expect(q(ctx, '.jigsaw-piece-plain').length).toBe(4);
+    expect(ctx.spoken[1]?.startsWith('Ghép ')).toBe(true);
+    expect(ctx.spoken[1]).not.toBe('Ghép ảnh nào!');
+    ctx.cleanup();
+  });
+
+  it('tapping the toggle switches to emoji mode (📷) and re-deals a round of the same size, and back', async () => {
+    const ctx = fakeContext();
+    await ctx.photos.add([new Blob(['x'])]);
+    game.start(ctx);
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(2));
+    const toggle = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
+    const before = q(ctx, '.jigsaw-piece');
+    toggle.dispatchEvent(ptr('pointerdown', 0, 0));
+    expect(toggle.textContent).toBe('📷');
+    expect(ctx.spoken.length).toBe(3);
+    const after = q(ctx, '.jigsaw-tray .jigsaw-piece');
+    expect(after.length).toBe(4);
+    expect(after).not.toContain(before[0]);
+    expect(q(ctx, '.jigsaw-slot').length).toBe(4);
+    toggle.dispatchEvent(ptr('pointerdown', 0, 0));
+    expect(toggle.textContent).toBe('🐣');
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(4));
+    expect(q(ctx, '.jigsaw-tray .jigsaw-piece').length).toBe(4);
+    ctx.cleanup();
+  });
+
+  it('hides the toggle again when the last photo is removed', async () => {
+    const ctx = fakeContext();
+    const [photo] = await ctx.photos.add([new Blob(['x'])]);
+    game.start(ctx);
+    await vi.waitFor(() => expect(ctx.stage.querySelector('.jigsaw-source')).not.toBeNull());
+    await ctx.photos.remove(photo!.id);
+    expect(ctx.stage.querySelector('.jigsaw-source')).toBeNull();
+    ctx.cleanup();
+  });
+
+  it('with a canvas and a loadable image, the ghost and pieces show the family photo and it asks to build the photo', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fake2d() as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation((type?: string) =>
+      type === 'image/jpeg' ? 'data:image/jpeg;base64,UEhP' : 'data:image/png;base64,QUJD',
+    );
+    vi.stubGlobal('Image', fakeImage());
+    const ctx = fakeContext();
+    await ctx.photos.add([new Blob(['x'])]);
+    game.start(ctx);
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(2));
+    expect(ctx.spoken[1]).toBe('Ghép ảnh nào!');
+    const ghost = ctx.stage.querySelector<HTMLElement>('.jigsaw-ghost')!;
+    expect(ghost.style.backgroundImage).toContain('data:image/jpeg;base64,UEhP');
+    expect(ghost.classList.contains('jigsaw-ghost-plain')).toBe(false);
+    const pieces = q(ctx, '.jigsaw-tray .jigsaw-piece');
+    expect(pieces.length).toBe(4);
+    for (const piece of pieces) expect(piece.style.backgroundImage).toContain('data:image/jpeg;base64,UEhP');
+    expect(q(ctx, '.jigsaw-piece-plain').length).toBe(0);
     ctx.cleanup();
   });
 });
