@@ -88,7 +88,7 @@ function start(ctx: GameContext): void {
   }
 
   /** Play `inst`'s phrase; `highlight` lights the tile and bounces its emoji per note (free mode only). */
-  function play(inst: Instrument, highlight: boolean): void {
+  function play(inst: Instrument, highlight: boolean, announce = false): void {
     stopPhrase();
     const tile = highlight ? (tiles.get(inst.id) ?? null) : null;
     const emoji = tile?.firstElementChild ?? null;
@@ -106,6 +106,8 @@ function start(ctx: GameContext): void {
           tile?.classList.remove('band-playing');
           playingTile = null;
         }
+        // Name comes after the sound: iOS lowers Web Audio while speech plays.
+        if (announce && alive) ctx.speak(inst.name);
       },
     );
   }
@@ -155,8 +157,7 @@ function start(ctx: GameContext): void {
     ctx.hint.touch();
     navigator.vibrate?.(8);
     if (!quiz) {
-      ctx.speak(inst.name);
-      play(inst, true);
+      play(inst, true, true);
       return;
     }
     if (busy || !quiz.options.some((o) => o.id === inst.id)) return;

@@ -1,7 +1,7 @@
 // Screenshot every screen at phone and tablet sizes and flag page overflow or JS errors.
 // Usage: npm run build && node scripts/screenshot.mjs [gameId ...]
 import { mkdirSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import { preview } from 'vite';
 
 const server = await preview({ preview: { port: 4173, host: '127.0.0.1' }, logLevel: 'silent' });
@@ -15,7 +15,10 @@ const VIEWPORTS = [
 ];
 
 mkdirSync('screenshots', { recursive: true });
-const browser = await chromium.launch();
+// BROWSER=webkit approximates iPad Safari. Screenshots get a '-webkit' suffix.
+const engine = process.env.BROWSER === 'webkit' ? webkit : chromium;
+const suffix = process.env.BROWSER === 'webkit' ? '-webkit' : '';
+const browser = await engine.launch();
 const problems = [];
 
 for (const vp of VIEWPORTS) {
@@ -42,7 +45,7 @@ for (const vp of VIEWPORTS) {
       ih: innerHeight,
     }));
     if (box.sw > box.iw || box.sh > box.ih + 1) problems.push(`${vp.name}/${name}: overflow ${JSON.stringify(box)}`);
-    await page.screenshot({ path: `screenshots/${name}-${vp.name}.png` });
+    await page.screenshot({ path: `screenshots/${name}-${vp.name}${suffix}.png` });
   }
   await context.close();
 }

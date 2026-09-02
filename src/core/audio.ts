@@ -34,10 +34,63 @@ export interface AudioEngine {
 
 type Ctx = AudioContext;
 
+/** iPhone/iPad, including iPadOS reporting itself as a Mac. */
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** A 0.2 s silent 8-bit mono WAV as a blob URL (built at runtime, no asset). */
+function silentWavUrl(): string {
+  const rate = 8000;
+  const samples = rate / 5;
+  const buf = new ArrayBuffer(44 + samples);
+  const v = new DataView(buf);
+  const str = (o: number, t: string) => {
+    for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i));
+  };
+  str(0, 'RIFF');
+  v.setUint32(4, 36 + samples, true);
+  str(8, 'WAVE');
+  str(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true);
+  v.setUint16(34, 8, true);
+  str(36, 'data');
+  v.setUint32(40, samples, true);
+  for (let i = 0; i < samples; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+
 export function createAudio(): AudioEngine {
   let ctx: Ctx | null = null;
   let master: GainNode | null = null;
   let enabled = true;
+  /**
+   * iOS treats Web Audio as quiet "ambient" sound (muted by the silent switch, ducked
+   * under speech). Looping a silent <audio> element inside the first gesture moves the
+   * page to the "playback" session, so the synth plays at media volume. (The "unmute" trick.)
+   */
+  let keepAlive: HTMLAudioElement | null = null;
+
+  function startKeepAlive(): void {
+    if (keepAlive || !isIOS() || typeof Audio === 'undefined' || typeof URL?.createObjectURL !== 'function') return;
+    try {
+      const el = new Audio(silentWavUrl());
+      el.loop = true;
+      el.setAttribute('playsinline', '');
+      keepAlive = el;
+      void el.play().catch(() => {
+        keepAlive = null;
+      });
+    } catch {
+      keepAlive = null;
+    }
+  }
 
   function getCtx(): Ctx | null {
     if (!enabled || !ctx) return null;
@@ -58,9 +111,24 @@ export function createAudio(): AudioEngine {
     try {
       ctx = new Ctor();
       master = ctx.createGain();
-      master.gain.value = 0.5;
-      master.connect(ctx.destination);
+      master.gain.value = 0.85;
+      // Gentle compressor: percussion and chords stay loud on small tablet speakers without clipping.
+      let sink: AudioNode = ctx.destination;
+      try {
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -18;
+        comp.knee.value = 12;
+        comp.ratio.value = 6;
+        comp.attack.value = 0.003;
+        comp.release.value = 0.2;
+        comp.connect(ctx.destination);
+        sink = comp;
+      } catch {
+        /* no compressor: connect straight to the destination */
+      }
+      master.connect(sink);
       void ctx.resume().catch(() => undefined);
+      startKeepAlive();
     } catch {
       ctx = null;
       master = null;
@@ -233,27 +301,27 @@ export function createAudio(): AudioEngine {
   function drum(kind: DrumKind): void {
     switch (kind) {
       case 'kick':
-        tone('sine', 150, 0.4, { gain: 0.9, attack: 0.002, slideTo: 40 });
-        noise(0.03, { gain: 0.2, filter: { type: 'lowpass', freq: 600 } });
+        tone('sine', 150, 0.4, { gain: 1.3, attack: 0.002, slideTo: 40 });
+        noise(0.03, { gain: 0.35, filter: { type: 'lowpass', freq: 600 } });
         return;
       case 'snare':
-        noise(0.2, { gain: 0.6, filter: { type: 'bandpass', freq: 1800, q: 0.8 } });
-        tone('triangle', 200, 0.12, { gain: 0.4, attack: 0.002, slideTo: 120 });
+        noise(0.22, { gain: 1.0, filter: { type: 'bandpass', freq: 1800, q: 0.8 } });
+        tone('triangle', 200, 0.12, { gain: 0.6, attack: 0.002, slideTo: 120 });
         return;
       case 'hat':
-        noise(0.06, { gain: 0.35, filter: { type: 'highpass', freq: 7000 } });
+        noise(0.07, { gain: 0.6, filter: { type: 'highpass', freq: 7000 } });
         return;
       case 'tom':
-        tone('sine', 220, 0.35, { gain: 0.8, attack: 0.002, slideTo: 90 });
+        tone('sine', 220, 0.35, { gain: 1.2, attack: 0.002, slideTo: 90 });
         return;
       case 'clap':
-        noise(0.03, { gain: 0.5, filter: { type: 'bandpass', freq: 1200, q: 1 } });
-        noise(0.03, { gain: 0.5, at: 0.012, filter: { type: 'bandpass', freq: 1200, q: 1 } });
-        noise(0.18, { gain: 0.45, at: 0.024, filter: { type: 'bandpass', freq: 1200, q: 1 } });
+        noise(0.03, { gain: 0.8, filter: { type: 'bandpass', freq: 1200, q: 1 } });
+        noise(0.03, { gain: 0.8, at: 0.012, filter: { type: 'bandpass', freq: 1200, q: 1 } });
+        noise(0.2, { gain: 0.75, at: 0.024, filter: { type: 'bandpass', freq: 1200, q: 1 } });
         return;
       case 'cowbell':
-        tone('square', 560, 0.25, { gain: 0.25, attack: 0.002, filter: { type: 'bandpass', freq: 700, q: 3 } });
-        tone('square', 845, 0.25, { gain: 0.25, attack: 0.002, filter: { type: 'bandpass', freq: 850, q: 3 } });
+        tone('square', 560, 0.25, { gain: 0.45, attack: 0.002, filter: { type: 'bandpass', freq: 700, q: 3 } });
+        tone('square', 845, 0.25, { gain: 0.45, attack: 0.002, filter: { type: 'bandpass', freq: 850, q: 3 } });
         return;
     }
   }
@@ -265,7 +333,12 @@ export function createAudio(): AudioEngine {
     unlock,
     setEnabled(on) {
       enabled = on;
-      if (on) unlock();
+      if (on) {
+        unlock();
+        void keepAlive?.play().catch(() => undefined);
+      } else {
+        keepAlive?.pause();
+      }
     },
     pop(pitch = 1) {
       tone('sine', 600 * pitch, 0.09, { gain: 0.5, slideTo: 300 * pitch });

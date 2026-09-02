@@ -55,7 +55,7 @@ describe('drums game', () => {
     expect(kick.classList.contains('drums-hit')).toBe(true);
     expect(ctx.stage.querySelectorAll('.drums-burst').length).toBe(1);
     expect(ctx.stage.querySelector('.drums-burst')!.textContent).toBe('🥁');
-    expect(ctx.spoken).toEqual(['trống cái']);
+    expect(ctx.spoken).toEqual([]); // drum hits stay silent: iOS ducks Web Audio while TTS speaks
     vi.advanceTimersByTime(200);
     expect(kick.classList.contains('drums-hit')).toBe(false);
     expect(ctx.stage.querySelectorAll('.drums-burst').length).toBe(1);
@@ -72,24 +72,6 @@ describe('drums game', () => {
 
     ctx.cleanup();
     expect(document.body.contains(ctx.stage)).toBe(false);
-  });
-
-  it('throttles the spoken pad name to once per 2 s per pad', () => {
-    vi.useFakeTimers();
-    const ctx = fakeContext();
-    game.start(ctx);
-    const kick = pad(ctx, 'kick');
-    const tom = pad(ctx, 'tom');
-    kick.dispatchEvent(ptr('pointerdown', 10, 10));
-    kick.dispatchEvent(ptr('pointerdown', 10, 10));
-    vi.advanceTimersByTime(1000);
-    kick.dispatchEvent(ptr('pointerdown', 10, 10));
-    tom.dispatchEvent(ptr('pointerdown', 10, 10));
-    expect(ctx.spoken).toEqual(['trống cái', 'trống tom']);
-    vi.advanceTimersByTime(1000);
-    kick.dispatchEvent(ptr('pointerdown', 10, 10));
-    expect(ctx.spoken).toEqual(['trống cái', 'trống tom', 'trống cái']);
-    ctx.cleanup();
   });
 
   it('beat button loops kick / snare / hat, lights the pads, and stops on a second press', () => {

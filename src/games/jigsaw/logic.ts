@@ -67,6 +67,8 @@ export function renderPicture(emoji: string, size: number, bg: string): string |
   g.addColorStop(1, bg);
   c.fillStyle = g;
   c.fillRect(0, 0, size, size);
+  // Solid fill: with a gradient fillStyle WebKit renders the emoji as a flat mask, not in colour.
+  c.fillStyle = '#000';
   c.font = `${Math.round(size * EMOJI_SCALE)}px ${EMOJI_FONT}`;
   c.textAlign = 'center';
   c.textBaseline = 'middle';

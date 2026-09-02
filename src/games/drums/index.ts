@@ -9,7 +9,6 @@ const HIT_MS = 120;
 const LIT_MS = 100;
 const BURST_MS = 500;
 const STAR_MS = 700;
-const SPEAK_GAP_MS = 2000;
 
 /**
  * Drum kit: six coloured pads, each a synthesized percussion sound. Every tap
@@ -43,7 +42,6 @@ function start(ctx: GameContext): void {
   const timers = new Set<ReturnType<typeof setTimeout>>();
   /** One pending "remove class" timer per pad and class, so rapid hits do not flicker. */
   const flashes = new Map<string, ReturnType<typeof setTimeout>>();
-  const lastSpoken = new Map<DrumKind, number>();
   let hits = 0;
   let beatTimer: ReturnType<typeof setInterval> | null = null;
   let step = -1;
@@ -114,13 +112,6 @@ function start(ctx: GameContext): void {
     flash(pad.kind, 'drums-hit', HIT_MS);
     float('drums-burst', pad.emoji, pointOn(el, x, y), BURST_MS);
     navigator.vibrate?.(10);
-
-    const now = Date.now();
-    const last = lastSpoken.get(pad.kind);
-    if (last === undefined || now - last >= SPEAK_GAP_MS) {
-      lastSpoken.set(pad.kind, now);
-      ctx.speak(pad.name);
-    }
 
     hits++;
     if (hits % STAR_EVERY === 0) {

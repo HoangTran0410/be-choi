@@ -34,7 +34,8 @@ describe('band game', () => {
 
     const piano = tile(ctx.stage, 'piano');
     down(piano);
-    expect(ctx.spoken).toContain('đàn piano');
+    // The name is spoken only after the phrase, so the sound is not ducked by TTS on iOS.
+    expect(ctx.spoken).not.toContain('đàn piano');
     expect(piano.classList.contains('band-playing')).toBe(true);
     expect(note).toHaveBeenCalledTimes(1);
     expect(note).toHaveBeenLastCalledWith(expect.any(Number), expect.any(Number), 'piano');
@@ -42,6 +43,7 @@ describe('band game', () => {
     vi.advanceTimersByTime(3000);
     expect(note).toHaveBeenCalledTimes(4);
     expect(piano.classList.contains('band-playing')).toBe(false);
+    expect(ctx.spoken).toContain('đàn piano');
 
     // Tapping another tile cancels the running phrase; the drum kit uses drum().
     down(tile(ctx.stage, 'bell'));
