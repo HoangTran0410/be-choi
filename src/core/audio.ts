@@ -4,10 +4,18 @@
  * a user gesture (browser autoplay policy) or when sound is disabled.
  */
 export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax' | 'bass';
-export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell';
+export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
+/** Sound effects and (very) approximate animal voices, all synthesized. */
+export type FxKind =
+  | 'laser' | 'honk' | 'whistle' | 'slide' | 'zap' | 'sparkle' | 'kazoo' | 'roll' | 'cheer'
+  | 'meow' | 'bark' | 'quack' | 'moo' | 'chirp' | 'roar' | 'frog' | 'pig' | 'owl' | 'elephant' | 'sheep' | 'cricket';
 
 export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax', 'bass'];
-export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell'];
+export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell', 'shaker', 'wood', 'ride', 'triangle', 'crash'];
+export const FX: readonly FxKind[] = [
+  'laser', 'honk', 'whistle', 'slide', 'zap', 'sparkle', 'kazoo', 'roll', 'cheer',
+  'meow', 'bark', 'quack', 'moo', 'chirp', 'roar', 'frog', 'pig', 'owl', 'elephant', 'sheep', 'cricket',
+];
 
 export interface AudioEngine {
   readonly enabled: boolean;
@@ -32,6 +40,8 @@ export interface AudioEngine {
   drum(kind: DrumKind): void;
   /** A soft breath of air (blowing out a candle). */
   puff(): void;
+  /** Sound effect / animal voice. */
+  fx(kind: FxKind): void;
 }
 
 type Ctx = AudioContext;
@@ -330,6 +340,102 @@ export function createAudio(): AudioEngine {
         tone('square', 560, 0.25, { gain: 0.45, attack: 0.002, filter: { type: 'bandpass', freq: 700, q: 3 } });
         tone('square', 845, 0.25, { gain: 0.45, attack: 0.002, filter: { type: 'bandpass', freq: 850, q: 3 } });
         return;
+      case 'shaker':
+        noise(0.09, { gain: 0.5, filter: { type: 'highpass', freq: 5000 } });
+        noise(0.06, { gain: 0.3, at: 0.05, filter: { type: 'highpass', freq: 6000 } });
+        return;
+      case 'wood':
+        tone('sine', 1100, 0.07, { gain: 0.9, attack: 0.001, slideTo: 700 });
+        return;
+      case 'ride':
+        noise(0.6, { gain: 0.35, filter: { type: 'highpass', freq: 6000 } });
+        tone('sine', 3600, 0.5, { gain: 0.15, attack: 0.002 });
+        return;
+      case 'triangle':
+        tone('sine', 2900, 0.9, { gain: 0.35, attack: 0.002 });
+        tone('sine', 4300, 0.6, { gain: 0.15, attack: 0.002 });
+        return;
+      case 'crash':
+        noise(1.2, { gain: 0.6, filter: { type: 'highpass', freq: 3500 } });
+        noise(0.4, { gain: 0.4, filter: { type: 'bandpass', freq: 5000, q: 0.5 } });
+        return;
+    }
+  }
+
+  function fx(kind: FxKind): void {
+    switch (kind) {
+      case 'laser':
+        tone('sawtooth', 1400, 0.28, { gain: 0.35, attack: 0.002, slideTo: 180, filter: { type: 'lowpass', freq: 3000 } });
+        return;
+      case 'honk':
+        tone('square', 230, 0.4, { gain: 0.3, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 900 }, vibrato: { hz: 7, depth: 6 } });
+        tone('sawtooth', 345, 0.4, { gain: 0.12, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 1200 } });
+        return;
+      case 'whistle':
+        tone('sine', 1500, 0.25, { gain: 0.4, attack: 0.02, slideTo: 2400 });
+        tone('sine', 2400, 0.35, { gain: 0.4, attack: 0.01, at: 0.25, slideTo: 1400 });
+        return;
+      case 'slide':
+        tone('sine', 2200, 0.6, { gain: 0.4, attack: 0.02, sustain: true, release: 0.1, slideTo: 500 });
+        return;
+      case 'zap':
+        tone('square', 90, 0.18, { gain: 0.35, attack: 0.002, slideTo: 900, filter: { type: 'lowpass', freq: 2500 } });
+        return;
+      case 'sparkle':
+        [1568, 1976, 2349, 3136].forEach((f, i) => tone('sine', f, 0.5, { gain: 0.3, attack: 0.005, at: i * 0.06 }));
+        return;
+      case 'kazoo':
+        tone('sawtooth', 330, 0.5, { gain: 0.25, attack: 0.03, sustain: true, release: 0.1, filter: { type: 'bandpass', freq: 1200, q: 2 }, vibrato: { hz: 9, depth: 12 } });
+        return;
+      case 'roll':
+        for (let i = 0; i < 10; i++) noise(0.08, { gain: 0.55, at: i * 0.055, filter: { type: 'bandpass', freq: 1800, q: 0.8 } });
+        return;
+      case 'cheer':
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone('triangle', f, 0.35, { gain: 0.45, at: i * 0.08 }));
+        noise(0.6, { gain: 0.15, at: 0.3, filter: { type: 'bandpass', freq: 2500, q: 0.4 } });
+        return;
+      case 'meow':
+        tone('sine', 700, 0.25, { gain: 0.4, attack: 0.03, slideTo: 1000, vibrato: { hz: 6, depth: 20 } });
+        tone('sine', 1000, 0.35, { gain: 0.4, attack: 0.01, at: 0.25, slideTo: 550, vibrato: { hz: 6, depth: 20 } });
+        return;
+      case 'bark':
+        noise(0.05, { gain: 0.5, filter: { type: 'bandpass', freq: 900, q: 1 } });
+        tone('square', 180, 0.14, { gain: 0.35, attack: 0.003, slideTo: 110, filter: { type: 'lowpass', freq: 1400 } });
+        return;
+      case 'quack':
+        tone('sawtooth', 320, 0.14, { gain: 0.35, attack: 0.005, filter: { type: 'bandpass', freq: 900, q: 3 }, slideTo: 260 });
+        tone('sawtooth', 320, 0.14, { gain: 0.35, attack: 0.005, at: 0.17, filter: { type: 'bandpass', freq: 900, q: 3 }, slideTo: 260 });
+        return;
+      case 'moo':
+        tone('sawtooth', 120, 0.9, { gain: 0.35, attack: 0.08, sustain: true, release: 0.25, slideTo: 95, filter: { type: 'lowpass', freq: 500 }, vibrato: { hz: 4, depth: 4 } });
+        return;
+      case 'chirp':
+        [0, 0.09, 0.18].forEach((t) => tone('sine', 2600, 0.07, { gain: 0.35, attack: 0.003, at: t, slideTo: 3400 }));
+        return;
+      case 'roar':
+        noise(0.7, { gain: 0.5, filter: { type: 'lowpass', freq: 700 } });
+        tone('sawtooth', 90, 0.7, { gain: 0.35, attack: 0.05, sustain: true, release: 0.2, slideTo: 60, filter: { type: 'lowpass', freq: 400 } });
+        return;
+      case 'frog':
+        [0, 0.12, 0.24].forEach((t) => tone('square', 140, 0.08, { gain: 0.3, attack: 0.003, at: t, filter: { type: 'lowpass', freq: 800 } }));
+        return;
+      case 'pig':
+        noise(0.18, { gain: 0.5, filter: { type: 'bandpass', freq: 500, q: 2 } });
+        tone('sawtooth', 200, 0.18, { gain: 0.2, attack: 0.01, slideTo: 140, filter: { type: 'lowpass', freq: 700 } });
+        return;
+      case 'owl':
+        tone('sine', 520, 0.25, { gain: 0.4, attack: 0.03, filter: { type: 'lowpass', freq: 1200 } });
+        tone('sine', 440, 0.4, { gain: 0.4, attack: 0.03, at: 0.3, filter: { type: 'lowpass', freq: 1200 } });
+        return;
+      case 'elephant':
+        tone('sawtooth', 200, 0.8, { gain: 0.3, attack: 0.05, sustain: true, release: 0.2, slideTo: 420, filter: { type: 'lowpass', freq: 1500, q: 2 }, vibrato: { hz: 5, depth: 8 } });
+        return;
+      case 'sheep':
+        tone('sawtooth', 260, 0.6, { gain: 0.25, attack: 0.03, sustain: true, release: 0.15, filter: { type: 'bandpass', freq: 800, q: 1.5 }, vibrato: { hz: 11, depth: 18 } });
+        return;
+      case 'cricket':
+        for (let i = 0; i < 6; i++) tone('sine', 4200, 0.03, { gain: 0.25, attack: 0.002, at: i * 0.05 });
+        return;
     }
   }
 
@@ -371,6 +477,7 @@ export function createAudio(): AudioEngine {
     },
     note,
     drum,
+    fx,
     puff() {
       noise(0.35, { gain: 0.8, filter: { type: 'lowpass', freq: 500 } });
     },

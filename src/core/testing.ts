@@ -21,6 +21,7 @@ export function fakeAudio(): AudioEngine {
     jingle: noop,
     note: noop,
     drum: noop,
+    fx: noop,
     puff: noop,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createAudio, DRUMS, TIMBRES } from './audio';
+import { createAudio, DRUMS, FX, TIMBRES } from './audio';
 
 describe('audio', () => {
   it('never throws without AudioContext', () => {
@@ -15,6 +15,7 @@ describe('audio', () => {
     a.note(440);
     for (const t of TIMBRES) a.note(440, 0.5, t);
     for (const d of DRUMS) a.drum(d);
+    for (const f of FX) a.fx(f);
     a.puff();
     expect(a.enabled).toBe(true);
     a.setEnabled(false);
@@ -23,6 +24,7 @@ describe('audio', () => {
   });
   it('lists 8 timbres and 6 drums', () => {
     expect(TIMBRES.length).toBe(9);
-    expect(DRUMS.length).toBe(6);
+    expect(DRUMS.length).toBe(11);
+    expect(FX.length).toBe(21);
   });
 });
