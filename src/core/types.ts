@@ -8,7 +8,9 @@ export type Skill =
   | 'music'
   | 'memory'
   | 'counting'
-  | 'care';
+  | 'care'
+  | 'puzzle'
+  | 'logic';
 
 export interface GameMeta {
   /** URL slug, e.g. `shapes`. */

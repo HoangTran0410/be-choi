@@ -1,12 +1,20 @@
 import { h } from '../core/dom';
 import { onHold } from '../core/hold';
 import type { AppDeps } from './deps';
+import type { Skill } from '../core/types';
 import { GAMES, type GameEntry } from './registry';
 import { hrefFor } from './router';
 import { openParentPanel, STARS_CHANGED } from './parentPanel';
 import '../styles/home.css';
 
 const PARENT_HOLD_MS = 1500;
+
+/** Home sections, in display order. A game belongs to the first section listing its skill. */
+const SECTIONS: readonly { title: string; skills: readonly Skill[] }[] = [
+  { title: '🎵 Âm nhạc', skills: ['music'] },
+  { title: '🧩 Xếp hình & suy nghĩ', skills: ['puzzle', 'logic', 'matching', 'sorting', 'memory', 'counting'] },
+  { title: '🎈 Chơi vui', skills: ['cause-effect', 'creative', 'care'] },
+];
 
 function starsText(n: number): string {
   if (n === 0) return '';
@@ -46,9 +54,23 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
     openParentPanel(deps);
   });
 
-  const grid = h('main', { class: 'grid' });
+  const grid = h('main', { class: 'sections' });
   const render = () => {
-    grid.replaceChildren(...GAMES.map((g) => tile(g, deps)));
+    const placed = new Set<string>();
+    const blocks = SECTIONS.map((section) => {
+      const games = GAMES.filter((g) => !placed.has(g.id) && section.skills.includes(g.skill));
+      games.forEach((g) => placed.add(g.id));
+      if (games.length === 0) return null;
+      return h(
+        'section',
+        { class: 'section' },
+        h('h2', { class: 'section-title' }, section.title),
+        h('div', { class: 'grid' }, ...games.map((g) => tile(g, deps))),
+      );
+    });
+    const rest = GAMES.filter((g) => !placed.has(g.id));
+    if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map((g) => tile(g, deps)))));
+    grid.replaceChildren(...blocks.filter((b): b is HTMLElement => b !== null));
   };
   render();
   window.addEventListener(STARS_CHANGED, render);

@@ -11,6 +11,13 @@ import { meta as feed } from '../games/feed/meta';
 import { meta as wash } from '../games/wash/meta';
 import { meta as count } from '../games/count/meta';
 import { meta as memory } from '../games/memory/meta';
+import { meta as xylo } from '../games/xylo/meta';
+import { meta as drums } from '../games/drums/meta';
+import { meta as band } from '../games/band/meta';
+import { meta as simon } from '../games/simon/meta';
+import { meta as jigsaw } from '../games/jigsaw/meta';
+import { meta as blocks } from '../games/blocks/meta';
+import { meta as pattern } from '../games/pattern/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -31,6 +38,13 @@ export const GAMES: readonly GameEntry[] = [
   { ...wash, load: () => import('../games/wash/index') },
   { ...count, load: () => import('../games/count/index') },
   { ...memory, load: () => import('../games/memory/index') },
+  { ...xylo, load: () => import('../games/xylo/index') },
+  { ...drums, load: () => import('../games/drums/index') },
+  { ...band, load: () => import('../games/band/index') },
+  { ...simon, load: () => import('../games/simon/index') },
+  { ...jigsaw, load: () => import('../games/jigsaw/index') },
+  { ...blocks, load: () => import('../games/blocks/index') },
+  { ...pattern, load: () => import('../games/pattern/index') },
 ];
 
 export function findGame(id: string): GameEntry | undefined {

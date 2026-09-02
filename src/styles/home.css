@@ -29,14 +29,25 @@
   font-size: calc(var(--tap) * 0.4);
 }
 
-.grid {
+.sections {
   flex: 1;
   overflow-y: auto;
   touch-action: pan-y;
+  padding: 0 3vmin 4vmin;
+  display: flex;
+  flex-direction: column;
+  gap: 2vmin;
+}
+.section-title {
+  font-size: clamp(16px, 3.6vmin, 26px);
+  font-weight: 800;
+  color: #9a3412;
+  padding: 1.5vmin 1vmin 1vmin;
+}
+.grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(clamp(120px, 30vmin, 200px), 1fr));
   gap: 3vmin;
-  padding: 1vmin 3vmin 4vmin;
   align-content: start;
 }
 
