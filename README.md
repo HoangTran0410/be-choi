@@ -4,7 +4,7 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 19 trò chơi
+## 24 trò chơi
 
 **🎵 Âm nhạc**
 
@@ -15,13 +15,15 @@ không có "thua", không giới hạn thời gian.
 | 🥁 Trống | 6 pad trống synth, nút ▶ bật nhịp nền để gõ theo | nhịp điệu |
 | 🎺 Nhạc cụ | nghe tiếng piano, ghi-ta, vi-ô-lông, kèn…; đố "nghe và tìm" | phân biệt âm thanh |
 | 🎶 Nhớ giai điệu | máy chơi chuỗi nốt, bé gõ lại; dài dần đến 6 nốt | trí nhớ thính giác |
+| 🎪 Ban nhạc thú | chạm từng con thú để thêm/bớt bè nhạc lặp (trống, bass, hợp âm…), 3 nhịp điệu | sáng tạo âm nhạc |
 
 **🧩 Xếp hình & suy nghĩ**
 
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
-| 🧩 Ghép tranh | jigsaw 2×2 → 3×3, kéo mảnh vào ô | không gian |
-| 🏠 Xếp khối | ghép khối hình học thành nhà, tên lửa, thuyền… | hình học, không gian |
+| 🧩 Ghép tranh | jigsaw 2×2 → 3×3, kéo mảnh vào ô; dùng được ảnh của bé | không gian |
+| 🏠 Xếp khối | ghép khối hình học thành 32 bức tranh (nhà, tên lửa, bướm, lâu đài…) | hình học, không gian |
+| 🧱 Xếp gạch | xếp gạch kiểu Lego trên tấm đế có trọng lực, xây tự do hoặc theo mẫu | sáng tạo, không gian |
 | 🔴 Quy luật | dãy 🍎🍌🍎🍌? chọn hình tiếp theo (AB → AAB → ABC) | logic |
 | 🔷 Ghép hình | kéo hình màu vào lỗ cùng hình | nhận biết hình |
 | 🎨 Màu sắc | kéo bóng vào giỏ cùng màu | phân loại màu |
@@ -35,12 +37,22 @@ không có "thua", không giới hạn thời gian.
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
 | 🫧 Bong bóng | chạm để làm nổ bong bóng, có con vật bên trong thì đọc tên | nhân quả, vận động tinh |
-| 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, 4 stamp, xoá | sáng tạo |
+| 🎂 Sinh nhật | trang trí bánh, cắm nến theo tuổi, thắp nến, nghe "Chúc mừng sinh nhật", thổi vào micro để tắt nến | vui chơi, đếm |
+| 🍳 Nấu ăn | theo công thức bằng hình, bỏ nguyên liệu, khuấy, nấu, đút cho thú ăn | trình tự, chăm sóc |
+| 🪥 Đánh răng | bóp kem, chải sạch từng răng, súc miệng | thói quen vệ sinh |
+| 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, stamp (+ sticker đã mở), chọn ảnh làm nền hoặc biến ảnh thành nét vẽ để tô | sáng tạo |
 | 🙈 Ú oà | chạm bụi cây/hộp/mây, con vật nhảy ra "Ú oà!" | nhân quả |
 | 🍎 Cho ăn | kéo đúng món cho con vật đói | chăm sóc, logic |
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
 
-Mỗi vòng xong có confetti + lời khen + 1 ⭐ hiện trên ô game ở màn hình chính.
+Mỗi vòng xong có confetti + lời khen + 1 ⭐. Cứ **3 ⭐ mở 1 sticker** (48 sticker), xem lại trong
+🏆 Bộ sưu tập, dùng làm stamp trong Tô màu.
+
+## Ảnh của bé
+
+Giữ 👪 → **📷 Ảnh của bé** → *Thêm ảnh / chụp ảnh* (iOS hỏi Thư viện ảnh hoặc Camera). Tối đa 12 ảnh,
+thu nhỏ còn 1024 px, lưu IndexedDB **trên máy**, không gửi đi đâu. Ảnh xuất hiện trong Ghép tranh
+(mặc định khi có ảnh), Tô màu (🖼️ nền / ✏️ nét vẽ) và Sinh nhật (ảnh bé trên bánh).
 
 ## Chạy thử
 
@@ -62,7 +74,8 @@ Chụp màn hình mọi game ở 3 cỡ (điện thoại dọc/ngang, tablet) v�
 ```bash
 npm run build && node scripts/screenshot.mjs        # ảnh trong ./screenshots
 node scripts/screenshot.mjs shapes memory           # chỉ vài game
-npm run e2e                                         # chơi thật 19 game trong Chromium headless
+npm run e2e                                         # chơi thật các game trong Chromium headless
+BROWSER=webkit node scripts/screenshot.mjs          # engine WebKit (giống Safari/iPad)
 ```
 
 ## Cài lên điện thoại / tablet

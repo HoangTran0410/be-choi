@@ -34,7 +34,7 @@ for (const vp of VIEWPORTS) {
     if (m.type() === 'error') problems.push(`${vp.name}: console ${m.text()}`);
   });
 
-  const routes = [['home', '#/'], ...GAMES.filter((g) => !only.length || only.includes(g)).map((g) => [g, `#/g/${g}`])];
+  const routes = [['home', '#/'], ['album', '#/album'], ...GAMES.filter((g) => !only.length || only.includes(g)).map((g) => [g, `#/g/${g}`])];
   for (const [name, hash] of routes) {
     await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1200);
