@@ -36,6 +36,25 @@ export const DEFAULT_SIZE: number = BRUSH_SIZES[1];
 
 export const STAMPS: readonly string[] = ['⭐', '❤️', '🌸', '🐣'];
 
+/** At most this many unlocked stickers join the toolbar after the default stamps. */
+export const MAX_STICKER_STAMPS = 8;
+
+/** `STAMPS` followed by up to `MAX_STICKER_STAMPS` of `stickers`, skipping duplicates. */
+export function stampList(stickers: readonly string[]): string[] {
+  const out = [...STAMPS];
+  for (const emoji of stickers) {
+    if (out.length >= STAMPS.length + MAX_STICKER_STAMPS) break;
+    if (!out.includes(emoji)) out.push(emoji);
+  }
+  return out;
+}
+
+/** Background photo cycle: none (-1) → 0 → … → `count - 1` → none. */
+export function nextPhotoIndex(current: number, count: number): number {
+  const next = current + 1;
+  return next >= count ? -1 : next;
+}
+
 export type Tool =
   | { kind: 'brush'; color: string; size: number }
   | { kind: 'stamp'; emoji: string; size: number }

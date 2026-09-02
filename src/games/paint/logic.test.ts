@@ -3,12 +3,15 @@ import {
   BRUSHES,
   DEFAULT_TOOL,
   ERASER_SCALE,
+  MAX_STICKER_STAMPS,
   PALETTE,
   STAMPS,
   STAR_AFTER_STROKES,
   colorName,
+  nextPhotoIndex,
   nextTool,
   stampFontPx,
+  stampList,
   strokeWidth,
   type Tool,
 } from './logic';
@@ -67,6 +70,30 @@ describe('nextTool', () => {
     expect(nextTool(brush, {})).toEqual(brush);
     nextTool(brush, { color: '#ef4444', size: 12, emoji: '⭐', eraser: true });
     expect(brush).toEqual(before);
+  });
+});
+
+describe('stampList', () => {
+  it('is the default stamps when the child has no stickers', () => {
+    expect(stampList([])).toEqual(STAMPS);
+  });
+  it('appends stickers after the defaults, skipping duplicates, at most MAX_STICKER_STAMPS', () => {
+    expect(stampList(['🐻', '⭐', '🦊', '🐻'])).toEqual([...STAMPS, '🐻', '🦊']);
+    const many = ['🐻', '🦊', '🐸', '🐼', '🐨', '🦁', '🐯', '🐮', '🐷', '🐵'];
+    const out = stampList(many);
+    expect(MAX_STICKER_STAMPS).toBe(8);
+    expect(out.length).toBe(STAMPS.length + MAX_STICKER_STAMPS);
+    expect(out.slice(STAMPS.length)).toEqual(many.slice(0, MAX_STICKER_STAMPS));
+  });
+});
+
+describe('nextPhotoIndex', () => {
+  it('cycles none → each photo → none', () => {
+    expect(nextPhotoIndex(-1, 0)).toBe(-1);
+    expect(nextPhotoIndex(-1, 2)).toBe(0);
+    expect(nextPhotoIndex(0, 2)).toBe(1);
+    expect(nextPhotoIndex(1, 2)).toBe(-1);
+    expect(nextPhotoIndex(5, 2)).toBe(-1);
   });
 });
 

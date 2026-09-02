@@ -1,16 +1,18 @@
 import { h, replay } from '../../core/dom';
 import { onHold } from '../../core/hold';
+import { toLineArt, type Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
   BRUSHES,
   DEFAULT_TOOL,
   PALETTE,
-  STAMPS,
   STAR_AFTER_STROKES,
   colorName,
+  nextPhotoIndex,
   nextTool,
   stampFontPx,
+  stampList,
   strokeWidth,
   type Tool,
 } from './logic';
@@ -23,15 +25,34 @@ interface Point {
 
 const STAMP_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
 const SIZE_NAMES: readonly string[] = ['cỡ nhỏ', 'cỡ vừa', 'cỡ to'];
+/** Buttons per toolbar group: in landscape each group is one run of a column. */
+const GROUP_SIZE = 4;
+/** Give up on a line drawing that takes longer than this; the photo stays. */
+const LINE_ART_TIMEOUT_MS = 10_000;
+
+/** A toolbar group. The landscape strip is a grid, so the group spans one row per button. */
+function group(cls: string, ...buttons: HTMLElement[]): HTMLDivElement {
+  const el = h('div', { class: `paint-group ${cls}` }, ...buttons);
+  el.style.gridRow = `span ${Math.max(1, buttons.length)}`;
+  return el;
+}
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 /**
  * Finger painting: a full-stage canvas with colours, brush sizes, emoji stamps
  * and an eraser. Several fingers can draw at once. No rounds; one star after
- * the first `STAR_AFTER_STROKES` strokes.
+ * the first `STAR_AFTER_STROKES` strokes. A family photo can sit under the
+ * (transparent) canvas, either as-is or as a line drawing to colour in.
  */
 function start(ctx: GameContext): void {
+  const bg = h('img', { class: 'paint-bg', alt: '', hidden: true });
   const canvas = h('canvas', { class: 'paint-canvas' });
-  const area = h('div', { class: 'paint-area' }, canvas);
+  const area = h('div', { class: 'paint-area' }, bg, canvas);
   const tools = h('div', { class: 'paint-tools' });
   const root = h('div', { class: 'paint' }, area, tools);
   ctx.stage.append(root);
@@ -93,6 +114,7 @@ function start(ctx: GameContext): void {
     }
   }
 
+  /** Wipe the drawing only; the background photo stays. */
   function clear(): void {
     const c = get2d();
     if (!c) return;
@@ -225,7 +247,8 @@ function start(ctx: GameContext): void {
     return btn;
   });
 
-  const stamps = STAMPS.map((emoji) => {
+  // Default stamps, then the stickers the child has unlocked so far.
+  const stamps = stampList(ctx.stickers()).map((emoji) => {
     const btn = h('button', { class: 'paint-btn paint-stamp', 'aria-label': `dán hình ${emoji}`, 'data-emoji': emoji }, emoji);
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -244,11 +267,11 @@ function start(ctx: GameContext): void {
   ctx.onCleanup(onHold(trash, 700, clear));
 
   tools.append(
-    h('div', { class: 'paint-group paint-group-colors' }, ...swatches.slice(0, 4)),
-    h('div', { class: 'paint-group paint-group-colors' }, ...swatches.slice(4)),
-    h('div', { class: 'paint-group paint-group-sizes' }, ...sizes),
-    h('div', { class: 'paint-group paint-group-stamps' }, ...stamps),
-    h('div', { class: 'paint-group paint-group-actions' }, eraser, trash),
+    group('paint-group-colors', ...swatches.slice(0, GROUP_SIZE)),
+    group('paint-group-colors', ...swatches.slice(GROUP_SIZE)),
+    group('paint-group-sizes', ...sizes),
+    ...chunk(stamps, GROUP_SIZE).map((run) => group('paint-group-stamps', ...run)),
+    group('paint-group-actions', eraser, trash),
   );
 
   function render(): void {
@@ -266,6 +289,125 @@ function start(ctx: GameContext): void {
 
   render();
 
+  // ---- background photo / colouring page ----
+
+  let photos: Photo[] = [];
+  /** Index into `photos`; -1 = plain white. */
+  let photoIndex = -1;
+  /** Show the photo as a line drawing to colour in. */
+  let lineArt = false;
+  /** A line drawing is being computed (button shows ⏳). */
+  let converting = false;
+  /** Bumped whenever the background changes so a late conversion result is ignored. */
+  let job = 0;
+  let convertTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Line drawings by photo id: the edge detection runs once per photo per visit. */
+  const lineArtCache = new Map<string, string>();
+
+  const photoBtn = h('button', { class: 'paint-btn paint-photo', 'aria-label': 'ảnh của bé' }, '🖼️');
+  const lineArtBtn = h('button', { class: 'paint-btn paint-lineart', 'aria-label': 'tô màu ảnh', hidden: true }, '✏️');
+  /** Only in the toolbar while there are photos. */
+  const photoGroup = group('paint-group-photo', photoBtn, lineArtBtn);
+
+  function renderBackground(): void {
+    const photo = photos[photoIndex];
+    photoBtn.classList.toggle('selected', photo !== undefined);
+    lineArtBtn.hidden = photo === undefined;
+    lineArtBtn.classList.toggle('selected', lineArt);
+    lineArtBtn.textContent = converting ? '⏳' : '✏️';
+    photoGroup.style.gridRow = `span ${photo ? 2 : 1}`;
+    if (!photo) {
+      bg.hidden = true;
+      bg.removeAttribute('src');
+      return;
+    }
+    const src = (lineArt ? lineArtCache.get(photo.id) : undefined) ?? photo.url;
+    if (bg.getAttribute('src') !== src) bg.src = src;
+    bg.hidden = false;
+  }
+
+  /** Forget any conversion in flight (its result is still cached when it lands). */
+  function dropConversion(): void {
+    job++;
+    converting = false;
+    clearTimeout(convertTimer);
+  }
+
+  function cyclePhoto(): void {
+    photoIndex = nextPhotoIndex(photoIndex, photos.length);
+    lineArt = false;
+    dropConversion();
+    renderBackground();
+    ctx.audio.tick();
+    if (photoIndex >= 0) ctx.speak('Ảnh của bé');
+  }
+  photoBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    cyclePhoto();
+  });
+
+  function toggleLineArt(): void {
+    const photo = photos[photoIndex];
+    if (!photo) return;
+    dropConversion();
+    ctx.audio.tick();
+    lineArt = !lineArt;
+    if (!lineArt) {
+      renderBackground();
+      return;
+    }
+    ctx.speak('Tô màu ảnh nào!');
+    if (lineArtCache.has(photo.id)) {
+      renderBackground();
+      return;
+    }
+    const id = job;
+    converting = true;
+    renderBackground();
+    // Never throws: on failure (no canvas, huge image, stuck decode) the photo stays.
+    const fail = (): void => {
+      if (id !== job) return;
+      clearTimeout(convertTimer);
+      converting = false;
+      lineArt = false;
+      renderBackground();
+    };
+    convertTimer = setTimeout(fail, LINE_ART_TIMEOUT_MS);
+    toLineArt(photo.url).then((url) => {
+      lineArtCache.set(photo.id, url);
+      if (id !== job) return;
+      clearTimeout(convertTimer);
+      converting = false;
+      renderBackground();
+    }, fail);
+  }
+  lineArtBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    toggleLineArt();
+  });
+
+  function setPhotos(list: Photo[]): void {
+    const selected = photos[photoIndex]?.id;
+    photos = list;
+    photoIndex = selected === undefined ? -1 : list.findIndex((p) => p.id === selected);
+    if (photoIndex < 0) {
+      lineArt = false;
+      dropConversion();
+    }
+    if (list.length === 0) photoGroup.remove();
+    else if (photoGroup.parentNode !== tools) tools.append(photoGroup);
+    renderBackground();
+  }
+
+  let disposed = false;
+  ctx.photos.list().then(
+    (list) => {
+      if (!disposed) setPhotos(list);
+    },
+    () => undefined,
+  );
+  const offPhotos = ctx.photos.onChange(setPhotos);
+
   // ---- lifecycle ----
 
   resize();
@@ -273,6 +415,9 @@ function start(ctx: GameContext): void {
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(resize);
   window.addEventListener('resize', resize);
   ctx.onCleanup(() => {
+    disposed = true;
+    offPhotos();
+    dropConversion();
     window.removeEventListener('resize', resize);
     if (raf) cancelAnimationFrame(raf);
     strokes.clear();

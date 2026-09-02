@@ -92,9 +92,97 @@ describe('paint game', () => {
     window.dispatchEvent(new Event('resize'));
     expect(getContext).toHaveBeenCalled();
 
+    // No family photos: no photo button, no background.
+    expect(ctx.stage.querySelector('.paint-photo')).toBeNull();
+    expect(ctx.stage.querySelector<HTMLElement>('.paint-area .paint-bg')?.hidden).toBe(true);
+
     ctx.cleanup();
     expect(document.body.contains(ctx.stage)).toBe(false);
     getContext.mockRestore();
     vi.useRealTimers();
+  });
+
+  it('shows family photos under the canvas, tries the colouring page and keeps the photo when it fails', async () => {
+    vi.useFakeTimers();
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
+    const ctx = fakeContext();
+    game.start(ctx);
+    await ctx.photos.list();
+    expect(ctx.stage.querySelector('.paint-photo')).toBeNull();
+
+    // A parent adds a photo: the 🖼️ button appears, nothing is shown yet.
+    const [photo] = await ctx.photos.add([new Blob(['x'])]);
+    const photoBtn = ctx.stage.querySelector<HTMLElement>('.paint-tools .paint-photo');
+    const lineArtBtn = ctx.stage.querySelector<HTMLElement>('.paint-tools .paint-lineart');
+    const bg = ctx.stage.querySelector<HTMLImageElement>('.paint-area .paint-bg');
+    expect(photoBtn?.textContent).toBe('🖼️');
+    expect(photoBtn?.classList.contains('paint-btn')).toBe(true);
+    expect(bg?.hidden).toBe(true);
+    expect(lineArtBtn?.hidden).toBe(true);
+
+    // Tap: photo 1 under the (transparent) canvas, named aloud, ✏️ offered.
+    photoBtn?.dispatchEvent(ptr('pointerdown'));
+    expect(bg?.hidden).toBe(false);
+    expect(bg?.getAttribute('src')).toBe(photo!.url);
+    expect(ctx.spoken).toEqual(['Ảnh của bé']);
+    expect(lineArtBtn?.hidden).toBe(false);
+    expect(lineArtBtn?.textContent).toBe('✏️');
+    const canvas = ctx.stage.querySelector<HTMLCanvasElement>('canvas.paint-canvas');
+    expect(bg?.nextElementSibling).toBe(canvas);
+
+    // ✏️: converting… jsdom never decodes images, so the conversion fails (times out):
+    // the photo stays, the button resets, nothing throws.
+    lineArtBtn?.dispatchEvent(ptr('pointerdown'));
+    expect(lineArtBtn?.textContent).toBe('⏳');
+    expect(ctx.spoken).toEqual(['Ảnh của bé', 'Tô màu ảnh nào!']);
+    expect(bg?.hidden).toBe(false);
+    expect(bg?.getAttribute('src')).toBe(photo!.url);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(lineArtBtn?.textContent).toBe('✏️');
+    expect(lineArtBtn?.classList.contains('selected')).toBe(false);
+    expect(bg?.hidden).toBe(false);
+    expect(bg?.getAttribute('src')).toBe(photo!.url);
+
+    // Trash wipes the drawing only.
+    const trash = ctx.stage.querySelector<HTMLElement>('.paint-trash');
+    trash?.dispatchEvent(ptr('pointerdown'));
+    vi.advanceTimersByTime(700);
+    expect(bg?.hidden).toBe(false);
+    expect(bg?.getAttribute('src')).toBe(photo!.url);
+
+    // Cycling past the last photo goes back to plain white.
+    photoBtn?.dispatchEvent(ptr('pointerdown'));
+    expect(bg?.hidden).toBe(true);
+    expect(bg?.getAttribute('src')).toBeNull();
+    expect(lineArtBtn?.hidden).toBe(true);
+    expect(ctx.spoken).toEqual(['Ảnh của bé', 'Tô màu ảnh nào!']);
+
+    // Removing the last photo takes the button away again.
+    await ctx.photos.remove(photo!.id);
+    expect(ctx.stage.querySelector('.paint-photo')).toBeNull();
+
+    ctx.cleanup();
+    getContext.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('adds unlocked stickers as extra stamps', () => {
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
+    const ctx = fakeContext();
+    ctx.stickers = () => ['🐻', '🦊'];
+    game.start(ctx);
+
+    const stamps = [...ctx.stage.querySelectorAll<HTMLElement>('.paint-stamp')];
+    expect(stamps.length).toBe(6);
+    expect(stamps.map((s) => s.dataset.emoji)).toEqual([...STAMPS, '🐻', '🦊']);
+
+    stamps[4]?.dispatchEvent(ptr('pointerdown'));
+    expect(stamps[4]?.classList.contains('selected')).toBe(true);
+    expect(stamps.filter((s) => s.classList.contains('selected')).length).toBe(1);
+    expect([...ctx.stage.querySelectorAll('.paint-swatch.selected')].length).toBe(0);
+    expect(ctx.stage.querySelector('.paint-eraser')?.classList.contains('selected')).toBe(false);
+
+    ctx.cleanup();
+    getContext.mockRestore();
   });
 });

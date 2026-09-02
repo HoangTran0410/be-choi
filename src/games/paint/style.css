@@ -16,6 +16,22 @@
   overflow: hidden;
   background: #fffdf7;
 }
+/* Family photo (or its line drawing) under the transparent canvas: letterboxed on white. */
+.paint-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.paint-bg[hidden],
+.paint-btn[hidden] {
+  display: none;
+}
 .paint-canvas {
   position: absolute;
   inset: 0;
@@ -88,7 +104,9 @@
 
 .paint-stamp,
 .paint-eraser,
-.paint-trash {
+.paint-trash,
+.paint-photo,
+.paint-lineart {
   font-size: calc(var(--paint-btn) * 0.55);
 }
 
@@ -106,19 +124,9 @@
     align-content: center;
     justify-content: start;
   }
+  /* Each group spans one row per button (inline `grid-row`), so any number of
+     stamp/photo groups packs into extra columns instead of overflowing. */
   .paint-group {
     flex-direction: column;
-  }
-  .paint-group-colors {
-    grid-row: span 4;
-  }
-  .paint-group-sizes {
-    grid-row: span 3;
-  }
-  .paint-group-stamps {
-    grid-row: span 4;
-  }
-  .paint-group-actions {
-    grid-row: span 2;
   }
 }
