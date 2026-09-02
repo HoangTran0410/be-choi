@@ -60,7 +60,10 @@ function start(ctx: GameContext): void {
   svg.append(outlineLayer, fillLayer);
   const board = h('div', { class: 'blocks-board' }, svg);
   const tray = h('div', { class: 'g-tray blocks-tray' });
-  const root = h('div', { class: 'blocks' }, board, tray);
+  // Names the picture being built, so a parent can read it out between rounds.
+  const title = h('div', { class: 'blocks-title' });
+  const main = h('div', { class: 'blocks-main' }, board, tray);
+  const root = h('div', { class: 'blocks' }, title, main);
   ctx.stage.append(root);
 
   /** Tray pieces are sized from the picture's on-screen size (see style.css). */
@@ -104,6 +107,7 @@ function start(ctx: GameContext): void {
       return slot ? [pieceFor(slot)] : [];
     });
     tray.replaceChildren(...pieces);
+    title.textContent = `Xếp ${picture.name}`;
     measure();
     ctx.speak(`Xếp ${picture.name} nào!`);
 
@@ -160,6 +164,8 @@ function start(ctx: GameContext): void {
 
     function finish(): void {
       replay(svg, 'anim-bounce');
+      title.textContent = `${picture.name} xong rồi!`;
+      replay(title, 'anim-bounce');
       ctx.speak(picture.name);
       ctx.hint.clear();
       void ctx.celebrate().then(() => {

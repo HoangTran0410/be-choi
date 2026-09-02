@@ -1,0 +1,50 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: cloudflare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Job-level env so the deploy steps can be skipped (a step `if` cannot read `secrets`)
+      # until the two repository secrets are set.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Pages serves from the root of its own domain, so no BASE_PATH here.
+      - run: npm run build
+
+      - name: Create the Pages project the first time round
+        if: env.CLOUDFLARE_API_TOKEN != '' && github.event_name != 'pull_request'
+        run: npx --yes wrangler@4 pages project create be-choi --production-branch main || true
+
+      - name: Deploy
+        if: env.CLOUDFLARE_API_TOKEN != '' && github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy --branch=${{ github.ref_name }}
+
+      - name: How to switch the deploy on
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: |
+          echo "Built, but not deployed: add the repository secrets CLOUDFLARE_API_TOKEN"
+          echo "and CLOUDFLARE_ACCOUNT_ID (Settings -> Secrets and variables -> Actions)."
+          echo "The token needs the 'Cloudflare Pages: Edit' permission."

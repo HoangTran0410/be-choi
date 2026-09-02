@@ -69,6 +69,7 @@ describe('blocks game', () => {
       expect(piece.querySelector('svg.blocks-piece-svg')).not.toBeNull();
     }
     expect(root.classList.contains('blocks-many')).toBe(false);
+    expect(ctx.stage.querySelector('.blocks-title')?.textContent).toBe(`Xếp ${picture.name}`);
     expect(ctx.spoken).toEqual([`Xếp ${picture.name} nào!`]);
     ctx.cleanup();
     expect(document.body.contains(ctx.stage)).toBe(false);
@@ -112,6 +113,7 @@ describe('blocks game', () => {
     expect(ctx.stage.querySelectorAll('.blocks-fill path').length).toBe(n);
     expect(outlines.every((o) => o.classList.contains('blocks-done'))).toBe(true);
     expect(ctx.spoken).toContain(picture.name);
+    expect(ctx.stage.querySelector('.blocks-title')?.textContent).toBe(`${picture.name} xong rồi!`);
     expect(ctx.stage.querySelector('.blocks-svg')?.classList.contains('anim-bounce')).toBe(true);
 
     await vi.waitFor(() => expect(ctx.stars).toBe(1));
@@ -123,6 +125,7 @@ describe('blocks game', () => {
     expect(ctx.stage.querySelectorAll('.blocks-tray .blocks-piece:not(.placed)').length).toBe(next.blocks.length);
     expect(ctx.stage.querySelectorAll('.blocks-fill path').length).toBe(0);
     expect(ctx.spoken.at(-1)).toBe(`Xếp ${next.name} nào!`);
+    expect(ctx.stage.querySelector('.blocks-title')?.textContent).toBe(`Xếp ${next.name}`);
     ctx.cleanup();
   });
 

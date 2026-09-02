@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Cloudflare Pages project. `npm run build` writes the static site into dist/,
+  // and `wrangler pages deploy` (see .github/workflows/cloudflare.yml) uploads it.
+  "name": "be-choi",
+  "pages_build_output_dir": "dist"
+}

@@ -23,7 +23,7 @@ không có "thua", không giới hạn thời gian.
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
 | 🧩 Ghép tranh | jigsaw 2×2 → 3×3, kéo mảnh vào ô; dùng được ảnh của bé | không gian |
-| 🏠 Xếp khối | ghép khối hình học thành 32 bức tranh (nhà, tên lửa, bướm, lâu đài…) | hình học, không gian |
+| 🏠 Xếp khối | ghép khối hình học thành 32 bức tranh (nhà, tên lửa, bướm, lâu đài…), tên bức tranh hiện ngay trên đầu | hình học, không gian |
 | 🧱 Xếp gạch | xếp gạch kiểu Lego trên tấm đế có trọng lực, xây tự do hoặc theo mẫu | sáng tạo, không gian |
 | 🔴 Quy luật | dãy 🍎🍌🍎🍌? chọn hình tiếp theo (AB → AAB → ABC) | logic |
 | 🔷 Ghép hình | kéo hình màu vào lỗ cùng hình | nhận biết hình |
@@ -42,7 +42,7 @@ không có "thua", không giới hạn thời gian.
 | 🍳 Nấu ăn | theo công thức bằng hình, bỏ nguyên liệu, khuấy, nấu, đút cho thú ăn | trình tự, chăm sóc |
 | 🪥 Đánh răng | bóp kem, chải sạch từng răng, súc miệng | thói quen vệ sinh |
 | 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, stamp (+ sticker đã mở), chọn ảnh làm nền hoặc biến ảnh thành nét vẽ để tô | sáng tạo |
-| 🙈 Ú oà | chạm bụi cây/hộp/mây, con vật nhảy ra "Ú oà!" | nhân quả |
+| 🙈 Ú oà | chạm hộp/cửa/mây/lều — mỗi thứ mở một kiểu, con vật nhảy hẳn ra trước, kêu tiếng của mình và được gọi tên; thỉnh thoảng có bướm/bóng bay/mưa sao bay ra. Cứ vài lượt lại đổi sang lượt "Tìm con mèo!": thú ló đầu ra sau hộp, hộp trượt đổi chỗ, tìm đúng thì có confetti + ⭐ (chọn sai chỉ là một bạn khác chào) | nhân quả, quan sát |
 | 🍎 Cho ăn | kéo đúng món cho con vật đói | chăm sóc, logic |
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
 
@@ -94,11 +94,26 @@ Giọng đọc tiếng Việt dùng voice có sẵn của hệ điều hành (iO
 Nội dung đọc → Giọng nói → Tiếng Việt; Android: Google TTS). Máy không có voice tiếng Việt thì
 game vẫn chơi bình thường bằng âm thanh.
 
-## Deploy lên GitHub Pages
+## Deploy
 
-Repo có sẵn `.github/workflows/deploy.yml`. Trong GitHub: *Settings → Pages → Source: GitHub Actions*.
-Push lên `main` là tự build với `BASE_PATH=/<tên-repo>/` và deploy. Deploy chỗ khác (Cloudflare Pages,
-Netlify, Vercel) thì chỉ cần `npm run build` và trỏ vào thư mục `dist` (base path `/`).
+**Cloudflare Pages (mặc định).** `.github/workflows/cloudflare.yml` chạy mỗi lần push lên `main`:
+typecheck → test → build → `wrangler pages deploy`. Chỉ cần thêm 2 secret trong GitHub
+(*Settings → Secrets and variables → Actions*):
+
+| Secret | Lấy ở đâu |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → Create Token, quyền **Cloudflare Pages: Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages, ID nằm ở cột phải |
+
+Chưa có secret thì workflow vẫn chạy test + build (xanh), chỉ bỏ qua bước deploy. Lần deploy đầu tự
+tạo project Pages tên `be-choi` (đổi tên trong `wrangler.jsonc` và trong `cloudflare.yml`).
+Site chạy ở base path `/` nên không cần `BASE_PATH`.
+
+**GitHub Pages (dự phòng).** `.github/workflows/deploy.yml` chỉ chạy khi bấm tay
+(*Actions → Deploy to GitHub Pages → Run workflow*), sau khi bật *Settings → Pages → Source:
+GitHub Actions*. Nó build với `BASE_PATH=/<tên-repo>/`.
+
+Deploy chỗ khác (Netlify, Vercel) thì chỉ cần `npm run build` và trỏ vào thư mục `dist`.
 
 ## Cấu trúc
 

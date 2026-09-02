@@ -135,10 +135,23 @@ const painted = await canvas.evaluate((c) => {
 });
 check('paint: canvas has paint', painted > 0, `${painted} sampled px`);
 
-// ---- peekaboo ----
+// ---- peekaboo: reveal a few animals, then land in a "find this animal" round ----
 await open('peekaboo');
 await tap(page.locator('.peekaboo-spot').first());
 check('peekaboo: spot opens', await page.locator('.peekaboo-spot').first().evaluate((el) => el.classList.contains('open')));
+for (let i = 0; i < 8 && (await page.locator('.peekaboo.finding').count()) === 0; i++) {
+  await page.waitForTimeout(2400);
+  await tap(page.locator('.peekaboo-spot').first());
+}
+await page.waitForTimeout(1200);
+check('peekaboo: a find round starts', (await page.locator('.peekaboo.finding').count()) === 1);
+const wanted = await page.locator('.peekaboo-quest-face').textContent();
+const hidden = await page.locator('.peekaboo-spot .peekaboo-peek').allTextContents();
+check('peekaboo: the animal asked for is really hidden', hidden.includes(wanted), `${wanted} not in ${hidden.join(' ')}`);
+const rightSpot = page.locator('.peekaboo-spot').nth(hidden.indexOf(wanted));
+await tap(rightSpot);
+await page.waitForTimeout(900);
+check('peekaboo: finding it celebrates', (await page.locator('canvas.confetti').count()) === 1);
 
 // ---- feed: try foods until the animal changes ----
 await open('feed');

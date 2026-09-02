@@ -218,7 +218,13 @@ export function createAudio(): AudioEngine {
 
   function noise(
     dur: number,
-    opts: { gain?: number; at?: number; filter?: { type: BiquadFilterType; freq: number; q?: number }; decay?: boolean } = {},
+    opts: {
+      gain?: number;
+      at?: number;
+      /** `to` sweeps the cutoff over `dur` — a mouth closing, a bucket emptying. */
+      filter?: { type: BiquadFilterType; freq: number; to?: number; q?: number };
+      decay?: boolean;
+    } = {},
   ): void {
     const c = getCtx();
     if (!c || !master) return;
@@ -233,7 +239,8 @@ export function createAudio(): AudioEngine {
       src.buffer = buf;
       const filter = c.createBiquadFilter();
       filter.type = opts.filter?.type ?? 'lowpass';
-      filter.frequency.value = opts.filter?.freq ?? 1200;
+      filter.frequency.setValueAtTime(opts.filter?.freq ?? 1200, t0);
+      if (opts.filter?.to) filter.frequency.exponentialRampToValueAtTime(opts.filter.to, t0 + dur);
       if (opts.filter?.q) filter.Q.value = opts.filter.q;
       const g = c.createGain();
       g.gain.value = opts.gain ?? 0.5;
@@ -487,8 +494,16 @@ export function createAudio(): AudioEngine {
       tone('triangle', 300, 0.25, { gain: 0.3, slideTo: 120 });
     },
     chomp() {
-      noise(0.12, { gain: 0.6, filter: { type: 'lowpass', freq: 900 } });
-      tone('square', 180, 0.08, { gain: 0.15, slideTo: 90 });
+      // A bite is three things at once: teeth meeting (a crisp band of noise), the
+      // soft wet close around the food (a resonant filter sweeping shut) and a round
+      // low body so it reads as a mouth rather than a knock on the table. The small
+      // random shift keeps a run of bites from sounding like one sample on repeat.
+      const v = 0.9 + Math.random() * 0.25;
+      noise(0.05, { gain: 0.26, filter: { type: 'bandpass', freq: 1900 * v, to: 700 * v, q: 1.1 } });
+      noise(0.13, { gain: 0.5, filter: { type: 'lowpass', freq: 1100 * v, to: 190 * v, q: 6 } });
+      tone('triangle', 210 * v, 0.09, { gain: 0.14, slideTo: 95 * v, attack: 0.006 });
+      // The jaw meeting a second time, quiet enough to still read as a single bite.
+      noise(0.06, { at: 0.075, gain: 0.18, filter: { type: 'lowpass', freq: 700 * v, to: 200 * v, q: 5 } });
     },
     tick() {
       tone('square', 1200, 0.02, { gain: 0.15 });

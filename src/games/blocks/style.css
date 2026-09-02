@@ -1,5 +1,6 @@
-/* Portrait: picture on top, tray of pieces below. The tray takes its natural height
-   (wrapping as needed) and the board gets whatever is left, so nothing ever scrolls. */
+/* Portrait: name of the picture on top, then the picture, then the tray of pieces.
+   The tray takes its natural height (wrapping as needed) and the board gets whatever
+   is left, so nothing ever scrolls. */
 .blocks {
   /* Longest side of a tray piece: the block's on-board size, but never below one tap
      and never so wide that fewer than two pieces fit a tray row. */
@@ -11,6 +12,27 @@
 }
 .blocks.blocks-many {
   --blocks-cap: max(var(--tap), 30vw);
+}
+.blocks-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- what we are building ---- */
+.blocks-title {
+  flex: none;
+  align-self: center;
+  margin: 2vmin 3vmin 0;
+  padding: 1vmin 4vmin;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.07);
+  font-size: clamp(17px, 3.2vmin, 32px);
+  font-weight: 800;
+  color: #14324f;
+  text-align: center;
 }
 
 /* ---- board ---- */
@@ -89,6 +111,8 @@
 @media (orientation: landscape) {
   .blocks {
     --blocks-cap: max(var(--tap), 15vw);
+  }
+  .blocks-main {
     flex-direction: row;
   }
   .blocks.blocks-many {

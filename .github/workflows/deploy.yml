@@ -1,8 +1,8 @@
 name: Deploy to GitHub Pages
 
+# Cloudflare Pages is the automatic deploy (see cloudflare.yml). GitHub Pages stays
+# here as a spare: run it by hand after enabling Settings -> Pages -> Source: GitHub Actions.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
