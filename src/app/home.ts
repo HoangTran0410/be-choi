@@ -8,6 +8,15 @@ import { openParentPanel, STARS_CHANGED } from './parentPanel';
 import '../styles/home.css';
 
 const PARENT_HOLD_MS = 1500;
+const SCROLL_KEY = 'be-choi:home-scroll';
+
+/** Last scroll offset of the home list, so coming back from a game lands where the child left off. */
+let savedScroll = 0;
+try {
+  savedScroll = Number(sessionStorage.getItem(SCROLL_KEY) ?? 0) || 0;
+} catch {
+  /* private mode */
+}
 
 /** Home sections, in display order. A game belongs to the first section listing its skill. */
 const SECTIONS: readonly { title: string; skills: readonly Skill[] }[] = [
@@ -109,8 +118,20 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
     grid,
   );
   root.replaceChildren(home);
+  grid.scrollTop = savedScroll;
+  const remember = () => {
+    savedScroll = grid.scrollTop;
+    try {
+      sessionStorage.setItem(SCROLL_KEY, String(savedScroll));
+    } catch {
+      /* ignore */
+    }
+  };
+  grid.addEventListener('scroll', remember, { passive: true });
 
   return () => {
+    remember();
+    grid.removeEventListener('scroll', remember);
     disposeHold();
     window.removeEventListener(STARS_CHANGED, render);
     root.replaceChildren();
