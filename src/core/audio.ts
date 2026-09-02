@@ -3,10 +3,10 @@
  * and works fully offline. All methods are silent no-ops until `unlock()` has run inside
  * a user gesture (browser autoplay policy) or when sound is disabled.
  */
-export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax';
+export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax' | 'bass';
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell';
 
-export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax'];
+export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax', 'bass'];
 export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell'];
 
 export interface AudioEngine {
@@ -273,7 +273,12 @@ export function createAudio(): AudioEngine {
         tone('sine', freq * 4.2, dur * 0.4, { gain: 0.08, attack: 0.003 });
         return;
       case 'guitar':
-        pluck(freq, Math.max(dur, 0.8));
+        pluck(freq, Math.max(dur, 0.8), 0.45);
+        return;
+      case 'bass':
+        // Soft, round bass: no Karplus-Strong buzz at low frequencies (it hurt little ears).
+        tone('sine', freq, dur, { gain: 0.5, attack: 0.01, sustain: true, release: 0.12 });
+        tone('triangle', freq, dur * 0.7, { gain: 0.18, attack: 0.01, filter: { type: 'lowpass', freq: 600 } });
         return;
       case 'flute':
         tone('sine', freq, dur, { gain: 0.5, attack: 0.06, sustain: true, release: 0.12, vibrato: { hz: 5.5, depth: freq * 0.012 } });

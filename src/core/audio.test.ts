@@ -22,7 +22,7 @@ describe('audio', () => {
     a.note(440, 0.3, 'guitar');
   });
   it('lists 8 timbres and 6 drums', () => {
-    expect(TIMBRES.length).toBe(8);
+    expect(TIMBRES.length).toBe(9);
     expect(DRUMS.length).toBe(6);
   });
 });

@@ -129,10 +129,10 @@ describe('orchestra game', () => {
     down(tile(ctx, 'frog'));
     vi.advanceTimersByTime(steps(1));
     expect(note).toHaveBeenCalledTimes(1);
-    expect(note).toHaveBeenLastCalledWith(noteFreq('C3'), expect.closeTo((stepMs(BPM) * 3) / 1000, 6), 'guitar');
+    expect(note).toHaveBeenLastCalledWith(noteFreq('C3'), expect.closeTo((stepMs(BPM) * 3) / 1000, 6), 'bass');
     expect(drum).not.toHaveBeenCalled();
     vi.advanceTimersByTime(steps(STEPS) - steps(1));
-    expect(note.mock.calls.every((c) => c[2] === 'guitar')).toBe(true);
+    expect(note.mock.calls.every((c) => c[2] === 'bass')).toBe(true);
     expect(note.mock.calls.length).toBeGreaterThanOrEqual(4);
 
     // Cat: a chord is three simultaneous piano notes, held a quarter note.

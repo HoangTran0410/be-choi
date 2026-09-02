@@ -72,7 +72,7 @@ describe('orchestra logic', () => {
         expect(p.hold).toBeUndefined();
       }
     }
-    expect(part('frog').timbre).toBe('guitar');
+    expect(part('frog').timbre).toBe('bass');
     expect(part('cat').timbre).toBe('piano');
     expect(part('rabbit').timbre).toBe('xylo');
     expect(part('bird').timbre).toBe('bell');

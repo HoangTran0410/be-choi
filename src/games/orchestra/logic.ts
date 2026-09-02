@@ -75,7 +75,7 @@ export const PARTS: readonly Part[] = [
     emoji: '🐸',
     name: 'bass',
     kind: 'note',
-    timbre: 'guitar',
+    timbre: 'bass',
     color: '#22c55e',
     hold: 3,
     pattern: bar('C3 . . E3 G2 . . G2 A2 . . C3 F2 . G2 .'),
