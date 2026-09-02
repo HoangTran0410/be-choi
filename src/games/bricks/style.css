@@ -1,0 +1,195 @@
+/* Portrait: plate on top, tray at the bottom. Landscape turns it into a row with the tray on the right. */
+.bricks {
+  /* Plate cell in px, measured by JS so the cells stay square and the plate fills the area. */
+  --bricks-cell: 40px;
+  --bricks-cols: 10;
+  --bricks-rows: 8;
+  /* Cell of the template bricks in the tray. */
+  --bricks-tcell: clamp(18px, 4.5vmin, 44px);
+  --bricks-btn: clamp(44px, 9vmin, 72px);
+  --bricks-gap: clamp(2px, 0.8vmin, 8px);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- plate ---- */
+.bricks-area {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 2vmin;
+}
+.bricks-plate {
+  position: relative;
+  width: calc(var(--bricks-cell) * var(--bricks-cols));
+  height: calc(var(--bricks-cell) * var(--bricks-rows));
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: clamp(8px, 2vmin, 18px);
+  background-color: #4ade80;
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.42) 0 19%,
+    rgba(0, 0, 0, 0.08) 20% 25%,
+    transparent 26%
+  );
+  background-size: var(--bricks-cell) var(--bricks-cell);
+  box-shadow:
+    0 8px 24px rgba(59, 47, 47, 0.16),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.14);
+}
+.bricks-ghost,
+.bricks-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.bricks-ghost {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.bricks-ghost-cell {
+  position: absolute;
+  left: calc(var(--bricks-cell) * var(--x, 0));
+  bottom: calc(var(--bricks-cell) * var(--y, 0));
+  width: var(--bricks-cell);
+  height: var(--bricks-cell);
+  background: var(--bricks-color);
+  border: 2px dashed rgba(0, 0, 0, 0.65);
+  border-radius: 15%;
+}
+
+/* ---- a brick: coloured body, a row of studs on top, darker bottom edge ---- */
+.bricks-brick {
+  --bricks-unit: var(--bricks-cell);
+  position: absolute;
+  left: calc(var(--bricks-unit) * var(--x, 0));
+  bottom: calc(var(--bricks-unit) * var(--y, 0));
+  width: calc(var(--bricks-unit) * var(--w, 1));
+  height: calc(var(--bricks-unit) * var(--h, 1));
+  background: var(--bricks-color, #ef4444);
+  border-radius: calc(var(--bricks-unit) * 0.12);
+  box-shadow:
+    inset 0 calc(var(--bricks-unit) * -0.14) 0 rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.18);
+  touch-action: none;
+  will-change: transform;
+  transform-origin: bottom center;
+}
+.bricks-brick::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--bricks-unit) * 0.36);
+  background-image: radial-gradient(
+    ellipse at 50% 52%,
+    rgba(255, 255, 255, 0.55) 0 27%,
+    rgba(0, 0, 0, 0.14) 28% 34%,
+    transparent 36%
+  );
+  background-size: var(--bricks-unit) 100%;
+  background-repeat: repeat-x;
+  pointer-events: none;
+}
+@keyframes bricks-land {
+  0% { transform: translateY(-35%) scaleY(1.12); }
+  55% { transform: translateY(0) scaleY(0.86); }
+  100% { transform: none; }
+}
+.bricks-land {
+  animation: bricks-land 0.28s ease-out;
+}
+
+/* ---- tray ---- */
+.bricks-tray {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+  gap: var(--bricks-gap);
+  padding: var(--bricks-gap);
+  background: rgba(255, 255, 255, 0.55);
+}
+.bricks-pieces,
+.bricks-colors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--bricks-gap);
+}
+.bricks-piece {
+  position: relative;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 var(--bricks-gap);
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  will-change: transform;
+}
+.bricks-piece .bricks-brick {
+  --bricks-unit: var(--bricks-tcell);
+  position: relative;
+  left: auto;
+  bottom: auto;
+}
+
+.bricks-color,
+.bricks-btn {
+  position: relative;
+  flex: none;
+  width: var(--bricks-btn);
+  height: var(--bricks-btn);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--bricks-btn) * 0.55);
+  line-height: 1;
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+  touch-action: manipulation;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.bricks-color:active,
+.bricks-btn:active {
+  transform: scale(0.92);
+}
+.bricks-color {
+  background: var(--bricks-color);
+  border: 3px solid #fff;
+}
+.bricks-color.active {
+  z-index: 1;
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ink);
+}
+.bricks-color.active:active {
+  transform: scale(1.02);
+}
+
+/* ---- landscape: plate on the left, tray as a column on the right ---- */
+@media (orientation: landscape) {
+  .bricks {
+    flex-direction: row;
+  }
+  .bricks-tray {
+    width: 36%;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: center;
+    gap: calc(var(--bricks-gap) * 2);
+  }
+}
