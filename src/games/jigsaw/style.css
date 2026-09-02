@@ -1,0 +1,113 @@
+/* Column: board area on top, tray at the bottom. Landscape turns it into a row. */
+.jigsaw {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jigsaw-area {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2vmin;
+}
+
+/* Square board: 70vmin, capped by the area it sits in. */
+.jigsaw-board {
+  position: relative;
+  height: min(70vmin, 100%);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(var(--jigsaw-cols, 2), 1fr);
+  grid-template-rows: repeat(var(--jigsaw-rows, 2), 1fr);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 8px 24px rgba(59, 47, 47, 0.12);
+}
+
+/* The whole picture, faint, under the cells. */
+.jigsaw-ghost {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.jigsaw-ghost-plain {
+  display: grid;
+  place-items: center;
+  font-size: 45vmin;
+  line-height: 1;
+}
+
+.jigsaw-slot {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border: 3px dashed rgba(59, 47, 47, 0.25);
+  border-radius: 8px;
+}
+.jigsaw-slot.filled,
+.jigsaw-board.done .jigsaw-slot {
+  border-color: transparent;
+}
+
+.jigsaw-tray {
+  position: static;
+  flex: none;
+  height: calc(var(--tap) * 1.4);
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+}
+
+.jigsaw-piece {
+  border: 3px solid #fff;
+  border-radius: 8px;
+  background-color: #fff;
+  background-repeat: no-repeat;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  touch-action: none;
+}
+/* Tray pieces: the cell size measured from the board (--jigsaw-pw), never under a tap target. */
+.jigsaw-tray .jigsaw-piece {
+  width: max(var(--tap), var(--jigsaw-pw, 0px));
+  height: auto;
+  aspect-ratio: var(--jigsaw-ar, 1);
+}
+.jigsaw-slot .jigsaw-piece {
+  width: 100%;
+  height: 100%;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* More than four pieces do not fit one row on a phone: a taller tray. */
+@media (orientation: portrait) {
+  .jigsaw-many .jigsaw-tray {
+    height: calc(var(--tap) * 3.5);
+  }
+}
+
+/* Landscape: board on the left, tray as a column on the right. */
+@media (orientation: landscape) {
+  .jigsaw {
+    flex-direction: row;
+  }
+  .jigsaw-area {
+    height: 100%;
+  }
+  .jigsaw-tray,
+  .jigsaw-many .jigsaw-tray {
+    width: 34%;
+    height: 100%;
+  }
+}
