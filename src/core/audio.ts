@@ -127,6 +127,11 @@ export function createAudio(): AudioEngine {
       // Gentle compressor: percussion and chords stay loud on small tablet speakers without clipping.
       let sink: AudioNode = ctx.destination;
       try {
+        // Tame hiss from noise-based sounds on small tablet speakers (and little ears).
+        const tone = ctx.createBiquadFilter();
+        tone.type = 'lowpass';
+        tone.frequency.value = 9000;
+        tone.Q.value = 0.5;
         const comp = ctx.createDynamicsCompressor();
         comp.threshold.value = -18;
         comp.knee.value = 12;
@@ -134,7 +139,8 @@ export function createAudio(): AudioEngine {
         comp.attack.value = 0.003;
         comp.release.value = 0.2;
         comp.connect(ctx.destination);
-        sink = comp;
+        tone.connect(comp);
+        sink = tone;
       } catch {
         /* no compressor: connect straight to the destination */
       }
@@ -326,7 +332,7 @@ export function createAudio(): AudioEngine {
         tone('triangle', 200, 0.12, { gain: 0.6, attack: 0.002, slideTo: 120 });
         return;
       case 'hat':
-        noise(0.07, { gain: 0.6, filter: { type: 'highpass', freq: 7000 } });
+        noise(0.07, { gain: 0.4, filter: { type: 'highpass', freq: 6000 } });
         return;
       case 'tom':
         tone('sine', 220, 0.35, { gain: 1.2, attack: 0.002, slideTo: 90 });
@@ -341,23 +347,24 @@ export function createAudio(): AudioEngine {
         tone('square', 845, 0.25, { gain: 0.45, attack: 0.002, filter: { type: 'bandpass', freq: 850, q: 3 } });
         return;
       case 'shaker':
-        noise(0.09, { gain: 0.5, filter: { type: 'highpass', freq: 5000 } });
-        noise(0.06, { gain: 0.3, at: 0.05, filter: { type: 'highpass', freq: 6000 } });
+        noise(0.09, { gain: 0.35, filter: { type: 'highpass', freq: 4500 } });
+        noise(0.06, { gain: 0.2, at: 0.05, filter: { type: 'highpass', freq: 5000 } });
         return;
       case 'wood':
         tone('sine', 1100, 0.07, { gain: 0.9, attack: 0.001, slideTo: 700 });
         return;
       case 'ride':
-        noise(0.6, { gain: 0.35, filter: { type: 'highpass', freq: 6000 } });
-        tone('sine', 3600, 0.5, { gain: 0.15, attack: 0.002 });
+        noise(0.5, { gain: 0.14, filter: { type: 'bandpass', freq: 4500, q: 0.6 } });
+        tone('sine', 2800, 0.6, { gain: 0.14, attack: 0.002 });
+        tone('sine', 4200, 0.3, { gain: 0.06, attack: 0.002 });
         return;
       case 'triangle':
         tone('sine', 2900, 0.9, { gain: 0.35, attack: 0.002 });
         tone('sine', 4300, 0.6, { gain: 0.15, attack: 0.002 });
         return;
       case 'crash':
-        noise(1.2, { gain: 0.6, filter: { type: 'highpass', freq: 3500 } });
-        noise(0.4, { gain: 0.4, filter: { type: 'bandpass', freq: 5000, q: 0.5 } });
+        noise(1.0, { gain: 0.22, filter: { type: 'bandpass', freq: 3200, q: 0.4 } });
+        noise(0.3, { gain: 0.18, filter: { type: 'bandpass', freq: 1800, q: 0.6 } });
         return;
     }
   }
@@ -388,40 +395,56 @@ export function createAudio(): AudioEngine {
         tone('sawtooth', 330, 0.5, { gain: 0.25, attack: 0.03, sustain: true, release: 0.1, filter: { type: 'bandpass', freq: 1200, q: 2 }, vibrato: { hz: 9, depth: 12 } });
         return;
       case 'roll':
-        for (let i = 0; i < 10; i++) noise(0.08, { gain: 0.55, at: i * 0.055, filter: { type: 'bandpass', freq: 1800, q: 0.8 } });
+        for (let i = 0; i < 10; i++) {
+          noise(0.07, { gain: 0.28, at: i * 0.06, filter: { type: 'bandpass', freq: 1400, q: 0.9 } });
+          tone('triangle', 190, 0.06, { gain: 0.25, attack: 0.002, at: i * 0.06, slideTo: 140 });
+        }
         return;
       case 'cheer':
         [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone('triangle', f, 0.35, { gain: 0.45, at: i * 0.08 }));
         noise(0.6, { gain: 0.15, at: 0.3, filter: { type: 'bandpass', freq: 2500, q: 0.4 } });
         return;
       case 'meow':
-        tone('sine', 700, 0.25, { gain: 0.4, attack: 0.03, slideTo: 1000, vibrato: { hz: 6, depth: 20 } });
-        tone('sine', 1000, 0.35, { gain: 0.4, attack: 0.01, at: 0.25, slideTo: 550, vibrato: { hz: 6, depth: 20 } });
+        // "mee-ow": nasal sawtooth through a moving vowel formant
+        tone('sawtooth', 520, 0.28, { gain: 0.22, attack: 0.04, slideTo: 880, filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 }, vibrato: { hz: 6, depth: 14 } });
+        tone('sawtooth', 880, 0.4, { gain: 0.22, attack: 0.01, at: 0.28, slideTo: 420, filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 }, vibrato: { hz: 6, depth: 14 } });
+        tone('sine', 520, 0.28, { gain: 0.12, attack: 0.04, slideTo: 880 });
+        tone('sine', 880, 0.4, { gain: 0.12, attack: 0.01, at: 0.28, slideTo: 420 });
         return;
       case 'bark':
-        noise(0.05, { gain: 0.5, filter: { type: 'bandpass', freq: 900, q: 1 } });
-        tone('square', 180, 0.14, { gain: 0.35, attack: 0.003, slideTo: 110, filter: { type: 'lowpass', freq: 1400 } });
+        // "woof woof": two short growly bursts with a throat formant
+        [0, 0.22].forEach((t) => {
+          noise(0.05, { gain: 0.35, at: t, filter: { type: 'bandpass', freq: 800, q: 1 } });
+          tone('sawtooth', 240, 0.16, { gain: 0.32, attack: 0.004, at: t, slideTo: 120, filter: { type: 'bandpass', freq: 700, to: 400, q: 1.5 } });
+          tone('square', 120, 0.14, { gain: 0.12, attack: 0.004, at: t, slideTo: 80, filter: { type: 'lowpass', freq: 500 } });
+        });
         return;
       case 'quack':
-        tone('sawtooth', 320, 0.14, { gain: 0.35, attack: 0.005, filter: { type: 'bandpass', freq: 900, q: 3 }, slideTo: 260 });
-        tone('sawtooth', 320, 0.14, { gain: 0.35, attack: 0.005, at: 0.17, filter: { type: 'bandpass', freq: 900, q: 3 }, slideTo: 260 });
+        // "quack quack": buzzy reed with a "wa" formant sweep
+        [0, 0.2].forEach((t) => {
+          tone('sawtooth', 300, 0.16, { gain: 0.3, attack: 0.006, at: t, slideTo: 230, filter: { type: 'bandpass', freq: 1400, to: 700, q: 3 }, vibrato: { hz: 25, depth: 12 } });
+          tone('square', 150, 0.16, { gain: 0.1, attack: 0.006, at: t, slideTo: 115, filter: { type: 'lowpass', freq: 900 } });
+        });
         return;
       case 'moo':
-        tone('sawtooth', 120, 0.9, { gain: 0.35, attack: 0.08, sustain: true, release: 0.25, slideTo: 95, filter: { type: 'lowpass', freq: 500 }, vibrato: { hz: 4, depth: 4 } });
+        // "m-oooo": starts closed (dark), opens up, then falls
+        tone('sawtooth', 110, 1.0, { gain: 0.32, attack: 0.15, sustain: true, release: 0.3, slideTo: 90, filter: { type: 'lowpass', freq: 300, to: 700 }, vibrato: { hz: 4.5, depth: 3 } });
+        tone('sawtooth', 165, 0.9, { gain: 0.12, attack: 0.2, sustain: true, release: 0.3, slideTo: 135, filter: { type: 'lowpass', freq: 600 } });
         return;
       case 'chirp':
         [0, 0.09, 0.18].forEach((t) => tone('sine', 2600, 0.07, { gain: 0.35, attack: 0.003, at: t, slideTo: 3400 }));
         return;
       case 'roar':
-        noise(0.7, { gain: 0.5, filter: { type: 'lowpass', freq: 700 } });
-        tone('sawtooth', 90, 0.7, { gain: 0.35, attack: 0.05, sustain: true, release: 0.2, slideTo: 60, filter: { type: 'lowpass', freq: 400 } });
+        noise(0.7, { gain: 0.35, filter: { type: 'lowpass', freq: 600 } });
+        tone('sawtooth', 95, 0.75, { gain: 0.32, attack: 0.05, sustain: true, release: 0.25, slideTo: 60, filter: { type: 'lowpass', freq: 250, to: 500 }, vibrato: { hz: 18, depth: 8 } });
         return;
       case 'frog':
         [0, 0.12, 0.24].forEach((t) => tone('square', 140, 0.08, { gain: 0.3, attack: 0.003, at: t, filter: { type: 'lowpass', freq: 800 } }));
         return;
       case 'pig':
-        noise(0.18, { gain: 0.5, filter: { type: 'bandpass', freq: 500, q: 2 } });
-        tone('sawtooth', 200, 0.18, { gain: 0.2, attack: 0.01, slideTo: 140, filter: { type: 'lowpass', freq: 700 } });
+        // "oink": fast throat trill plus a snorty puff
+        tone('sawtooth', 170, 0.22, { gain: 0.3, attack: 0.01, slideTo: 130, filter: { type: 'bandpass', freq: 650, q: 2 }, vibrato: { hz: 22, depth: 45 } });
+        noise(0.12, { gain: 0.3, at: 0.05, filter: { type: 'bandpass', freq: 450, q: 1.5 } });
         return;
       case 'owl':
         tone('sine', 520, 0.25, { gain: 0.4, attack: 0.03, filter: { type: 'lowpass', freq: 1200 } });

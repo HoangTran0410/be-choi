@@ -234,16 +234,19 @@ await page.waitForTimeout(1500);
 const seq2 = ((await page.locator('.simon').getAttribute('data-seq')) ?? '').split(',').filter(Boolean);
 check('simon: repeating the melody extends it', seq.length === 2 && seq2.length === 3, `${seq.length} -> ${seq2.length}`);
 
-// ---- jigsaw: drag pieces to their slots ----
+// ---- jigsaw: drag pieces to their slots (shape-clipped pieces, slots by data-id) ----
 await open('jigsaw');
-const pieceCount = await page.locator('.jigsaw-piece').count();
-for (let i = 0; i < pieceCount; i++) {
-  const piece = page.locator('.jigsaw-piece:not(.placed)').first();
-  const r = await piece.getAttribute('data-r');
-  const c = await piece.getAttribute('data-c');
-  await drag(piece, page.locator(`.jigsaw-slot[data-r="${r}"][data-c="${c}"]`));
+const pieceCount = await page.locator('.jigsaw-item').count();
+for (let attempt = 0; attempt < 2; attempt++) {
+  const n = await page.locator('.jigsaw-item:not(.placed)').count();
+  for (let i = 0; i < n; i++) {
+    const item = page.locator('.jigsaw-item:not(.placed)').first();
+    const id = await item.locator('.jigsaw-piece').getAttribute('data-id');
+    await drag(item.locator('.jigsaw-piece'), page.locator(`.jigsaw-slot[data-id="${id}"]`));
+  }
 }
-check('jigsaw: all pieces placed', (await page.locator('.jigsaw-piece.placed').count()) === pieceCount, `${await page.locator('.jigsaw-piece.placed').count()}/${pieceCount}`);
+check('jigsaw: all pieces placed', (await page.locator('.jigsaw-item.placed').count()) === pieceCount, `${await page.locator('.jigsaw-item.placed').count()}/${pieceCount}`);
+check('jigsaw: photo button hidden without photos', (await page.locator('.jigsaw-source').count()) === 0);
 
 // ---- blocks: drag blocks to their outlines ----
 await open('blocks');
