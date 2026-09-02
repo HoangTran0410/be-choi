@@ -1,0 +1,345 @@
+/*
+ * Music stage: a kit strip on top (4 kit buttons, the voice button, three
+ * dancing animals), a 4 × 3 grid of pads (3 × 4 in portrait) that takes every
+ * spare pixel, and a bottom bar with beats, tempo, ⏺ and the loop dots. Every
+ * size is a viewport fraction or a clamp, so 390 × 844, 844 × 390 and
+ * 1024 × 768 all fit without scrolling; the bar wraps onto two rows when the
+ * screen is narrow.
+ */
+.jam {
+  --jam-gap: 1.2vmin;
+  /* Kit, beat, tempo and ⏺ buttons. */
+  --jam-btn: clamp(48px, 11vmin, 88px);
+  /* Loop dots and ✖: a little smaller, never under a finger. */
+  --jam-dot: max(48px, calc(var(--jam-btn) * 0.8));
+  /* One quarter-note beat; set from the tempo by the game. */
+  --jam-beat: 545ms;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--jam-gap);
+  padding: var(--jam-gap);
+  overflow: hidden;
+  touch-action: none;
+  background: linear-gradient(180deg, #ede9fe 0%, #ddd6fe 100%);
+}
+
+/* ---- round buttons ---- */
+.jam-kit,
+.jam-voice,
+.jam-beat,
+.jam-tempo,
+.jam-rec,
+.jam-layer,
+.jam-clear {
+  position: relative;
+  flex: none;
+  width: var(--jam-btn);
+  height: var(--jam-btn);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--jam-btn) * 0.5);
+  line-height: 1;
+  background: var(--surface);
+  box-shadow: 0 3px 0 var(--btn-shadow);
+  transition: transform 0.1s, background 0.15s, box-shadow 0.15s, opacity 0.2s;
+}
+.jam button:focus:not(:focus-visible) {
+  outline: none;
+}
+.jam-kit:active,
+.jam-voice:active,
+.jam-beat:active,
+.jam-tempo:active,
+.jam-rec:active,
+.jam-layer:active {
+  transform: scale(0.92);
+}
+.jam-kit.active,
+.jam-beat.active {
+  background: #fde68a;
+  box-shadow:
+    0 3px 0 var(--btn-shadow),
+    0 0 0 3px #fff;
+}
+.jam-voice[hidden] {
+  display: none;
+}
+
+/* ---- kit strip ---- */
+.jam-kits {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--jam-gap);
+  min-height: var(--jam-btn);
+}
+.jam-dancers {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6vmin;
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: calc(var(--jam-btn) * 0.55);
+  line-height: 1;
+  padding-top: calc(var(--jam-btn) * 0.15);
+  pointer-events: none;
+}
+.jam-dancer {
+  display: inline-block;
+  transition: transform 0.16s ease-out;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.15));
+}
+/* Odd animals hop on one beat, even ones on the next: a little conga line. */
+.jam-playing.jam-onbeat .jam-dancer:nth-child(odd),
+.jam-playing:not(.jam-onbeat) .jam-dancer:nth-child(even) {
+  transform: translateY(-24%) scale(1.12) rotate(-6deg);
+}
+.jam-playing.jam-onbeat .jam-dancer:nth-child(even),
+.jam-playing:not(.jam-onbeat) .jam-dancer:nth-child(odd) {
+  transform: rotate(6deg);
+}
+
+/* ---- pads ---- */
+.jam-pads {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: var(--jam-gap);
+}
+.jam-pad {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.18) 38%, transparent 72%),
+    var(--jam-color, #a78bfa);
+  box-shadow:
+    inset 0 -1.2vmin 0 rgba(0, 0, 0, 0.16),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 4px 10px rgba(0, 0, 0, 0.12);
+  touch-action: none;
+  transition: transform 0.06s, filter 0.06s, box-shadow 0.06s;
+  will-change: transform;
+  container-type: size;
+}
+.jam-pad.jam-hit {
+  transform: scale(0.94);
+  filter: brightness(1.3);
+}
+/* A loop replays this pad: a white ring so the child sees their own tune. */
+.jam-pad.jam-echo {
+  filter: brightness(1.18);
+  box-shadow:
+    0 0 0 0.8vmin #fff,
+    inset 0 -1.2vmin 0 rgba(0, 0, 0, 0.16),
+    0 4px 10px rgba(0, 0, 0, 0.12);
+}
+.jam-pad-emoji {
+  display: inline-block;
+  font-size: var(--emoji);
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.18));
+}
+@supports (width: 1cqw) {
+  /* Never taller than the pad on short landscape phones. */
+  .jam-pad-emoji {
+    font-size: min(var(--emoji), 68cqh, 60cqw);
+  }
+}
+
+/* ---- bottom bar ---- */
+.jam-bar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--jam-gap);
+  row-gap: calc(var(--jam-gap) * 0.8);
+}
+.jam-beat[data-id='stop'] {
+  font-size: calc(var(--jam-btn) * 0.42);
+}
+.jam-tempo {
+  margin-left: calc(var(--jam-gap) * 1.5);
+}
+.jam-rec {
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: calc(var(--jam-btn) * 0.55);
+}
+.jam-rec.jam-armed {
+  background: #fecaca;
+  animation: jam-pulse var(--jam-beat) ease-in-out infinite;
+}
+.jam-rec.jam-recording {
+  background: #ef4444;
+  color: #fff;
+  animation: jam-pulse calc(var(--jam-beat) / 2) ease-in-out infinite;
+}
+.jam-rec.jam-full {
+  opacity: 0.4;
+}
+/* Progress ring around ⏺ while the bar is being recorded. */
+.jam-rec::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(#dc2626 calc(var(--jam-progress, 0) * 1turn), transparent 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  transition: opacity 0.15s;
+}
+.jam-rec.jam-recording::after {
+  opacity: 1;
+}
+@keyframes jam-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.jam-layers {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--jam-gap) * 0.7);
+  margin-left: calc(var(--jam-gap) * 1.5);
+  min-height: var(--jam-dot);
+}
+.jam-layer,
+.jam-clear {
+  width: var(--jam-dot);
+  height: var(--jam-dot);
+  font-size: calc(var(--jam-dot) * 0.5);
+}
+.jam-layer {
+  background: #c4b5fd;
+  box-shadow:
+    0 3px 0 var(--btn-shadow),
+    0 0 0 3px #fff;
+}
+.jam-layer.muted {
+  background: var(--surface);
+  box-shadow: 0 3px 0 var(--btn-shadow);
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.jam-clear {
+  background: var(--surface);
+  color: #9f1239;
+  font-size: calc(var(--jam-dot) * 0.4);
+}
+.jam-layers.jam-empty .jam-clear {
+  opacity: 0.3;
+}
+
+/* ---- count-in ---- */
+.jam-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-size: clamp(96px, 32vmin, 260px);
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  text-shadow:
+    0 6px 0 rgba(124, 58, 237, 0.5),
+    0 0 4vmin rgba(0, 0, 0, 0.25);
+}
+.jam-count[hidden] {
+  display: none;
+}
+.jam-count-pop {
+  animation: jam-count-pop var(--jam-beat) ease-out;
+}
+@keyframes jam-count-pop {
+  0% { transform: scale(1.5); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* ---- feedback ---- */
+.jam-pop {
+  animation: jam-pop 0.25s ease-out;
+}
+@keyframes jam-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+/* Idle hint: ⏺ or a pad waves for attention. */
+.jam-nudge {
+  animation: jam-nudge 0.5s ease-in-out 2;
+}
+@keyframes jam-nudge {
+  0%, 100% { transform: rotate(0) scale(1); }
+  25% { transform: rotate(-12deg) scale(1.12); }
+  75% { transform: rotate(12deg) scale(1.12); }
+}
+
+/* Star: floats up from the middle of the pads. */
+.jam-star {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  font-size: calc(var(--emoji) * 1.4);
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: jam-star 0.9s ease-out forwards;
+}
+@keyframes jam-star {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, calc(-50% - 16vmin)) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (orientation: portrait) {
+  .jam-pads {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .jam {
+    background: linear-gradient(180deg, #2e1065 0%, #1e1b4b 100%);
+  }
+}
+:root[data-theme='dark'] .jam {
+  background: linear-gradient(180deg, #2e1065 0%, #1e1b4b 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jam-dancer,
+  .jam-rec.jam-armed,
+  .jam-rec.jam-recording,
+  .jam-count-pop,
+  .jam-pop,
+  .jam-nudge {
+    animation: none;
+    transition: none;
+  }
+  .jam-playing .jam-dancer {
+    transform: none;
+  }
+}
