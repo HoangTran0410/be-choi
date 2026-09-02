@@ -55,10 +55,36 @@ document.addEventListener(
   { capture: true, passive: true },
 );
 
-// ---- Toddler-proofing: no pinch zoom, no long-press menus, no accidental selection. ----
-document.addEventListener('gesturestart', (e) => e.preventDefault());
+// ---- Toddler-proofing: no pinch zoom, no double-tap zoom, no long-press menus, no selection. ----
+// iOS Safari ignores `user-scalable=no`, and `touch-action` alone still lets a fast
+// double tap zoom. Inside the play area every touch is ours: cancelling touchstart /
+// touchmove there kills zoom, scroll, the tap-vs-drag delay and the magnifier, so
+// pointermove follows the finger immediately. Games use Pointer Events, which keep firing.
+const inStage = (e: Event) => (e.target as Element | null)?.closest?.('.stage') !== null;
+const cancelStageTouch = (e: TouchEvent) => {
+  if (inStage(e)) e.preventDefault();
+};
+document.addEventListener('touchstart', cancelStageTouch, { passive: false });
+document.addEventListener('touchmove', cancelStageTouch, { passive: false });
+// Outside the stage (home grid, panels) we still need scrolling and clicks, so only the
+// second tap of a quick double tap is cancelled, which is what triggers zoom.
+let lastTouchEnd = 0;
+document.addEventListener(
+  'touchend',
+  (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd < 350 && !inStage(e)) e.preventDefault();
+    lastTouchEnd = now;
+  },
+  { passive: false },
+);
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+}
+document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('dragstart', (e) => e.preventDefault());
+document.addEventListener('selectstart', (e) => e.preventDefault());
 
 registerSW({ immediate: true });
 

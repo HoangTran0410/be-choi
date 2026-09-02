@@ -1,25 +1,44 @@
 # 🐣 Bé Chơi
 
-Web game cho bé từ 2 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini. Cài được lên màn hình
+Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini. Cài được lên màn hình
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 12 trò chơi
+## 19 trò chơi
+
+**🎵 Âm nhạc**
 
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
-| 🫧 Bong bóng | chạm để làm nổ bong bóng, có con vật bên trong thì đọc tên | nhân quả, vận động tinh |
+| 🎹 Đàn thú | chạm phím đàn, đa chạm, con vật nhảy | âm nhạc |
+| 🎼 Đàn gõ | xylophone 8 thanh; chọn bài hát thì thanh cần gõ sáng lên để chơi theo; ▶ nghe máy chơi | giai điệu, theo dõi |
+| 🥁 Trống | 6 pad trống synth, nút ▶ bật nhịp nền để gõ theo | nhịp điệu |
+| 🎺 Nhạc cụ | nghe tiếng piano, ghi-ta, vi-ô-lông, kèn…; đố "nghe và tìm" | phân biệt âm thanh |
+| 🎶 Nhớ giai điệu | máy chơi chuỗi nốt, bé gõ lại; dài dần đến 6 nốt | trí nhớ thính giác |
+
+**🧩 Xếp hình & suy nghĩ**
+
+| Trò chơi | Cách chơi | Kỹ năng |
+|---|---|---|
+| 🧩 Ghép tranh | jigsaw 2×2 → 3×3, kéo mảnh vào ô | không gian |
+| 🏠 Xếp khối | ghép khối hình học thành nhà, tên lửa, thuyền… | hình học, không gian |
+| 🔴 Quy luật | dãy 🍎🍌🍎🍌? chọn hình tiếp theo (AB → AAB → ABC) | logic |
 | 🔷 Ghép hình | kéo hình màu vào lỗ cùng hình | nhận biết hình |
 | 🎨 Màu sắc | kéo bóng vào giỏ cùng màu | phân loại màu |
 | 🐘 To nhỏ | đồ to vào hộp to, đồ nhỏ vào hộp nhỏ | so sánh kích thước |
 | 🐾 Tìm bóng | kéo con vật lên đúng bóng của nó | tri giác thị giác |
-| 🎹 Đàn thú | chạm phím đàn, đa chạm, con vật nhảy | âm nhạc |
+| 🔢 Đếm số | chạm từng quả, đọc "một, hai, ba…" | số đếm 1–5 |
+| 🃏 Lật thẻ | lật 2 thẻ giống nhau, 2 → 4 cặp | trí nhớ |
+
+**🎈 Chơi vui**
+
+| Trò chơi | Cách chơi | Kỹ năng |
+|---|---|---|
+| 🫧 Bong bóng | chạm để làm nổ bong bóng, có con vật bên trong thì đọc tên | nhân quả, vận động tinh |
 | 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, 4 stamp, xoá | sáng tạo |
 | 🙈 Ú oà | chạm bụi cây/hộp/mây, con vật nhảy ra "Ú oà!" | nhân quả |
 | 🍎 Cho ăn | kéo đúng món cho con vật đói | chăm sóc, logic |
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
-| 🔢 Đếm số | chạm từng quả, đọc "một, hai, ba…" | số đếm 1–5 |
-| 🃏 Lật thẻ | lật 2 thẻ giống nhau | trí nhớ |
 
 Mỗi vòng xong có confetti + lời khen + 1 ⭐ hiện trên ô game ở màn hình chính.
 
@@ -43,7 +62,7 @@ Chụp màn hình mọi game ở 3 cỡ (điện thoại dọc/ngang, tablet) v�
 ```bash
 npm run build && node scripts/screenshot.mjs        # ảnh trong ./screenshots
 node scripts/screenshot.mjs shapes memory           # chỉ vài game
-npm run e2e                                         # chơi thật 12 game trong Chromium headless
+npm run e2e                                         # chơi thật 19 game trong Chromium headless
 ```
 
 ## Cài lên điện thoại / tablet
@@ -70,15 +89,16 @@ Netlify, Vercel) thì chỉ cần `npm run build` và trỏ vào thư mục `dis
 src/
   main.ts            boot: audio, giọng nói, router, service worker
   app/               home, shell (khung game), registry, storage, parent panel
-  core/              types (hợp đồng game), dom, audio synth, speech, drag, hold, hint, celebrate
+  core/              types (hợp đồng game), dom, audio synth (8 nhạc cụ + trống), music (nốt, bài hát), speech, drag, hold, hint, celebrate
   games/<id>/        meta.ts · logic.ts (thuần, có test) · index.ts (DOM) · style.css
   styles/            base.css (token, animation, class dùng chung), home.css, shell.css
 scripts/screenshot.mjs
 docs/superpowers/    spec và plan
 ```
 
-Không có runtime dependency: đồ hoạ là emoji + SVG, âm thanh sinh bằng Web Audio, giọng nói
-bằng Web Speech API. Vì vậy offline 100 % và bundle rất nhỏ.
+Không có runtime dependency: đồ hoạ là emoji + SVG, âm thanh và tiếng nhạc cụ sinh bằng Web Audio
+(piano, xylophone, chuông, ghi-ta Karplus-Strong, sáo, kèn, vi-ô-lông, bộ trống), giọng nói
+bằng Web Speech API. Bài hát trong Đàn gõ là giai điệu public domain có lời Việt. Vì vậy offline 100 % và bundle rất nhỏ.
 
 ## Thêm một game mới
 
@@ -107,5 +127,5 @@ thương mại, repo này chỉ mô phỏng **thể loại** chứ không dùng 
 
 ## Hướng phát triển
 
-Xếp hình jigsaw 4 mảnh, dress-up, âm thanh động vật thật, bảng sticker thưởng, nhân vật dẫn dắt,
+Dress-up, âm thanh động vật thật, bảng sticker thưởng, nhân vật dẫn dắt, thêm bài hát cho Đàn gõ,
 Twemoji để emoji giống nhau trên mọi máy.

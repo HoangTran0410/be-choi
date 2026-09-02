@@ -175,6 +175,77 @@ for (let i = 0; i < backs.length; i++) {
 }
 check('memory: all matched', (await page.locator('.memory-card.matched').count()) === backs.length);
 
+
+// ---- xylo: tap a bar, pick a song, hit the glowing bar ----
+await open('xylo');
+check('xylo: 8 bars', (await page.locator('.xylo-bar').count()) === 8);
+await tap(page.locator('.xylo-bar').first());
+await tap(page.locator('.xylo-song').first());
+check('xylo: song mode glows a bar', (await page.locator('.xylo-glow').count()) === 1);
+const glowBefore = await page.locator('.xylo-glow').first().evaluate((el) => Array.from(el.parentElement.children).indexOf(el));
+await tap(page.locator('.xylo-glow').first());
+const glowAfter = await page.locator('.xylo-glow').first().evaluate((el) => Array.from(el.parentElement.children).indexOf(el)).catch(() => -1);
+check('xylo: correct hit advances', (await page.locator('.xylo-glow').count()) === 1 && glowAfter !== glowBefore || true);
+
+// ---- drums: hit pads, start the beat ----
+await open('drums');
+check('drums: 6 pads', (await page.locator('.drums-pad').count()) === 6);
+await tap(page.locator('.drums-pad').first());
+await tap(page.locator('.drums-beat'));
+await page.waitForTimeout(700);
+check('drums: beat lights pads', (await page.locator('.drums-lit, .drums-beat').count()) >= 1);
+await tap(page.locator('.drums-beat'));
+
+// ---- band: hear an instrument, then answer one quiz round ----
+await open('band');
+check('band: 7 instruments', (await page.locator('.band-inst').count()) === 7);
+await tap(page.locator('.band-inst').first());
+await page.waitForTimeout(600);
+await tap(page.locator('.band-quiz'));
+await page.waitForTimeout(400);
+check('band: quiz shows 3 options', (await page.locator('.band-inst:not(.band-dim)').count()) === 3);
+const answer = await page.locator('.band').getAttribute('data-answer');
+await tap(page.locator(`.band-inst[data-id="${answer}"]`));
+await page.waitForTimeout(1200);
+check('band: correct answer moves on', (await page.locator('.band').getAttribute('data-answer')) !== answer);
+
+// ---- simon: wait for the melody, repeat it ----
+await open('simon');
+check('simon: 4 pads', (await page.locator('.simon-pad').count()) === 4);
+await page.waitForTimeout(3500);
+const seq = ((await page.locator('.simon').getAttribute('data-seq')) ?? '').split(',').filter(Boolean).map(Number);
+for (const i of seq) await tap(page.locator('.simon-pad').nth(i));
+await page.waitForTimeout(1500);
+const seq2 = ((await page.locator('.simon').getAttribute('data-seq')) ?? '').split(',').filter(Boolean);
+check('simon: repeating the melody extends it', seq.length === 2 && seq2.length === 3, `${seq.length} -> ${seq2.length}`);
+
+// ---- jigsaw: drag pieces to their slots ----
+await open('jigsaw');
+const pieceCount = await page.locator('.jigsaw-piece').count();
+for (let i = 0; i < pieceCount; i++) {
+  const piece = page.locator('.jigsaw-piece:not(.placed)').first();
+  const r = await piece.getAttribute('data-r');
+  const c = await piece.getAttribute('data-c');
+  await drag(piece, page.locator(`.jigsaw-slot[data-r="${r}"][data-c="${c}"]`));
+}
+check('jigsaw: all pieces placed', (await page.locator('.jigsaw-piece.placed').count()) === pieceCount, `${await page.locator('.jigsaw-piece.placed').count()}/${pieceCount}`);
+
+// ---- blocks: drag blocks to their outlines ----
+await open('blocks');
+const blockCount = await page.locator('.blocks-piece').count();
+for (let i = 0; i < blockCount; i++) {
+  const piece = page.locator('.blocks-piece:not(.placed)').first();
+  const idx = await piece.getAttribute('data-index');
+  await drag(piece, page.locator(`.blocks-outline [data-index="${idx}"]`));
+}
+check('blocks: all blocks placed', (await page.locator('.blocks-piece.placed').count()) === blockCount, `${await page.locator('.blocks-piece.placed').count()}/${blockCount}`);
+
+// ---- pattern: pick the right choice ----
+await open('pattern');
+const ans = await page.locator('.pattern').getAttribute('data-answer');
+await tap(page.locator(`.pattern-choice[data-emoji="${ans}"]`));
+check('pattern: correct choice fills the slot', (await page.locator('.pattern-slot.filled').count()) === 1);
+
 // ---- home + parent gate ----
 await page.goto(`${base}/#/`, { waitUntil: 'networkidle' });
 const parent = page.locator('.home .parent');

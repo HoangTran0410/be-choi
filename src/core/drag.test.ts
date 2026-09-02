@@ -43,7 +43,7 @@ describe('makeDraggable', () => {
     el.dispatchEvent(ptr('pointerdown', 10, 10));
     expect(el.classList.contains('dragging')).toBe(true);
     el.dispatchEvent(ptr('pointermove', 40, 60));
-    expect(el.style.transform).toBe('translate(30px, 50px)');
+    expect(el.style.transform).toBe('translate(30px, 50px) scale(1.06)');
     el.dispatchEvent(ptr('pointerup', 40, 60));
     expect(onDrop).toHaveBeenCalledWith(el, { x: 40, y: 60 });
     expect(el.classList.contains('dragging')).toBe(false);
@@ -63,7 +63,7 @@ describe('makeDraggable', () => {
     el.dispatchEvent(ptr('pointermove', 5, 5));
     el.dispatchEvent(ptr('pointerup', 5, 5));
     await Promise.resolve();
-    expect(el.style.transform).toBe('translate(5px, 5px)');
+    expect(el.style.transform).toBe('translate(5px, 5px) scale(1.06)');
     expect(el.classList.contains('spring-back')).toBe(false);
   });
 });

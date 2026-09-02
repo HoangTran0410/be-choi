@@ -58,8 +58,9 @@ export function makeDraggable(el: HTMLElement, opts: DragOptions): () => void {
   let baseX = 0;
   let baseY = 0;
 
-  const setTranslate = (x: number, y: number) => {
-    el.style.transform = `translate(${x}px, ${y}px)`;
+  /** While dragging the piece is lifted with a cheap scale (no filters: they stall tablets). */
+  const setTranslate = (x: number, y: number, lifted = false) => {
+    el.style.transform = `translate(${x}px, ${y}px)${lifted ? ' scale(1.06)' : ''}`;
   };
 
   const down = (e: PointerEvent) => {
@@ -78,6 +79,7 @@ export function makeDraggable(el: HTMLElement, opts: DragOptions): () => void {
       /* jsdom or already captured */
     }
     e.preventDefault();
+    setTranslate(baseX, baseY, true);
     opts.onStart?.(el);
   };
 
@@ -85,7 +87,7 @@ export function makeDraggable(el: HTMLElement, opts: DragOptions): () => void {
     if (e.pointerId !== pointerId) return;
     const x = baseX + e.clientX - startX;
     const y = baseY + e.clientY - startY;
-    setTranslate(x, y);
+    setTranslate(x, y, true);
     opts.onMove?.(el, { x: e.clientX, y: e.clientY });
   };
 
