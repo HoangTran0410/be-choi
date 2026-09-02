@@ -26,7 +26,7 @@ export function makeBubble(rng: () => number = Math.random, animals: readonly It
   const size = randInt(60, 140, rng);
   const x = rng();
   const hue = randInt(0, 359, rng);
-  const speed = 50 + rng() * 70;
+  const speed = 70 + rng() * 80;
   const item = rng() < 0.25 ? (animals[randInt(0, animals.length - 1, rng)] ?? null) : null;
   return { size, x, hue, speed, item };
 }

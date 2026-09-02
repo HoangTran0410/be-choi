@@ -32,7 +32,8 @@ function start(ctx: GameContext): void {
     return Math.min(1.8, Math.max(0.9, min / 600));
   }
 
-  function spawn(): void {
+  /** `initial` bubbles start inside the stage so the screen is never empty on open. */
+  function spawn(initial = false): void {
     if (live.filter((b) => !b.popped).length >= MAX_ALIVE) return;
     const spec = makeBubble();
     const size = Math.max(72, Math.round(spec.size * scale()));
@@ -45,7 +46,7 @@ function start(ctx: GameContext): void {
     const bubble: Live = {
       el,
       x: spec.x * Math.max(0, w - size),
-      y: (field.clientHeight || 600) + size,
+      y: initial ? (field.clientHeight || 600) * (0.2 + Math.random() * 0.7) : (field.clientHeight || 600) + size,
       size,
       speed: spec.speed * scale(),
       phase: Math.random() * Math.PI * 2,
@@ -96,8 +97,9 @@ function start(ctx: GameContext): void {
     raf = requestAnimationFrame(frame);
   }
 
-  spawn();
-  spawn();
+  spawn(true);
+  spawn(true);
+  spawn(true);
   const timer = setInterval(spawn, SPAWN_MS);
   raf = requestAnimationFrame(frame);
 
