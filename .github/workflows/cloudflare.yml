@@ -34,13 +34,13 @@ jobs:
         if: env.CLOUDFLARE_API_TOKEN != '' && github.event_name != 'pull_request'
         run: npx --yes wrangler@4 pages project create be-choi --production-branch main || true
 
+      # Plain npx rather than cloudflare/wrangler-action: the action installs
+      # whatever wrangler *it* pins (3.90 today), and a wrangler that old neither
+      # reads a jsonc config nor infers the output directory, so it deployed
+      # nothing at all. Naming the version and the directory leaves nothing to infer.
       - name: Deploy
         if: env.CLOUDFLARE_API_TOKEN != '' && github.event_name != 'pull_request'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy --branch=${{ github.ref_name }}
+        run: npx --yes wrangler@4 pages deploy dist --project-name=be-choi --branch=${{ github.ref_name }}
 
       - name: How to switch the deploy on
         if: env.CLOUDFLARE_API_TOKEN == ''

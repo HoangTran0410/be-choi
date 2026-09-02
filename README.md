@@ -113,7 +113,7 @@ typecheck → test → build → `wrangler pages deploy`. Chỉ cần thêm 2 se
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages, ID nằm ở cột phải |
 
 Chưa có secret thì workflow vẫn chạy test + build (xanh), chỉ bỏ qua bước deploy. Lần deploy đầu tự
-tạo project Pages tên `be-choi` (đổi tên trong `wrangler.jsonc` và trong `cloudflare.yml`).
+tạo project Pages tên `be-choi` (đổi tên ở 2 chỗ trong `cloudflare.yml` nếu muốn tên khác).
 Site chạy ở base path `/` nên không cần `BASE_PATH`.
 
 **GitHub Pages (dự phòng).** `.github/workflows/deploy.yml` chỉ chạy khi bấm tay
