@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
 import { makeDraggable } from '../../core/drag';
+import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -67,9 +68,10 @@ interface PieceEls {
  * Jigsaw: drag the pieces of a picture into place on a square board. The cut
  * climbs a ladder (rectangles, strips, triangles, knobs, pie wedges, waves; see
  * `levelFor`). The picture is an emoji painted on a canvas once per round, or —
- * when a parent picked family photos — one of those photos, cycling in order; a
- * 🐣/📷 toggle in the corner switches between the two. Every piece is a div
- * clipped to its shape showing its part of the picture via background-position.
+ * when a parent picked family photos — the photo the child chose in the 🖼️
+ * picker (the first one until something is chosen; a 🐣 tile goes back to emoji).
+ * Every piece is a div clipped to its shape showing its part of the picture via
+ * background-position.
  */
 function start(ctx: GameContext): void {
   let round = 0;
@@ -79,10 +81,13 @@ function start(ctx: GameContext): void {
   let els: PieceEls[] = [];
   /** The largest bounding box of the cut, the "cell" the tray is sized for. */
   let cell = { w: 1, h: 1 };
-  /** Family photos, if any; the toggle exists only while there are some. */
+  /** Family photos, if any; the picker button exists only while there are some. */
   let photos: Photo[] = [];
   let usePhotos = false;
-  let photoIndex = 0;
+  /** Photo the child chose in the picker; `null` → the first photo. Kept round after round. */
+  let chosenId: string | null = null;
+  /** Closes the open picker, if any. */
+  let closePicker: (() => void) | null = null;
   /** Bumped per deal so a slow photo render never builds a stale round. */
   let deal = 0;
 
@@ -102,26 +107,50 @@ function start(ctx: GameContext): void {
   wrap.append(area, tray);
   ctx.stage.append(wrap);
 
-  const toggle = h('button', { class: 'btn-round jigsaw-source', type: 'button', 'aria-label': 'Đổi ảnh' });
-  toggle.addEventListener('pointerdown', (e) => {
+  // 🖼️ in the corner opens a full-stage picker: one tile per photo and a 🐣 tile for emoji pictures.
+  const source = h('button', { class: 'btn-round jigsaw-source', type: 'button', 'aria-label': 'Chọn ảnh' }, '🖼️');
+  source.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    if (!photos.length) return;
-    usePhotos = !usePhotos;
-    syncToggle();
-    ctx.audio.pop();
-    void play();
+    openPicker();
   });
 
-  function syncToggle(): void {
-    toggle.textContent = usePhotos ? '🐣' : '📷';
-    if (!photos.length) toggle.remove();
-    else if (!toggle.isConnected) ctx.stage.append(toggle);
+  function openPicker(): void {
+    if (!photos.length || closePicker) return;
+    const choices: PickerChoice[] = [
+      ...photos.map((p, i) => ({ id: p.id, url: p.url, label: `Ảnh ${i + 1}` })),
+      { id: 'emoji', emoji: '🐣', label: 'Tranh emoji' },
+    ];
+    closePicker = showPhotoPicker(ctx.stage, choices, (choice) => {
+      closePicker = null;
+      if (!choice || !alive) return;
+      usePhotos = choice.id !== 'emoji';
+      if (usePhotos) chosenId = choice.id;
+      ctx.audio.pop();
+      void play();
+    });
+  }
+
+  /** The photo to play: the chosen one, else the first; none in emoji mode. */
+  function chosenPhoto(): Photo | undefined {
+    if (!usePhotos) return undefined;
+    return photos.find((p) => p.id === chosenId) ?? photos[0];
+  }
+
+  function syncSource(): void {
+    if (!photos.length) {
+      source.remove();
+      closePicker?.();
+    } else if (!source.isConnected) {
+      ctx.stage.append(source);
+    }
   }
 
   function setPhotos(list: Photo[]): void {
     photos = list;
     if (!photos.length) usePhotos = false;
-    syncToggle();
+    // The chosen photo is gone: back to the first one.
+    if (chosenId !== null && !photos.some((p) => p.id === chosenId)) chosenId = null;
+    syncSource();
   }
 
   /**
@@ -176,9 +205,8 @@ function start(ctx: GameContext): void {
     disposers.forEach((d) => d());
     disposers = [];
     let photoUrl: string | null = null;
-    const photo = usePhotos && photos.length ? photos[photoIndex % photos.length] : undefined;
+    const photo = chosenPhoto();
     if (photo) {
-      photoIndex++;
       photoUrl = await renderPhotoPicture(photo.url, pictureSize());
       if (!alive || id !== deal) return;
     }
@@ -303,6 +331,7 @@ function start(ctx: GameContext): void {
 
   ctx.onCleanup(() => {
     alive = false;
+    closePicker?.();
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', onResize);
     offPhotos();
@@ -316,7 +345,6 @@ function start(ctx: GameContext): void {
     setPhotos(list);
     if (list.length) {
       usePhotos = true;
-      syncToggle();
       void play();
     }
   });

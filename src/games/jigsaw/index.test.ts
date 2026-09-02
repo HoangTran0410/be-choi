@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PICTURES } from './logic';
+import { createPhotoStore } from '../../core/photos';
 import { fakeContext } from '../../core/testing';
 import game from './index';
 
@@ -325,17 +326,18 @@ describe('jigsaw game', () => {
     ctx.cleanup();
   });
 
-  it('with family photos starts in photo mode (🐣) and falls back to emoji pieces when the photo cannot be rendered', async () => {
+  it('with family photos starts in photo mode (🖼️ button) and falls back to emoji pieces when the photo cannot be rendered', async () => {
     const ctx = fakeContext();
     await ctx.photos.add([new Blob(['x'])]);
     game.start(ctx);
     // The emoji round is dealt at once; the photo round replaces it once the store has answered.
     await vi.waitFor(() => expect(ctx.spoken.length).toBe(2));
-    const toggle = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
-    expect(toggle).not.toBeNull();
-    expect(toggle.classList.contains('btn-round')).toBe(true);
-    expect(toggle.getAttribute('aria-label')).toBe('Đổi ảnh');
-    expect(toggle.textContent).toBe('🐣');
+    const button = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
+    expect(button).not.toBeNull();
+    expect(button.classList.contains('btn-round')).toBe(true);
+    expect(button.getAttribute('aria-label')).toBe('Chọn ảnh');
+    expect(button.textContent).toBe('🖼️');
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     // loadImage cannot succeed in jsdom: the round is an ordinary emoji round.
     expect(q(ctx, '.jigsaw-tray .jigsaw-piece').length).toBe(4);
     expect(q(ctx, '.jigsaw-piece-plain').length).toBe(4);
@@ -344,25 +346,105 @@ describe('jigsaw game', () => {
     ctx.cleanup();
   });
 
-  it('tapping the toggle switches to emoji mode (📷) and re-deals a round of the same rung, and back', async () => {
+  it('🖼️ opens a picker with a tile per photo plus 🐣: 🐣 deals an emoji round, a photo tile a round of that photo', async () => {
     const ctx = fakeContext();
-    await ctx.photos.add([new Blob(['x'])]);
+    const [p1, p2] = await ctx.photos.add([new Blob(['x']), new Blob(['y'])]);
     game.start(ctx);
     await vi.waitFor(() => expect(ctx.spoken.length).toBe(2));
-    const toggle = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
+    const button = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
+    expect(button.textContent).toBe('🖼️');
+    button.dispatchEvent(ptr('pointerdown', 0, 0));
+    const overlay = ctx.stage.querySelector<HTMLElement>('.pp-overlay')!;
+    expect(overlay).not.toBeNull();
+    const tiles = [...overlay.querySelectorAll<HTMLElement>('.pp-tile')];
+    expect(tiles.map((t) => t.dataset.id)).toEqual([p1!.id, p2!.id, 'emoji']);
+    expect(tiles[0]?.getAttribute('style')).toContain(p1!.url);
+    expect(tiles[2]?.textContent).toBe('🐣');
+    // Pressing again while it is open does not stack a second picker.
+    button.dispatchEvent(ptr('pointerdown', 0, 0));
+    expect(q(ctx, '.pp-overlay').length).toBe(1);
+
     const before = q(ctx, '.jigsaw-piece');
-    toggle.dispatchEvent(ptr('pointerdown', 0, 0));
-    expect(toggle.textContent).toBe('📷');
+    tiles[2]!.dispatchEvent(ptr('pointerup', 0, 0));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     expect(ctx.spoken.length).toBe(3);
+    expect(ctx.spoken[2]?.startsWith('Ghép ')).toBe(true);
+    expect(ctx.spoken[2]).not.toBe('Ghép ảnh nào!');
     const after = q(ctx, '.jigsaw-tray .jigsaw-piece');
     expect(after.length).toBe(4);
     expect(after).not.toContain(before[0]);
-    expect(q(ctx, '.jigsaw-slot').length).toBe(4);
+    expect(q(ctx, '.jigsaw-piece-plain').length).toBe(4);
+    expect(button.textContent).toBe('🖼️');
+    // Same rung, re-dealt.
     expect(ctx.stage.querySelector<HTMLElement>('.jigsaw-board')?.dataset.style).toBe('grid');
-    toggle.dispatchEvent(ptr('pointerdown', 0, 0));
-    expect(toggle.textContent).toBe('🐣');
+
+    // A photo tile: photo mode again — without a canvas the round falls back to emoji pieces.
+    button.dispatchEvent(ptr('pointerdown', 0, 0));
+    ctx.stage.querySelector<HTMLElement>(`.pp-tile[data-id="${p2!.id}"]`)!.dispatchEvent(ptr('pointerup', 0, 0));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     await vi.waitFor(() => expect(ctx.spoken.length).toBe(4));
     expect(q(ctx, '.jigsaw-tray .jigsaw-piece').length).toBe(4);
+    expect(q(ctx, '.jigsaw-piece-plain').length).toBe(4);
+
+    // Dismissing changes nothing.
+    button.dispatchEvent(ptr('pointerdown', 0, 0));
+    ctx.stage.querySelector<HTMLElement>('.pp-close')!.dispatchEvent(ptr('pointerup', 0, 0));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+    expect(ctx.spoken.length).toBe(4);
+    ctx.cleanup();
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+  });
+
+  it('plays the chosen photo and keeps it round after round (no cycling); a removed choice falls back to the first photo', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fake2d() as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation((type?: string) =>
+      type === 'image/jpeg' ? 'data:image/jpeg;base64,UEhP' : 'data:image/png;base64,QUJD',
+    );
+    // Record which photo is rendered: the URL every `Image` is asked to load.
+    const loaded: string[] = [];
+    vi.stubGlobal(
+      'Image',
+      class {
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        width = 40;
+        height = 30;
+        set src(url: string) {
+          loaded.push(url);
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    const ctx = fakeContext();
+    let n = 0;
+    ctx.photos = createPhotoStore(async () => `data:image/jpeg;base64,p${++n}`);
+    const [a, b] = await ctx.photos.add([new Blob(['x']), new Blob(['y'])]);
+    game.start(ctx);
+    // Nothing chosen yet: the first photo.
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(2));
+    expect(ctx.spoken[1]).toBe('Ghép ảnh nào!');
+    expect(loaded).toEqual([a!.url]);
+
+    const button = ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!;
+    button.dispatchEvent(ptr('pointerdown', 0, 0));
+    ctx.stage.querySelector<HTMLElement>(`.pp-tile[data-id="${b!.id}"]`)!.dispatchEvent(ptr('pointerup', 0, 0));
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(3));
+    expect(ctx.spoken[2]).toBe('Ghép ảnh nào!');
+    expect(loaded.at(-1)).toBe(b!.url);
+    expect(q(ctx, '.jigsaw-tray .jigsaw-piece').every((p) => p.style.backgroundImage.includes('UEhP'))).toBe(true);
+
+    // Next round: still the chosen photo.
+    solve(ctx);
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(4));
+    expect(ctx.stars).toBe(1);
+    expect(loaded.slice(-2)).toEqual([b!.url, b!.url]);
+
+    // The chosen photo is removed: back to the first one, the button stays.
+    await ctx.photos.remove(b!.id);
+    expect(ctx.stage.querySelector('.jigsaw-source')).not.toBeNull();
+    solve(ctx);
+    await vi.waitFor(() => expect(ctx.spoken.length).toBe(5));
+    expect(loaded.at(-1)).toBe(a!.url);
     ctx.cleanup();
   });
 
@@ -371,8 +453,12 @@ describe('jigsaw game', () => {
     const [photo] = await ctx.photos.add([new Blob(['x'])]);
     game.start(ctx);
     await vi.waitFor(() => expect(ctx.stage.querySelector('.jigsaw-source')).not.toBeNull());
+    // An open picker closes with it.
+    ctx.stage.querySelector<HTMLElement>('.jigsaw-source')!.dispatchEvent(ptr('pointerdown', 0, 0));
+    expect(ctx.stage.querySelector('.pp-overlay')).not.toBeNull();
     await ctx.photos.remove(photo!.id);
     expect(ctx.stage.querySelector('.jigsaw-source')).toBeNull();
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     ctx.cleanup();
   });
 
