@@ -55,9 +55,30 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
   });
 
   const grid = h('main', { class: 'sections' });
+  const albumTile = () => {
+    const n = deps.store.stickers().length;
+    const el = h(
+      'button',
+      {
+        class: 'tile tile-album',
+        'aria-label': 'Bộ sưu tập',
+        onClick: () => {
+          deps.audio.pop();
+          location.hash = hrefFor({ name: 'album' });
+        },
+      },
+      h('span', { class: 'tile-icon' }, '🏆'),
+      h('span', { class: 'tile-title' }, 'Bộ sưu tập'),
+      h('span', { class: 'tile-stars' }, n ? `🎁×${n}` : `⭐ ${deps.store.totalStars()}`),
+    );
+    return el;
+  };
   const render = () => {
     const placed = new Set<string>();
-    const blocks = SECTIONS.map((section) => {
+    const blocks: Array<HTMLElement | null> = [
+      h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile())),
+    ];
+    blocks.push(...SECTIONS.map((section) => {
       const games = GAMES.filter((g) => !placed.has(g.id) && section.skills.includes(g.skill));
       games.forEach((g) => placed.add(g.id));
       if (games.length === 0) return null;
@@ -67,7 +88,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
         h('h2', { class: 'section-title' }, section.title),
         h('div', { class: 'grid' }, ...games.map((g) => tile(g, deps))),
       );
-    });
+    }));
     const rest = GAMES.filter((g) => !placed.has(g.id));
     if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map((g) => tile(g, deps)))));
     grid.replaceChildren(...blocks.filter((b): b is HTMLElement => b !== null));

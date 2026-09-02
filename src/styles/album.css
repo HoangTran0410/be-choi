@@ -1,0 +1,74 @@
+.album {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff7ed;
+}
+.album .topbar-spacer {
+  width: calc(var(--tap) * 0.8);
+}
+.album-progress {
+  display: flex;
+  justify-content: center;
+  gap: 4vmin;
+  padding: 2vmin;
+  font-size: clamp(20px, 5vmin, 40px);
+  font-weight: 800;
+  color: #b45309;
+}
+.album-grid {
+  flex: 1;
+  overflow-y: auto;
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(90px, 22vmin, 160px), 1fr));
+  gap: 3vmin;
+  padding: 2vmin 4vmin 6vmin;
+  align-content: start;
+}
+.album-sticker {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-size: clamp(48px, 13vmin, 110px);
+  line-height: 1;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.1);
+  touch-action: manipulation;
+}
+.album-locked {
+  opacity: 0.35;
+  background: #f5f5f4;
+}
+.album-empty {
+  text-align: center;
+  padding: 8vmin 6vmin;
+  font-size: clamp(18px, 4.5vmin, 32px);
+  font-weight: 700;
+  color: #9a3412;
+}
+.sticker-overlay {
+  background: rgba(255, 247, 237, 0.92);
+}
+.sticker-reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2vmin;
+  text-align: center;
+}
+.sticker-reveal-title {
+  font-size: clamp(22px, 6vmin, 48px);
+  font-weight: 900;
+  color: #ea580c;
+}
+.sticker-reveal-emoji {
+  font-size: clamp(120px, 36vmin, 320px);
+  line-height: 1.1;
+}
+.sticker-reveal-name {
+  font-size: clamp(20px, 5vmin, 36px);
+  font-weight: 800;
+  color: var(--ink);
+}

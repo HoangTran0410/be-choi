@@ -25,6 +25,20 @@ describe('store', () => {
     b.resetStars();
     expect(createStore(s).stars('x')).toBe(0);
   });
+  it('totals stars and keeps unique stickers, reset clears both', () => {
+    const s = mem();
+    const a = createStore(s);
+    a.addStar('x');
+    a.addStar('y');
+    expect(a.totalStars()).toBe(2);
+    a.addSticker('🐻');
+    a.addSticker('🐻');
+    a.addSticker('🦊');
+    expect(createStore(s).stickers()).toEqual(['🐻', '🦊']);
+    a.resetStars();
+    expect(createStore(s).stickers()).toEqual([]);
+    expect(a.totalStars()).toBe(0);
+  });
   it('settings default and patch persist', () => {
     const s = mem();
     const a = createStore(s);

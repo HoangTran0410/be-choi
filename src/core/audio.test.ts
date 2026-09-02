@@ -15,6 +15,7 @@ describe('audio', () => {
     a.note(440);
     for (const t of TIMBRES) a.note(440, 0.5, t);
     for (const d of DRUMS) a.drum(d);
+    a.puff();
     expect(a.enabled).toBe(true);
     a.setEnabled(false);
     expect(a.enabled).toBe(false);

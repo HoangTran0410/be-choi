@@ -1,4 +1,5 @@
 import { h } from '../core/dom';
+import { MAX_PHOTOS } from '../core/photos';
 import type { AppDeps } from './deps';
 
 export const STARS_CHANGED = 'be-choi:stars';
@@ -34,8 +35,59 @@ function toggle(label: string, checked: boolean, onChange: (v: boolean) => void)
 
 /** Settings panel for parents. Opened by holding the 👪 button. */
 export function openParentPanel(deps: AppDeps): void {
-  const { store, audio, speech, install } = deps;
+  const { store, audio, speech, install, photos } = deps;
   const settings = store.settings();
+
+  // ---- family photos (kept on this device, used by jigsaw / paint / birthday) ----
+  const photoInput = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true }) as HTMLInputElement;
+  const photoCount = h('span', { class: 'photo-count' });
+  const photoGrid = h('div', { class: 'photo-grid' });
+  const photoStatus = h('p', { class: 'panel-status' });
+  const renderPhotos = async () => {
+    const list = await photos.list();
+    photoCount.textContent = `${list.length}/${MAX_PHOTOS}`;
+    photoGrid.replaceChildren(
+      ...list.map((ph) =>
+        h(
+          'div',
+          { class: 'photo-thumb', style: `background-image:url("${ph.url}")` },
+          h(
+            'button',
+            {
+              class: 'photo-remove',
+              type: 'button',
+              'aria-label': 'Xoá ảnh',
+              onClick: async () => {
+                await photos.remove(ph.id);
+                await renderPhotos();
+              },
+            },
+            '✕',
+          ),
+        ),
+      ),
+    );
+  };
+  photoInput.addEventListener('change', async () => {
+    const files = Array.from(photoInput.files ?? []);
+    photoInput.value = '';
+    if (!files.length) return;
+    photoStatus.textContent = 'Đang thêm ảnh…';
+    const added = await photos.add(files);
+    photoStatus.textContent = added.length ? `Đã thêm ${added.length} ảnh.` : 'Không thêm được ảnh (đã đủ hoặc ảnh lỗi).';
+    await renderPhotos();
+  });
+  void renderPhotos();
+  const photoSection = h(
+    'div',
+    { class: 'panel-section' },
+    h('h3', null, '📷 Ảnh của bé ', photoCount),
+    h('p', { class: 'panel-note' }, 'Dùng cho Ghép tranh, Tô màu, Sinh nhật. Ảnh chỉ lưu trên máy này, không gửi đi đâu.'),
+    h('button', { class: 'panel-btn primary', type: 'button', onClick: () => photoInput.click() }, '➕ Thêm ảnh / chụp ảnh'),
+    photoInput,
+    photoGrid,
+    photoStatus,
+  );
 
   const close = () => overlay.remove();
 
@@ -65,6 +117,7 @@ export function openParentPanel(deps: AppDeps): void {
     }),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     installRow,
+    photoSection,
     h(
       'button',
       {
@@ -72,10 +125,10 @@ export function openParentPanel(deps: AppDeps): void {
         onClick: () => {
           store.resetStars();
           window.dispatchEvent(new Event(STARS_CHANGED));
-          status.textContent = 'Đã xoá hết sao.';
+          status.textContent = 'Đã xoá hết sao và sticker.';
         },
       },
-      '🗑️ Xoá hết sao',
+      '🗑️ Xoá hết sao và sticker',
     ),
     status,
     h('p', { class: 'panel-version' }, `Bé Chơi v${__APP_VERSION__}`),

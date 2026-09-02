@@ -6,6 +6,7 @@ import type { GameContext } from '../core/types';
 import { requestWake } from '../core/wake';
 import type { AppDeps } from './deps';
 import { openParentPanel } from './parentPanel';
+import { maybeUnlockSticker, showStickerReveal } from './rewards';
 import type { GameEntry } from './registry';
 import { hrefFor } from './router';
 import '../styles/shell.css';
@@ -71,8 +72,12 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
     hint,
     addStar: () => {
       store.addStar(entry.id);
+      const sticker = maybeUnlockSticker(store);
+      if (sticker && alive) showStickerReveal(sticker, deps);
     },
     onCleanup: (fn) => cleanups.push(fn),
+    photos: deps.photos,
+    stickers: () => store.stickers(),
   };
 
   audio.tick();

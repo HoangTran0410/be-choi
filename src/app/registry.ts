@@ -18,6 +18,11 @@ import { meta as simon } from '../games/simon/meta';
 import { meta as jigsaw } from '../games/jigsaw/meta';
 import { meta as blocks } from '../games/blocks/meta';
 import { meta as pattern } from '../games/pattern/meta';
+import { meta as orchestra } from '../games/orchestra/meta';
+import { meta as bricks } from '../games/bricks/meta';
+import { meta as birthday } from '../games/birthday/meta';
+import { meta as cooking } from '../games/cooking/meta';
+import { meta as teeth } from '../games/teeth/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -45,6 +50,11 @@ export const GAMES: readonly GameEntry[] = [
   { ...jigsaw, load: () => import('../games/jigsaw/index') },
   { ...blocks, load: () => import('../games/blocks/index') },
   { ...pattern, load: () => import('../games/pattern/index') },
+  { ...orchestra, load: () => import('../games/orchestra/index') },
+  { ...bricks, load: () => import('../games/bricks/index') },
+  { ...birthday, load: () => import('../games/birthday/index') },
+  { ...cooking, load: () => import('../games/cooking/index') },
+  { ...teeth, load: () => import('../games/teeth/index') },
 ];
 
 export function findGame(id: string): GameEntry | undefined {

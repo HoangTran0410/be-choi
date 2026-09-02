@@ -1,13 +1,16 @@
-export type Route = { name: 'home' } | { name: 'game'; id: string };
+export type Route = { name: 'home' } | { name: 'game'; id: string } | { name: 'album' };
 
 export function parseHash(hash: string): Route {
   const m = /^#?\/g\/([a-z0-9-]+)\/?$/.exec(hash);
   if (m && m[1]) return { name: 'game', id: m[1] };
+  if (/^#?\/album\/?$/.test(hash)) return { name: 'album' };
   return { name: 'home' };
 }
 
 export function hrefFor(route: Route): string {
-  return route.name === 'home' ? '#/' : `#/g/${route.id}`;
+  if (route.name === 'home') return '#/';
+  if (route.name === 'album') return '#/album';
+  return `#/g/${route.id}`;
 }
 
 export function navigate(route: Route): void {

@@ -4,6 +4,7 @@
  */
 import type { AudioEngine } from './audio';
 import { createHint } from './hint';
+import { createPhotoStore } from './photos';
 import type { GameContext } from './types';
 
 export function fakeAudio(): AudioEngine {
@@ -20,6 +21,7 @@ export function fakeAudio(): AudioEngine {
     jingle: noop,
     note: noop,
     drum: noop,
+    puff: noop,
   };
 }
 
@@ -56,6 +58,8 @@ export function fakeContext(): FakeContext {
     onCleanup(fn) {
       cleanups.push(fn);
     },
+    photos: createPhotoStore(async () => 'data:image/jpeg;base64,'),
+    stickers: () => [],
     cleanup() {
       ctx.hint.clear();
       for (const fn of cleanups.reverse()) fn();

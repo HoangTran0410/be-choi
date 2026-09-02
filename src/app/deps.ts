@@ -1,4 +1,5 @@
 import type { AudioEngine } from '../core/audio';
+import type { PhotoStore } from '../core/photos';
 import type { Speech } from '../core/speech';
 import type { Store } from './storage';
 
@@ -16,4 +17,5 @@ export interface AppDeps {
   speech: Speech;
   store: Store;
   install: InstallState;
+  photos: PhotoStore;
 }

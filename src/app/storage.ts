@@ -6,13 +6,18 @@ export interface Settings {
 export interface Store {
   stars(id: string): number;
   addStar(id: string): number;
+  /** Sum of stars over all games. */
+  totalStars(): number;
   resetStars(): void;
+  stickers(): string[];
+  addSticker(emoji: string): void;
   settings(): Settings;
   setSettings(patch: Partial<Settings>): Settings;
 }
 
 interface State {
   stars: Record<string, number>;
+  stickers: string[];
   settings: Settings;
 }
 
@@ -36,13 +41,14 @@ export function createStore(
         const parsed = JSON.parse(raw) as Partial<State>;
         return {
           stars: { ...(parsed.stars ?? {}) },
+          stickers: [...(parsed.stickers ?? [])],
           settings: { ...DEFAULTS, ...(parsed.settings ?? {}) },
         };
       }
     } catch {
       /* fall through to defaults */
     }
-    return { stars: {}, settings: { ...DEFAULTS } };
+    return { stars: {}, stickers: [], settings: { ...DEFAULTS } };
   }
 
   function save(): void {
@@ -63,8 +69,19 @@ export function createStore(
       save();
       return n;
     },
+    totalStars() {
+      return Object.values(state.stars).reduce((a, b) => a + b, 0);
+    },
     resetStars() {
       state.stars = {};
+      state.stickers = [];
+      save();
+    },
+    stickers() {
+      return [...state.stickers];
+    },
+    addSticker(emoji) {
+      if (!state.stickers.includes(emoji)) state.stickers.push(emoji);
       save();
     },
     settings() {

@@ -1,7 +1,9 @@
 import { registerSW } from 'virtual:pwa-register';
 import { createAudio } from './core/audio';
+import { createPhotoStore } from './core/photos';
 import { createSpeech } from './core/speech';
 import type { InstallState } from './app/deps';
+import { mountAlbum } from './app/album';
 import { mountHome } from './app/home';
 import { findGame } from './app/registry';
 import { hrefFor, startRouter } from './app/router';
@@ -15,6 +17,7 @@ if (!root) throw new Error('#app missing');
 const audio = createAudio();
 const speech = createSpeech();
 const store = createStore();
+const photos = createPhotoStore();
 const settings = store.settings();
 audio.setEnabled(settings.sound);
 speech.setEnabled(settings.voice);
@@ -39,7 +42,7 @@ const install: InstallState = {
     (navigator as Navigator & { standalone?: boolean }).standalone === true,
 };
 
-const deps = { audio, speech, store, install };
+const deps = { audio, speech, store, install, photos };
 
 // ---- Unlock audio/speech inside the first user gesture; keep resuming after backgrounding. ----
 let warmed = false;
@@ -109,6 +112,8 @@ startRouter((route) => {
       return;
     }
     unmount = mountShell(root, entry, deps);
+  } else if (route.name === 'album') {
+    unmount = mountAlbum(root, deps);
   } else {
     unmount = mountHome(root, deps);
   }

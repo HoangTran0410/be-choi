@@ -30,6 +30,8 @@ export interface AudioEngine {
   note(freq: number, dur?: number, timbre?: Timbre): void;
   /** Percussion hit. */
   drum(kind: DrumKind): void;
+  /** A soft breath of air (blowing out a candle). */
+  puff(): void;
 }
 
 type Ctx = AudioContext;
@@ -364,5 +366,8 @@ export function createAudio(): AudioEngine {
     },
     note,
     drum,
+    puff() {
+      noise(0.35, { gain: 0.8, filter: { type: 'lowpass', freq: 500 } });
+    },
   };
 }

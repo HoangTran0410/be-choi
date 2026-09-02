@@ -132,3 +132,49 @@
 .panel-status:empty {
   display: none;
 }
+
+/* ---- family photos in the parent panel ---- */
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #e7e5e4;
+}
+.panel-section h3 {
+  font-size: clamp(17px, 3.8vmin, 24px);
+}
+.photo-count {
+  font-weight: 600;
+  color: #78716c;
+  font-size: 0.85em;
+}
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 10px;
+}
+.photo-grid:empty {
+  display: none;
+}
+.photo-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+.photo-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--c-red);
+  color: #fff;
+  font-weight: 900;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

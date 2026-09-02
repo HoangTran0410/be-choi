@@ -10,9 +10,11 @@ describe('router', () => {
     expect(parseHash('#/g/shapes/')).toEqual({ name: 'game', id: 'shapes' });
     expect(parseHash('#/nope')).toEqual({ name: 'home' });
     expect(parseHash('#/g/')).toEqual({ name: 'home' });
+    expect(parseHash('#/album')).toEqual({ name: 'album' });
   });
   it('builds hrefs', () => {
     expect(hrefFor({ name: 'home' })).toBe('#/');
     expect(hrefFor({ name: 'game', id: 'a' })).toBe('#/g/a');
+    expect(hrefFor({ name: 'album' })).toBe('#/album');
   });
 });

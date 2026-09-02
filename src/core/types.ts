@@ -1,4 +1,5 @@
 import type { AudioEngine } from './audio';
+import type { PhotoStore } from './photos';
 
 export type Skill =
   | 'cause-effect'
@@ -47,6 +48,10 @@ export interface GameContext {
   addStar(): void;
   /** Register work to run when the child leaves the game. */
   onCleanup(fn: () => void): void;
+  /** Family photos picked by a parent (may be empty). */
+  photos: PhotoStore;
+  /** Emoji stickers the child has unlocked so far (may be empty). */
+  stickers(): string[];
 }
 
 export interface GameModule extends GameMeta {
