@@ -53,6 +53,21 @@ check('shapes: all holes filled', (await page.locator('.hole.filled').count()) =
 check('shapes: confetti shown', (await page.locator('canvas.confetti').count()) === 1);
 await page.waitForTimeout(2200);
 check('shapes: next round dealt', (await page.locator('.piece:not(.placed)').count()) === 3);
+// two more rounds → 3 stars → a sticker is unlocked
+for (let round = 0; round < 2; round++) {
+  const n = await page.locator('.piece:not(.placed)').count();
+  for (let i = 0; i < n; i++) {
+    const piece = page.locator('.piece:not(.placed)').first();
+    const shape = await piece.getAttribute('data-shape');
+    await drag(piece, page.locator(`.hole[data-shape="${shape}"]`));
+  }
+  await page.waitForTimeout(2200);
+}
+check('rewards: sticker reveal after 3 stars', (await page.locator('.sticker-reveal').count()) === 1);
+await page.goto(`${base}/#/album`, { waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+check('album: one sticker collected', (await page.locator('.album-sticker:not(.album-locked)').count()) === 1);
+await page.waitForTimeout(3500); // let the sticker overlay auto-close before the next game
 
 // ---- bubbles: tap a bubble ----
 await open('bubbles');
