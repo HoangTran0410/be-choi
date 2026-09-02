@@ -58,7 +58,8 @@ function start(ctx: GameContext): void {
       t.height - padY,
       gap,
     );
-    tray.style.setProperty('--jigsaw-pw', `${w.toFixed(1)}px`);
+    // 3 % slack so rounding of gaps/borders never pushes a row's last piece onto the next line.
+    tray.style.setProperty('--jigsaw-pw', `${(w * 0.97).toFixed(1)}px`);
   }
 
   function play(exclude?: string): void {
