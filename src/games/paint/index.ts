@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
 import { onHold } from '../../core/hold';
+import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import { toLineArt, type Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -9,7 +10,6 @@ import {
   PALETTE,
   STAR_AFTER_STROKES,
   colorName,
-  nextPhotoIndex,
   nextTool,
   stampFontPx,
   stampList,
@@ -46,8 +46,8 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 /**
  * Finger painting: a full-stage canvas with colours, brush sizes, emoji stamps
  * and an eraser. Several fingers can draw at once. No rounds; one star after
- * the first `STAR_AFTER_STROKES` strokes. A family photo can sit under the
- * (transparent) canvas, either as-is or as a line drawing to colour in.
+ * the first `STAR_AFTER_STROKES` strokes. A family photo picked by the child
+ * can sit under the (transparent) canvas, as-is or as a line drawing to colour in.
  */
 function start(ctx: GameContext): void {
   const bg = h('img', { class: 'paint-bg', alt: '', hidden: true });
@@ -304,7 +304,7 @@ function start(ctx: GameContext): void {
   /** Line drawings by photo id: the edge detection runs once per photo per visit. */
   const lineArtCache = new Map<string, string>();
 
-  const photoBtn = h('button', { class: 'paint-btn paint-photo', 'aria-label': 'ảnh của bé' }, '🖼️');
+  const photoBtn = h('button', { class: 'paint-btn paint-photo', 'aria-label': 'chọn ảnh của bé' }, '🖼️');
   const lineArtBtn = h('button', { class: 'paint-btn paint-lineart', 'aria-label': 'tô màu ảnh', hidden: true }, '✏️');
   /** Only in the toolbar while there are photos. */
   const photoGroup = group('paint-group-photo', photoBtn, lineArtBtn);
@@ -333,17 +333,34 @@ function start(ctx: GameContext): void {
     clearTimeout(convertTimer);
   }
 
-  function cyclePhoto(): void {
-    photoIndex = nextPhotoIndex(photoIndex, photos.length);
+  /** Show `photos[index]` (-1 = plain white) as the background, leaving line-art mode. */
+  function setPhoto(index: number): void {
+    photoIndex = index;
     lineArt = false;
     dropConversion();
     renderBackground();
-    ctx.audio.tick();
     if (photoIndex >= 0) ctx.speak('Ảnh của bé');
+  }
+
+  /** Dismisses the open picker, if any. */
+  let closePicker: (() => void) | null = null;
+
+  function openPicker(): void {
+    closePicker?.();
+    ctx.audio.tick();
+    const choices: PickerChoice[] = [
+      { id: 'none', emoji: '⬜', label: 'Không ảnh' },
+      ...photos.map((p, i) => ({ id: p.id, url: p.url, label: `Ảnh ${i + 1}` })),
+    ];
+    closePicker = showPhotoPicker(ctx.stage, choices, (choice) => {
+      closePicker = null;
+      if (!choice) return;
+      setPhoto(choice.id === 'none' ? -1 : photos.findIndex((p) => p.id === choice.id));
+    });
   }
   photoBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    cyclePhoto();
+    openPicker();
   });
 
   function toggleLineArt(): void {
@@ -387,6 +404,7 @@ function start(ctx: GameContext): void {
   });
 
   function setPhotos(list: Photo[]): void {
+    closePicker?.();
     const selected = photos[photoIndex]?.id;
     photos = list;
     photoIndex = selected === undefined ? -1 : list.findIndex((p) => p.id === selected);
@@ -417,6 +435,7 @@ function start(ctx: GameContext): void {
   ctx.onCleanup(() => {
     disposed = true;
     offPhotos();
+    closePicker?.();
     dropConversion();
     window.removeEventListener('resize', resize);
     if (raf) cancelAnimationFrame(raf);

@@ -102,7 +102,7 @@ describe('paint game', () => {
     vi.useRealTimers();
   });
 
-  it('shows family photos under the canvas, tries the colouring page and keeps the photo when it fails', async () => {
+  it('lets the child pick a family photo for the background, tries the colouring page and keeps the photo when it fails', async () => {
     vi.useFakeTimers();
     const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
     const ctx = fakeContext();
@@ -110,8 +110,8 @@ describe('paint game', () => {
     await ctx.photos.list();
     expect(ctx.stage.querySelector('.paint-photo')).toBeNull();
 
-    // A parent adds a photo: the 🖼️ button appears, nothing is shown yet.
-    const [photo] = await ctx.photos.add([new Blob(['x'])]);
+    // A parent adds photos: the 🖼️ button appears, nothing is shown yet.
+    const [first, second] = await ctx.photos.add([new Blob(['x']), new Blob(['yy'])]);
     const photoBtn = ctx.stage.querySelector<HTMLElement>('.paint-tools .paint-photo');
     const lineArtBtn = ctx.stage.querySelector<HTMLElement>('.paint-tools .paint-lineart');
     const bg = ctx.stage.querySelector<HTMLImageElement>('.paint-area .paint-bg');
@@ -120,10 +120,27 @@ describe('paint game', () => {
     expect(bg?.hidden).toBe(true);
     expect(lineArtBtn?.hidden).toBe(true);
 
-    // Tap: photo 1 under the (transparent) canvas, named aloud, ✏️ offered.
+    // 🖼️ opens the picker on the stage: ⬜ plus one tile per photo.
     photoBtn?.dispatchEvent(ptr('pointerdown'));
+    const tiles = [...ctx.stage.querySelectorAll<HTMLElement>('.pp-overlay .pp-tile')];
+    expect(tiles.length).toBe(3);
+    expect(tiles[0]?.dataset.id).toBe('none');
+    expect(tiles[0]?.textContent).toBe('⬜');
+    expect(tiles.map((t) => t.dataset.id)).toEqual(['none', first!.id, second!.id]);
+    expect(tiles[2]?.getAttribute('style')).toContain(second!.url);
+
+    // Dismissing changes nothing.
+    ctx.stage.querySelector<HTMLElement>('.pp-close')?.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+    expect(bg?.hidden).toBe(true);
+    expect(ctx.spoken).toEqual([]);
+
+    // Picking a photo puts it under the (transparent) canvas, names it aloud and offers ✏️.
+    photoBtn?.dispatchEvent(ptr('pointerdown'));
+    ctx.stage.querySelector<HTMLElement>(`.pp-tile[data-id="${second!.id}"]`)?.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     expect(bg?.hidden).toBe(false);
-    expect(bg?.getAttribute('src')).toBe(photo!.url);
+    expect(bg?.getAttribute('src')).toBe(second!.url);
     expect(ctx.spoken).toEqual(['Ảnh của bé']);
     expect(lineArtBtn?.hidden).toBe(false);
     expect(lineArtBtn?.textContent).toBe('✏️');
@@ -136,29 +153,34 @@ describe('paint game', () => {
     expect(lineArtBtn?.textContent).toBe('⏳');
     expect(ctx.spoken).toEqual(['Ảnh của bé', 'Tô màu ảnh nào!']);
     expect(bg?.hidden).toBe(false);
-    expect(bg?.getAttribute('src')).toBe(photo!.url);
+    expect(bg?.getAttribute('src')).toBe(second!.url);
     await vi.advanceTimersByTimeAsync(10_000);
     expect(lineArtBtn?.textContent).toBe('✏️');
     expect(lineArtBtn?.classList.contains('selected')).toBe(false);
     expect(bg?.hidden).toBe(false);
-    expect(bg?.getAttribute('src')).toBe(photo!.url);
+    expect(bg?.getAttribute('src')).toBe(second!.url);
 
     // Trash wipes the drawing only.
     const trash = ctx.stage.querySelector<HTMLElement>('.paint-trash');
     trash?.dispatchEvent(ptr('pointerdown'));
     vi.advanceTimersByTime(700);
     expect(bg?.hidden).toBe(false);
-    expect(bg?.getAttribute('src')).toBe(photo!.url);
+    expect(bg?.getAttribute('src')).toBe(second!.url);
 
-    // Cycling past the last photo goes back to plain white.
+    // ⬜ goes back to plain white.
     photoBtn?.dispatchEvent(ptr('pointerdown'));
+    expect(ctx.stage.querySelectorAll('.pp-tile').length).toBe(3);
+    ctx.stage.querySelector<HTMLElement>('.pp-tile[data-id="none"]')?.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     expect(bg?.hidden).toBe(true);
     expect(bg?.getAttribute('src')).toBeNull();
     expect(lineArtBtn?.hidden).toBe(true);
     expect(ctx.spoken).toEqual(['Ảnh của bé', 'Tô màu ảnh nào!']);
 
-    // Removing the last photo takes the button away again.
-    await ctx.photos.remove(photo!.id);
+    // Removing every photo takes the button away again.
+    await ctx.photos.remove(first!.id);
+    expect(ctx.stage.querySelector('.paint-photo')).not.toBeNull();
+    await ctx.photos.remove(second!.id);
     expect(ctx.stage.querySelector('.paint-photo')).toBeNull();
 
     ctx.cleanup();
