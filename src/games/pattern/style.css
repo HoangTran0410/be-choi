@@ -1,0 +1,84 @@
+.pattern {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Everything above the choice tray; the row floats in its centre. */
+.pattern-board {
+  position: absolute;
+  inset: 0 0 calc(var(--tap) * 1.4) 0;
+  display: grid;
+  place-items: center;
+  padding: 2vmin;
+}
+
+/* Wraps to two rows on a narrow phone (6–7 cards do not fit in 390px). */
+.pattern-row {
+  --pattern-slot: calc(var(--tap) * 0.9);
+  --pattern-gap: 2vmin;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--pattern-gap);
+  max-width: 100%;
+}
+/* Portrait: cap at 4 cards per row so the wrap splits evenly instead of leaving one card alone. */
+@media (orientation: portrait) {
+  .pattern-row {
+    max-width: calc(var(--pattern-slot) * 4 + var(--pattern-gap) * 3);
+  }
+}
+
+.pattern-slot {
+  width: var(--pattern-slot);
+  height: var(--pattern-slot);
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--radius) * 0.7);
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+  font-size: calc(var(--pattern-slot) * 0.7);
+  line-height: 1;
+}
+
+/* The slot the child fills: dashed outline and a pulsing orange question mark. */
+.pattern-slot.pattern-missing {
+  background: rgba(255, 255, 255, 0.5);
+  border: 4px dashed var(--c-orange);
+  box-shadow: none;
+  color: var(--c-orange);
+  font-weight: 900;
+}
+.pattern-slot.pattern-missing.filled {
+  background: #fff;
+  border: 4px solid var(--c-green);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+  color: inherit;
+  font-weight: inherit;
+}
+
+.pattern-choice {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+  font-size: calc(var(--tap) * 0.62);
+  line-height: 1;
+  touch-action: none;
+  transition: transform 0.1s, opacity 0.2s;
+}
+.pattern-choice:active { transform: scale(0.92); }
+/* Tray goes quiet once the slot is filled; the picked one stays bright with a green ring. */
+.pattern-choice:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.pattern-choice.pattern-picked {
+  opacity: 1;
+  box-shadow: 0 0 0 4px var(--c-green), 0 4px 0 rgba(0, 0, 0, 0.12);
+}
