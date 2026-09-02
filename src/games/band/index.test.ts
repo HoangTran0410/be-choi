@@ -129,8 +129,10 @@ describe('band game', () => {
     expect(replayBtn.hidden).toBe(true);
     expect(ctx.stage.querySelector('.band-quiz')!.classList.contains('band-on')).toBe(false);
     down(tile(ctx.stage, 'sax'));
-    expect(ctx.spoken).toContain('kèn sắc-xô');
     expect(tile(ctx.stage, 'sax').classList.contains('band-playing')).toBe(true);
+    // The name is announced once the phrase has finished (never over the sound).
+    vi.advanceTimersByTime(6000);
+    expect(ctx.spoken).toContain('kèn sắc-xô');
     ctx.cleanup();
   });
 
