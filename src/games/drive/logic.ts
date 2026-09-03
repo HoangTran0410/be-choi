@@ -33,6 +33,37 @@ export function vehicleById(id: string): Vehicle | undefined {
   return VEHICLES.find((v) => v.id === id);
 }
 
+// ---- where the road goes ----
+
+/** How the tarmac is shaped along a stretch: flat and easy, or a climb, or a dip. */
+export type Terrain = 'flat' | 'hill' | 'mountain' | 'valley';
+/** What grows beside it. Changes the colours, the trees and the sky. */
+export type Biome = 'meadow' | 'forest' | 'seaside' | 'town' | 'snow';
+export type Weather = 'sun' | 'cloud' | 'rain' | 'snow';
+
+/** `lift` moves the whole road up the screen; `amp` is the size of its swells. */
+interface Shape {
+  lift: number;
+  amp: number;
+  ripple: number;
+}
+
+const SHAPES: Readonly<Record<Terrain, Shape>> = {
+  flat: { lift: 0, amp: 0.3, ripple: 0.07 },
+  hill: { lift: -0.04, amp: 0.8, ripple: 0.11 },
+  mountain: { lift: -0.1, amp: 1.3, ripple: 0.16 },
+  valley: { lift: 0.07, amp: 0.45, ripple: 0.05 },
+};
+
+/** One stretch of road, from a fork to the next. */
+export interface Leg {
+  /** Slot the leg starts at. */
+  from: number;
+  terrain: Terrain;
+  biome: Biome;
+  weather: Weather;
+}
+
 /** The stretch of world on screen: everything else is measured in `unit`s. */
 export interface Road {
   w: number;
@@ -40,19 +71,89 @@ export interface Road {
   unit: number;
   /** Where the road sits when it is neither climbing nor dropping. */
   ground: number;
+  /** The legs driven so far, in order, the first one starting at slot 0. */
+  legs: Leg[];
 }
 
-export function makeRoad(w: number, h: number): Road {
+export const FIRST_LEG: Leg = { from: 0, terrain: 'flat', biome: 'meadow', weather: 'sun' };
+
+export function makeRoad(w: number, h: number, legs: readonly Leg[] = [FIRST_LEG]): Road {
   const unit = Math.min(w, h) / 6.5;
-  return { w, h, unit, ground: h * 0.66 };
+  return { w, h, unit, ground: h * 0.66, legs: legs.length ? legs.map((l) => ({ ...l })) : [{ ...FIRST_LEG }] };
+}
+
+/** Roadside things stand this many units apart. */
+export const SLOT_UNITS = 5;
+/** A passenger waits three slots before the house that takes them in. */
+export const RIDE_SLOTS = 3;
+/** The road forks this often, and the child picks which way to go. */
+export const FORK_SLOTS = 12;
+/** A new leg eases into its own shape over this many units, so no hill starts with a step. */
+export const BLEND_UNITS = 3.5;
+
+export function slotX(road: Road, slot: number): number {
+  return slot * SLOT_UNITS * road.unit;
+}
+
+/** Index of the leg world `x` falls in. Scans from the end: the car is nearly always on the last one. */
+function legIndexAt(road: Road, x: number): number {
+  for (let i = road.legs.length - 1; i > 0; i--) {
+    if (x >= slotX(road, road.legs[i]!.from)) return i;
+  }
+  return 0;
+}
+
+export function legAt(road: Road, x: number): Leg {
+  return road.legs[legIndexAt(road, x)] ?? road.legs[0] ?? FIRST_LEG;
+}
+
+/** The leg a slot belongs to, used for dressing the roadside. */
+export function legOfSlot(road: Road, slot: number): Leg {
+  return legAt(road, slotX(road, slot) + road.unit * 0.01);
+}
+
+/**
+ * The leg at world `x`, the one before it, and how far the changeover has got:
+ * `k` runs 0 → 1 across the first few units of a new leg so nothing — not the
+ * hills, not the colours, not the rain — arrives with a step in it.
+ */
+export interface LegMix {
+  leg: Leg;
+  before: Leg;
+  k: number;
+}
+
+export function legMix(road: Road, x: number): LegMix {
+  const i = legIndexAt(road, x);
+  const leg = road.legs[i] ?? FIRST_LEG;
+  const before = road.legs[i - 1] ?? leg;
+  if (before === leg) return { leg, before, k: 1 };
+  const t = (x - slotX(road, leg.from)) / (road.unit * BLEND_UNITS);
+  const k = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+  return { leg, before, k };
+}
+
+/** The shape at world `x`, eased from the previous leg's over the first few units of a new one. */
+function shapeAt(road: Road, x: number): Shape {
+  const { leg, before, k } = legMix(road, x);
+  const here = SHAPES[leg.terrain];
+  if (k >= 1) return here;
+  const was = SHAPES[before.terrain];
+  return {
+    lift: was.lift + (here.lift - was.lift) * k,
+    amp: was.amp + (here.amp - was.amp) * k,
+    ripple: was.ripple + (here.ripple - was.ripple) * k,
+  };
 }
 
 /** Height of the tarmac at world `x`: one long swell with a small ripple on it. */
 export function roadY(road: Road, x: number): number {
+  const s = shapeAt(road, x);
   return (
     road.ground +
-    Math.sin(x / (road.unit * 7)) * road.unit * 0.3 +
-    Math.sin(x / (road.unit * 2.9) + 1.7) * road.unit * 0.07
+    s.lift * road.h +
+    Math.sin(x / (road.unit * 7)) * road.unit * s.amp +
+    Math.sin(x / (road.unit * 2.9) + 1.7) * road.unit * s.ripple
   );
 }
 
@@ -62,7 +163,85 @@ export function roadTilt(road: Road, x: number): number {
   return Math.atan2(roadY(road, x + d) - roadY(road, x - d), d * 2);
 }
 
-export type PropKind = 'stop' | 'house' | 'tree' | 'bush' | 'light' | 'puddle';
+// ---- the fork in the road ----
+
+/** One of the two ways on offer at a fork. */
+export interface LegPlan {
+  terrain: Terrain;
+  biome: Biome;
+  weather: Weather;
+  /** Big picture on the signpost. */
+  emoji: string;
+  /** Said out loud when the child picks it. */
+  name: string;
+  /** Does this way climb or drop? The signs are stacked in that order. */
+  up: boolean;
+}
+
+const UPHILL: readonly { terrain: Terrain; biome: Biome; emoji: string; name: string }[] = [
+  { terrain: 'hill', biome: 'meadow', emoji: '🌄', name: 'lên đồi cỏ' },
+  { terrain: 'mountain', biome: 'forest', emoji: '🌲', name: 'lên rừng thông' },
+  { terrain: 'mountain', biome: 'snow', emoji: '❄️', name: 'lên núi tuyết' },
+  { terrain: 'hill', biome: 'forest', emoji: '⛰️', name: 'lên đồi cây' },
+];
+
+const DOWNHILL: readonly { terrain: Terrain; biome: Biome; emoji: string; name: string }[] = [
+  { terrain: 'valley', biome: 'seaside', emoji: '🏖️', name: 'xuống bãi biển' },
+  { terrain: 'flat', biome: 'town', emoji: '🏙️', name: 'vào phố' },
+  { terrain: 'valley', biome: 'meadow', emoji: '🌼', name: 'xuống thung lũng' },
+  { terrain: 'flat', biome: 'meadow', emoji: '🛣️', name: 'ra đường cái' },
+];
+
+/** Which way the weather goes with a place — a beach is sunny, a snowy peak is not. */
+function weatherFor(biome: Biome, roll: number): Weather {
+  if (biome === 'snow') return roll < 0.75 ? 'snow' : 'cloud';
+  if (biome === 'seaside') return roll < 0.85 ? 'sun' : 'cloud';
+  if (biome === 'forest') return roll < 0.4 ? 'rain' : roll < 0.75 ? 'cloud' : 'sun';
+  if (biome === 'town') return roll < 0.25 ? 'rain' : roll < 0.6 ? 'cloud' : 'sun';
+  return roll < 0.7 ? 'sun' : roll < 0.9 ? 'cloud' : 'rain';
+}
+
+/** Is there a fork at this slot? Forks never land on a house or a bus stop. */
+export function isFork(slot: number): boolean {
+  return slot > 0 && slot % FORK_SLOTS === 0;
+}
+
+/** The next fork at or after `slot`. */
+export function nextFork(slot: number): number {
+  return (Math.floor(slot / FORK_SLOTS) + 1) * FORK_SLOTS;
+}
+
+/** The two ways on offer at a fork: one always climbs, one always drops. Same pair every time. */
+export function forkAt(slot: number): readonly [LegPlan, LegPlan] {
+  const rng = mulberry32(slot * 3607 + 41);
+  const up = UPHILL[Math.floor(rng() * UPHILL.length)] ?? UPHILL[0]!;
+  const down = DOWNHILL[Math.floor(rng() * DOWNHILL.length)] ?? DOWNHILL[0]!;
+  return [
+    { ...up, up: true, weather: weatherFor(up.biome, rng()) },
+    { ...down, up: false, weather: weatherFor(down.biome, rng()) },
+  ];
+}
+
+/** Take a way at the fork: the road beyond it belongs to the new leg. */
+export function takeFork(road: Road, slot: number, plan: LegPlan): void {
+  const last = road.legs.at(-1);
+  if (last && last.from >= slot) return;
+  road.legs.push({ from: slot, terrain: plan.terrain, biome: plan.biome, weather: plan.weather });
+}
+
+// ---- what stands beside it ----
+
+export type PropKind =
+  | 'stop'
+  | 'house'
+  | 'tree'
+  | 'bush'
+  | 'light'
+  | 'puddle'
+  | 'pump'
+  | 'wash'
+  | 'crossing'
+  | 'fork';
 
 export interface Prop {
   slot: number;
@@ -71,39 +250,47 @@ export interface Prop {
   x: number;
   /** 0 … 1, fixed per slot, so a tree keeps its shape as it scrolls by. */
   seed: number;
+  /** Where the slot sits, so a tree in the snow is drawn bare. */
+  biome: Biome;
 }
 
-/** Roadside things stand this many units apart. */
-export const SLOT_UNITS = 5;
-/** A passenger waits three slots before the house that takes them in. */
-export const RIDE_SLOTS = 3;
-
-export function slotX(road: Road, slot: number): number {
-  return slot * SLOT_UNITS * road.unit;
-}
+/** Services are spread on primes so they never all land together. */
+const PUMP_EVERY = 13;
+const WASH_EVERY = 17;
+const CROSSING_EVERY = 11;
 
 /**
  * What stands at `slot`. Every fifth slot is a house and the one three before it
- * holds a passenger, so a pick-up always has somewhere to go; the rest is scenery
- * drawn from the slot number, never stored, so the road can run on for ever.
+ * is a pick-up point, so a job always has somewhere to go; every twelfth is a fork.
+ * The rest is scenery drawn from the slot number, never stored, so the road can
+ * run on for ever.
  */
 export function propAt(road: Road, slot: number): Prop {
   const rng = mulberry32(slot * 7919 + 13);
   const roll = rng();
   const mod = ((slot % SLOT_UNITS) + SLOT_UNITS) % SLOT_UNITS;
+  const biome = legOfSlot(road, slot).biome;
   const kind: PropKind =
     mod === 0
       ? 'house'
       : mod === SLOT_UNITS - RIDE_SLOTS
         ? 'stop'
-        : roll < 0.2
-          ? 'light'
-          : roll < 0.4
-            ? 'puddle'
-            : roll < 0.72
-              ? 'tree'
-              : 'bush';
-  return { slot, kind, x: slotX(road, slot), seed: rng() };
+        : isFork(slot)
+          ? 'fork'
+          : slot % PUMP_EVERY === 3
+            ? 'pump'
+            : slot % WASH_EVERY === 7
+              ? 'wash'
+              : slot % CROSSING_EVERY === 6
+                ? 'crossing'
+                : roll < 0.16
+                  ? 'light'
+                  : roll < 0.36
+                    ? 'puddle'
+                    : roll < 0.72
+                      ? 'tree'
+                      : 'bush';
+  return { slot, kind, x: slotX(road, slot), seed: rng(), biome };
 }
 
 /** Everything standing between world `from` and `to`, in order. */
@@ -127,6 +314,8 @@ export function riderAt(slot: number): Item {
   return ANIMALS[Math.floor(rng() * ANIMALS.length)] ?? ANIMALS[0]!;
 }
 
+// ---- the car ----
+
 export interface Car {
   /** World x of the middle of the car. */
   x: number;
@@ -134,10 +323,14 @@ export interface Car {
   v: number;
   /** Wheel rotation in radians. */
   spin: number;
+  /** 1 = brimful, 0 = fumes. It never strands the child, it only crawls. */
+  fuel: number;
+  /** 0 = shiny, 1 = caked. Puddles add it, the car wash takes it off. */
+  mud: number;
 }
 
 export function makeCar(road: Road): Car {
-  return { x: road.unit * 2, v: 0, spin: 0 };
+  return { x: road.unit * 2, v: 0, spin: 0, fuel: 1, mud: 0 };
 }
 
 /** How fast the car takes up the speed it wants (per second). */
@@ -153,6 +346,16 @@ export const RED_MS = 1500;
 /** The car is told to stop this far short of a red light. */
 export const LIGHT_STOP_UNITS = 1.3;
 export const DELIVERIES_FOR_STAR = 2;
+/** A full tank is this many seconds of flat-out driving. */
+export const TANK_SECONDS = 95;
+/** On an empty tank the car still goes, at this fraction of its speed. */
+export const LIMP_FRACTION = 0.34;
+/** A tank fills in about this long, held at the pump. */
+export const FILL_SECONDS = 2.6;
+/** How dirty one puddle at speed makes the car. */
+export const MUD_PER_SPLASH = 0.34;
+/** The car wash takes the mud off this fast. */
+export const WASH_PER_SECOND = 0.9;
 
 function clamp(n: number, lo: number, hi: number): number {
   return n < lo ? lo : n > hi ? hi : n;
@@ -160,11 +363,19 @@ function clamp(n: number, lo: number, hi: number): number {
 
 /**
  * Drive one frame towards `target` (a world x — wherever the finger is). `stopX`
- * is a red light ahead the car may not pass. The road never runs out forwards and
- * ends at 0 going back.
+ * is a red light, a lowered barrier or the back of the car in front, and the car
+ * may not pass it. The road never runs out forwards and ends at 0 going back.
  */
-export function stepCar(car: Car, target: number, dt: number, road: Road, vehicle: Vehicle, stopX: number | null = null): void {
-  const top = vehicle.speed * road.unit;
+export function stepCar(
+  car: Car,
+  target: number,
+  dt: number,
+  road: Road,
+  vehicle: Vehicle,
+  stopX: number | null = null,
+): void {
+  const full = vehicle.speed * road.unit;
+  const top = full * (car.fuel > 0 ? 1 : LIMP_FRACTION);
   const reach = clamp((target - car.x) / (road.unit * FULL_THROTTLE), -1, 1);
   const want = reach * top * (reach < 0 ? REVERSE_FRACTION : 1);
   car.v += (want - car.v) * Math.min(1, dt * RESPONSE);
@@ -178,6 +389,21 @@ export function stepCar(car: Car, target: number, dt: number, road: Road, vehicl
     if (car.v < 0) car.v = 0;
   }
   car.spin += (car.v * dt) / (road.unit * 0.22);
+  car.fuel = Math.max(0, car.fuel - (Math.abs(car.v) / full) * (dt / TANK_SECONDS));
+}
+
+/** Hold the nozzle in: the tank comes up, and says so when it is brimful. */
+export function fillUp(car: Car, dt: number): boolean {
+  const before = car.fuel;
+  car.fuel = Math.min(1, car.fuel + dt / FILL_SECONDS);
+  return before < 1 && car.fuel >= 1;
+}
+
+/** Under the arch: the mud comes off, and says so on the last of it. */
+export function rinse(car: Car, dt: number): boolean {
+  const before = car.mud;
+  car.mud = Math.max(0, car.mud - dt * WASH_PER_SECOND);
+  return before > 0 && car.mud <= 0;
 }
 
 /** Is the car level with world `x`? */

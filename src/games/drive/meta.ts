@@ -5,6 +5,6 @@ export const meta: GameMeta = {
   title: 'Bé lái xe',
   icon: '🚗',
   color: '#ffedd5',
-  skill: 'cause-effect',
+  skill: 'nature',
   intro: 'Chạm vào đường để xe chạy tới, đón bạn về nhà nhé!',
 };

@@ -20,9 +20,9 @@ try {
 
 /** Home sections, in display order. A game belongs to the first section listing its skill. */
 const SECTIONS: readonly { title: string; skills: readonly Skill[] }[] = [
+  { title: '🌊 Thế giới nhỏ', skills: ['nature'] },
   { title: '🎵 Âm nhạc', skills: ['music'] },
   { title: '🧩 Xếp hình & suy nghĩ', skills: ['puzzle', 'logic', 'matching', 'listening', 'sorting', 'memory', 'counting'] },
-  { title: '🌊 Thế giới nhỏ', skills: ['nature'] },
   { title: '🎈 Chơi vui', skills: ['cause-effect', 'creative', 'care'] },
 ];
 
