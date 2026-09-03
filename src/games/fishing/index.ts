@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { GameContext, GameModule } from '../../core/types';
 import {
   drawBubbles,
@@ -22,6 +23,7 @@ import {
   type Bubble,
   type Plant,
   type Rock,
+  type Species,
   type Tank,
 } from '../aquarium/logic';
 import { meta } from './meta';
@@ -85,7 +87,8 @@ const SHOW_MS = 2600;
  */
 function start(ctx: GameContext): void {
   const canvas = h('canvas', { class: 'fishing-canvas' });
-  const tally = h('div', { class: 'fishing-tally' }, '🪣 0');
+  // A bucket you can look into. The number alone said how many, never what.
+  const tally = h('button', { class: 'fishing-tally', type: 'button', 'aria-label': 'xem giỏ của bé' }, '🪣 0');
   // Reeling in by dragging the line all the way up is a long way for a small arm.
   // One button, two jobs: haul the line in with a fish on it, drop it back after.
   const reelBtn = h('button', { class: 'fishing-reel', type: 'button', 'aria-label': 'kéo cần lên' }, '🎣');
@@ -116,6 +119,86 @@ function start(ctx: GameContext): void {
   /** Dropping the line back in, after the cast button. */
   let casting = false;
   let caught = 0;
+  /**
+   * What is in the bucket, in the order it was landed. The tally only ever said
+   * how many, and a child who has just pulled up a shark wants to see the shark.
+   */
+  const basket: { id: string; name: string; species?: Species; emoji?: string; n: number }[] = [];
+  function intoTheBasket(item: { id: string; name: string; species?: Species; emoji?: string }): void {
+    const seen = basket.find((b) => b.id === item.id);
+    if (seen) seen.n++;
+    else basket.push({ ...item, n: 1 });
+  }
+
+  /** Where a creature's whole body sits, fins and all, so it can be framed. */
+  function bodyBox(cr: Creature): { cx: number; cy: number; w: number; h: number } {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    cr.spine.joints.forEach((joint, i) => {
+      const pad = Math.max(cr.spine.widthAt(i) * 2.4, cr.length * 0.12);
+      left = Math.min(left, joint.x - pad);
+      right = Math.max(right, joint.x + pad);
+      top = Math.min(top, joint.y - pad);
+      bottom = Math.max(bottom, joint.y + pad);
+    });
+    return { cx: (left + right) / 2, cy: (top + bottom) / 2, w: right - left, h: bottom - top };
+  }
+
+  /** The fish itself, drawn by the code that draws it swimming, for the basket. */
+  const portraits = new Map<string, string>();
+  function portrait(species: Species): string {
+    const found = portraits.get(species.id);
+    if (found) return found;
+    const px = 72;
+    const art = h('canvas', { width: px * 2, height: px * 2 });
+    const cc = art.getContext('2d');
+    let url = '';
+    if (cc) {
+      const mini = makeTank(px * 2, px * 2);
+      const posed = new Creature(species, mini, () => 0.5, { x: px, y: mini.floor - px * 0.55 });
+      posed.heading = 0;
+      posed.spine.replant(posed.x, posed.y, 0);
+      const box = bodyBox(posed);
+      const zoom = Math.min((px * 1.7) / box.w, (px * 1.7) / box.h);
+      cc.setTransform(zoom, 0, 0, zoom, px - box.cx * zoom, px - box.cy * zoom);
+      drawCreature(cc, posed, 0, { tank: mini, clock: 0, moods: false });
+      try {
+        url = art.toDataURL();
+      } catch {
+        /* no canvas backend: the tile shows plain rather than the bucket failing to open */
+      }
+    }
+    portraits.set(species.id, url);
+    return url;
+  }
+
+  let closeBasket: (() => void) | null = null;
+  tally.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    ctx.hint.touch();
+    ctx.audio.tick();
+    if (basket.length === 0) {
+      ctx.speak('Giỏ chưa có gì, mình câu tiếp nhé!');
+      replay(tally, 'anim-wiggle');
+      return;
+    }
+    const choices: PickerChoice[] = basket.map((b) => ({
+      id: b.id,
+      url: b.species ? portrait(b.species) : undefined,
+      emoji: b.species ? undefined : b.emoji,
+      label: b.n > 1 ? `${b.name}, ${b.n} cái` : b.name,
+    }));
+    // Nothing to choose: it is a bucket to look into, so a tap says the name and
+    // a tap outside puts the lid back.
+    closeBasket = showPhotoPicker(root, choices, (choice) => {
+      closeBasket = null;
+      const item = choice && basket.find((b) => b.id === choice.id);
+      if (item) ctx.speak(item.n > 1 ? `${item.name}, ${item.n} cái` : item.name);
+    });
+  });
+  ctx.onCleanup(() => closeBasket?.());
   let clock = 0;
   /** The fish just landed, held up out of the water for a look. */
   let trophy: Creature | null = null;
@@ -409,6 +492,7 @@ function start(ctx: GameContext): void {
     hook.baited = false;
     trophyJunk = junk;
     trophy = null;
+    intoTheBasket({ id: junk.id, name: junk.say, emoji: junk.emoji });
     banner.replaceChildren(h('span', { class: 'fishing-catch-emoji' }, junk.emoji), h('span', {}, junk.say));
     banner.hidden = false;
     showing = SHOW_MS / 1000;
@@ -450,6 +534,7 @@ function start(ctx: GameContext): void {
     banner.replaceChildren(h('span', { class: 'fishing-catch-emoji' }, '🎉'), h('span', {}, cr.species.name));
     banner.hidden = false;
     caught++;
+    intoTheBasket({ id: cr.species.id, name: cr.species.name, species: cr.species });
     showing = SHOW_MS / 1000;
     tally.textContent = `🪣 ${caught}`;
     replay(tally, 'anim-bounce');

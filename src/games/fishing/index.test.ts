@@ -221,6 +221,30 @@ describe('fishing game', () => {
     ctx.cleanup();
   });
 
+  it('opens the bucket on a tap, and says what is in it', () => {
+    const { ctx, canvas } = mount();
+    const tally = ctx.stage.querySelector<HTMLElement>('.fishing-tally')!;
+
+    // Nothing caught yet: no empty panel, just a word of encouragement.
+    tally.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+    expect(ctx.spoken.some((t) => t.includes('Giỏ chưa có gì'))).toBe(true);
+
+    expect(fishPatiently(canvas, ctx), 'nothing took the bait').toBe(true);
+    vi.advanceTimersByTime(200);
+
+    tally.dispatchEvent(ptr('pointerup'));
+    const tiles = [...ctx.stage.querySelectorAll<HTMLElement>('.pp-tile')];
+    expect(tiles.length).toBe(1);
+
+    // The bucket is for looking into: a tap names the catch and closes it.
+    const said = ctx.spoken.length;
+    tiles[0]?.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+    expect(ctx.spoken.length).toBeGreaterThan(said);
+    ctx.cleanup();
+  });
+
   it('offers to drop the line again once the catch is in, and does', () => {
     const { ctx, canvas } = mount();
     expect(fishPatiently(canvas, ctx)).toBe(true);

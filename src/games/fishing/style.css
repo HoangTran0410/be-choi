@@ -27,7 +27,10 @@
   color: #0c4a6e;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
-  pointer-events: none;
+}
+.fishing-tally:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(3, 32, 54, 0.35);
 }
 
 /* Only there once something is on the line: winding in by dragging the whole way
