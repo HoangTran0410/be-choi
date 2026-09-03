@@ -201,10 +201,12 @@ if (lifted) {
   check('aquarium: the net goes away again', (await page.locator('.aquarium.aquarium-dragging').count()) === 0);
 }
 
-// Poking the sand, the weeds and the ornaments must never throw.
+// Poking the sand, the weeds and the ornaments must never throw. Keep clear of
+// the two round buttons in the bottom corners: a click on those opens the picker
+// and the panel then swallows everything that follows.
 if (tankRect) {
-  for (let x = 0.1; x < 0.95; x += 0.12) {
-    await page.mouse.click(tankRect.x + tankRect.width * x, tankRect.y + tankRect.height * 0.9);
+  for (let x = 0.25; x < 0.76; x += 0.1) {
+    await page.mouse.click(tankRect.x + tankRect.width * x, tankRect.y + tankRect.height * 0.88);
   }
 }
 await page.waitForTimeout(400);

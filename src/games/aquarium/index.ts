@@ -876,9 +876,11 @@ function start(ctx: GameContext): void {
     const len = cr.length;
     const facing = cr.vx >= 0 ? 1 : -1;
     const bodyY = cr.y - len * 0.12;
-    // Held up in the child's fingers there is no sand to stand on, so the legs
-    // dangle from the body instead of stretching down to where the floor is.
-    const ground = cr.held ? cr.y + len * 0.34 : tank.floor;
+    // Off the sand — held in the fingers, or falling back down after being let
+    // go — there is nothing to stand on, so the legs hang from the body instead
+    // of stretching down to a floor that is still a long way below.
+    const standing = cr.y > tank.floor - len * 0.4;
+    const ground = standing ? tank.floor : cr.y + len * 0.34;
     // Long enough bones that the knee has somewhere to lift to: a crab's legs are
     // read from the peak above the body, not from the foot.
     const upper = len * 0.42;
