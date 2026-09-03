@@ -20,11 +20,20 @@ import {
   makeSkyStar,
   nextChirpMs,
   nextShootMs,
+  sparkAim,
+  sparkFade,
+  advanceSpark,
+  makeBurst,
+  makeRocket,
+  stepRocket,
+  stepSpark,
   stepFirefly,
   warmth,
   windFrom,
   SHOOT_MIN_MS,
   SHOOT_MAX_MS,
+  BURSTS,
+  MAX_SPARKS,
 } from './logic';
 
 describe('firefly: what the field is made of', () => {
@@ -158,6 +167,132 @@ describe('firefly: the sky on its own', () => {
       seen.add(ms);
     }
     expect(seen.size).toBeGreaterThan(10);
+  });
+});
+
+describe('firefly: fireworks', () => {
+  it('draws a ring at one distance and a ball at every distance', () => {
+    const rng = mulberry32(21);
+    const ring = Array.from({ length: 30 }, (_, i) => sparkAim('ring', i, 30, rng));
+    for (const a of ring) expect(Math.hypot(a.x, a.y)).toBeCloseTo(1, 5);
+
+    const ball = Array.from({ length: 60 }, (_, i) => sparkAim('burst', i, 60, rng));
+    const spread = ball.map((a) => Math.hypot(a.x, a.y));
+    expect(Math.min(...spread)).toBeLessThan(0.6);
+    expect(Math.max(...spread)).toBeGreaterThan(0.9);
+  });
+
+  it('draws a heart the right way up, with a dip at the top and a point below', () => {
+    const n = 60;
+    const heart = Array.from({ length: n }, (_, i) => sparkAim('heart', i, n));
+    // Screen coordinates: y grows downwards, so the point of the heart is the largest y.
+    const lowest = heart.reduce((a, b) => (a.y > b.y ? a : b));
+    expect(Math.abs(lowest.x)).toBeLessThan(0.2);
+    expect(lowest.y).toBeGreaterThan(0.6);
+    // The dip between the lobes sits above the widest part.
+    const middle = heart.filter((a) => Math.abs(a.x) < 0.06);
+    expect(Math.min(...middle.map((a) => a.y))).toBeLessThan(0);
+    // Symmetric about the middle.
+    const left = heart.filter((a) => a.x < 0).length;
+    expect(Math.abs(left - n / 2)).toBeLessThanOrEqual(2);
+  });
+
+  it('gives the star five points', () => {
+    const n = 240;
+    const radii = Array.from({ length: n }, (_, i) => {
+      const a = sparkAim('star', i, n);
+      return Math.hypot(a.x, a.y);
+    });
+    let peaks = 0;
+    for (let i = 0; i < n; i++) {
+      const prev = radii[(i - 1 + n) % n] ?? 0;
+      const here = radii[i] ?? 0;
+      const next = radii[(i + 1) % n] ?? 0;
+      if (here > prev && here >= next) peaks++;
+    }
+    expect(peaks).toBe(5);
+  });
+
+  it('throws a willow upwards and lets gravity do the rest', () => {
+    const rng = mulberry32(2);
+    const up = Array.from({ length: 40 }, (_, i) => sparkAim('willow', i, 40, rng));
+    expect(up.filter((a) => a.y < 0).length).toBeGreaterThan(30);
+
+    // A spark thrown up comes back down, and slows on the way.
+    let spark = makeBurst('willow', 0.5, 0.4, 40, mulberry32(6))[0];
+    if (!spark) throw new Error('no spark');
+    const climb = spark.vy;
+    const sideways = Math.abs(spark.vx);
+    for (let i = 0; i < 60; i++) spark = stepSpark(spark, 1 / 30);
+    // Thrown up, now falling: that turn is what makes a willow droop.
+    expect(climb).toBeLessThan(0);
+    expect(spark.vy).toBeGreaterThan(0);
+    // Air has taken the sideways speed away, so it hangs rather than flies off.
+    expect(Math.abs(spark.vx)).toBeLessThan(sideways);
+    expect(spark.px).not.toBe(spark.x);
+  });
+
+  it('burns every spark out, and never floods the sky', () => {
+    for (const kind of BURSTS) {
+      const made = makeBurst(kind, 0.5, 0.3, 200, mulberry32(3));
+      expect(made.length).toBeGreaterThan(20);
+      expect(made.length).toBeLessThanOrEqual(MAX_SPARKS);
+      for (const spark of made) {
+        expect(spark.life).toBeGreaterThan(0);
+        expect(spark.hue).toBeGreaterThanOrEqual(0);
+        expect(spark.hue).toBeLessThanOrEqual(360);
+      }
+      // Given long enough, every one of them is gone.
+      const alive = made.map((sp) => {
+        let cur = sp;
+        for (let i = 0; i < 200; i++) cur = stepSpark(cur, 1 / 30);
+        return cur;
+      });
+      expect(alive.every((sp) => sp.life <= 0)).toBe(true);
+    }
+  });
+
+  it('steps a spark in place, and the copy that reads it agrees', () => {
+    const spark = makeBurst('ring', 0.5, 0.4, 200, mulberry32(11))[0];
+    if (!spark) throw new Error('no spark');
+    const copy = stepSpark(spark, 1 / 30);
+    // Hundreds of these run every frame, so the hot path writes into the spark
+    // it was given rather than handing back a new one.
+    advanceSpark(spark, 1 / 30);
+    expect(spark.x).toBe(copy.x);
+    expect(spark.y).toBe(copy.y);
+    expect(spark.life).toBe(copy.life);
+    expect(spark.px).toBe(copy.px);
+  });
+
+  it('fades a spark only at the end of its life', () => {
+    expect(sparkFade(2)).toBe(1);
+    expect(sparkFade(0)).toBe(0);
+    expect(sparkFade(0.25)).toBeGreaterThan(0);
+    expect(sparkFade(0.25)).toBeLessThan(1);
+  });
+
+  it('sends rockets up the middle of the sky, never into a corner', () => {
+    const rng = mulberry32(17);
+    for (let i = 0; i < 60; i++) {
+      const r = makeRocket(rng);
+      expect(r.x).toBeGreaterThan(0.1);
+      expect(r.x).toBeLessThan(0.9);
+      expect(r.top).toBeGreaterThan(0.1);
+      expect(r.top).toBeLessThan(0.5);
+      // Starts in the grass and climbs.
+      expect(r.y).toBeGreaterThan(r.top);
+      expect(r.vy).toBeLessThan(0);
+      expect(BURSTS).toContain(r.shape);
+    }
+  });
+
+  it('slows a rocket as it climbs, so it opens near the top of its arc', () => {
+    let r = makeRocket(mulberry32(8));
+    const start = r.vy;
+    for (let i = 0; i < 20; i++) r = stepRocket(r, 1 / 30);
+    expect(r.y).toBeLessThan(0.86);
+    expect(r.vy).toBeGreaterThan(start);
   });
 });
 

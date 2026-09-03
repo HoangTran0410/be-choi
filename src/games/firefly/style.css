@@ -450,15 +450,42 @@
   }
 }
 
+/* ---- fireworks ---- */
+/* Over the meadow, under the buttons, and never in the way of a finger. */
+.fly-fw {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* Opposite the microphone, so the two thumbs have one each. */
+.fly-fw-btn {
+  position: absolute;
+  left: 3vmin;
+  bottom: 3vmin;
+}
+
 /* ---- the microphone ---- */
 .fly-mic {
   position: absolute;
   right: 3vmin;
   bottom: 3vmin;
-  background: rgba(241, 245, 249, 0.92);
 }
 .fly-mic.fly-listening {
-  background: #dbeafe;
+  background: rgba(37, 99, 235, 0.75);
+  box-shadow:
+    0 0 0 0.5vmin rgba(96, 165, 250, 0.5),
+    0 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Both buttons dressed for the dark: a white disc in a night field is a hole in it. */
+.fly-mic,
+.fly-fw-btn {
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow:
+    inset 0 0 0 0.35vmin rgba(148, 163, 184, 0.35),
+    0 4px 0 rgba(0, 0, 0, 0.45);
 }
 /* Level ring: grows with the breath read from the microphone. */
 .fly-mic.fly-listening::after {

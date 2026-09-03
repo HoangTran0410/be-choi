@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fakeContext, type FakeContext } from '../../core/testing';
-import { BLOW_GAP_MS, CANDLES, STAR_EVERY } from './logic';
+import { BLOW_GAP_MS, BURSTS, CANDLES, STAR_EVERY } from './logic';
 import game from './index';
 
 if (!('PointerEvent' in globalThis)) {
@@ -31,6 +31,35 @@ function q<T extends Element = HTMLElement>(ctx: FakeContext, sel: string): T {
 }
 function all(ctx: FakeContext, sel: string): HTMLElement[] {
   return [...ctx.stage.querySelectorAll<HTMLElement>(sel)];
+}
+
+/** Enough of a 2d context for the fireworks to draw into; every call is recorded. */
+function fake2d() {
+  const gradient = { addColorStop: vi.fn() };
+  return {
+    setTransform: vi.fn(),
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    createRadialGradient: vi.fn(() => gradient),
+    lineCap: '',
+    lineWidth: 0,
+    strokeStyle: '',
+    fillStyle: '' as string | typeof gradient,
+    globalAlpha: 1,
+    globalCompositeOperation: '',
+  };
+}
+
+/** jsdom has no canvas backend; without this it complains once a frame. */
+function fakeCanvas(): ReturnType<typeof fake2d> {
+  const c = fake2d();
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => c as unknown as CanvasRenderingContext2D);
+  return c;
 }
 
 /** Give the field a size: jsdom lays nothing out, so every client box is zero. */
@@ -112,6 +141,7 @@ describe('firefly game', () => {
   it('opens on a sky, a moon, fireflies, grass and a row of unlit candles', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     game.start(ctx);
     expect(all(ctx, '.fly-star').length).toBeGreaterThan(20);
@@ -128,6 +158,7 @@ describe('firefly game', () => {
   it('the fireflies drift on their own, with no touch at all', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     game.start(ctx);
     size(q(ctx, '.fly'), 800, 600);
@@ -142,6 +173,7 @@ describe('firefly game', () => {
   it('a tap on a firefly chimes and names it once', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     const ding = vi.spyOn(ctx.audio, 'ding');
     game.start(ctx);
@@ -159,6 +191,7 @@ describe('firefly game', () => {
   it('a tap on a star sparkles, and now and then one slides across the sky', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
     const ctx = fakeContext();
     const fx = vi.spyOn(ctx.audio, 'fx');
@@ -177,6 +210,7 @@ describe('firefly game', () => {
   it('the candle lights on a touch and goes out with a puff on the next one', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     const puff = vi.spyOn(ctx.audio, 'puff');
     game.start(ctx);
@@ -204,6 +238,7 @@ describe('firefly game', () => {
   it('each candle lit warms the meadow, and blowing them out takes it away again', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     game.start(ctx);
     const field = q(ctx, '.fly');
@@ -227,6 +262,7 @@ describe('firefly game', () => {
   it('🎤 one breath puts the whole row out, one candle after another', async () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const mic = fakeBlowMic();
     const ctx = fakeContext();
     game.start(ctx);
@@ -251,6 +287,7 @@ describe('firefly game', () => {
   it('a press on the moon makes it flare', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     const fx = vi.spyOn(ctx.audio, 'fx');
     game.start(ctx);
@@ -262,9 +299,60 @@ describe('firefly game', () => {
     ctx.cleanup();
   });
 
+  it('🎆 a press sends a rocket up, and it opens into a shape of sparks', () => {
+    vi.useFakeTimers();
+    driveFrames();
+    const c = fakeCanvas();
+    const ctx = fakeContext();
+    const fx = vi.spyOn(ctx.audio, 'fx');
+    const drum = vi.spyOn(ctx.audio, 'drum');
+    game.start(ctx);
+    size(q(ctx, '.fly'), 800, 600);
+
+    q(ctx, '.fly-fw-btn').dispatchEvent(ptr('pointerdown'));
+    expect(fx).toHaveBeenCalledWith('whistle');
+    expect(ctx.spoken).toContain('Pháo hoa!');
+
+    // Climbing: drawn as a streak, and not yet opened.
+    vi.advanceTimersByTime(200);
+    expect(c.stroke).toHaveBeenCalled();
+    expect(drum).not.toHaveBeenCalled();
+
+    // It opens near the top of its climb, with a thump and a shower of sparks.
+    vi.advanceTimersByTime(1000);
+    expect(drum).toHaveBeenCalledWith('kick');
+    expect(fx).toHaveBeenCalledWith('sparkle');
+    const strokes = c.stroke.mock.calls.length;
+    expect(strokes).toBeGreaterThan(30);
+
+    // And it burns out on its own, leaving the canvas clear and untouched after.
+    vi.advanceTimersByTime(4000);
+    const settled = c.stroke.mock.calls.length;
+    vi.advanceTimersByTime(1000);
+    expect(c.stroke.mock.calls.length).toBe(settled);
+    ctx.cleanup();
+  });
+
+  it('🎆 sends one up by itself on the way in, so the button is worth finding', () => {
+    vi.useFakeTimers();
+    driveFrames();
+    const c = fakeCanvas();
+    const ctx = fakeContext();
+    game.start(ctx);
+    size(q(ctx, '.fly'), 800, 600);
+    // Nothing in the sky yet: the canvas is not even asked for a context.
+    vi.advanceTimersByTime(300);
+    expect(c.stroke).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(c.stroke).toHaveBeenCalled();
+    expect(BURSTS).toContain('heart');
+    ctx.cleanup();
+  });
+
   it('every twelfth happy touch is a star, and none of them is asked for', () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     game.start(ctx);
     const bug = q(ctx, '.fly-bug');
@@ -278,6 +366,7 @@ describe('firefly game', () => {
   it('🎤 a gentle breath lays the grass over without putting the candle out', async () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const mic = fakeBlowMic();
     const ctx = fakeContext();
     game.start(ctx);
@@ -303,6 +392,7 @@ describe('firefly game', () => {
   it('🎤 a hard blow puts the candle out, then a quiet spell hands the microphone back', async () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const mic = fakeBlowMic();
     const ctx = fakeContext();
     const puff = vi.spyOn(ctx.audio, 'puff');
@@ -332,6 +422,7 @@ describe('firefly game', () => {
   it('🎤 without a microphone the button steps aside and points at the candle', async () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const ctx = fakeContext();
     game.start(ctx);
     const btn = await listen(ctx);
@@ -348,6 +439,7 @@ describe('firefly game', () => {
   it('cleanup stops the frames, the crickets and an open microphone', async () => {
     vi.useFakeTimers();
     driveFrames();
+    fakeCanvas();
     const mic = fakeBlowMic();
     const ctx = fakeContext();
     game.start(ctx);

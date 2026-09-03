@@ -197,3 +197,235 @@ export const SHOOT_MAX_MS = 25000;
 export function nextShootMs(rng: () => number = Math.random): number {
   return randInt(SHOOT_MIN_MS, SHOOT_MAX_MS, rng);
 }
+
+/* ---- fireworks ---- */
+
+/**
+ * The shapes a rocket opens into. Every one of them is the same handful of sparks
+ * thrown outwards; what differs is where they are aimed, so the shape a child sees
+ * is drawn by the sparks' own paths rather than painted anywhere.
+ */
+export type Burst = 'burst' | 'ring' | 'heart' | 'star' | 'willow' | 'spiral';
+
+export const BURSTS: readonly Burst[] = ['burst', 'ring', 'heart', 'star', 'willow', 'spiral'];
+
+/** Sparks in the sky at once, over every firework. A cap, not a target. */
+export const MAX_SPARKS = 320;
+/** Past this many sparks the drawing sheds its widest layer to keep the frame rate. */
+export const BUSY_SKY = 170;
+/** Pull downwards, in field fractions per second squared. */
+export const SPARK_GRAVITY = 0.3;
+/** Air, as a fraction of speed shed per second: what turns a ring into a flower. */
+export const SPARK_DRAG = 0.9;
+/** Seconds a spark spends fading out at the end of its life. */
+export const SPARK_FADE = 0.5;
+/**
+ * How much of a spark's path is drawn behind it, in seconds. Drawing only the
+ * step it took last frame ties the length of the streak to the frame rate, and
+ * on a fast screen that is a dot.
+ */
+export const SPARK_TAIL = 0.075;
+
+/** The white-hot blink at the moment a rocket opens. */
+export interface Flash {
+  x: number;
+  y: number;
+  hue: number;
+  life: number;
+}
+/** Seconds the blink lasts. Long enough to be seen, short enough not to be a lamp. */
+export const FLASH_LIFE = 0.4;
+
+export function stepFlash(f: Flash, dt: number): Flash {
+  return { ...f, life: f.life - dt };
+}
+
+/** 0 … 1, and how wide the blink has spread by now. */
+export function flashAt(life: number): { alpha: number; spread: number } {
+  const gone = Math.max(0, Math.min(1, 1 - life / FLASH_LIFE));
+  return { alpha: (1 - gone) ** 1.6, spread: 0.25 + gone * 0.75 };
+}
+
+export interface Spark {
+  x: number;
+  y: number;
+  /** Where it was a frame ago, so it can be drawn as a streak and not a dot. */
+  px: number;
+  py: number;
+  vx: number;
+  vy: number;
+  /** Seconds left. */
+  life: number;
+  hue: number;
+  /** Line width as a fraction of the field's short side. */
+  size: number;
+}
+
+/** A rocket on its way up, before it becomes a shape. */
+export interface Rocket {
+  x: number;
+  y: number;
+  py: number;
+  vy: number;
+  /** Height it opens at, as a fraction of the field. */
+  top: number;
+  hue: number;
+  shape: Burst;
+}
+
+/**
+ * Where spark `i` of `n` is aimed, as a vector whose length is part of the shape:
+ * a spark flies roughly along its own aim, so a ring of aims draws a ring and a
+ * heart of aims draws a heart. Lengths are 0 … 1 of the burst's reach.
+ */
+export function sparkAim(kind: Burst, i: number, n: number, rng: () => number = Math.random): { x: number; y: number } {
+  const turn = (i / n) * Math.PI * 2;
+  switch (kind) {
+    case 'ring':
+      return { x: Math.cos(turn), y: Math.sin(turn) };
+    case 'heart': {
+      // The usual heart curve, scaled to fit the same reach as the ring.
+      const t = turn;
+      const hx = 16 * Math.sin(t) ** 3;
+      const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      return { x: hx / 17, y: hy / 17 };
+    }
+    case 'star': {
+      // Five points: the radius alternates as the angle goes round.
+      const spikes = 5;
+      const wave = Math.cos(turn * spikes);
+      const r = 0.5 + 0.5 * ((wave + 1) / 2) ** 0.4;
+      return { x: Math.cos(turn - Math.PI / 2) * r, y: Math.sin(turn - Math.PI / 2) * r };
+    }
+    case 'spiral': {
+      const spin = turn * 2.2;
+      const r = 0.25 + 0.75 * (i / Math.max(1, n - 1));
+      return { x: Math.cos(spin) * r, y: Math.sin(spin) * r };
+    }
+    case 'willow': {
+      // Thrown upwards and outwards; gravity does the drooping.
+      const up = -Math.PI / 2 + (rng() - 0.5) * 2.2;
+      const r = 0.55 + rng() * 0.45;
+      return { x: Math.cos(up) * r, y: Math.sin(up) * r };
+    }
+    default: {
+      // A filled ball: every direction, at every distance.
+      const a = turn + (rng() - 0.5) * 0.5;
+      const r = 0.35 + rng() * 0.65;
+      return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+    }
+  }
+}
+
+/** How many sparks a shape is drawn with, and how far and long they fly. */
+export function burstStyle(kind: Burst): { sparks: number; reach: number; life: number; size: number } {
+  switch (kind) {
+    case 'ring':
+      return { sparks: 34, reach: 0.34, life: 1.5, size: 0.006 };
+    case 'heart':
+      return { sparks: 40, reach: 0.32, life: 1.6, size: 0.007 };
+    case 'star':
+      return { sparks: 44, reach: 0.34, life: 1.5, size: 0.006 };
+    case 'spiral':
+      return { sparks: 40, reach: 0.32, life: 1.5, size: 0.006 };
+    case 'willow':
+      return { sparks: 28, reach: 0.26, life: 2.4, size: 0.009 };
+    default:
+      return { sparks: 46, reach: 0.36, life: 1.4, size: 0.007 };
+  }
+}
+
+/**
+ * A whole firework, as the sparks it opens into. `hue` colours the shape; the
+ * plain burst ignores it and takes every colour at once, which is the one every
+ * child points at.
+ */
+export function makeBurst(kind: Burst, x: number, y: number, hue: number, rng: () => number = Math.random): Spark[] {
+  const { sparks, reach, life, size } = burstStyle(kind);
+  const out: Spark[] = [];
+  for (let i = 0; i < sparks; i++) {
+    const aim = sparkAim(kind, i, sparks, rng);
+    const speed = reach / life;
+    out.push({
+      x,
+      y,
+      px: x,
+      py: y,
+      vx: aim.x * speed * (0.85 + rng() * 0.3),
+      vy: aim.y * speed * (0.85 + rng() * 0.3),
+      life: life * (0.8 + rng() * 0.4),
+      hue: kind === 'burst' ? Math.round(rng() * 360) : (hue + (rng() - 0.5) * 40 + 360) % 360,
+      size,
+    });
+  }
+  return out;
+}
+
+/**
+ * A cinder falling off a rocket on its way up. Short-lived and slow, so the climb
+ * leaves a trail of its own rather than a bare line.
+ */
+export function makeEmber(x: number, y: number, hue: number, rng: () => number = Math.random): Spark {
+  return {
+    x,
+    y,
+    px: x,
+    py: y,
+    vx: (rng() - 0.5) * 0.06,
+    vy: 0.02 + rng() * 0.06,
+    life: 0.3 + rng() * 0.35,
+    hue: (hue + (rng() - 0.5) * 30 + 360) % 360,
+    size: 0.004,
+  };
+}
+
+/**
+ * A spark a moment later, in place: air slows it, gravity takes it down, and it
+ * burns out. Written as a mutation because there can be hundreds of these on a
+ * frame, and a new object each is a bag of rubbish for a tablet to collect.
+ */
+export function advanceSpark(s: Spark, dt: number): void {
+  const drag = Math.max(0, 1 - SPARK_DRAG * dt);
+  s.vx *= drag;
+  s.vy = s.vy * drag + SPARK_GRAVITY * dt;
+  s.px = s.x;
+  s.py = s.y;
+  s.x += s.vx * dt;
+  s.y += s.vy * dt;
+  s.life -= dt;
+}
+
+/** The same step, on a copy. The physics lives in one place; this is for reading and testing. */
+export function stepSpark(s: Spark, dt: number): Spark {
+  const next = { ...s };
+  advanceSpark(next, dt);
+  return next;
+}
+
+/** 0 … 1: full brightness until the last moments, then out. */
+export function sparkFade(life: number): number {
+  if (life <= 0) return 0;
+  return life >= SPARK_FADE ? 1 : life / SPARK_FADE;
+}
+
+/** A rocket climbing, slowing as it goes, until it reaches the height it opens at. */
+export function stepRocket(r: Rocket, dt: number): Rocket {
+  const vy = r.vy + SPARK_GRAVITY * 0.6 * dt;
+  return { ...r, py: r.y, y: r.y + vy * dt, vy };
+}
+
+/** A rocket aimed at a patch of sky worth looking at: high, but not in the top corner. */
+export function makeRocket(rng: () => number = Math.random): Rocket {
+  const top = 0.16 + rng() * 0.28;
+  const from = 0.86;
+  // Fast enough to arrive in about a second, slowing all the way up.
+  return {
+    x: 0.15 + rng() * 0.7,
+    y: from,
+    py: from,
+    vy: -(from - top) / 0.8,
+    top,
+    hue: Math.round(rng() * 360),
+    shape: BURSTS[Math.floor(rng() * BURSTS.length)] ?? 'burst',
+  };
+}

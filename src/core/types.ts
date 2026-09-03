@@ -29,6 +29,11 @@ export interface GameMeta {
   skill: Skill;
   /** Short Vietnamese sentence spoken when the game opens. */
   intro: string;
+  /**
+   * The game is set after dark. The shell dresses down to match — a cream top bar
+   * over a night sky is a strip of daylight across the top of the screen.
+   */
+  night?: boolean;
 }
 
 export interface HintScheduler {

@@ -5,22 +5,39 @@ import { meta } from './meta';
 import {
   BLADES,
   BLOW_GAP_MS,
+  BURSTS,
+  BUSY_SKY,
   CANDLES,
+  FLASH_LIFE,
+  MAX_SPARKS,
   FIREFLIES,
   SKY_STARS,
   STAR_EVERY,
   glow,
   leanDeg,
   makeBlade,
+  makeBurst,
   makeCandle,
   makeFirefly,
+  makeRocket,
   makeSkyStar,
   nextChirpMs,
   nextShootMs,
+  flashAt,
+  makeEmber,
+  advanceSpark,
+  sparkFade,
+  SPARK_TAIL,
+  stepFlash,
   stepFirefly,
+  stepRocket,
   warmth,
   windFrom,
+  type Burst,
   type Firefly,
+  type Flash,
+  type Rocket,
+  type Spark,
 } from './logic';
 import './style.css';
 
@@ -37,6 +54,28 @@ const SHOOT_MS = 1100;
 const MIN_BUG_PX = 56;
 /** Longest step the drift takes in one frame, so a backgrounded tab does not teleport the field. */
 const MAX_STEP = 0.05;
+/**
+ * Pixels per CSS pixel for the fireworks canvas. Sparks are glows rather than
+ * edges, so drawing them at the screen's full 2× buys nothing anybody can see and
+ * costs four times the fill rate — which is exactly what a tablet runs out of.
+ */
+const FW_SCALE = 1;
+
+/**
+ * Colours by hue, built once and kept. Hundreds of sparks are drawn every frame,
+ * and a template string per spark per layer is hundreds of throwaway strings a
+ * frame — the kind of litter that shows up as stutter on a tablet, not on a Mac.
+ */
+const HALO: string[] = [];
+const CORE: string[] = [];
+function haloOf(hue: number): string {
+  const i = ((Math.round(hue) % 360) + 360) % 360;
+  return (HALO[i] ??= `hsl(${i} 100% 56%)`);
+}
+function coreOf(hue: number): string {
+  const i = ((Math.round(hue) % 360) + 360) % 360;
+  return (CORE[i] ??= `hsl(${i} 100% 82%)`);
+}
 
 type AudioCtor = new () => AudioContext;
 
@@ -69,6 +108,17 @@ function start(ctx: GameContext): void {
   let windTarget = 0;
   /** One entry per candle in the grass; `flame` is null while it is out. */
   const candles: Array<{ el: HTMLElement; flame: HTMLElement | null }> = [];
+  /** Fireworks: rockets still climbing, and the sparks of the ones that have opened. */
+  let rockets: Rocket[] = [];
+  let sparks: Spark[] = [];
+  let flashes: Flash[] = [];
+  /** Backing store the sparks were last drawn into, so it is only resized when it must be. */
+  let fwW = 0;
+  let fwH = 0;
+  let fwCtx: CanvasRenderingContext2D | null = null;
+  let fwAsked = false;
+  /** Something was drawn last frame, so the canvas still has to be cleared once. */
+  let fwUsed = false;
   let raf = 0;
   let last = performance.now();
   let lastShort = 0;
@@ -167,7 +217,20 @@ function start(ctx: GameContext): void {
   /** Candle light lying over the meadow. Its strength is `--fly-warm`, set as they are lit. */
   const warmGlow = h('div', { class: 'fly-glow' });
 
-  const field = h('div', { class: 'fly' }, sky, hills, grass, warmGlow, micBtn);
+  /*
+   * Fireworks go on a canvas rather than into the DOM: a single burst is forty
+   * sparks, several at once are hundreds, and hundreds of elements moving every
+   * frame is more than a tablet will do smoothly. One canvas, cleared and redrawn,
+   * costs the same whatever is on it.
+   */
+  const fw = h('canvas', { class: 'fly-fw' }) as HTMLCanvasElement;
+  const fwBtn = h(
+    'button',
+    { class: 'btn-round fly-fw-btn', type: 'button', 'aria-label': 'Bắn pháo hoa', onpointerdown: onFirework },
+    '🎆',
+  );
+
+  const field = h('div', { class: 'fly' }, sky, hills, grass, warmGlow, fw, fwBtn, micBtn);
   ctx.stage.append(field);
 
   const bugs: Bug[] = [];
@@ -275,6 +338,123 @@ function start(ctx: GameContext): void {
     happy();
   }
 
+  // ---- fireworks ----
+  /** Send one up. The shape it opens into is whatever the sky feels like. */
+  function launch(shape?: Burst): void {
+    const rocket = makeRocket();
+    rockets.push(shape ? { ...rocket, shape } : rocket);
+    ctx.audio.fx('whistle');
+  }
+
+  function onFirework(e: Event): void {
+    e.preventDefault();
+    launch();
+    replay(fwBtn, 'anim-bounce');
+    nameOnce('firework', 'Pháo hoa!');
+    happy();
+  }
+
+  /** The rocket opens: a shape's worth of sparks, a thump, and a shower of sound. */
+  function openRocket(r: Rocket): void {
+    const made = makeBurst(r.shape, r.x, r.y, r.hue);
+    // Oldest sparks go first when the sky is full, so a new firework always shows.
+    sparks = [...sparks, ...made].slice(-MAX_SPARKS);
+    flashes.push({ x: r.x, y: r.y, hue: r.hue, life: FLASH_LIFE });
+    ctx.audio.drum('kick');
+    ctx.audio.fx('sparkle');
+    navigator.vibrate?.(18);
+  }
+
+  /** Every spark drawn as the streak it travelled since the last frame. */
+  function drawFireworks(w: number, hgt: number, short: number): void {
+    const busy = rockets.length > 0 || sparks.length > 0 || flashes.length > 0;
+    // An empty sky costs nothing: no context, no clear, no frame spent on a
+    // canvas that has had nothing on it since the last firework faded.
+    if (!busy && !fwUsed) return;
+    if (!fwAsked) {
+      fwAsked = true;
+      fwCtx = fw.getContext('2d');
+    }
+    const c = fwCtx;
+    if (!c) return;
+    fwUsed = busy;
+    // Backing store follows both the stage and the screen: a canvas built for one
+    // and drawn on another puts the sparks somewhere other than the sky.
+    const dpr = Math.min(window.devicePixelRatio || 1, FW_SCALE);
+    const px = Math.round(w * dpr);
+    const py = Math.round(hgt * dpr);
+    if (px !== fwW || py !== fwH) {
+      fwW = px;
+      fwH = py;
+      fw.width = px;
+      fw.height = py;
+    }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, hgt);
+    if (!busy) return;
+
+    c.lineCap = 'round';
+    /*
+     * Added on top of each other rather than painted over: where two sparks cross
+     * the sky goes white, which is what a firework does and what a flat paint of
+     * coloured dots never looks like.
+     */
+    c.globalCompositeOperation = 'lighter';
+
+    /**
+     * A streak from where the spark was `SPARK_TAIL * tail` ago to where it is now.
+     * Colour comes from the table and the fade from `globalAlpha`, so a frame full
+     * of sparks builds no strings at all.
+     */
+    const streak = (x: number, y: number, vx: number, vy: number, colour: string, width: number, alpha: number, tail: number): void => {
+      if (alpha <= 0.02) return;
+      c.globalAlpha = alpha;
+      c.strokeStyle = colour;
+      c.lineWidth = width;
+      c.beginPath();
+      c.moveTo((x - vx * SPARK_TAIL * tail) * w, (y - vy * SPARK_TAIL * tail) * hgt);
+      c.lineTo(x * w, y * hgt);
+      c.stroke();
+    };
+
+    // The blink of the opening, before anything else is drawn over it.
+    for (const f of flashes) {
+      const { alpha, spread } = flashAt(f.life);
+      const r = short * 0.22 * spread;
+      const g = c.createRadialGradient(f.x * w, f.y * hgt, 0, f.x * w, f.y * hgt, r);
+      g.addColorStop(0, `hsla(${f.hue} 100% 98% / ${(0.85 * alpha).toFixed(2)})`);
+      g.addColorStop(0.35, `hsla(${f.hue} 100% 72% / ${(0.45 * alpha).toFixed(2)})`);
+      g.addColorStop(1, `hsla(${f.hue} 100% 60% / 0)`);
+      c.fillStyle = g;
+      c.beginPath();
+      c.arc(f.x * w, f.y * hgt, r, 0, Math.PI * 2);
+      c.fill();
+    }
+
+    for (const r of rockets) {
+      const width = Math.max(2, short * 0.006);
+      streak(r.x, r.y, 0, r.vy, haloOf(r.hue), width * 3.4, 0.16, 2.4);
+      streak(r.x, r.y, 0, r.vy, coreOf(r.hue), width * 0.9, 1, 0.9);
+    }
+    /*
+     * Three passes down each spark's path — halo, comet tail, white-hot core — is
+     * what makes it read as burning rather than as a coloured dash. The halo is
+     * the widest and so the most expensive, and it is the one the eye misses
+     * least: past a skyful of sparks it is dropped and the tail widened instead.
+     */
+    const wide = sparks.length <= BUSY_SKY;
+    for (const s of sparks) {
+      const fade = sparkFade(s.life);
+      const width = Math.max(1.5, short * s.size * (0.5 + 0.5 * fade));
+      const halo = haloOf(s.hue);
+      if (wide) streak(s.x, s.y, s.vx, s.vy, halo, width * 4, 0.13 * fade, 3.2);
+      streak(s.x, s.y, s.vx, s.vy, halo, width * (wide ? 1.9 : 2.6), 0.42 * fade, 2);
+      streak(s.x, s.y, s.vx, s.vy, coreOf(s.hue), width * 0.8, 0.98 * fade, 0.85);
+    }
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+  }
+
   /**
    * A hard blow: every firefly is knocked off course, and the candles go out one
    * after another rather than all at once — a row that dies together looks
@@ -330,6 +510,34 @@ function start(ctx: GameContext): void {
       bug.el.style.opacity = (0.45 + g * 0.55).toFixed(2);
     }
     grass.style.setProperty('--fly-lean', `${leanDeg(wind).toFixed(1)}deg`);
+
+    if (rockets.length > 0) {
+      const flying: Rocket[] = [];
+      for (const r of rockets) {
+        const next = stepRocket(r, dt);
+        // Opens at its height, or the moment it runs out of climb.
+        if (next.y <= next.top || next.vy >= 0) openRocket(next);
+        else {
+          flying.push(next);
+          // Cinders off the climb, so the way up is a trail and not a line.
+          if (Math.random() < 0.55) sparks.push(makeEmber(next.x, next.y, next.hue));
+        }
+      }
+      rockets = flying;
+    }
+    if (flashes.length > 0) flashes = flashes.map((f) => stepFlash(f, dt)).filter((f) => f.life > 0);
+    if (sparks.length > 0) {
+      // Stepped and compacted in place: a new array and a new object per spark,
+      // every frame, is work a tablet pays for twice — once to make, once to collect.
+      let kept = 0;
+      for (const spark of sparks) {
+        advanceSpark(spark, dt);
+        if (spark.life > 0 && spark.y < 1.1) sparks[kept++] = spark;
+      }
+      sparks.length = kept;
+    }
+    drawFireworks(w, hgt, short);
+
     raf = requestAnimationFrame(frame);
   }
 
@@ -464,6 +672,8 @@ function start(ctx: GameContext): void {
     later(ownShoot, nextShootMs());
   }
   later(ownShoot, nextShootMs());
+  // One on the way in: the button is worth finding, and the sky says so first.
+  later(() => launch(BURSTS[0]), 900);
 
   raf = requestAnimationFrame(frame);
 
@@ -481,12 +691,20 @@ function start(ctx: GameContext): void {
       ctx.speak('Thổi vào micro xem nến có tắt không nhé!');
       return;
     }
+    if (rockets.length === 0 && sparks.length === 0) {
+      replay(fwBtn, 'anim-bounce');
+      ctx.speak('Bấm 🎆 bắn pháo hoa nhé!');
+      return;
+    }
     const bug = bugs[randInt(0, bugs.length - 1)];
     if (bug) replay(bug.el, 'fly-bug-hit');
   });
 
   ctx.onCleanup(() => {
     alive = false;
+    rockets = [];
+    sparks = [];
+    flashes = [];
     cancelAnimationFrame(raf);
     for (const id of timers) clearTimeout(id);
     timers.clear();

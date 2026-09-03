@@ -9,9 +9,12 @@ import { openParentPanel } from './parentPanel';
 import { maybeUnlockSticker, showStickerReveal } from './rewards';
 import type { GameEntry } from './registry';
 import { hrefFor } from './router';
+import { applyTheme } from './theme';
 import '../styles/shell.css';
 
 const PARENT_HOLD_MS = 1500;
+/** Browser chrome colour while a night game is open. Matches the top of its sky. */
+const NIGHT_CHROME = '#0a1226';
 
 /**
  * Game shell: top bar (home, title, parent gate) plus the stage. Loads the game
@@ -50,11 +53,18 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
   });
   const shell = h(
     'div',
-    { class: 'shell' },
+    { class: entry.night ? 'shell shell-night' : 'shell' },
     h('header', { class: 'topbar' }, homeBtn, h('span', { class: 'topbar-title' }, `${entry.icon} ${entry.title}`), parentBtn),
     stage,
   );
   root.replaceChildren(shell);
+  if (entry.night) {
+    // The bar above the screen belongs to the browser, and on a tablet in
+    // full screen it is the only thing left of the app's own colour. Put it
+    // back the way the parent asked for it when the game is left.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', NIGHT_CHROME);
+    cleanups.push(() => applyTheme(store.settings().theme));
+  }
 
   // Any interaction on the stage counts as activity for the idle hint.
   const touch = () => hint.touch();

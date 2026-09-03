@@ -28,6 +28,22 @@
   text-overflow: ellipsis;
 }
 
+/*
+ * A game set after dark. Only the shell's own chrome changes: the stage below is
+ * the game's business, and the parent's light/dark choice still holds everywhere
+ * else in the app.
+ */
+.shell-night .topbar {
+  background: #0a1226;
+}
+.shell-night .topbar-title {
+  color: #e2e8f0;
+}
+.shell-night .topbar .btn-round {
+  background: #1e293b;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+}
+
 .stage-error {
   position: absolute;
   inset: 0;
