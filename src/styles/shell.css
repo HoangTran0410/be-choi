@@ -141,6 +141,15 @@
   background: var(--c-orange);
   color: #fff;
 }
+.panel-btn.danger {
+  background: var(--c-red);
+  color: #fff;
+}
+.panel-reset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .panel-note,
 .panel-status,
 .panel-version {

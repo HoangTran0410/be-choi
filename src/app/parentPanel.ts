@@ -127,6 +127,72 @@ export function openParentPanel(deps: AppDeps): void {
         ? h('p', { class: 'panel-note' }, 'Để cài: bấm nút Chia sẻ ⎋ trong Safari → "Thêm vào MH chính".')
         : h('p', { class: 'panel-note' }, 'Để cài: mở menu trình duyệt → "Cài đặt ứng dụng" / "Thêm vào màn hình chính".');
 
+  // ---- wiping the child's stars and stickers ----
+  /**
+   * The stars cannot be given back, so wiping takes two taps. The panel is already behind a
+   * 1.5 s hold, but a child who does get in drums on one spot, so the second tap has to be
+   * both somewhere else and not immediate.
+   */
+  const resetBox = h('div', { class: 'panel-reset' });
+  /**
+   * The question has to have been on screen this long before "Xoá hết" counts. Laying Huỷ
+   * over the button that was just tapped is not enough on its own: the panel scrolls as the
+   * question makes it taller, so where the buttons land is not fixed. A grown-up who has
+   * read the question is never this fast; a child drumming on one spot always is.
+   */
+  const ARM_MS = 500;
+  let askedAt = 0;
+  const resetBtn = h(
+    'button',
+    {
+      class: 'panel-btn',
+      type: 'button',
+      onClick: () => {
+        audio.tick();
+        askReset();
+      },
+    },
+    '🗑️ Xoá hết sao và sticker',
+  );
+
+  function idleReset(): void {
+    resetBox.replaceChildren(resetBtn);
+  }
+
+  function askReset(): void {
+    askedAt = Date.now();
+    resetBox.replaceChildren(
+      h('p', { class: 'panel-note' }, 'Xoá hết sao và sticker của bé? Không lấy lại được.'),
+      // Huỷ is full width and covers most of the button just tapped, so a repeat tap
+      // usually lands on it; near the bottom edge it still reaches Xoá hết, which is
+      // what the arming delay is for.
+      h(
+        'button',
+        {
+          class: 'panel-btn',
+          type: 'button',
+          onClick: () => {
+            audio.tick();
+            idleReset();
+          },
+        },
+        'Huỷ',
+      ),
+      h('button', { class: 'panel-btn danger', type: 'button', onClick: wipeStars }, '🗑️ Xoá hết'),
+    );
+  }
+
+  function wipeStars(): void {
+    if (Date.now() - askedAt < ARM_MS) return;
+    store.resetStars();
+    window.dispatchEvent(new Event(STARS_CHANGED));
+    status.textContent = 'Đã xoá hết sao và sticker.';
+    audio.tick();
+    idleReset();
+  }
+
+  idleReset();
+
   const panel = h(
     'div',
     { class: 'panel', onClick: (e: Event) => e.stopPropagation() },
@@ -145,18 +211,7 @@ export function openParentPanel(deps: AppDeps): void {
     installRow,
     themeRow,
     photoSection,
-    h(
-      'button',
-      {
-        class: 'panel-btn',
-        onClick: () => {
-          store.resetStars();
-          window.dispatchEvent(new Event(STARS_CHANGED));
-          status.textContent = 'Đã xoá hết sao và sticker.';
-        },
-      },
-      '🗑️ Xoá hết sao và sticker',
-    ),
+    resetBox,
     status,
     h('p', { class: 'panel-version' }, `Bé Chơi v${__APP_VERSION__}`),
     h('button', { class: 'panel-btn close', onClick: close }, 'Đóng'),
