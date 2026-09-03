@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fakeContext, type FakeContext } from '../../core/testing';
-import { STAR_EVERY } from './logic';
+import { BLOW_GAP_MS, CANDLES, STAR_EVERY } from './logic';
 import game from './index';
 
 if (!('PointerEvent' in globalThis)) {
@@ -109,7 +109,7 @@ describe('firefly game', () => {
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
   });
 
-  it('opens on a sky, a field of fireflies, grass and an unlit candle', () => {
+  it('opens on a sky, a moon, fireflies, grass and a row of unlit candles', () => {
     vi.useFakeTimers();
     driveFrames();
     const ctx = fakeContext();
@@ -117,8 +117,10 @@ describe('firefly game', () => {
     expect(all(ctx, '.fly-star').length).toBeGreaterThan(20);
     expect(all(ctx, '.fly-bug').length).toBeGreaterThan(3);
     expect(all(ctx, '.fly-blade').length).toBeGreaterThan(10);
+    expect(all(ctx, '.fly-candle').length).toBe(CANDLES);
+    expect(ctx.stage.querySelector('.fly-moon')).not.toBeNull();
     // Nothing is alight and nothing is asked of the child.
-    expect(q(ctx, '.fly-candle').classList.contains('fly-lit')).toBe(false);
+    expect(all(ctx, '.fly-candle.fly-lit').length).toBe(0);
     expect(ctx.stage.querySelector('.fly-flame')).toBeNull();
     ctx.cleanup();
   });
@@ -181,6 +183,8 @@ describe('firefly game', () => {
     const candle = q(ctx, '.fly-candle');
     candle.dispatchEvent(ptr('pointerdown'));
     expect(candle.classList.contains('fly-lit')).toBe(true);
+    // Its neighbours are its own business: one touch lights one candle.
+    expect(all(ctx, '.fly-candle.fly-lit').length).toBe(1);
     expect(candle.querySelector('.fly-flame')).not.toBeNull();
 
     candle.dispatchEvent(ptr('pointerdown'));
@@ -194,6 +198,67 @@ describe('firefly game', () => {
     expect(candle.querySelector('.fly-puff')).toBeNull();
     candle.dispatchEvent(ptr('pointerdown'));
     expect(candle.classList.contains('fly-lit')).toBe(true);
+    ctx.cleanup();
+  });
+
+  it('each candle lit warms the meadow, and blowing them out takes it away again', () => {
+    vi.useFakeTimers();
+    driveFrames();
+    const ctx = fakeContext();
+    game.start(ctx);
+    const field = q(ctx, '.fly');
+    const candles = all(ctx, '.fly-candle');
+    const warm = (): number => parseFloat(field.style.getPropertyValue('--fly-warm') || '0');
+    expect(warm()).toBe(0);
+
+    candles[0]?.dispatchEvent(ptr('pointerdown'));
+    // The first flame is worth half the light on its own.
+    expect(warm()).toBe(0.5);
+    const oneLit = warm();
+    candles[1]?.dispatchEvent(ptr('pointerdown'));
+    candles[2]?.dispatchEvent(ptr('pointerdown'));
+    expect(warm()).toBeGreaterThan(oneLit);
+
+    for (const c of candles) if (c.classList.contains('fly-lit')) c.dispatchEvent(ptr('pointerdown'));
+    expect(warm()).toBe(0);
+    ctx.cleanup();
+  });
+
+  it('🎤 one breath puts the whole row out, one candle after another', async () => {
+    vi.useFakeTimers();
+    driveFrames();
+    const mic = fakeBlowMic();
+    const ctx = fakeContext();
+    game.start(ctx);
+    size(q(ctx, '.fly'), 800, 600);
+    const candles = all(ctx, '.fly-candle');
+    for (const c of candles) c.dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.fly-candle.fly-lit').length).toBe(CANDLES);
+    await listen(ctx);
+
+    mic.set(255);
+    await vi.advanceTimersByTimeAsync(200);
+    // The first goes out with the breath; the rest follow, not all at once.
+    expect(all(ctx, '.fly-candle.fly-lit').length).toBe(CANDLES - 1);
+    await vi.advanceTimersByTimeAsync(BLOW_GAP_MS);
+    expect(all(ctx, '.fly-candle.fly-lit').length).toBe(CANDLES - 2);
+    await vi.advanceTimersByTimeAsync(BLOW_GAP_MS * CANDLES);
+    expect(all(ctx, '.fly-candle.fly-lit').length).toBe(0);
+    expect(parseFloat(q(ctx, '.fly').style.getPropertyValue('--fly-warm'))).toBe(0);
+    ctx.cleanup();
+  });
+
+  it('a press on the moon makes it flare', () => {
+    vi.useFakeTimers();
+    driveFrames();
+    const ctx = fakeContext();
+    const fx = vi.spyOn(ctx.audio, 'fx');
+    game.start(ctx);
+    const moon = q(ctx, '.fly-moon');
+    moon.dispatchEvent(ptr('pointerdown'));
+    expect(moon.classList.contains('fly-moon-hit')).toBe(true);
+    expect(fx).toHaveBeenCalledWith('sparkle');
+    expect(ctx.spoken).toContain('Ông trăng!');
     ctx.cleanup();
   });
 

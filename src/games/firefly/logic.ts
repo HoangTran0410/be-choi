@@ -7,13 +7,18 @@ import { BLOW_THRESHOLD } from '../birthday/logic';
  */
 
 /** Fireflies on the wing at once: enough that the field is alive, few enough to chase one. */
-export const FIREFLIES = 7;
+export const FIREFLIES = 9;
 /** Stars in the sky. They only twinkle, so each costs a keyframe and nothing else. */
 export const SKY_STARS = 40;
 /** Blades in the grass along the bottom. Enough to read as a meadow, not a comb. */
 export const BLADES = 44;
 /** A star for the child every this many happy touches. */
 export const STAR_EVERY = 12;
+
+/** Candles standing in the grass — a whole row to light, not one lonely stick. */
+export const CANDLES = 6;
+/** Gap between candles when a single breath blows the whole row out. */
+export const BLOW_GAP_MS = 140;
 
 /** Fireflies keep out of the very top and off the grass, in fractions of the field. */
 export const FLY_TOP = 0.05;
@@ -51,6 +56,15 @@ export interface SkyStar {
   /** Twinkle timing, in seconds. A negative delay starts mid-cycle. */
   delay: number;
   dur: number;
+}
+
+export interface Candle {
+  /** Where it stands, as a fraction of the field width. */
+  x: number;
+  /** Multiplier on the drawn height: a row of identical candles reads as a fence. */
+  height: number;
+  /** Hue of the wax stripes. */
+  hue: number;
 }
 
 export interface Blade {
@@ -94,6 +108,29 @@ export function makeBlade(i: number, n: number, rng: () => number = Math.random)
     delay: -rng() * 3,
     dur: 2.4 + rng() * 1.8,
   };
+}
+
+/** The microphone button sits bottom right in both orientations; the row stops short of it. */
+export const CANDLE_LEFT = 0.08;
+export const CANDLE_SPAN = 0.72;
+
+export function makeCandle(i: number, n: number, rng: () => number = Math.random): Candle {
+  return {
+    // Across the meadow, jittered: a row set out on a ruler looks planted.
+    x: CANDLE_LEFT + ((i + 0.5) / n) * CANDLE_SPAN + (rng() - 0.5) * 0.04,
+    height: 0.78 + rng() * 0.5,
+    hue: Math.round(rng() * 360),
+  };
+}
+
+/**
+ * How warm the meadow looks with `lit` candles alight, 0 … 1. Half the glow
+ * arrives with the very first flame, so lighting one is visibly worth doing;
+ * the rest of the row fills in the other half.
+ */
+export function warmth(lit: number, n = CANDLES): number {
+  if (lit <= 0 || n <= 0) return 0;
+  return Math.min(1, 0.5 + (0.5 * (lit - 1)) / Math.max(1, n - 1));
 }
 
 /**
@@ -148,4 +185,15 @@ export const CHIRP_MAX_MS = 9000;
 /** Crickets do not keep time. This is the gap before the next one. */
 export function nextChirpMs(rng: () => number = Math.random): number {
   return randInt(CHIRP_MIN_MS, CHIRP_MAX_MS, rng);
+}
+
+export const SHOOT_MIN_MS = 11000;
+export const SHOOT_MAX_MS = 25000;
+
+/**
+ * Gap before the next shooting star that nobody asked for. The sky is worth
+ * watching on its own, not only when a finger lands on it.
+ */
+export function nextShootMs(rng: () => number = Math.random): number {
+  return randInt(SHOOT_MIN_MS, SHOOT_MAX_MS, rng);
 }

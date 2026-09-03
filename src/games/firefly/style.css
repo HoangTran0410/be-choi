@@ -18,6 +18,72 @@
   /* Down to the grass line, so no star is ever drawn underground. */
   height: 78%;
 }
+/* A band of far-off stars. An ellipse, not a stripe: a linear gradient fades along
+   its length but keeps two hard edges down its sides, which reads as a grey wedge
+   laid over the sky. Gradient stops only — a blur this size costs a tablet a
+   repaint it cannot spare, and the softness is free in the gradient itself. */
+.fly-way {
+  position: absolute;
+  left: -25%;
+  right: -25%;
+  top: 4%;
+  height: 52%;
+  transform: rotate(-14deg);
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side at 50% 50%,
+    rgba(233, 238, 250, 0.15) 0%,
+    rgba(199, 210, 254, 0.09) 42%,
+    rgba(165, 180, 252, 0.04) 68%,
+    transparent 88%
+  );
+}
+
+/* ---- the moon ---- */
+.fly-moon {
+  position: absolute;
+  right: 11%;
+  top: 9%;
+  width: max(64px, 12vmin);
+  height: max(64px, 12vmin);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #fffbeb 0%, #fef3c7 45%, #fde68a 78%, #fcd34d 100%);
+  box-shadow:
+    0 0 5vmin rgba(254, 243, 199, 0.5),
+    0 0 14vmin rgba(253, 224, 71, 0.2);
+}
+/* Seas, so it is a moon and not a lamp. */
+.fly-moon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 62%, rgba(214, 190, 130, 0.45) 0 12%, transparent 13%),
+    radial-gradient(circle at 62% 38%, rgba(214, 190, 130, 0.38) 0 9%, transparent 10%),
+    radial-gradient(circle at 70% 68%, rgba(214, 190, 130, 0.3) 0 7%, transparent 8%);
+}
+.fly-moon.fly-moon-hit {
+  animation: fly-moon-flare 0.9s ease-out;
+}
+@keyframes fly-moon-flare {
+  0% {
+    box-shadow:
+      0 0 5vmin rgba(254, 243, 199, 0.5),
+      0 0 14vmin rgba(253, 224, 71, 0.2);
+  }
+  30% {
+    box-shadow:
+      0 0 10vmin rgba(255, 255, 255, 0.85),
+      0 0 26vmin rgba(253, 224, 71, 0.45);
+  }
+  100% {
+    box-shadow:
+      0 0 5vmin rgba(254, 243, 199, 0.5),
+      0 0 14vmin rgba(253, 224, 71, 0.2);
+  }
+}
+
 /*
  * The lit dot is drawn by ::after and kept small; the element itself is a finger-sized
  * target around it. A star a toddler can see but not hit is worse than no star at all.
@@ -147,7 +213,6 @@
      the rest is behind the grass. */
   bottom: 0;
   height: 35%;
-  overflow: hidden;
 }
 .fly-hill {
   position: absolute;
@@ -167,6 +232,62 @@
   width: 170%;
   height: 92%;
   background: #091825;
+}
+
+/* Trees on the far hill, standing high enough that their tops are drawn against
+   the sky. Down among the mounds they were a darker patch of dark, and read as a
+   hole in the hill rather than as a tree. Trunks end below the grass line, so
+   they are planted in the meadow rather than floating over it. */
+.fly-tree {
+  position: absolute;
+  bottom: 46%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.fly-canopy {
+  width: 11vmin;
+  height: 9vmin;
+  /* Uneven corners: a canopy on one radius is a balloon on a stick. */
+  border-radius: 58% 42% 46% 54% / 62% 66% 38% 34%;
+  background: #061019;
+}
+.fly-trunk {
+  width: 2.4vmin;
+  height: 5vmin;
+  /* Well up into the canopy, so the two read as one tree. */
+  margin-top: -1.6vmin;
+  border-radius: 0 0 0.5vmin 0.5vmin;
+  background: #061019;
+}
+.fly-tree-a {
+  left: 7%;
+  transform: scale(0.9);
+}
+.fly-tree-b {
+  left: 77%;
+  transform: scale(1.1);
+}
+.fly-tree-c {
+  left: 45%;
+  transform: scale(0.62);
+  opacity: 0.9;
+}
+
+/* ---- candle light over the meadow ---- */
+/* One element instead of a filter on every blade: a tablet can composite this
+   for nothing, and it is the whole reward for lighting the row. */
+.fly-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--fly-warm, 0);
+  transition: opacity 0.7s ease-out;
+  mix-blend-mode: screen;
+  /* Close around the candles. Spread wide it stops being firelight and becomes
+     a brown haze over the whole meadow. */
+  background: radial-gradient(58% 20% at 50% 97%, rgba(253, 224, 71, 0.3) 0%, rgba(251, 146, 60, 0.13) 45%, transparent 76%);
 }
 
 /* ---- grass ---- */
@@ -213,13 +334,13 @@
 
 /* ---- the candle in the grass ---- */
 .fly-candle {
+  --fly-stick: calc(var(--tap) * 0.44 * var(--fly-tall, 1));
   position: absolute;
-  left: 16%;
-  bottom: 12%;
-  /* Drawn small, but the box a finger has to land in is a whole tap wide. */
-  width: calc(var(--tap) * 0.85);
-  height: calc(var(--tap) * 0.8);
-  margin-left: calc(var(--tap) * -0.42);
+  bottom: 11%;
+  /* Drawn slim, but the box a finger has to land in is most of a tap wide. */
+  width: calc(var(--tap) * 0.8);
+  height: calc(var(--stick, var(--fly-stick)) + var(--tap) * 0.4);
+  margin-left: calc(var(--tap) * -0.4);
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -227,10 +348,10 @@
 }
 .fly-stick {
   position: relative;
-  width: calc(var(--tap) * 0.15);
-  height: calc(var(--tap) * 0.44);
+  width: calc(var(--tap) * 0.14);
+  height: var(--fly-stick);
   border-radius: 20% 20% 8% 8% / 8% 8% 5% 5%;
-  background: repeating-linear-gradient(135deg, #fff7ed 0 18%, #fca5a5 18% 36%);
+  background: repeating-linear-gradient(135deg, #fff7ed 0 18%, hsl(var(--fly-hue, 0) 75% 72%) 18% 36%);
   box-shadow: inset calc(var(--tap) * -0.025) 0 0 rgba(0, 0, 0, 0.18);
 }
 .fly-stick::after {
@@ -255,7 +376,7 @@
 .fly-flame {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--tap) * 0.46);
+  bottom: calc(var(--fly-stick) + var(--tap) * 0.02);
   width: calc(var(--tap) * 0.3);
   margin-left: calc(var(--tap) * -0.15);
   font-size: calc(var(--tap) * 0.3);
@@ -309,7 +430,7 @@
 .fly-puff {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--tap) * 0.5);
+  bottom: calc(var(--fly-stick) + var(--tap) * 0.06);
   font-size: calc(var(--tap) * 0.34);
   line-height: 1;
   pointer-events: none;

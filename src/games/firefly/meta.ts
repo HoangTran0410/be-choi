@@ -6,5 +6,5 @@ export const meta: GameMeta = {
   icon: '🌠',
   color: '#c7d2fe',
   skill: 'nature',
-  intro: 'Chạm vào sao với đom đóm, thắp nến rồi thổi cho tắt nhé!',
+  intro: 'Chạm vào sao, đom đóm với ông trăng, thắp hàng nến rồi thổi cho tắt nhé!',
 };

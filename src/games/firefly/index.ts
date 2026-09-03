@@ -4,16 +4,21 @@ import { BLOW_THRESHOLD, blowStrength } from '../birthday/logic';
 import { meta } from './meta';
 import {
   BLADES,
+  BLOW_GAP_MS,
+  CANDLES,
   FIREFLIES,
   SKY_STARS,
   STAR_EVERY,
   glow,
   leanDeg,
   makeBlade,
+  makeCandle,
   makeFirefly,
   makeSkyStar,
   nextChirpMs,
+  nextShootMs,
   stepFirefly,
+  warmth,
   windFrom,
   type Firefly,
 } from './logic';
@@ -46,10 +51,14 @@ interface Bug {
  * Đêm hè: a meadow after dark that runs on its own and is nice to just watch.
  *
  * There is nothing to finish here. Stars twinkle, fireflies wander, the grass
- * sways, and one candle sits in the grass waiting to be lit. Everything answers
- * a touch at once, in any order, for as long as the child cares to keep going —
- * and one breath into the microphone moves the whole field: the grass lays over,
- * the fireflies scatter, and a candle that was alight goes out.
+ * sways, the moon sits over the hills, and a row of candles waits in the grass.
+ * Everything answers a touch at once, in any order, for as long as the child
+ * cares to keep going — and one breath into the microphone moves the whole
+ * field: the grass lays over, the fireflies scatter, and the candles go out one
+ * after another, the way a cake does.
+ *
+ * Every candle lit warms the meadow a little, which is the only thing here that
+ * keeps any kind of score — and it undoes itself the moment they are blown out.
  */
 function start(ctx: GameContext): void {
   let alive = true;
@@ -58,8 +67,8 @@ function start(ctx: GameContext): void {
   /** Wind being drawn right now, easing towards what the microphone hears. */
   let wind = 0;
   let windTarget = 0;
-  let lit = false;
-  let flame: HTMLElement | null = null;
+  /** One entry per candle in the grass; `flame` is null while it is out. */
+  const candles: Array<{ el: HTMLElement; flame: HTMLElement | null }> = [];
   let raf = 0;
   let last = performance.now();
   let lastShort = 0;
@@ -91,7 +100,17 @@ function start(ctx: GameContext): void {
   }
 
   // Hills first, so the middle of the field has a horizon instead of a void.
-  const hills = h('div', { class: 'fly-hills' }, h('div', { class: 'fly-hill fly-hill-l' }), h('div', { class: 'fly-hill fly-hill-r' }));
+  const tree = (cls: string): HTMLElement =>
+    h('div', { class: `fly-tree ${cls}` }, h('div', { class: 'fly-canopy' }), h('div', { class: 'fly-trunk' }));
+  const hills = h(
+    'div',
+    { class: 'fly-hills' },
+    h('div', { class: 'fly-hill fly-hill-l' }),
+    h('div', { class: 'fly-hill fly-hill-r' }),
+    tree('fly-tree-a'),
+    tree('fly-tree-b'),
+    tree('fly-tree-c'),
+  );
   const grass = h('div', { class: 'fly-grass' });
   for (let i = 0; i < BLADES; i++) {
     const b = makeBlade(i, BLADES);
@@ -110,18 +129,45 @@ function start(ctx: GameContext): void {
     grass.append(blade);
   }
 
-  const candle = h('div', { class: 'fly-candle' }, h('div', { class: 'fly-stick' }));
-  candle.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    if (lit) blowOut();
-    else light();
-  });
-  grass.append(candle);
+  for (let i = 0; i < CANDLES; i++) {
+    const spec = makeCandle(i, CANDLES);
+    const el = h(
+      'div',
+      {
+        class: 'fly-candle',
+        style: `left:${(spec.x * 100).toFixed(2)}%;--fly-tall:${spec.height.toFixed(2)};--fly-hue:${spec.hue}`,
+      },
+      h('div', { class: 'fly-stick' }),
+    );
+    const candle = { el, flame: null as HTMLElement | null };
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (candle.flame) blowOut(candle);
+      else light(candle);
+    });
+    grass.append(el);
+    candles.push(candle);
+  }
 
   // getUserMedia needs a user activation; on touch screens pointerup grants one, pointerdown may not.
   const micBtn = h('button', { class: 'btn-round fly-mic', type: 'button', 'aria-label': 'Thổi vào micro', onpointerup: onMic }, '🎤');
 
-  const field = h('div', { class: 'fly' }, sky, hills, grass, micBtn);
+  // The moon is the one thing in the sky that is not a dot, and it is what makes
+  // the field read as a night rather than as a dark screen.
+  const moon = h('div', { class: 'fly-moon' });
+  moon.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    replay(moon, 'fly-moon-hit');
+    ctx.audio.fx('sparkle');
+    nameOnce('moon', 'Ông trăng!');
+    happy();
+  });
+  sky.append(h('div', { class: 'fly-way' }), moon);
+
+  /** Candle light lying over the meadow. Its strength is `--fly-warm`, set as they are lit. */
+  const warmGlow = h('div', { class: 'fly-glow' });
+
+  const field = h('div', { class: 'fly' }, sky, hills, grass, warmGlow, micBtn);
   ctx.stage.append(field);
 
   const bugs: Bug[] = [];
@@ -193,36 +239,47 @@ function start(ctx: GameContext): void {
     happy();
   }
 
-  function light(): void {
-    lit = true;
-    candle.classList.remove('fly-out');
-    candle.classList.add('fly-lit');
-    flame = h('div', { class: 'fly-flame' }, '🔥');
-    candle.append(flame);
+  /** Warm light over the whole meadow, one step brighter per candle alight. */
+  function syncWarmth(): void {
+    const alight = candles.filter((c) => c.flame !== null).length;
+    field.style.setProperty('--fly-warm', warmth(alight).toFixed(2));
+  }
+
+  function light(candle: { el: HTMLElement; flame: HTMLElement | null }): void {
+    if (candle.flame) return;
+    candle.el.classList.remove('fly-out');
+    candle.el.classList.add('fly-lit');
+    const flame = h('div', { class: 'fly-flame' }, '🔥');
+    candle.flame = flame;
+    candle.el.append(flame);
+    syncWarmth();
     ctx.audio.pop(1.5);
     navigator.vibrate?.(10);
     happy();
   }
 
-  function blowOut(): void {
-    lit = false;
-    candle.classList.remove('fly-lit');
-    candle.classList.add('fly-out');
-    if (flame) {
-      const going = flame;
-      going.classList.add('fly-flame-out');
-      later(() => going.remove(), FLAME_OUT_MS);
-      flame = null;
-    }
+  function blowOut(candle: { el: HTMLElement; flame: HTMLElement | null }): void {
+    const going = candle.flame;
+    if (!going) return;
+    candle.flame = null;
+    candle.el.classList.remove('fly-lit');
+    candle.el.classList.add('fly-out');
+    going.classList.add('fly-flame-out');
+    later(() => going.remove(), FLAME_OUT_MS);
     const puff = h('div', { class: 'fly-puff' }, '💨');
-    candle.append(puff);
+    candle.el.append(puff);
     later(() => puff.remove(), PUFF_MS);
+    syncWarmth();
     ctx.audio.puff();
     navigator.vibrate?.(10);
     happy();
   }
 
-  /** A hard blow: the candle goes out and every firefly is knocked off course. */
+  /**
+   * A hard blow: every firefly is knocked off course, and the candles go out one
+   * after another rather than all at once — a row that dies together looks
+   * switched off, a row that dies in order looks blown out.
+   */
   function gust(): void {
     for (const bug of bugs) {
       bug.spec = {
@@ -231,8 +288,15 @@ function start(ctx: GameContext): void {
         vy: bug.spec.vy + (Math.random() - 0.5) * 0.25,
       };
     }
-    if (lit) blowOut();
-    else happy();
+    const alight = candles.filter((c) => c.flame !== null);
+    if (alight.length === 0) {
+      happy();
+      return;
+    }
+    alight.forEach((candle, i) => {
+      if (i === 0) blowOut(candle);
+      else later(() => blowOut(candle), i * BLOW_GAP_MS);
+    });
   }
 
   // ---- the field, frame by frame ----
@@ -394,13 +458,21 @@ function start(ctx: GameContext): void {
   }
   later(chirp, nextChirpMs());
 
+  /** The sky does something of its own accord, so watching it is worth doing. */
+  function ownShoot(): void {
+    shoot();
+    later(ownShoot, nextShootMs());
+  }
+  later(ownShoot, nextShootMs());
+
   raf = requestAnimationFrame(frame);
 
   /** Nudge whatever is nearest to hand, without asking for anything in particular. */
   ctx.hint.arm(() => {
     if (!alive) return;
-    if (!lit) {
-      replay(candle, 'anim-wiggle');
+    const dark = candles.find((c) => c.flame === null);
+    if (dark) {
+      replay(dark.el, 'anim-wiggle');
       ctx.speak('Chạm vào nến cho sáng nhé!');
       return;
     }

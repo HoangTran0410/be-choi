@@ -3,6 +3,9 @@ import { mulberry32 } from '../../core/dom';
 import { BLOW_THRESHOLD } from '../birthday/logic';
 import {
   BLADES,
+  CANDLES,
+  CANDLE_LEFT,
+  CANDLE_SPAN,
   BREEZE_THRESHOLD,
   CHIRP_MAX_MS,
   CHIRP_MIN_MS,
@@ -12,11 +15,16 @@ import {
   glow,
   leanDeg,
   makeBlade,
+  makeCandle,
   makeFirefly,
   makeSkyStar,
   nextChirpMs,
+  nextShootMs,
   stepFirefly,
+  warmth,
   windFrom,
+  SHOOT_MIN_MS,
+  SHOOT_MAX_MS,
 } from './logic';
 
 describe('firefly: what the field is made of', () => {
@@ -52,6 +60,38 @@ describe('firefly: what the field is made of', () => {
     // Evenly spread, so no half of the strip is bare.
     expect(xs.filter((x) => x < 0.5).length).toBeGreaterThan(BLADES / 3);
     expect(xs.filter((x) => x >= 0.5).length).toBeGreaterThan(BLADES / 3);
+  });
+});
+
+describe('firefly: the row of candles', () => {
+  it('stands them across the meadow, clear of the microphone button', () => {
+    const rng = mulberry32(9);
+    const xs = Array.from({ length: CANDLES }, (_, i) => makeCandle(i, CANDLES, rng).x);
+    expect(Math.min(...xs)).toBeGreaterThan(0.04);
+    // The bottom right corner belongs to 🎤; a candle under it cannot be lit.
+    expect(Math.max(...xs)).toBeLessThan(CANDLE_LEFT + CANDLE_SPAN + 0.03);
+    // In order, and none on top of another.
+    for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThan((xs[i - 1] ?? 0) + 0.04);
+  });
+
+  it('gives them different heights and colours', () => {
+    const rng = mulberry32(4);
+    const made = Array.from({ length: 40 }, (_, i) => makeCandle(i % CANDLES, CANDLES, rng));
+    expect(new Set(made.map((c) => c.height.toFixed(3))).size).toBeGreaterThan(20);
+    expect(new Set(made.map((c) => c.hue)).size).toBeGreaterThan(20);
+    for (const c of made) {
+      expect(c.height).toBeGreaterThan(0.5);
+      expect(c.hue).toBeGreaterThanOrEqual(0);
+      expect(c.hue).toBeLessThanOrEqual(360);
+    }
+  });
+
+  it('warms the meadow by half on the first flame, and the rest as the row fills', () => {
+    expect(warmth(0)).toBe(0);
+    expect(warmth(1)).toBe(0.5);
+    expect(warmth(CANDLES)).toBe(1);
+    // Never goes backwards as more are lit.
+    for (let i = 1; i <= CANDLES; i++) expect(warmth(i)).toBeGreaterThanOrEqual(warmth(i - 1));
   });
 });
 
@@ -104,6 +144,20 @@ describe('firefly: the breath', () => {
     expect(windFrom(1)).toBe(MAX_WIND);
     expect(leanDeg(windFrom(1))).toBe(32);
     expect(leanDeg(0)).toBe(0);
+  });
+});
+
+describe('firefly: the sky on its own', () => {
+  it('leaves a long, uneven wait between shooting stars', () => {
+    const rng = mulberry32(13);
+    const seen = new Set<number>();
+    for (let i = 0; i < 40; i++) {
+      const ms = nextShootMs(rng);
+      expect(ms).toBeGreaterThanOrEqual(SHOOT_MIN_MS);
+      expect(ms).toBeLessThanOrEqual(SHOOT_MAX_MS);
+      seen.add(ms);
+    }
+    expect(seen.size).toBeGreaterThan(10);
   });
 });
 
