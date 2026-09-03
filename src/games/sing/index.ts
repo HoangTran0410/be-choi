@@ -8,8 +8,13 @@ import { meta } from './meta';
 import { AUDIENCE, NOTE_EMOJI, phraseIndexAt, phrasesFor, pitchBand, type Phrase } from './logic';
 import './style.css';
 
-/** Wait after the spoken title before the music starts (iOS ducks Web Audio while speaking). */
-const INTRO_MS = 900;
+/**
+ * Wait after the spoken title before the music starts: long enough for the child
+ * to take a breath and for iOS to finish speaking (it ducks Web Audio while it does).
+ */
+const INTRO_MS = 3000;
+/** Three counting ticks in the last part of that wait, so the start is not a surprise. */
+const COUNT_IN_MS = [1500, 2100, 2700];
 /** The child is singing loudly enough for the stage to react. */
 const LOUD = 0.28;
 /** …and has gone quiet again (hysteresis, so the lights do not flicker). */
@@ -139,6 +144,13 @@ function start(ctx: GameContext): void {
     backBtn.hidden = false;
     showPhrase(0);
     ctx.speak(song.title);
+    for (const at of COUNT_IN_MS) {
+      after(at, () => {
+        if (!alive) return;
+        ctx.audio.tick();
+        replay(lyricEmoji, 'anim-bounce');
+      });
+    }
     after(INTRO_MS, () => {
       if (alive) cancelSong = schedule(song.notes, song.bpm, onNote, () => void onSongDone());
     });

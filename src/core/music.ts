@@ -55,18 +55,11 @@ function seq(text: string): SongNote[] {
  * play-along, the karaoke stage, the bedtime lullaby). Nursery melodies are public
  * domain; the Vietnamese children's songs were transcribed from cảm âm the family
  * collected, with the rhythm written out by ear. Songs wider than the eight
- * xylophone bars are fine here — `fitsScale` keeps them off the xylophone.
+ * xylophone bars are fine here — `fitsScale` keeps them off the xylophone. The
+ * order is what the child sees: what a Vietnamese family sings first, foreign
+ * nursery rhymes after; games that need one song by name use `findSong`.
  */
 export const SONGS: readonly Song[] = [
-  {
-    id: 'twinkle',
-    title: 'Ngôi sao lấp lánh',
-    icon: '⭐',
-    bpm: 100,
-    notes: seq(
-      'C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2 G4 G4 F4 F4 E4 E4 D4:2 G4 G4 F4 F4 E4 E4 D4:2 C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2',
-    ),
-  },
   {
     id: 'butterfly',
     title: 'Kìa con bướm vàng',
@@ -74,73 +67,6 @@ export const SONGS: readonly Song[] = [
     bpm: 112,
     notes: seq(
       'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4:2 E4 F4 G4:2 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4 C4 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4 C4 C4 G4 C4:2 C4 G4 C4:2',
-    ),
-  },
-  {
-    id: 'lamb',
-    title: 'Con cừu nhỏ',
-    icon: '🐑',
-    bpm: 110,
-    notes: seq('E4 D4 C4 D4 E4 E4 E4:2 D4 D4 D4:2 E4 G4 G4:2 E4 D4 C4 D4 E4 E4 E4 E4 D4 D4 E4 D4 C4:4'),
-  },
-  {
-    id: 'bridge',
-    title: 'Cầu Luân Đôn',
-    icon: '🌉',
-    bpm: 110,
-    notes: seq('G4:1.5 A4:0.5 G4 F4 E4 F4 G4:2 D4 E4 F4:2 E4 F4 G4:2 G4:1.5 A4:0.5 G4 F4 E4 F4 G4:2 D4:2 G4:2 E4 C4:3'),
-  },
-  {
-    id: 'farmer',
-    title: 'Bác nông dân',
-    icon: '🚜',
-    bpm: 110,
-    notes: seq('G4 G4 G4 D4 E4 E4 D4:2 B4 B4 A4 A4 G4:2 D4 G4 G4 G4 D4 E4 E4 D4:2 B4 B4 A4 A4 G4:2'),
-  },
-  {
-    // "Happy Birthday to You" (public domain), F major, 3/4 with a pickup. The Bb
-    // is outside SCALE_C, so the xylophone play-along simply skips those two notes.
-    id: 'birthday',
-    title: 'Chúc mừng sinh nhật',
-    icon: '🎂',
-    bpm: 120,
-    notes: seq(
-      'C4:0.75 C4:0.25 D4 C4 F4 E4:2 C4:0.75 C4:0.25 D4 C4 G4 F4:2 C4:0.75 C4:0.25 C5 A4 F4 E4 D4:2 Bb4:0.75 Bb4:0.25 A4 F4 G4 F4:2',
-    ),
-  },
-  {
-    // Row, Row, Row Your Boat (6/8). One beat is a dotted quarter, so a quarter
-    // is 0.67 and an eighth 0.33; the last note is a dotted half.
-    id: 'row',
-    title: 'Chèo thuyền',
-    icon: '🚣',
-    bpm: 96,
-    notes: seq(
-      'C4 C4 C4:0.67 D4:0.33 E4 ' +
-        'E4:0.67 D4:0.33 E4:0.67 F4:0.33 G4 ' +
-        'C5:0.33 C5:0.33 C5:0.33 G4:0.33 G4:0.33 G4:0.33 E4:0.33 E4:0.33 E4:0.33 C4:0.33 C4:0.33 C4:0.33 ' +
-        'G4:0.67 F4:0.33 E4:0.67 D4:0.33 C4:2',
-    ),
-  },
-  {
-    // Hot Cross Buns: "one a penny, two a penny" runs are eighths.
-    id: 'buns',
-    title: 'Bánh nướng',
-    icon: '🥐',
-    bpm: 110,
-    notes: seq('E4 D4 C4:2 E4 D4 C4:2 C4:0.5 C4:0.5 C4:0.5 C4:0.5 D4:0.5 D4:0.5 D4:0.5 D4:0.5 E4 D4 C4:2'),
-  },
-  {
-    // Rain, Rain, Go Away (the sol–mi chant every playground knows).
-    id: 'rain',
-    title: 'Mưa ơi đi đi',
-    icon: '🌧️',
-    bpm: 100,
-    notes: seq(
-      'G4 E4 G4:0.5 G4:0.5 E4:2 ' +
-        'G4:0.5 G4:0.5 E4 A4:0.5 G4:0.5 G4 E4:2 ' +
-        'G4:0.5 G4:0.5 E4 A4:0.5 G4:0.5 G4 E4:2 ' +
-        'G4 E4 G4:0.5 G4:0.5 E4:2',
     ),
   },
   {
@@ -209,6 +135,82 @@ export const SONGS: readonly Song[] = [
         'G5 E5 C5 E5 E5 F5 E5 C5:2 ' +
         'A4 C5 G4 C5 B4 C5 B4 D5 C5:2 ' +
         'A4 C5 B4 C5 A4 B4 C5:2',
+    ),
+  },
+  {
+    // "Happy Birthday to You" (public domain), F major, 3/4 with a pickup. The Bb
+    // is outside SCALE_C, so the xylophone play-along simply skips those two notes.
+    id: 'birthday',
+    title: 'Chúc mừng sinh nhật',
+    icon: '🎂',
+    bpm: 120,
+    notes: seq(
+      'C4:0.75 C4:0.25 D4 C4 F4 E4:2 C4:0.75 C4:0.25 D4 C4 G4 F4:2 C4:0.75 C4:0.25 C5 A4 F4 E4 D4:2 Bb4:0.75 Bb4:0.25 A4 F4 G4 F4:2',
+    ),
+  },
+  {
+    id: 'twinkle',
+    title: 'Ngôi sao lấp lánh',
+    icon: '⭐',
+    bpm: 100,
+    notes: seq(
+      'C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2 G4 G4 F4 F4 E4 E4 D4:2 G4 G4 F4 F4 E4 E4 D4:2 C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2',
+    ),
+  },
+  {
+    id: 'lamb',
+    title: 'Con cừu nhỏ',
+    icon: '🐑',
+    bpm: 110,
+    notes: seq('E4 D4 C4 D4 E4 E4 E4:2 D4 D4 D4:2 E4 G4 G4:2 E4 D4 C4 D4 E4 E4 E4 E4 D4 D4 E4 D4 C4:4'),
+  },
+  {
+    id: 'bridge',
+    title: 'Cầu Luân Đôn',
+    icon: '🌉',
+    bpm: 110,
+    notes: seq('G4:1.5 A4:0.5 G4 F4 E4 F4 G4:2 D4 E4 F4:2 E4 F4 G4:2 G4:1.5 A4:0.5 G4 F4 E4 F4 G4:2 D4:2 G4:2 E4 C4:3'),
+  },
+  {
+    id: 'farmer',
+    title: 'Bác nông dân',
+    icon: '🚜',
+    bpm: 110,
+    notes: seq('G4 G4 G4 D4 E4 E4 D4:2 B4 B4 A4 A4 G4:2 D4 G4 G4 G4 D4 E4 E4 D4:2 B4 B4 A4 A4 G4:2'),
+  },
+  {
+    // Row, Row, Row Your Boat (6/8). One beat is a dotted quarter, so a quarter
+    // is 0.67 and an eighth 0.33; the last note is a dotted half.
+    id: 'row',
+    title: 'Chèo thuyền',
+    icon: '🚣',
+    bpm: 96,
+    notes: seq(
+      'C4 C4 C4:0.67 D4:0.33 E4 ' +
+        'E4:0.67 D4:0.33 E4:0.67 F4:0.33 G4 ' +
+        'C5:0.33 C5:0.33 C5:0.33 G4:0.33 G4:0.33 G4:0.33 E4:0.33 E4:0.33 E4:0.33 C4:0.33 C4:0.33 C4:0.33 ' +
+        'G4:0.67 F4:0.33 E4:0.67 D4:0.33 C4:2',
+    ),
+  },
+  {
+    // Hot Cross Buns: "one a penny, two a penny" runs are eighths.
+    id: 'buns',
+    title: 'Bánh nướng',
+    icon: '🥐',
+    bpm: 110,
+    notes: seq('E4 D4 C4:2 E4 D4 C4:2 C4:0.5 C4:0.5 C4:0.5 C4:0.5 D4:0.5 D4:0.5 D4:0.5 D4:0.5 E4 D4 C4:2'),
+  },
+  {
+    // Rain, Rain, Go Away (the sol–mi chant every playground knows).
+    id: 'rain',
+    title: 'Mưa ơi đi đi',
+    icon: '🌧️',
+    bpm: 100,
+    notes: seq(
+      'G4 E4 G4:0.5 G4:0.5 E4:2 ' +
+        'G4:0.5 G4:0.5 E4 A4:0.5 G4:0.5 G4 E4:2 ' +
+        'G4:0.5 G4:0.5 E4 A4:0.5 G4:0.5 G4 E4:2 ' +
+        'G4 E4 G4:0.5 G4:0.5 E4:2',
     ),
   },
 ];

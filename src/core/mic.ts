@@ -54,6 +54,8 @@ const LEVEL_GATE = 0.008;
 const LEVEL_SPAN = 0.16;
 /** Below this level pitch detection is not even attempted. */
 const PITCH_MIN_LEVEL = 0.08;
+/** Pitch is only worth a fifth of the frames: it costs far more than the level and changes slowly. */
+const PITCH_EVERY = 5;
 /** A recording shorter than this is treated as an accidental tap. */
 const MIN_RECORD_S = 0.25;
 const REC_CHUNK = 4096;
@@ -198,6 +200,8 @@ export function createMic(opts: MicOptions = {}): Mic {
   let level = 0;
   let floor = 0;
   let floorSeen = 0;
+  let pitch: number | null = null;
+  let pitchAge = 0;
 
   let proc: ScriptProcessorNode | null = null;
   let sink: GainNode | null = null;
@@ -214,8 +218,9 @@ export function createMic(opts: MicOptions = {}): Mic {
       floor += (raw - floor) / floorSeen;
     }
     level = smooth(level, normalizeLevel(raw, floor));
-    let pitch: number | null = null;
-    if (wantPitch && level > PITCH_MIN_LEVEL) {
+    if (!wantPitch || level <= PITCH_MIN_LEVEL) {
+      pitch = null;
+    } else if (pitchAge++ % PITCH_EVERY === 0) {
       analyser.getFloatTimeDomainData(floats);
       pitch = detectPitch(floats, actx?.sampleRate ?? 44100);
     }
@@ -257,6 +262,8 @@ export function createMic(opts: MicOptions = {}): Mic {
     level = 0;
     floor = 0;
     floorSeen = 0;
+    pitch = null;
+    pitchAge = 0;
     timer = setInterval(tick, Math.max(16, Math.round(1000 / fps)));
     return true;
   }

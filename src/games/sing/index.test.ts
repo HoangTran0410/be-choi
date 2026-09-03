@@ -66,7 +66,7 @@ describe('the stage', () => {
     game.start(ctx);
     fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
     const first = q(ctx, '.sing-lyric-text').textContent;
-    await vi.advanceTimersByTimeAsync(900 + 3000);
+    await vi.advanceTimersByTimeAsync(3000 + 3000);
     expect(q(ctx, '.sing-lyric-text').textContent).not.toBe(first);
   });
 

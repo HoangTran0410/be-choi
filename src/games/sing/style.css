@@ -6,6 +6,10 @@
   background: linear-gradient(180deg, #3b0764 0%, #6d28d9 55%, #a21caf 100%);
   --sing-level: 0;
 }
+/* `.btn-round`/`.sing-lyric` set `display`, which would win over the browser's [hidden]. */
+.sing [hidden] {
+  display: none !important;
+}
 
 /* ---- backdrop: the camera mirror sits behind everything ---- */
 .sing-mirror {
@@ -92,36 +96,56 @@
 /* ---- song picker ---- */
 .sing-songs {
   position: absolute;
-  left: 16%;
-  right: 16%;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-content: center;
-  gap: 2vmin;
-  max-height: 66%;
-  overflow: auto;
+  left: 14%;
+  right: 14%;
+  /* Between the lights and the front row, clear of the buttons in the corner. */
+  top: 8%;
+  bottom: 22%;
+  display: grid;
+  /* Two columns on a phone, more on a tablet, however many songs there are. */
+  grid-template-columns: repeat(auto-fill, minmax(min(29vmin, 130px), 1fr));
+  align-content: start;
+  gap: 1.6vmin;
+  padding: 1.6vmin;
+  border-radius: var(--radius);
+  background: rgba(30, 5, 50, 0.28);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: y proximity;
+  /* Fade the edges so a half-row is an obvious "keep scrolling". */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 4%, #000 96%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 4%, #000 96%, transparent 100%);
 }
 .sing-song {
-  min-width: var(--tap);
+  min-width: 0;
   min-height: var(--tap);
-  padding: 1.5vmin;
+  padding: 1.2vmin 1vmin;
   display: grid;
+  grid-template-rows: 1fr auto;
   place-items: center;
-  gap: 0.5vmin;
+  gap: 0.4vmin;
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: 0 4px 0 var(--btn-shadow);
+  scroll-snap-align: start;
+  transition: transform 0.1s;
 }
-.sing-song-icon { font-size: calc(var(--emoji) * 0.55); line-height: 1; }
+.sing-song:active { transform: scale(0.95); }
+.sing-song-icon {
+  font-size: calc(var(--emoji) * 0.6);
+  line-height: 1;
+}
 .sing-song-title {
-  font-size: clamp(13px, 2.4vmin, 20px);
+  font-size: clamp(12px, 2.3vmin, 19px);
   font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
   color: var(--ink);
+  /* Long titles wrap to a second line instead of spilling out of the card. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
-
 /* ---- front row ---- */
 .sing-audience {
   position: absolute;
@@ -196,5 +220,10 @@
 
 @media (orientation: landscape) {
   .sing-lyric { top: 8%; }
-  .sing-songs { left: 18%; right: 18%; }
+  .sing-songs {
+    left: 16%;
+    right: 16%;
+    top: 10%;
+    bottom: 12%;
+  }
 }

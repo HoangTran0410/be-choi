@@ -1,5 +1,5 @@
 import { h, replay } from '../../core/dom';
-import { noteFreq, schedule, SONGS } from '../../core/music';
+import { findSong, noteFreq, schedule, SONGS } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
@@ -21,7 +21,7 @@ const STEP_MS = 700;
 const NEXT_NIGHT_MS = 2200;
 const ZZZ_MS = 1600;
 /** "Ngôi sao lấp lánh", the only song that belongs at bedtime. */
-const LULLABY = SONGS[0];
+const LULLABY = findSong('twinkle') ?? SONGS[0];
 
 /**
  * Giờ đi ngủ: the four things that happen before bed, in order — put the toys

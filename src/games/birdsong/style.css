@@ -5,6 +5,10 @@
   touch-action: none;
   background: linear-gradient(180deg, #93c5fd 0%, #dbeafe 60%, #fef9c3 100%);
 }
+/* `.btn-round` sets `display`, which would win over the browser's [hidden]. */
+.birdsong [hidden] {
+  display: none !important;
+}
 
 .bird-sun {
   position: absolute;
