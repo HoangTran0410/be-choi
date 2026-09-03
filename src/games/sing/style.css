@@ -215,6 +215,9 @@
     0 0 0 calc(var(--sing-level) * 3vmin) rgba(253, 224, 71, 0.45);
 }
 .sing-waiting { animation: pulse 0.8s ease-in-out infinite; }
+/* Refused, not gone: still buttons, and still worth a press. */
+.sing-mic.sing-mic-off,
+.sing-cam.sing-cam-off { opacity: 0.55; }
 
 /* ---- notes floating out of the microphone ---- */
 .sing-note {

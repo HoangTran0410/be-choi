@@ -21,6 +21,8 @@ function start(ctx: GameContext): void {
   let voice: AudioBuffer | null = null;
   let recording = false;
   let plays = 0;
+  /** The microphone was refused. The button stays put and asks again. */
+  let micOff = false;
   let bars: number[] = [];
 
   const root = h('div', { class: 'parrot' });
@@ -118,7 +120,9 @@ function start(ctx: GameContext): void {
       return;
     }
     voice = taken;
-    say(`${chosen.name} hát lại nào!`);
+    // Both of the things they can do next, because neither is obvious: the row
+    // of animals sings this clip again, and the microphone takes a new one.
+    say(`${chosen.name} hát lại nào! Chạm bạn khác, hoặc giữ 🎤 hát bài mới.`);
     playVoice();
   }
 
@@ -142,9 +146,13 @@ function start(ctx: GameContext): void {
       mic.stop();
       return;
     }
+    micOff = !ok;
+    micBtn.classList.toggle('parrot-mic-off', micOff);
     if (!ok) {
-      micBtn.hidden = true;
-      say('Chạm vào các bạn để nghe tiếng nhé!');
+      // The button used to be taken away here, which left the child nothing to
+      // press and no way back: a parent who allowed the microphone afterwards
+      // could not tell the game to look again. It stays, and asks again.
+      say('Chưa nghe được micro. Chạm 🎤 thử lại, hoặc chạm vào các bạn nhé!');
       ctx.speak('Chạm vào các bạn để nghe tiếng nhé');
       return;
     }
@@ -186,7 +194,7 @@ function start(ctx: GameContext): void {
   micBtn.addEventListener('pointercancel', finishRecording);
 
   ctx.hint.arm(() => {
-    replay(micBtn.hidden ? row : micBtn, 'anim-wiggle');
+    replay(micOff ? row : micBtn, 'anim-wiggle');
   });
 
   ctx.onCleanup(() => {

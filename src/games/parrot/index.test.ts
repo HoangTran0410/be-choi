@@ -129,12 +129,22 @@ describe('recording and repeating', () => {
 });
 
 describe('without a microphone', () => {
-  it('hides the button and leaves the animals playable', async () => {
+  it('keeps the button and asks again, and leaves the animals playable', async () => {
     mic.granted = false;
     game.start(ctx);
     await turnMicOn();
-    expect(q(ctx, '.parrot-mic').hidden).toBe(true);
+    // Taking the button away left the child nothing to press and no way back.
+    const btn = q(ctx, '.parrot-mic');
+    expect(btn.hidden).toBe(false);
+    expect(btn.classList.contains('parrot-mic-off')).toBe(true);
     fire(q(ctx, '.parrot-critter[data-critter="mouse"]'), 'pointerdown');
     expect(ctx.spoken).toContain('chuột');
+
+    // A parent allows the microphone in the meantime: the next press finds it.
+    mic.granted = true;
+    await turnMicOn();
+    expect(btn.classList.contains('parrot-mic-off')).toBe(false);
+    await singInto();
+    expect(mic.played.length).toBe(1);
   });
 });

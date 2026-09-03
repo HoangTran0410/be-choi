@@ -22,6 +22,8 @@ function start(ctx: GameContext): void {
   let level = 0;
   let micLevel = 0;
   let holding = false;
+  /** The microphone was refused. The button stays put and asks again. */
+  let micOff = false;
 
   const root = h('div', { class: 'birdsong' });
   const world = h('div', { class: 'bird-world' });
@@ -137,9 +139,12 @@ function start(ctx: GameContext): void {
       mic.stop();
       return;
     }
+    micOff = !ok;
+    micBtn.classList.toggle('bird-mic-off', micOff);
     if (!ok) {
-      micBtn.hidden = true;
-      ctx.speak('Giữ tay lên màn hình để chim bay nhé');
+      // Not hidden: a refused button that can be pressed again is a way back,
+      // and a button that is gone is not.
+      ctx.speak('Chưa nghe được micro. Chạm 🎤 thử lại, hoặc giữ tay lên màn hình nhé');
       return;
     }
     micBtn.classList.add('bird-on');
@@ -167,7 +172,7 @@ function start(ctx: GameContext): void {
   micBtn.addEventListener('pointerup', () => void onMic());
 
   ctx.hint.arm(() => {
-    replay(micBtn.hidden ? bird : micBtn, 'anim-wiggle');
+    replay(micOff ? bird : micBtn, 'anim-wiggle');
   });
 
   showScore();

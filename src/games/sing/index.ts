@@ -40,6 +40,8 @@ function start(ctx: GameContext): void {
   const mic = createMic({ pitch: true });
   const cam = createCamera();
   let alive = true;
+  /** The microphone was refused. The button stays put and asks again. */
+  let micOff = false;
 
   const root = h('div', { class: 'sing', 'data-phase': 'pick' });
   const mirror = h('div', { class: 'sing-mirror' });
@@ -208,9 +210,12 @@ function start(ctx: GameContext): void {
       mic.stop();
       return;
     }
+    micOff = !ok;
+    micBtn.classList.toggle('sing-mic-off', micOff);
     if (!ok) {
-      micBtn.hidden = true;
-      ctx.speak('Không sao, bé cứ hát thật to nhé!');
+      // Not hidden: a refused button that can be pressed again is a way back,
+      // and a button that is gone is not.
+      ctx.speak('Chưa nghe được micro. Chạm 🎤 thử lại, bé cứ hát thật to nhé!');
       return;
     }
     micBtn.classList.add('sing-on');
@@ -242,9 +247,10 @@ function start(ctx: GameContext): void {
       cam.stop();
       return;
     }
+    camBtn.classList.toggle('sing-cam-off', !video);
     if (!video) {
-      camBtn.hidden = true;
-      ctx.speak('Chưa mở được máy ảnh, mình cứ hát nhé!');
+      // Same as the microphone: pressing again is the only way back in.
+      ctx.speak('Chưa mở được máy ảnh. Chạm 🪞 thử lại, mình cứ hát nhé!');
       return;
     }
     video.className = 'sing-video';
@@ -279,7 +285,7 @@ function start(ctx: GameContext): void {
     ctx.hint.arm(() => {
       if (root.dataset.phase === 'pick') {
         for (const card of picker.children) replay(card, 'anim-wiggle');
-      } else if (!mic.listening && !micBtn.hidden) {
+      } else if (!mic.listening && !micOff) {
         replay(micBtn, 'anim-wiggle');
       }
     });

@@ -101,6 +101,8 @@
   animation: pulse 0.7s ease-in-out infinite;
 }
 .parrot-mic.parrot-waiting { animation: pulse 0.8s ease-in-out infinite; }
+/* Refused, not gone: still a button, and still worth a press. */
+.parrot-mic.parrot-mic-off { opacity: 0.55; }
 
 @media (orientation: landscape) {
   .parrot-big { font-size: calc(var(--emoji) * 1.3); }

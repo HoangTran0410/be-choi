@@ -86,6 +86,8 @@
 }
 .bird-mic.bird-on { background: #fef08a; }
 .bird-mic.bird-waiting { animation: pulse 0.8s ease-in-out infinite; }
+/* Refused, not gone: still a button, and still worth a press. */
+.bird-mic.bird-mic-off { opacity: 0.55; }
 
 .bird-spark {
   position: absolute;

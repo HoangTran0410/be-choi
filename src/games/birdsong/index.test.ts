@@ -112,7 +112,9 @@ describe('the voice', () => {
     mic.granted = false;
     game.start(ctx);
     await turnMicOn();
-    expect(q(ctx, '.bird-mic').hidden).toBe(true);
+    // The button stays, dimmed, so a later press can ask for the microphone again.
+    expect(q(ctx, '.bird-mic').hidden).toBe(false);
+    expect(q(ctx, '.bird-mic').classList.contains('bird-mic-off')).toBe(true);
     await vi.advanceTimersByTimeAsync(300);
     const start = topOf(q(ctx, '.bird-bird'));
     fire(q(ctx, '.birdsong'), 'pointerdown');

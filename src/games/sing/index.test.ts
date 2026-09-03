@@ -121,14 +121,23 @@ describe('the microphone', () => {
     expect(root.classList.contains('sing-loud')).toBe(false);
   });
 
-  it('hides the button when a parent says no, and the songs still play', async () => {
+  it('keeps the button when a parent says no, and asks again on the next press', async () => {
     mic.granted = false;
     game.start(ctx);
-    fire(q(ctx, '.sing-mic'), 'pointerup');
+    const btn = q(ctx, '.sing-mic');
+    fire(btn, 'pointerup');
     await settleMic();
-    expect(q(ctx, '.sing-mic').hidden).toBe(true);
+    // Hiding it left no way back once the microphone was allowed after all.
+    expect(btn.hidden).toBe(false);
+    expect(btn.classList.contains('sing-mic-off')).toBe(true);
     fire(q(ctx, '.sing-song[data-song="chaulenba"]'), 'pointerdown');
     expect(q(ctx, '.sing').dataset.phase).toBe('sing');
+
+    mic.granted = true;
+    fire(btn, 'pointerup');
+    await settleMic();
+    expect(btn.classList.contains('sing-mic-off')).toBe(false);
+    expect(btn.classList.contains('sing-on')).toBe(true);
   });
 
   it('is released when the child leaves the game', async () => {
