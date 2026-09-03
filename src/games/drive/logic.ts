@@ -88,12 +88,42 @@ export function vehicleById(id: string): Vehicle | undefined {
   return VEHICLES.find((v) => v.id === id);
 }
 
+/** Where the vehicle the child last took out, and whether it was dark, is kept. */
+export const SAVE_KEY = 'be-choi:drive';
+
+export interface DriveSave {
+  v: 1;
+  /** Id of the vehicle that was out of the garage. */
+  vehicle: string;
+  /** Were the lights off? */
+  night: boolean;
+}
+
+export function makeSave(vehicle: Vehicle, night: boolean): DriveSave {
+  return { v: 1, vehicle: vehicle.id, night };
+}
+
+/** Read a saved game back, or null if there is nothing usable there. */
+export function readSave(raw: string | null): DriveSave | null {
+  if (!raw) return null;
+  try {
+    const data: unknown = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return null;
+    const save = data as Partial<DriveSave>;
+    if (save.v !== 1 || typeof save.vehicle !== 'string') return null;
+    if (!vehicleById(save.vehicle)) return null;
+    return { v: 1, vehicle: save.vehicle, night: save.night === true };
+  } catch {
+    return null;
+  }
+}
+
 // ---- where the road goes ----
 
 /** How the tarmac is shaped along a stretch: flat and easy, or a climb, or a dip. */
 export type Terrain = 'flat' | 'hill' | 'mountain' | 'valley';
 /** What grows beside it. Changes the colours, the trees and the sky. */
-export type Biome = 'meadow' | 'forest' | 'seaside' | 'town' | 'snow';
+export type Biome = 'meadow' | 'forest' | 'seaside' | 'town' | 'snow' | 'blossom' | 'jungle' | 'autumn';
 export type Weather = 'sun' | 'cloud' | 'rain' | 'snow';
 
 /** `lift` moves the whole road up the screen; `amp` is the size of its swells. */
@@ -241,13 +271,17 @@ const UPHILL: readonly { terrain: Terrain; biome: Biome; emoji: string; name: st
   { terrain: 'hill', biome: 'meadow', emoji: '🌄', name: 'lên đồi cỏ' },
   { terrain: 'mountain', biome: 'forest', emoji: '🌲', name: 'lên rừng thông' },
   { terrain: 'mountain', biome: 'snow', emoji: '❄️', name: 'lên núi tuyết' },
+  { terrain: 'hill', biome: 'autumn', emoji: '🍁', name: 'lên rừng lá vàng' },
+  { terrain: 'mountain', biome: 'jungle', emoji: '🌴', name: 'lên rừng rậm' },
   { terrain: 'hill', biome: 'forest', emoji: '⛰️', name: 'lên đồi cây' },
 ];
 
 const DOWNHILL: readonly { terrain: Terrain; biome: Biome; emoji: string; name: string }[] = [
   { terrain: 'valley', biome: 'seaside', emoji: '🏖️', name: 'xuống bãi biển' },
   { terrain: 'flat', biome: 'town', emoji: '🏙️', name: 'vào phố' },
-  { terrain: 'valley', biome: 'meadow', emoji: '🌼', name: 'xuống thung lũng' },
+  { terrain: 'valley', biome: 'blossom', emoji: '🌸', name: 'xuống cánh đồng hoa' },
+  { terrain: 'flat', biome: 'autumn', emoji: '🍂', name: 'ra rừng lá vàng' },
+  { terrain: 'valley', biome: 'jungle', emoji: '🦜', name: 'xuống rừng rậm' },
   { terrain: 'flat', biome: 'meadow', emoji: '🛣️', name: 'ra đường cái' },
 ];
 
@@ -255,6 +289,9 @@ const DOWNHILL: readonly { terrain: Terrain; biome: Biome; emoji: string; name: 
 function weatherFor(biome: Biome, roll: number): Weather {
   if (biome === 'snow') return roll < 0.75 ? 'snow' : 'cloud';
   if (biome === 'seaside') return roll < 0.85 ? 'sun' : 'cloud';
+  if (biome === 'blossom') return roll < 0.88 ? 'sun' : 'cloud';
+  if (biome === 'jungle') return roll < 0.45 ? 'rain' : roll < 0.7 ? 'cloud' : 'sun';
+  if (biome === 'autumn') return roll < 0.55 ? 'sun' : roll < 0.85 ? 'cloud' : 'rain';
   if (biome === 'forest') return roll < 0.4 ? 'rain' : roll < 0.75 ? 'cloud' : 'sun';
   if (biome === 'town') return roll < 0.25 ? 'rain' : roll < 0.6 ? 'cloud' : 'sun';
   return roll < 0.7 ? 'sun' : roll < 0.9 ? 'cloud' : 'rain';
@@ -324,6 +361,8 @@ export function propAt(road: Road, slot: number): Prop {
   const roll = rng();
   const mod = ((slot % SLOT_UNITS) + SLOT_UNITS) % SLOT_UNITS;
   const biome = legOfSlot(road, slot).biome;
+  // Woods are made of trees: in a forest or a jungle almost every free slot is one.
+  const woody = biome === 'jungle' || biome === 'forest';
   const kind: PropKind =
     mod === 0
       ? 'house'
@@ -337,11 +376,11 @@ export function propAt(road: Road, slot: number): Prop {
               ? 'wash'
               : slot % CROSSING_EVERY === 6
                 ? 'crossing'
-                : roll < 0.16
+                : roll < (woody ? 0.07 : 0.16)
                   ? 'light'
-                  : roll < 0.36
+                  : roll < (woody ? 0.16 : 0.36)
                     ? 'puddle'
-                    : roll < 0.72
+                    : roll < (woody ? 0.88 : 0.72)
                       ? 'tree'
                       : 'bush';
   return { slot, kind, x: slotX(road, slot), seed: rng(), biome };

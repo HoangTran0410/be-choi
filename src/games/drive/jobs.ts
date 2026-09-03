@@ -96,3 +96,56 @@ export function droppedLine(kind: JobKind, load: Load): string {
   if (kind === 'parcel') return `Giao ${load.name} xong rồi!`;
   return `Cất ${load.name} vào kho rồi!`;
 }
+
+// ---- getting on and off ----
+
+/** How long a load takes to hop between the roadside and the back of the vehicle. */
+export const HOP_SECONDS = 0.45;
+/** How high it arcs on the way, in units. */
+export const HOP_LIFT = 0.85;
+
+/**
+ * A load in mid-air. One end of the arc never moves — the bus stop it is leaving
+ * or the doorway it is going to — and the other is the vehicle: tracked live
+ * while something is climbing aboard, frozen where the vehicle stood when
+ * something got out, so driving off does not drag the passenger along with it.
+ */
+export interface Hop {
+  emoji: string;
+  /** The roadside end, in world x and canvas y. */
+  fixedX: number;
+  fixedY: number;
+  /** Where the vehicle was when somebody stepped down. */
+  carX: number;
+  carY: number;
+  /** Towards the vehicle, or away from it. */
+  boarding: boolean;
+  /** 0 … 1 along the arc. */
+  t: number;
+  /** The pick-up point it came from, so the vehicle knows not to draw it yet. */
+  slot: number;
+  size: number;
+}
+
+/** Move a hop on. True on the frame it lands. */
+export function stepHop(hop: Hop, dt: number): boolean {
+  if (hop.t >= 1) return false;
+  hop.t = Math.min(1, hop.t + dt / HOP_SECONDS);
+  return hop.t >= 1;
+}
+
+/** Where the hop is right now, given where the seat has got to. */
+export function hopAt(hop: Hop, seatX: number, seatY: number, lift: number): { x: number; y: number; scale: number; spin: number } {
+  const k = hop.t <= 0 ? 0 : hop.t >= 1 ? 1 : hop.t * hop.t * (3 - 2 * hop.t);
+  const ax = hop.boarding ? hop.fixedX : hop.carX;
+  const ay = hop.boarding ? hop.fixedY : hop.carY;
+  const bx = hop.boarding ? seatX : hop.fixedX;
+  const by = hop.boarding ? seatY : hop.fixedY;
+  const swing = Math.sin(Math.PI * k);
+  return {
+    x: ax + (bx - ax) * k,
+    y: ay + (by - ay) * k - swing * lift,
+    scale: 1 + swing * 0.28,
+    spin: swing * 0.45 * (hop.boarding ? 1 : -1),
+  };
+}

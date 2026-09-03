@@ -20,10 +20,12 @@ import {
   legMix,
   makeCar,
   makeRoad,
+  makeSave,
   propAt,
   nextFork,
   propsIn,
   reached,
+  readSave,
   rinse,
   riderAt,
   roadTilt,
@@ -315,5 +317,32 @@ describe('the tank and the mud', () => {
     expect(rinse(c, 5)).toBe(true);
     expect(c.mud).toBe(0);
     expect(rinse(c, 1)).toBe(false);
+  });
+});
+
+describe('remembering the drive', () => {
+  it('keeps the vehicle and whether the lights were off', () => {
+    const save = makeSave(VEHICLES[3]!, true);
+    expect(save).toEqual({ v: 1, vehicle: VEHICLES[3]!.id, night: true });
+    expect(readSave(JSON.stringify(save))).toEqual(save);
+    expect(readSave(JSON.stringify(makeSave(VEHICLES[0]!, false)))?.night).toBe(false);
+  });
+
+  it('shrugs off anything it cannot use rather than starting the game broken', () => {
+    for (const raw of [
+      null,
+      '',
+      'not json',
+      '[]',
+      '"car"',
+      JSON.stringify({ v: 2, vehicle: 'car', night: false }),
+      JSON.stringify({ v: 1, night: true }),
+      // A vehicle that no longer exists, from an older version of the game.
+      JSON.stringify({ v: 1, vehicle: 'hovercraft', night: false }),
+    ]) {
+      expect(readSave(raw), String(raw)).toBeNull();
+    }
+    // A missing `night` is simply daylight.
+    expect(readSave(JSON.stringify({ v: 1, vehicle: 'bus' }))).toEqual({ v: 1, vehicle: 'bus', night: false });
   });
 });

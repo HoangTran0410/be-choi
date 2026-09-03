@@ -85,17 +85,48 @@ export function makeJam(x: number, top: number, rng: () => number, road: Road): 
   });
 }
 
-export function stepTraveller(t: Traveller, dt: number, road: Road, top: number): void {
+/**
+ * Somewhere on the road that everything has to stop short of: a herd halfway
+ * across, a barrier down, a light on red. The child's car and the traffic are
+ * held by the same list, because a road where only the child has to wait is a
+ * road a child will ask questions about.
+ */
+export interface Halt {
+  /** World x of the thing in the way. */
+  x: number;
+  /** How far short of it to stop, in units. */
+  gap: number;
+}
+
+/** Where `x` may not pass, going in direction `dir`, or null when the way is clear. */
+export function lineFor(x: number, dir: number, halts: readonly Halt[], road: Road): number | null {
+  let line: number | null = null;
+  for (const halt of halts) {
+    const stop = halt.x - dir * road.unit * halt.gap;
+    // Only what is in front matters, and only within a screen or two of it.
+    const ahead = (halt.x - x) * dir;
+    if (ahead < -road.unit * 0.4 || ahead > road.unit * SLOT_UNITS * 2) continue;
+    if (line === null || (stop - line) * dir < 0) line = stop;
+  }
+  return line;
+}
+
+export function stepTraveller(t: Traveller, dt: number, road: Road, top: number, halts: readonly Halt[] = []): void {
   t.hurry = Math.max(0, t.hurry - dt);
   if (t.stuck > 0) {
     t.stuck = Math.max(0, t.stuck - dt);
     t.v = 0;
     return;
   }
-  const pace = t.lane === 'same' ? 1 : -1.1;
-  const want = top * (DAWDLE_MIN + DAWDLE_MAX) * 0.5 * pace * (t.hurry > 0 ? HURRY_BOOST : 1);
+  const dir = t.lane === 'same' ? 1 : -1;
+  const want = top * (DAWDLE_MIN + DAWDLE_MAX) * 0.5 * dir * 1.05 * (t.hurry > 0 ? HURRY_BOOST : 1);
   t.v += (want - t.v) * Math.min(1, dt * 2.2);
   t.x += t.v * dt;
+  const line = lineFor(t.x, dir, halts, road);
+  if (line !== null && (t.x - line) * dir > 0) {
+    t.x = line;
+    t.v = 0;
+  }
   t.spin += (t.v * dt) / (road.unit * 0.18);
 }
 
@@ -152,6 +183,8 @@ const HERDS: readonly { emoji: string; name: string; size: number }[] = [
 
 /** How long a herd takes to get across, dawdling. */
 export const CROSS_SECONDS = 5.5;
+/** They keep walking into the field after that, and are gone by here. */
+export const CROSS_GONE = 1.6;
 /** How much faster they go once somebody honks. */
 export const SCURRY = 2.8;
 /** The car waits this far short of them. */
@@ -163,11 +196,27 @@ export function makeCrosser(x: number, rng: () => number): Crosser {
 }
 
 export function stepCrosser(c: Crosser, dt: number): void {
-  c.t = Math.min(1, c.t + (dt / CROSS_SECONDS) * (c.hurried ? SCURRY : 1));
+  c.t = Math.min(CROSS_GONE, c.t + (dt / CROSS_SECONDS) * (c.hurried ? SCURRY : 1));
 }
 
+/** Clear of the tarmac: the road is open again. */
 export function crossed(c: Crosser): boolean {
   return c.t >= 1;
+}
+
+/** Far enough into the field to stop drawing. */
+export function crosserGone(c: Crosser): boolean {
+  return c.t >= CROSS_GONE;
+}
+
+/** They fade out as they wander off, rather than blinking out of existence. */
+export function crosserFade(c: Crosser): number {
+  return c.t <= 1 ? 1 : Math.max(0, 1 - (c.t - 1) / (CROSS_GONE - 1));
+}
+
+/** And shrink a little, because they are walking away from the road. */
+export function crosserScale(c: Crosser): number {
+  return c.t <= 1 ? 1 : 1 - (c.t - 1) * 0.3;
 }
 
 /**

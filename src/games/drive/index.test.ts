@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
-import { VEHICLES, makeRoad, propAt, riderAt, slotX } from './logic';
+import { SAVE_KEY, VEHICLES, makeRoad, propAt, readSave, riderAt, slotX } from './logic';
 import { jobOf, vehicleFor } from './jobs';
 import game from './index';
 
@@ -101,6 +101,8 @@ describe('drive game', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();
+    // The game remembers the vehicle and the hour: no test may inherit another's.
+    localStorage.clear();
   });
 
   it('mounts a road, a horn, two pedals and a garage door, and survives with no canvas', () => {
@@ -255,6 +257,25 @@ describe('drive game', () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(badge.textContent).toBe(first);
     ctx.cleanup();
+  });
+
+  it('is still in the same vehicle, at the same time of day, next time round', () => {
+    const first = mount();
+    const nightBtn = first.ctx.stage.querySelector<HTMLElement>('.drive-night')!;
+    pickVehicle(first.ctx, 'tractor');
+    nightBtn.dispatchEvent(ptr('pointerdown'));
+    first.ctx.cleanup();
+
+    const again = mount();
+    const root = again.ctx.stage.querySelector<HTMLElement>('.drive')!;
+    expect(again.ctx.stage.querySelector('.drive-garage')?.getAttribute('data-vehicle')).toBe('tractor');
+    expect(root.classList.contains('night')).toBe(true);
+    expect(again.ctx.stage.querySelector('.drive-night')?.textContent).toBe('☀️');
+    // And it comes back with that vehicle's job, not the little red car's.
+    const badge = again.ctx.stage.querySelector<HTMLElement>('.drive-badge')!;
+    expect(badge.hidden).toBe(true);
+    expect(readSave(localStorage.getItem(SAVE_KEY))).toEqual({ v: 1, vehicle: 'tractor', night: true });
+    again.ctx.cleanup();
   });
 
   it('sends the fire engine to a burning house and puts the fire out', async () => {

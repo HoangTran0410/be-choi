@@ -3,6 +3,7 @@ import { mulberry32 } from '../../core/dom';
 import { makeRoad, roadY } from './logic';
 import {
   BARRIER_SECONDS,
+  CROSS_GONE,
   CROSS_SECONDS,
   HURRY_SECONDS,
   JAM_SECONDS,
@@ -10,7 +11,11 @@ import {
   TRAIN_SECONDS,
   barrierDown,
   crossed,
+  crosserFade,
+  crosserGone,
+  crosserScale,
   crosserY,
+  lineFor,
   honkAt,
   makeCrosser,
   makeJam,
@@ -110,7 +115,27 @@ describe('the herd crossing the road', () => {
     expect(crossed(slow)).toBe(false);
     for (let i = 0; i < 60 * CROSS_SECONDS; i++) stepCrosser(slow, 1 / 60);
     expect(crossed(slow)).toBe(true);
-    expect(slow.t).toBe(1);
+  });
+
+  it('walks on into the field and fades out instead of blinking away', () => {
+    const c = makeCrosser(0, rng());
+    expect(crosserFade(c)).toBe(1);
+    expect(crosserScale(c)).toBe(1);
+    // Clear of the road, but still there to look at.
+    for (let i = 0; i < 60 * CROSS_SECONDS; i++) stepCrosser(c, 1 / 60);
+    expect(crossed(c)).toBe(true);
+    expect(crosserGone(c)).toBe(false);
+    const wandering = crosserY(c, ROAD);
+    stepCrosser(c, CROSS_SECONDS * 0.2);
+    expect(crosserFade(c)).toBeLessThan(1);
+    expect(crosserFade(c)).toBeGreaterThan(0);
+    expect(crosserScale(c)).toBeLessThan(1);
+    expect(crosserY(c, ROAD)).toBeLessThan(wandering);
+    // And eventually gone, without ever running past the end of its walk.
+    for (let i = 0; i < 60 * CROSS_SECONDS; i++) stepCrosser(c, 1 / 60);
+    expect(crosserGone(c)).toBe(true);
+    expect(c.t).toBe(CROSS_GONE);
+    expect(crosserFade(c)).toBe(0);
   });
 
   it('walks from the near verge across to the far side', () => {
@@ -155,5 +180,50 @@ describe('the level crossing', () => {
     expect(railBlocks(BARRIER_SECONDS)).toBe(true);
     expect(railBlocks(BARRIER_SECONDS + TRAIN_SECONDS * 0.5)).toBe(true);
     expect(railBlocks(99)).toBe(false);
+  });
+});
+
+describe('what stops everybody', () => {
+  const halts = [{ x: ROAD.unit * 10, gap: 1.4 }];
+
+  it('stops each direction on its own side of whatever is in the way', () => {
+    const forwards = lineFor(0, 1, halts, ROAD);
+    const backwards = lineFor(ROAD.unit * 20, -1, halts, ROAD);
+    expect(forwards).toBeCloseTo(ROAD.unit * (10 - 1.4), 5);
+    expect(backwards).toBeCloseTo(ROAD.unit * (10 + 1.4), 5);
+    // Nothing behind you is in your way.
+    expect(lineFor(ROAD.unit * 20, 1, halts, ROAD)).toBeNull();
+    expect(lineFor(0, -1, halts, ROAD)).toBeNull();
+    // Nor is anything half the road away.
+    expect(lineFor(-ROAD.unit * 40, 1, halts, ROAD)).toBeNull();
+  });
+
+  it('takes the nearest of several', () => {
+    const many = [
+      { x: ROAD.unit * 10, gap: 1 },
+      { x: ROAD.unit * 4, gap: 1 },
+      { x: ROAD.unit * 7, gap: 1 },
+    ];
+    expect(lineFor(0, 1, many, ROAD)).toBeCloseTo(ROAD.unit * 3, 5);
+  });
+
+  it('holds the other traffic at it too, in both lanes', () => {
+    const ahead = makeTraveller(ROAD.unit * 4, 'same', TOP, rng());
+    const coming = makeTraveller(ROAD.unit * 16, 'opposite', TOP, rng());
+    for (let i = 0; i < 60 * 6; i++) {
+      stepTraveller(ahead, 1 / 60, ROAD, TOP, halts);
+      stepTraveller(coming, 1 / 60, ROAD, TOP, halts);
+    }
+    expect(ahead.x).toBeCloseTo(ROAD.unit * (10 - 1.4), 5);
+    expect(ahead.v).toBe(0);
+    expect(coming.x).toBeCloseTo(ROAD.unit * (10 + 1.4), 5);
+    expect(coming.v).toBe(0);
+    // Take the herd away and they both get going again.
+    for (let i = 0; i < 60; i++) {
+      stepTraveller(ahead, 1 / 60, ROAD, TOP, []);
+      stepTraveller(coming, 1 / 60, ROAD, TOP, []);
+    }
+    expect(ahead.x).toBeGreaterThan(ROAD.unit * (10 - 1.4));
+    expect(coming.x).toBeLessThan(ROAD.unit * (10 + 1.4));
   });
 });

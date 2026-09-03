@@ -30,6 +30,10 @@ export interface Palette {
   dash: string;
   leaf: readonly [string, string];
   trunk: string;
+  /** Verge seeds above this flower. A field of flowers sets it low. */
+  blooms: number;
+  /** How much of the ground behind the road is wooded, 0 … 1. */
+  thicket: number;
   /** Snow lies on everything and the verge has drifts, not blades. */
   snowy: boolean;
   /** The far range is the sea. */
@@ -54,6 +58,8 @@ const PALETTES: Readonly<Record<Biome, Palette>> = {
     dash: '#fde047',
     leaf: ['#22c55e', '#16a34a'],
     trunk: '#78350f',
+    blooms: 0.82,
+    thicket: 0.16,
     snowy: false,
     sea: false,
     city: false,
@@ -73,6 +79,8 @@ const PALETTES: Readonly<Record<Biome, Palette>> = {
     dash: '#fde047',
     leaf: ['#15803d', '#166534'],
     trunk: '#5b2c0c',
+    blooms: 0.82,
+    thicket: 0.8,
     snowy: false,
     sea: false,
     city: false,
@@ -92,6 +100,8 @@ const PALETTES: Readonly<Record<Biome, Palette>> = {
     dash: '#fde047',
     leaf: ['#4ade80', '#22c55e'],
     trunk: '#a16207',
+    blooms: 0.82,
+    thicket: 0.1,
     snowy: false,
     sea: true,
     city: false,
@@ -111,6 +121,8 @@ const PALETTES: Readonly<Record<Biome, Palette>> = {
     dash: '#fef08a',
     leaf: ['#4d7c0f', '#3f6212'],
     trunk: '#57534e',
+    blooms: 0.82,
+    thicket: 0.0,
     snowy: false,
     sea: false,
     city: true,
@@ -130,7 +142,76 @@ const PALETTES: Readonly<Record<Biome, Palette>> = {
     dash: '#fbbf24',
     leaf: ['#cbd5e1', '#e5e7eb'],
     trunk: '#57534e',
+    blooms: 1.1,
+    thicket: 0.34,
     snowy: true,
+    sea: false,
+    city: false,
+  },
+  // A whole valley under blossom: pink hills, pink trees, and a verge that is
+  // more flower than grass.
+  blossom: {
+    skyTop: '#a5c8f5',
+    skyMid: '#dbeafe',
+    skyLow: '#fdf2f8',
+    far: '#c4b5e8',
+    mid: '#f7c8dd',
+    near: '#9ae6b4',
+    grass: '#b7ebc4',
+    blade: ['#4ade80', '#22c55e'],
+    bloom: ['#f472b6', '#fda4af'],
+    road: '#6b6357',
+    kerb: '#fff1f2',
+    dash: '#fde047',
+    leaf: ['#f9a8d4', '#fbcfe8'],
+    trunk: '#7c4a21',
+    blooms: 0.32,
+    thicket: 0.5,
+    snowy: false,
+    sea: false,
+    city: false,
+  },
+  // Deep, wet and green, with the light coming through the canopy.
+  jungle: {
+    skyTop: '#5eb8e0',
+    skyMid: '#a5e8dd',
+    skyLow: '#ecfdf5',
+    far: '#7fb99b',
+    mid: '#2f8f52',
+    near: '#1f7a3f',
+    grass: '#2f9e4f',
+    blade: ['#14532d', '#166534'],
+    bloom: ['#fb923c', '#fde047'],
+    road: '#4a463d',
+    kerb: '#e7e5e4',
+    dash: '#fde047',
+    leaf: ['#15803d', '#14532d'],
+    trunk: '#422006',
+    blooms: 0.62,
+    thicket: 1.0,
+    snowy: false,
+    sea: false,
+    city: false,
+  },
+  // Late in the year: amber trees, gold light and leaves coming down.
+  autumn: {
+    skyTop: '#93c5fd',
+    skyMid: '#dbeafe',
+    skyLow: '#fef3c7',
+    far: '#c9b8a4',
+    mid: '#f5c977',
+    near: '#d9e88f',
+    grass: '#e2ecb0',
+    blade: ['#ca8a04', '#a16207'],
+    bloom: ['#f59e0b', '#fb7185'],
+    road: '#5c5449',
+    kerb: '#fef3c7',
+    dash: '#fde047',
+    leaf: ['#f97316', '#ea580c'],
+    trunk: '#78350f',
+    blooms: 0.7,
+    thicket: 0.6,
+    snowy: false,
     sea: false,
     city: false,
   },
@@ -346,12 +427,15 @@ export function drawHills(g: CanvasRenderingContext2D, scene: Scene, depth: numb
   const { road, camX } = scene;
   const shift = camX * depth;
   const base = road.ground + road.unit * 0.1;
+  // Hills are measured in units, but a wide short screen has big units and a low
+  // horizon: without this cap the far range swallows the sky whole.
+  const rise = Math.min(lift * road.unit, road.ground * 0.62);
   g.fillStyle = bandFill(g, scene, pick);
   g.beginPath();
   g.moveTo(0, road.h);
   for (let x = 0; x <= road.w; x += 12) {
     const wx = (x + shift) / (road.unit * 6);
-    const y = base - lift * road.unit * (1.1 + Math.sin(wx) * 0.45 + Math.sin(wx * 2.3 + 1.2) * 0.2);
+    const y = base - rise * (1.1 + Math.sin(wx) * 0.45 + Math.sin(wx * 2.3 + 1.2) * 0.2);
     g.lineTo(x, y);
   }
   g.lineTo(road.w, road.h);
@@ -452,6 +536,48 @@ export function drawRoad(g: CanvasRenderingContext2D, scene: Scene): void {
   g.lineCap = 'butt';
 }
 
+/**
+ * A wood behind the road. The roadside props stand five units apart, which is
+ * two or three to a screen — not enough for a forest to look like one. These are
+ * scenery only: small, close together, and drawn on the slope behind the tarmac
+ * so the trees a child can actually prod still stand in front of them.
+ */
+export function drawThicket(g: CanvasRenderingContext2D, scene: Scene): void {
+  const { road, camX, clock, dusk } = scene;
+  const gap = road.unit * 0.62;
+  const first = Math.floor(camX / gap) - 1;
+  const depth = 0.82;
+  for (let i = first; i < first + Math.ceil(road.w / (gap * depth)) + 3; i++) {
+    const wx = i * gap;
+    const seed = Math.abs(Math.sin(i * 45.233) * 43758.5453) % 1;
+    const p = paletteFor(road, wx);
+    if (seed > p.thicket) continue;
+    const x = (wx - camX) * depth + road.w * (1 - depth) * 0.5;
+    const base = roadY(road, wx) - road.unit * (0.5 + seed * 0.45);
+    const u = road.unit * (0.5 + seed * 0.45);
+    const sway = Math.sin(clock * 0.8 + i) * u * 0.02;
+    g.fillStyle = dim(p.trunk, dusk * 0.85);
+    g.fillRect(x - u * 0.05, base - u * 0.4, u * 0.1, u * 0.4);
+    // One shade up, one shade down: a wood the colour of the hill behind it is
+    // a hill with sticks in it, so neither leaf colour is used as it comes.
+    const canopy = seed > 0.5 ? mix(p.leaf[0], '#ffffff', 0.16) : mix(p.leaf[1], '#0b1f14', 0.14);
+    g.fillStyle = dim(canopy, dusk * 0.85);
+    if (p.snowy || p.thicket >= 0.8) {
+      // Firs and jungle canopies alike read better as a cone at this size.
+      g.beginPath();
+      g.moveTo(x + sway, base - u * 1.35);
+      g.lineTo(x + sway - u * 0.38, base - u * 0.28);
+      g.lineTo(x + sway + u * 0.38, base - u * 0.28);
+      g.closePath();
+      g.fill();
+    } else {
+      g.beginPath();
+      g.arc(x + sway, base - u * 0.72, u * 0.44, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+}
+
 /** Grass and daisies in front of the tarmac, so the bottom of the screen is not bare. */
 export function drawVerge(g: CanvasRenderingContext2D, scene: Scene): void {
   const { road, camX, clock, dusk } = scene;
@@ -484,11 +610,19 @@ export function drawVerge(g: CanvasRenderingContext2D, scene: Scene): void {
       g.stroke();
     }
     g.lineCap = 'butt';
-    if (seed > 0.82) {
-      g.fillStyle = dim(seed > 0.92 ? p.bloom[1] : p.bloom[0], dusk);
+    if (seed > p.blooms) {
+      const petal = blade * (p.blooms < 0.5 ? 0.3 : 0.22);
+      g.fillStyle = dim(seed > (p.blooms + 1) / 2 ? p.bloom[1] : p.bloom[0], dusk);
       g.beginPath();
-      g.arc(x + blade * 0.7 + sway, y - blade * 1.05, blade * 0.22, 0, Math.PI * 2);
+      g.arc(x + blade * 0.7 + sway, y - blade * 1.05, petal, 0, Math.PI * 2);
       g.fill();
+      // A field of flowers gets a yellow middle, so it reads as a flower.
+      if (p.blooms < 0.5) {
+        g.fillStyle = dim('#fde047', dusk);
+        g.beginPath();
+        g.arc(x + blade * 0.7 + sway, y - blade * 1.05, petal * 0.4, 0, Math.PI * 2);
+        g.fill();
+      }
     }
   }
 }
@@ -530,6 +664,48 @@ export function drawWeather(g: CanvasRenderingContext2D, scene: Scene, weather: 
     g.arc(x, y, road.unit * (0.025 + seed * 0.03), 0, Math.PI * 2);
     g.fill();
   }
+}
+
+/** Places where something is always coming down off the trees. */
+const DRIFTS: Partial<Record<Biome, readonly [string, string]>> = {
+  blossom: ['#f9a8d4', '#fbcfe8'],
+  autumn: ['#f97316', '#fbbf24'],
+};
+
+/**
+ * Petals over the blossom valley, leaves over the autumn woods: nothing to do
+ * and nothing in the way, just something moving in a place worth sitting in.
+ */
+export function drawDrift(g: CanvasRenderingContext2D, scene: Scene, biome: Biome, strength: number): void {
+  const colours = DRIFTS[biome];
+  if (!colours || strength <= 0.02) return;
+  const { road, clock, camX, dusk } = scene;
+  const count = Math.round(34 * strength);
+  for (let i = 0; i < count; i++) {
+    const seed = (((Math.sin(i * 27.31) * 43758.5453) % 1) + 1) % 1;
+    const fall = 0.055 + seed * 0.05;
+    const sway = Math.sin(clock * (0.7 + seed) + i) * road.unit * 0.55;
+    const x = ((((seed * 7.3 + i * 0.173) * road.w + sway - camX * 0.28) % road.w) + road.w) % road.w;
+    const y = (seed * road.h + clock * road.h * fall) % road.h;
+    g.save();
+    g.translate(x, y);
+    g.rotate(clock * (0.9 + seed) + i);
+    g.fillStyle = dim(colours[seed > 0.5 ? 0 : 1], dusk);
+    g.globalAlpha = strength;
+    g.beginPath();
+    g.ellipse(0, 0, road.unit * 0.055, road.unit * 0.028, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+  g.globalAlpha = 1;
+}
+
+/** Which drifting place the road is in, easing across the fork like everything else. */
+export function driftNow(scene: Scene): { biome: Biome; strength: number } {
+  const { leg, before, k } = legMix(scene.road, scene.camX + scene.road.w * 0.5);
+  if (DRIFTS[leg.biome]) return { biome: leg.biome, strength: k };
+  if (DRIFTS[before.biome]) return { biome: before.biome, strength: 1 - k };
+  return { biome: leg.biome, strength: 0 };
 }
 
 /** How much rain or snow is falling here, easing in as the road enters a wetter place. */

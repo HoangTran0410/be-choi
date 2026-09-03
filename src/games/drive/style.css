@@ -201,15 +201,23 @@
 }
 
 /* The fork: two ways, the one that climbs on top of the one that drops. */
+/* Centred by the box, not by a transform: `anim-bounce` animates `transform`,
+   and a translate here would be thrown away the moment the panel bounced in. */
 .drive-fork {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   top: 2.5vmin;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 1.2vmin;
   z-index: 3;
+  /* The panel is only as wide as its buttons; the rest of the row is road. */
+  pointer-events: none;
+}
+.drive-way {
+  pointer-events: auto;
 }
 .drive-way {
   display: flex;

@@ -1,6 +1,6 @@
 import type { FxKind } from '../../core/audio';
 import { mulberry32 } from '../../core/dom';
-import { RED_MS, forkAt, roadY, type LegPlan, type Prop } from './logic';
+import { RED_MS, forkAt, roadY, type LegPlan, type Prop, type Road } from './logic';
 import { HOSE_SECONDS, onFire, type Job, type Load } from './jobs';
 import { barrierDown, railPhase, trainAcross } from './traffic';
 import { box, dim, glyph, paletteFor, type Scene } from './scenery';
@@ -85,6 +85,18 @@ export function pokeReply(prop: Prop, job: Job, rng: () => number = Math.random)
   }
 }
 
+/** Where the thing waiting at a pick-up point stands: world x, canvas y. */
+export function waitingAt(prop: Prop, job: Job, road: Road): { x: number; y: number; size: number } {
+  const u = road.unit;
+  return { x: prop.x + (job.kind === 'ride' ? u * 0.45 : 0), y: roadY(road, prop.x) - u * 0.32, size: u * 0.62 };
+}
+
+/** Where whoever is expected at a house leans out over the door. */
+export function doorwayAt(prop: Prop, road: Road): { x: number; y: number; size: number } {
+  const u = road.unit * (1.35 + prop.seed * 0.3);
+  return { x: prop.x, y: roadY(road, prop.x) - u * 1.6, size: road.unit * 0.5 };
+}
+
 // ---- scenery ----
 
 function drawTree(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: number, y: number): void {
@@ -116,6 +128,31 @@ function drawTree(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: numbe
     g.beginPath();
     g.arc(x + sway, y - u * 0.86, u * 0.06, 0, Math.PI * 2);
     g.fill();
+    return;
+  }
+  if (prop.biome === 'jungle') {
+    // Tall and broad-leaved, with a vine hanging off it.
+    const spread = u * 0.62;
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + (i / 6) * Math.PI;
+      g.fillStyle = dim(p.leaf[i % 2 === 0 ? 0 : 1], dusk);
+      g.beginPath();
+      g.moveTo(x + sway, y - u * 0.94);
+      g.quadraticCurveTo(
+        x + sway + Math.cos(a) * spread * 0.6,
+        y - u * 1.3 + Math.abs(Math.cos(a)) * u * 0.1,
+        x + sway + Math.cos(a) * spread,
+        y - u * 0.9 + Math.abs(Math.cos(a)) * u * 0.2,
+      );
+      g.quadraticCurveTo(x + sway + Math.cos(a) * spread * 0.55, y - u * 1.06, x + sway, y - u * 0.9);
+      g.fill();
+    }
+    g.strokeStyle = dim(p.leaf[1], dusk);
+    g.lineWidth = u * 0.035;
+    g.beginPath();
+    g.moveTo(x + sway + spread * 0.55, y - u * 0.95);
+    g.quadraticCurveTo(x + sway + spread * 0.72, y - u * 0.55, x + sway + spread * 0.6, y - u * 0.2);
+    g.stroke();
     return;
   }
   if (prop.biome === 'forest' || prop.biome === 'snow') {
@@ -235,12 +272,21 @@ function drawHouse(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: numb
   // Whoever is on board and coming here leans out over the door.
   const expected = d.loads.find((l) => l.home === prop.slot);
   if (expected) {
+    const door = doorwayAt(prop, road);
     const bob = Math.sin(clock * 4) * road.unit * 0.06;
-    g.fillStyle = 'rgba(255,255,255,0.85)';
+    const dy = door.y - roadY(road, prop.x) + y + bob;
+    g.fillStyle = 'rgba(255,255,255,0.92)';
+    // A tail down to the roof, so it is that house that is waiting, not the sky.
     g.beginPath();
-    g.arc(x, y - u * 1.6 + bob, road.unit * 0.34, 0, Math.PI * 2);
+    g.moveTo(x - road.unit * 0.16, dy + road.unit * 0.26);
+    g.lineTo(x + road.unit * 0.08, dy + road.unit * 0.26);
+    g.lineTo(x - road.unit * 0.04, y - u * 1.3);
+    g.closePath();
     g.fill();
-    glyph(g, expected.emoji, x, y - u * 1.6 + bob, road.unit * 0.5);
+    g.beginPath();
+    g.arc(x, dy, road.unit * 0.4, 0, Math.PI * 2);
+    g.fill();
+    glyph(g, expected.emoji, x, dy, door.size);
   }
   // Somebody just went in: a wave from the doorway.
   if (clock - d.waved < 1.4 && Math.abs(prop.x - d.carX) < road.unit * 2.5) {
@@ -317,8 +363,8 @@ function drawStop(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: numbe
   // Whatever is waiting hops on the spot until the car pulls up.
   const near = Math.abs(prop.x - d.carX) < u * 3;
   const hop = (near ? Math.abs(Math.sin(clock * 5 + prop.slot)) * 0.14 : 0) + Math.abs(wobble(d, prop.slot)) * 0.2;
-  const offset = d.job.kind === 'ride' ? u * 0.45 : 0;
-  glyph(g, load.emoji, x + offset, y - u * (0.32 + hop), u * 0.62);
+  const wait = waitingAt(prop, d.job, road);
+  glyph(g, load.emoji, x + (wait.x - prop.x), y - u * (0.32 + hop), wait.size);
 }
 
 function drawLight(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: number, y: number): void {
@@ -397,37 +443,39 @@ function drawCrossing(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: n
   g.lineWidth = Math.max(2, u * 0.05);
   for (const off of [-0.1, 0.28]) {
     g.beginPath();
-    g.moveTo(x - u * 0.55, y + u * (0.16 + off));
-    g.lineTo(x + u * 0.55, y + u * (0.16 + off));
+    g.moveTo(x - u * 0.78, y + u * (0.16 + off));
+    g.lineTo(x + u * 0.78, y + u * (0.16 + off));
     g.stroke();
   }
   for (let i = -2; i <= 2; i++) {
     g.beginPath();
-    g.moveTo(x + i * u * 0.24, y + u * 0.02);
-    g.lineTo(x + i * u * 0.24, y + u * 0.5);
+    g.moveTo(x + i * u * 0.3, y + u * 0.02);
+    g.lineTo(x + i * u * 0.3, y + u * 0.5);
     g.stroke();
   }
   if (t !== undefined && trainAcross(t) !== null) drawTrain(g, d, y, trainAcross(t)!);
   // The post and its arm, swinging down across the road.
+  // The post stands at the near end of the rails, not a car's length away from them.
   const down = t === undefined ? 0 : barrierDown(t);
-  const postX = x - u * 1.15;
+  const postX = x - u * 0.95;
   g.fillStyle = dim('#e2e8f0', dusk);
-  g.fillRect(postX - u * 0.05, y - u * 1.25, u * 0.1, u * 1.25);
+  g.fillRect(postX - u * 0.05, y - u * 1.2, u * 0.1, u * 1.2);
   g.save();
-  g.translate(postX, y - u * 1.15);
-  g.rotate(down * (Math.PI / 2));
+  g.translate(postX, y - u * 0.72);
+  // The arm is drawn lying across the road, so it stands up when nothing is coming.
+  g.rotate((1 - down) * -(Math.PI / 2));
   g.fillStyle = '#dc2626';
-  g.fillRect(0, -u * 0.05, u * 1.5, u * 0.1);
+  g.fillRect(0, -u * 0.05, u * 1.7, u * 0.1);
   g.fillStyle = '#fff';
-  for (let i = 0; i < 3; i++) g.fillRect(u * (0.22 + i * 0.42), -u * 0.05, u * 0.2, u * 0.1);
+  for (let i = 0; i < 3; i++) g.fillRect(u * (0.26 + i * 0.48), -u * 0.05, u * 0.24, u * 0.1);
   g.restore();
-  // Two lamps that alternate while the barrier is anything but up.
+  // Two lamps on top of the post, alternating while the barrier is anything but up.
   const flashing = t !== undefined && railPhase(t) !== 'clear';
   for (const [i, side] of [-1, 1].entries()) {
     const on = flashing && Math.floor(d.scene.clock * 3) % 2 === i;
     g.fillStyle = on ? '#ef4444' : dim('#7f1d1d', dusk * 0.5);
     g.beginPath();
-    g.arc(postX + side * u * 0.14, y - u * 1.38, u * 0.07, 0, Math.PI * 2);
+    g.arc(postX + side * u * 0.13, y - u * 1.14, u * 0.07, 0, Math.PI * 2);
     g.fill();
   }
 }
@@ -500,7 +548,7 @@ function drawFork(g: CanvasRenderingContext2D, d: Dressing, prop: Prop, x: numbe
   g.fillRect(x - u * 0.06, y - u * 2.9, u * 0.12, u * 2.9);
   for (const [i, sign] of signs.entries()) {
     const chosen = picked === undefined ? null : picked === (i === 0);
-    g.globalAlpha = chosen === false ? 0.28 : 1;
+    g.globalAlpha = chosen === false ? 0.45 : 1;
     g.strokeStyle = dim('#a8a29e', dusk);
     g.lineWidth = Math.max(2, u * 0.05);
     g.beginPath();

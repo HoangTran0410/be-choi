@@ -8,6 +8,7 @@ import {
   LIGHT_STOP_UNITS,
   MUD_PER_SPLASH,
   RED_MS,
+  SAVE_KEY,
   SLOT_UNITS,
   VEHICLES,
   fillUp,
@@ -16,6 +17,7 @@ import {
   makeCar,
   makeRoad,
   nextFork,
+  propAt,
   propsIn,
   reached,
   rinse,
@@ -24,21 +26,41 @@ import {
   roadY,
   slotX,
   stepCar,
+  makeSave,
+  readSave,
   takeFork,
+  vehicleById,
   type Car,
   type LegPlan,
   type Prop,
   type Road,
   type Vehicle,
 } from './logic';
-import { HOSE_SECONDS, jobOf, loadAt, onFire, droppedLine, pickedLine, type Job, type Load } from './jobs';
+import {
+  HOP_LIFT,
+  HOSE_SECONDS,
+  droppedLine,
+  hopAt,
+  jobOf,
+  loadAt,
+  onFire,
+  pickedLine,
+  stepHop,
+  type Hop,
+  type Job,
+  type Load,
+} from './jobs';
 import {
   CROSS_STOP_UNITS,
   RAIL_STOP_UNITS,
   RAIL_WAKE_UNITS,
   SPAWN_AHEAD,
   crossed,
+  crosserFade,
+  crosserGone,
+  crosserScale,
   crosserY,
+  lineFor,
   honkAt,
   makeCrosser,
   makeJam,
@@ -49,6 +71,7 @@ import {
   stepTraveller,
   tailOf,
   type Crosser,
+  type Halt,
   type Traveller,
 } from './traffic';
 import {
@@ -61,8 +84,11 @@ import {
   drawSea,
   drawSky,
   drawSkyline,
+  drawThicket,
   drawVerge,
+  drawDrift,
   drawWeather,
+  driftNow,
   glyph,
   makeNight,
   paletteAt,
@@ -70,7 +96,7 @@ import {
   type Glow,
   type Scene,
 } from './scenery';
-import { drawProp, lampsFor, pokeReply, seedFor, type Dressing } from './props';
+import { doorwayAt, drawProp, lampsFor, pokeReply, seedFor, waitingAt, type Dressing } from './props';
 import { TRAFFIC, drawRig } from './vehicle';
 import './style.css';
 
@@ -87,9 +113,10 @@ const DUSK_PER_SECOND = 0.55;
 const POKE_REACH = 1.4;
 /** How long between new vehicles joining the road. */
 const TRAFFIC_GAP = 3.2;
-/** How long between traffic jams, and between herds of ducks. */
-const JAM_GAP = 34;
-const HERD_GAP = 17;
+/** How long between traffic jams, and between herds of ducks. Both are meant to
+ *  be a surprise, not a toll booth: too often and the road stops being a drive. */
+const JAM_GAP = 62;
+const HERD_GAP = 46;
 /** The child is warned once the tank is under this. */
 const LOW_FUEL = 0.22;
 
@@ -172,6 +199,10 @@ function start(ctx: GameContext): void {
   /** Slot → when it was last prodded, for the wobble. */
   const pokes = new Map<number, number>();
   const flyers: Flyer[] = [];
+  /** Loads in mid-air between the roadside and the back of the vehicle. */
+  const hops: Hop[] = [];
+  /** Where the seat or the load bed was last drawn, so a hop has somewhere to land. */
+  let seat = { x: 0, y: 0 };
   const travellers: Traveller[] = [];
   const crossers: Crosser[] = [];
   const wet = new Set<number>();
@@ -223,71 +254,64 @@ function start(ctx: GameContext): void {
 
   // ---- steering ----
 
-  /** The red light the car must wait at, or null when the way is clear. */
-  function redLine(): number | null {
+  /** Wake the traffic lights the car is coming up to, and let the red ones time out. */
+  function wakeLights(): void {
     for (const prop of propsIn(road, car.x - road.unit, car.x + road.unit * 6)) {
       if (prop.kind !== 'light' || prop.x < car.x - road.unit * 0.2) continue;
-      let light = lights.get(prop.slot);
+      const light = lights.get(prop.slot);
       if (!light) {
         if (prop.x - car.x > road.unit * 3) continue;
-        light = { redAt: clock, green: false };
-        lights.set(prop.slot, light);
+        lights.set(prop.slot, { redAt: clock, green: false });
         ctx.audio.tick();
         ctx.speak('Đèn đỏ, dừng lại nào!');
+        continue;
       }
-      if (light.green) continue;
-      if (clock - light.redAt >= RED_MS / 1000) {
+      if (!light.green && clock - light.redAt >= RED_MS / 1000) {
         light.green = true;
         ctx.audio.pop(1.3);
         ctx.speak('Đèn xanh, đi thôi!');
-        continue;
       }
-      return prop.x - road.unit * LIGHT_STOP_UNITS;
     }
-    return null;
   }
 
-  /** Barriers: coming up to a crossing wakes it, and the train comes through. */
-  function railLine(dt: number): number | null {
-    let line: number | null = null;
+  /** Coming up to a crossing wakes it, and the train comes through. */
+  function wakeRails(dt: number): void {
     for (const prop of propsIn(road, car.x - road.unit * 2, car.x + road.unit * RAIL_WAKE_UNITS)) {
-      if (prop.kind !== 'crossing') continue;
-      let t = crossings.get(prop.slot);
-      if (t === undefined) {
-        if (prop.x < car.x || prop.x - car.x > road.unit * RAIL_WAKE_UNITS) continue;
-        t = 0;
-        crossings.set(prop.slot, 0);
-        ctx.audio.fx('whistle');
-        ctx.speak('Tàu hoả tới, đợi một chút nhé!');
-      }
-      if (railPhase(t) === 'clear') continue;
-      if (prop.x > car.x - road.unit * 0.4 && railBlocks(t)) {
-        const stop = prop.x - road.unit * RAIL_STOP_UNITS;
-        if (line === null || stop < line) line = stop;
-      }
+      if (prop.kind !== 'crossing' || crossings.has(prop.slot)) continue;
+      if (prop.x < car.x || prop.x - car.x > road.unit * RAIL_WAKE_UNITS) continue;
+      crossings.set(prop.slot, 0);
+      ctx.audio.fx('whistle');
+      ctx.speak('Tàu hoả tới, đợi một chút nhé!');
     }
     for (const [slot, t] of crossings) {
       const next = t + dt;
       if (railPhase(next) === 'clear' && railPhase(t) !== 'clear') ctx.audio.pop(1.2);
       crossings.set(slot, next);
     }
-    return line;
   }
 
-  /** A herd halfway across is as good as a wall, until it gets to the far verge. */
-  function herdLine(): number | null {
-    let line: number | null = null;
+  /**
+   * Everything on the road that has to be waited for, in one list. The child's
+   * car and every other vehicle are held by the same one, so a child who has
+   * stopped for a duck can see that the van in front has stopped for it too.
+   */
+  function halts(): Halt[] {
+    const out: Halt[] = [];
     for (const cr of crossers) {
-      if (crossed(cr) || cr.x < car.x) continue;
-      const stop = cr.x - road.unit * CROSS_STOP_UNITS;
-      if (line === null || stop < line) line = stop;
+      if (!crossed(cr)) out.push({ x: cr.x, gap: CROSS_STOP_UNITS });
     }
-    return line;
+    for (const [slot, t] of crossings) {
+      if (railBlocks(t)) out.push({ x: slotX(road, slot), gap: RAIL_STOP_UNITS });
+    }
+    for (const [slot, light] of lights) {
+      if (!light.green) out.push({ x: slotX(road, slot), gap: LIGHT_STOP_UNITS });
+    }
+    return out;
   }
 
   /** The nearest thing the car may not drive through, of all the things that stop it. */
-  function stopLine(dt: number): number | null {
-    const lines = [redLine(), railLine(dt), herdLine(), tailOf(car.x, travellers, road)];
+  function stopLine(stops: readonly Halt[]): number | null {
+    const lines = [lineFor(car.x, 1, stops, road), tailOf(car.x, travellers, road)];
     let out: number | null = null;
     for (const line of lines) {
       if (line === null) continue;
@@ -308,6 +332,18 @@ function start(ctx: GameContext): void {
     const load = loadAt(job.kind, prop.slot);
     loads.push(load);
     showLoads();
+    const from = waitingAt(prop, job, road);
+    hops.push({
+      emoji: load.emoji,
+      fixedX: from.x,
+      fixedY: from.y,
+      carX: car.x,
+      carY: seat.y,
+      boarding: true,
+      t: 0,
+      slot: prop.slot,
+      size: from.size,
+    });
     ctx.audio.pop(1.2);
     if (job.kind === 'ride') ctx.audio.fx(voiceOf(riderAt(prop.slot)));
     ctx.speak(pickedLine(job.kind, load));
@@ -318,7 +354,18 @@ function start(ctx: GameContext): void {
     served.add(load.slot);
     loads = loads.filter((l) => l !== load);
     showLoads();
-    waved = clock;
+    const door = doorwayAt(propAt(road, load.home), road);
+    hops.push({
+      emoji: load.emoji,
+      fixedX: door.x,
+      fixedY: door.y,
+      carX: seat.x,
+      carY: seat.y,
+      boarding: false,
+      t: 0,
+      slot: load.slot,
+      size: door.size,
+    });
     deliveries++;
     ctx.audio.ding();
     ctx.speak(droppedLine(job.kind, load));
@@ -517,7 +564,7 @@ function start(ctx: GameContext): void {
 
   // ---- everybody else on the road ----
 
-  function traffic(dt: number): void {
+  function traffic(dt: number, stops: readonly Halt[]): void {
     const t = top();
     nextTraffic -= dt;
     nextJam -= dt;
@@ -535,9 +582,11 @@ function start(ctx: GameContext): void {
     }
     if (nextHerd <= 0) {
       nextHerd = HERD_GAP * (0.7 + rng() * 0.7);
-      crossers.push(makeCrosser(camX + road.w * 0.75, rng));
+      // Off the right-hand edge, so a herd walks into the picture rather than
+      // appearing in the middle of the road out of nothing.
+      crossers.push(makeCrosser(camX + road.w + road.unit * 2.5, rng));
     }
-    for (const v of travellers) stepTraveller(v, dt, road, t);
+    for (const v of travellers) stepTraveller(v, dt, road, t, stops);
     for (let i = travellers.length - 1; i >= 0; i--) {
       const v = travellers[i]!;
       if (v.x < camX - road.unit * 5 || v.x > camX + road.w + road.unit * 22) travellers.splice(i, 1);
@@ -545,7 +594,7 @@ function start(ctx: GameContext): void {
     for (const cr of crossers) stepCrosser(cr, dt);
     for (let i = crossers.length - 1; i >= 0; i--) {
       const cr = crossers[i]!;
-      if (crossed(cr) || cr.x < camX - road.unit * 4) crossers.splice(i, 1);
+      if (crosserGone(cr) || cr.x < camX - road.unit * 4) crossers.splice(i, 1);
     }
   }
 
@@ -596,14 +645,23 @@ function start(ctx: GameContext): void {
     dusk += Math.max(-1, Math.min(1, (wantNight ? 1 : 0) - dusk)) * Math.min(1, dt * DUSK_PER_SECOND * 4);
     dusk = Math.max(0, Math.min(1, dusk));
     const target = steer !== 0 ? car.x + steer * road.unit * FULL_THROTTLE * 2 : Math.max(car.x, nudge);
-    traffic(dt);
+    wakeLights();
+    wakeRails(dt);
+    const stops = halts();
+    traffic(dt, stops);
     forks();
-    stepCar(car, target, dt, road, vehicle, stopLine(dt));
+    stepCar(car, target, dt, road, vehicle, stopLine(stops));
     camX += (car.x - road.w * CAMERA_AT - camX) * Math.min(1, dt * CAMERA_LAG);
     errands(dt);
     refreshAct();
     showPlace();
     stepFlyers(dt);
+    for (let i = hops.length - 1; i >= 0; i--) {
+      const hop = hops[i]!;
+      // The wave from the doorway waits until somebody is actually at the door.
+      if (stepHop(hop, dt) && !hop.boarding) waved = clock;
+      if (hop.t >= 1) hops.splice(i, 1);
+    }
   }
 
   // ---- drawing ----
@@ -647,13 +705,16 @@ function start(ctx: GameContext): void {
       clock,
       emergency: vehicle.id === 'fire',
     });
-    // What is on board rides where it would really ride: at the window, or on the back.
-    if (loads.length) {
-      const seat = job.kind === 'ride';
-      const gap = u * (seat ? 0.26 : 0.32);
-      loads.forEach((l, i) => {
-        const off = (i - (loads.length - 1) / 2) * gap;
-        glyph(g, l.emoji, (seat ? ride.cabinX : ride.deckX) + off, seat ? ride.cabinY : ride.deckY, u * 0.28);
+    // What is on board rides where it would really ride: at the window, or on the
+    // back. Anything still climbing in is left to the hop that is carrying it.
+    const inside = job.kind === 'ride';
+    const spotX = inside ? ride.cabinX : ride.deckX;
+    const spotY = inside ? ride.cabinY : ride.deckY;
+    const aboard = loads.filter((l) => !hops.some((hop) => hop.boarding && hop.slot === l.slot));
+    if (aboard.length) {
+      const gap = u * (inside ? 0.26 : 0.32);
+      aboard.forEach((l, i) => {
+        glyph(g, l.emoji, spotX + (i - (aboard.length - 1) / 2) * gap, spotY, u * 0.28);
       });
     }
     // Mud thrown up by the puddles, right over the body until it is washed off.
@@ -668,6 +729,11 @@ function start(ctx: GameContext): void {
         g.fill();
       }
     }
+    const lean = roadTilt(road, car.x);
+    seat = {
+      x: car.x + spotX * Math.cos(lean) - spotY * Math.sin(lean),
+      y: y + bounce + spotX * Math.sin(lean) + spotY * Math.cos(lean),
+    };
     g.restore();
     // The hose, while it is on a fire.
     if (hosing) {
@@ -720,9 +786,24 @@ function start(ctx: GameContext): void {
       // The line trails: each one is a step behind the one in front of it.
       for (let i = 0; i < cr.count; i++) {
         const t = Math.max(0, cr.t - i * 0.09);
+        const one = { ...cr, t };
         const waddle = Math.sin(clock * (cr.hurried ? 14 : 7) + i) * u * 0.05;
-        glyph(g, cr.emoji, sx(cr.x) + i * size * 0.78 + waddle, crosserY({ ...cr, t }, road), size);
+        g.globalAlpha = crosserFade(one);
+        glyph(g, cr.emoji, sx(cr.x) + i * size * 0.78 + waddle, crosserY(one, road), size * crosserScale(one));
       }
+    }
+    g.globalAlpha = 1;
+  }
+
+  /** Loads on their way in or out, arcing between the roadside and the vehicle. */
+  function drawHops(g: CanvasRenderingContext2D): void {
+    for (const hop of hops) {
+      const at = hopAt(hop, seat.x, seat.y, road.unit * HOP_LIFT);
+      g.save();
+      g.translate(sx(at.x), at.y);
+      g.rotate(at.spin);
+      glyph(g, hop.emoji, 0, 0, hop.size * at.scale);
+      g.restore();
     }
   }
 
@@ -766,6 +847,7 @@ function start(ctx: GameContext): void {
     else drawHills(g, s, 0.12, (q) => q.far, 3.2);
     drawHills(g, s, 0.25, (q) => q.mid, 1.9);
     drawHills(g, s, 0.5, (q) => q.near, 1.05);
+    drawThicket(g, s);
     const d = dressing();
     const props = inView();
     for (const prop of props) drawProp(g, d, prop, loadAt(job.kind, prop.slot), false);
@@ -776,9 +858,12 @@ function start(ctx: GameContext): void {
     for (const v of travellers) if (v.lane === 'same') drawTraveller(g, v);
     drawCrossers(g);
     drawVehicle(g);
+    drawHops(g);
     drawFlyers(g);
     drawVerge(g, s);
     drawWeather(g, s, sky.weather, sky.strength);
+    const drift = driftNow(s);
+    drawDrift(g, s, drift.biome, drift.strength);
     nightLayer.draw(g, s, glows());
   }
 
@@ -893,9 +978,22 @@ function start(ctx: GameContext): void {
     wantNight = !wantNight;
     night.textContent = wantNight ? '☀️' : '🌙';
     root.classList.toggle('night', wantNight);
+    save();
     ctx.audio.fx('sparkle');
     ctx.speak(wantNight ? 'Trời tối rồi, bật đèn lên!' : 'Trời sáng rồi!');
   });
+
+  /**
+   * Keep the vehicle the child took out and whether they left the lights off.
+   * Written only after something they did on purpose, never every frame.
+   */
+  function save(): void {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(vehicle, wantNight)));
+    } catch {
+      /* private browsing, or storage full: the drive still plays, it just forgets */
+    }
+  }
 
   function useVehicle(v: Vehicle): void {
     const changed = jobOf(v).kind !== job.kind;
@@ -910,6 +1008,7 @@ function start(ctx: GameContext): void {
       showLoads();
     }
     replay(garage, 'anim-bounce');
+    save();
     ctx.audio.fx(v.horn);
     ctx.speak(`${v.name}. ${job.brief}`);
   }
@@ -1001,6 +1100,21 @@ function start(ctx: GameContext): void {
   car = makeCar(road);
   camX = car.x - road.w * CAMERA_AT;
   fuelBar.style.width = '100%';
+  // Back where the child left off: the same vehicle, at the same time of day.
+  let saved: ReturnType<typeof readSave> = null;
+  try {
+    saved = readSave(localStorage.getItem(SAVE_KEY));
+  } catch {
+    /* private browsing: start with the little red car in daylight */
+  }
+  if (saved) {
+    vehicle = vehicleById(saved.vehicle) ?? vehicle;
+    job = jobOf(vehicle);
+    wantNight = saved.night;
+    dusk = saved.night ? 1 : 0;
+    night.textContent = wantNight ? '☀️' : '🌙';
+    root.classList.toggle('night', wantNight);
+  }
   garage.textContent = vehicle.emoji;
   garage.dataset.vehicle = vehicle.id;
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);

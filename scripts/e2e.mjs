@@ -374,6 +374,18 @@ await page.mouse.click(driveBox.x + driveBox.width * 0.25, driveBox.y + driveBox
 await page.waitForTimeout(400);
 check('drive: still running after a poke at the scenery', await page.locator('.drive-canvas').count());
 
+// The vehicle and the hour are the child's, and they are still there next time.
+await tap(page.locator('.drive-garage'));
+await page.waitForTimeout(350);
+await tap(page.locator('.drive-pick[data-vehicle="tractor"]'));
+await tap(page.locator('.drive-night'));
+await page.waitForTimeout(300);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(600);
+await dismissSticker();
+check('drive: the same vehicle is waiting', (await page.locator('.drive-garage').getAttribute('data-vehicle')) === 'tractor');
+check('drive: and it is still night', await page.locator('.drive.night').count());
+
 // ---- farm: the yard runs by itself and everybody comes for the feed ----
 await open('farm');
 await page.waitForTimeout(700);

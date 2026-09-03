@@ -6,5 +6,5 @@ export const meta: GameMeta = {
   icon: '🚗',
   color: '#ffedd5',
   skill: 'nature',
-  intro: 'Chạm vào đường để xe chạy tới, đón bạn về nhà nhé!',
+  intro: 'Bấm ▶ cho xe chạy, chạm vào cây cối nhà cửa để nghịch, tới ngã ba thì chọn đường nhé!',
 };
