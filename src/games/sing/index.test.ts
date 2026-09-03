@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SONGS } from '../../core/music';
+import { hasLyrics, SONGS } from '../../core/music';
 import { fakeContext, fakeMic, type FakeContext, type FakeMic } from '../../core/testing';
-import { phrasesFor } from './logic';
 import game from './index';
 
 if (!('PointerEvent' in globalThis)) {
@@ -49,22 +48,23 @@ async function settleMic(): Promise<void> {
 describe('the stage', () => {
   it('offers every song', () => {
     game.start(ctx);
-    expect(ctx.stage.querySelectorAll('.sing-song').length).toBe(SONGS.length);
+    expect(ctx.stage.querySelectorAll('.sing-song').length).toBe(SONGS.filter(hasLyrics).length);
+    expect(ctx.stage.querySelector('.sing-song[data-song="lamb"]')).toBeNull();
     expect(q(ctx, '.sing').dataset.phase).toBe('pick');
   });
 
   it('shows the first line of the song the child picked', () => {
     game.start(ctx);
-    fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
+    fire(q(ctx, '.sing-song[data-song="chaulenba"]'), 'pointerdown');
     expect(q(ctx, '.sing').dataset.phase).toBe('sing');
     expect(q(ctx, '.sing-lyric').hidden).toBe(false);
-    expect(q(ctx, '.sing-lyric-text').textContent).toBe(phrasesFor('lamb')[0]?.text);
+    expect(q(ctx, '.sing-lyric-text').textContent).toBe(SONGS.find((s) => s.id === 'chaulenba')?.lyrics?.[0]?.text);
     expect(q(ctx, '.sing-songs').hidden).toBe(true);
   });
 
   it('counts three, two, one before the first note', async () => {
     game.start(ctx);
-    fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
+    fire(q(ctx, '.sing-song[data-song="chaulenba"]'), 'pointerdown');
     const count = q(ctx, '.sing-count');
     expect(count.hidden).toBe(true);
     await vi.advanceTimersByTimeAsync(1500);
@@ -78,16 +78,16 @@ describe('the stage', () => {
 
   it('moves the words on as the melody plays', async () => {
     game.start(ctx);
-    fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
+    fire(q(ctx, '.sing-song[data-song="chaulenba"]'), 'pointerdown');
     const first = q(ctx, '.sing-lyric-text').textContent;
-    await vi.advanceTimersByTimeAsync(3000 + 3000);
+    await vi.advanceTimersByTimeAsync(3000 + 5000);
     expect(q(ctx, '.sing-lyric-text').textContent).not.toBe(first);
   });
 
   it('ends the song with a celebration and a star, then offers the songs again', async () => {
     game.start(ctx);
-    fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
-    await vi.advanceTimersByTimeAsync(25000);
+    fire(q(ctx, '.sing-song[data-song="chaulenba"]'), 'pointerdown');
+    await vi.advanceTimersByTimeAsync(32000);
     expect(ctx.celebrations).toBe(1);
     expect(ctx.stars).toBe(1);
     expect(q(ctx, '.sing').dataset.phase).toBe('pick');
@@ -95,7 +95,7 @@ describe('the stage', () => {
 
   it('lets the child stop and choose another song', () => {
     game.start(ctx);
-    fire(q(ctx, '.sing-song[data-song="twinkle"]'), 'pointerdown');
+    fire(q(ctx, '.sing-song[data-song="butterfly"]'), 'pointerdown');
     fire(q(ctx, '.sing-back'), 'pointerdown');
     expect(q(ctx, '.sing').dataset.phase).toBe('pick');
     expect(q(ctx, '.sing-songs').hidden).toBe(false);
@@ -127,7 +127,7 @@ describe('the microphone', () => {
     fire(q(ctx, '.sing-mic'), 'pointerup');
     await settleMic();
     expect(q(ctx, '.sing-mic').hidden).toBe(true);
-    fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
+    fire(q(ctx, '.sing-song[data-song="chaulenba"]'), 'pointerdown');
     expect(q(ctx, '.sing').dataset.phase).toBe('sing');
   });
 

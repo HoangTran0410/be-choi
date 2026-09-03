@@ -30,6 +30,16 @@ export interface SongNote {
   d: number;
 }
 
+/** One line of a song: what the child sings while that stretch of melody plays. */
+export interface Phrase {
+  /** Big picture for the line, for a child who cannot read yet. */
+  emoji: string;
+  /** Vietnamese line. */
+  text: string;
+  /** Length in beats (quarter notes). The phrases of a song add up to its melody. */
+  beats: number;
+}
+
 export interface Song {
   id: string;
   /** Vietnamese title, spoken aloud. */
@@ -37,6 +47,18 @@ export interface Song {
   icon: string;
   bpm: number;
   notes: readonly SongNote[];
+  /**
+   * Words to sing, one line per musical phrase. Melodies with no Vietnamese words
+   * of their own leave this out: they are for playing, not for singing along to.
+   */
+  lyrics?: readonly Phrase[];
+}
+
+/** A song a child can actually sing: it has words. */
+export type SungSong = Song & { lyrics: readonly Phrase[] };
+
+function line(emoji: string, text: string, beats: number): Phrase {
+  return { emoji, text, beats };
 }
 
 function seq(text: string): SongNote[] {
@@ -68,6 +90,16 @@ export const SONGS: readonly Song[] = [
     notes: seq(
       'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4:2 E4 F4 G4:2 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4 C4 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4 C4 C4 G4 C4:2 C4 G4 C4:2',
     ),
+    lyrics: [
+      line('🦋', 'Kìa con bướm vàng', 4),
+      line('🦋', 'Kìa con bướm vàng', 4),
+      line('🪽', 'Xoè đôi cánh', 4),
+      line('🪽', 'Xoè đôi cánh', 4),
+      line('☁️', 'Bươm bướm bay hai ba vòng', 4),
+      line('☁️', 'Bươm bướm bay hai ba vòng', 4),
+      line('👀', 'Em ngồi xem', 4),
+      line('👀', 'Em ngồi xem', 4),
+    ],
   },
   {
     // Dân ca Nam Bộ. Cảm âm: mi2 re2 do2 / sol do2 re2 la … (plain = octave 4, "2" = octave 5).
@@ -83,6 +115,14 @@ export const SONGS: readonly Song[] = [
         'D5 D5 D5 E5 E5 A4 C5 G4:2 ' +
         'C5 G4 A4 C5 G4 E5 C5 G4 C5:2',
     ),
+    lyrics: [
+      line('🪜', 'Bắc kim thang, cà lang bí rợ', 8),
+      line('🏠', 'Cột qua kèo, là kèo qua cột', 8),
+      line('🛢️', 'Chú bán dầu, qua cầu mà té', 8),
+      line('🐸', 'Chú bán ếch, ở lại làm chi', 9),
+      line('🥁', 'Con le le, đánh trống thổi kèn', 9),
+      line('🐦', 'Con bìm bịp thổi tò tí te tò te', 10),
+    ],
   },
   {
     id: 'canha',
@@ -95,6 +135,12 @@ export const SONGS: readonly Song[] = [
         'C5 D5 F5 D5 F5 G5 G5:2 ' +
         'E5 D5:0.5 E5:0.5 G5 G5 D5 C5 C5:2',
     ),
+    lyrics: [
+      line('👨', 'Ba thương con vì con giống mẹ', 8),
+      line('👩', 'Mẹ thương con vì con giống ba', 8),
+      line('🏡', 'Cả nhà ta cùng yêu thương nhau', 8),
+      line('💗', 'Xa là nhớ, gần nhau là cười', 8),
+    ],
   },
   {
     // The only one of the Vietnamese songs that fits the eight xylophone bars.
@@ -109,6 +155,13 @@ export const SONGS: readonly Song[] = [
         'G4 F4 F4 A4 G4 F4 G4 C5 F4:2 ' +
         'C5 A4 G4 F4 C5 C5 A4 G4 F4:2',
     ),
+    lyrics: [
+      line('🧒', 'Cháu lên ba, cháu đi mẫu giáo', 8),
+      line('👩‍🏫', 'Cô thương cháu vì cháu không khóc nhè', 9),
+      line('🌱', 'Không khóc nhè thì mẹ trồng cây trái', 9),
+      line('🚜', 'Ba vào nhà máy, ông bà vui cấy cày', 10),
+      line('🎶', 'Là lá la la, là là lá la la', 10),
+    ],
   },
   {
     id: 'chauyeuba',
@@ -123,6 +176,14 @@ export const SONGS: readonly Song[] = [
         'B4 A4 E5 B4 B4 E5 A4:2 ' +
         'A4 B4 A4 D5 B4 B4 D5 G4:2',
     ),
+    lyrics: [
+      line('👵', 'Bà ơi bà, cháu yêu bà lắm', 8),
+      line('☁️', 'Tóc bà trắng, màu trắng như mây', 8),
+      line('🤝', 'Cháu yêu bà, cháu nắm bàn tay', 8),
+      line('😊', 'Khi cháu vâng lời, cháu biết bà vui', 9),
+      line('🤝', 'Cháu yêu bà, cháu nắm bàn tay', 8),
+      line('😊', 'Khi cháu vâng lời, cháu biết bà vui', 9),
+    ],
   },
   {
     id: 'ngungon',
@@ -136,6 +197,13 @@ export const SONGS: readonly Song[] = [
         'A4 C5 G4 C5 B4 C5 B4 D5 C5:2 ' +
         'A4 C5 B4 C5 A4 B4 C5:2',
     ),
+    lyrics: [
+      line('🌙', 'Bé ơi ngủ đi, đêm đã khuya rồi', 10),
+      line('💭', 'Để những giấc mơ đẹp sẽ luôn bên em', 10),
+      line('🛏️', 'Bé ơi ngủ ngoan, trong tiếng ru hời', 9),
+      line('🌕', 'Vầng trăng đợi em cùng bay vào giấc mơ', 10),
+      line('💤', 'À ơi… à ơi… à à ơi…', 8),
+    ],
   },
   {
     // "Happy Birthday to You" (public domain), F major, 3/4 with a pickup. The Bb
@@ -147,6 +215,12 @@ export const SONGS: readonly Song[] = [
     notes: seq(
       'C4:0.75 C4:0.25 D4 C4 F4 E4:2 C4:0.75 C4:0.25 D4 C4 G4 F4:2 C4:0.75 C4:0.25 C5 A4 F4 E4 D4:2 Bb4:0.75 Bb4:0.25 A4 F4 G4 F4:2',
     ),
+    lyrics: [
+      line('🎂', 'Chúc mừng sinh nhật', 6),
+      line('🎉', 'Chúc mừng sinh nhật', 6),
+      line('🥳', 'Chúc mừng bé yêu của cả nhà', 7),
+      line('🎈', 'Chúc mừng sinh nhật!', 6),
+    ],
   },
   {
     id: 'twinkle',
@@ -214,6 +288,26 @@ export const SONGS: readonly Song[] = [
     ),
   },
 ];
+
+/** True when the song has words, so a singing game can offer it. */
+export function hasLyrics(song: Song): song is SungSong {
+  return (song.lyrics?.length ?? 0) > 0;
+}
+
+/** Which line is being sung at `beat`. Before the start → 0, past the end → the last line. */
+export function phraseAt(phrases: readonly Phrase[], beat: number): number {
+  if (phrases.length === 0) return 0;
+  let at = 0;
+  for (let i = 0; i < phrases.length; i++) {
+    at += phrases[i]?.beats ?? 0;
+    if (beat < at) return i;
+  }
+  return phrases.length - 1;
+}
+
+export function totalBeats(phrases: readonly Phrase[]): number {
+  return phrases.reduce((sum, phrase) => sum + phrase.beats, 0);
+}
 
 /** True when every note fits the eight xylophone bars, so the play-along can ask for them all. */
 export function fitsScale(song: Song): boolean {

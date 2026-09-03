@@ -1,11 +1,14 @@
 import { createCamera } from '../../core/camera';
 import { h, randInt, replay } from '../../core/dom';
 import { createMic } from '../../core/mic';
-import { noteFreq, schedule, SONGS, type Song, type SongNote } from '../../core/music';
+import { hasLyrics, noteFreq, phraseAt, schedule, SONGS, type Phrase, type SongNote, type SungSong } from '../../core/music';
 import { MAX_PHOTOS } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { AUDIENCE, NOTE_EMOJI, phraseIndexAt, phrasesFor, pitchBand, type Phrase } from './logic';
+import { AUDIENCE, NOTE_EMOJI, pitchBand } from './logic';
+
+/** Only songs with Vietnamese words: the rest of the songbook is for playing, not singing. */
+const SONGBOOK: readonly SungSong[] = SONGS.filter(hasLyrics);
 import './style.css';
 
 /**
@@ -59,7 +62,7 @@ function start(ctx: GameContext): void {
   root.append(mirror, lights, h('div', { class: 'sing-curtain sing-left' }), h('div', { class: 'sing-curtain sing-right' }), lyric, count, picker, audience, buttons);
   ctx.stage.append(root);
 
-  for (const song of SONGS) {
+  for (const song of SONGBOOK) {
     const card = h(
       'button',
       { class: 'sing-song', type: 'button', 'data-song': song.id, 'aria-label': song.title },
@@ -104,7 +107,7 @@ function start(ctx: GameContext): void {
 
   function onNote(_index: number, note: SongNote, ms: number): void {
     if (note.n !== 'R') ctx.audio.note(noteFreq(note.n), Math.min(0.9, ms / 1000), 'bell');
-    const index = phraseIndexAt(phrases, beat);
+    const index = phraseAt(phrases, beat);
     beat += note.d;
     if (index !== shown) showPhrase(index);
     replay(lyricEmoji, 'anim-bounce');
@@ -137,9 +140,9 @@ function start(ctx: GameContext): void {
     cancelSong = null;
   }
 
-  function playSong(song: Song): void {
+  function playSong(song: SungSong): void {
     stopSong();
-    phrases = phrasesFor(song.id);
+    phrases = song.lyrics;
     beat = 0;
     shown = -1;
     root.dataset.phase = 'sing';

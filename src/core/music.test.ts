@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fitsScale, noteFreq, SCALE_C, scaleIndex, SONGS, schedule, findSong } from './music';
+import { fitsScale, findSong, hasLyrics, noteFreq, phraseAt, SCALE_C, scaleIndex, schedule, SONGS, totalBeats } from './music';
 
 describe('music', () => {
   it('converts note names to frequencies', () => {
@@ -71,5 +71,59 @@ describe('fitsScale', () => {
     expect(playable.length).toBeGreaterThanOrEqual(6);
     expect(playable.map((s) => s.id)).toContain('chaulenba');
     expect(playable.map((s) => s.id)).not.toContain('canha');
+  });
+});
+
+describe('lyrics', () => {
+  const sung = SONGS.filter(hasLyrics);
+
+  it('are on the songs a Vietnamese family sings, and not on the plain melodies', () => {
+    expect(sung.length).toBeGreaterThanOrEqual(6);
+    const ids = sung.map((s) => s.id);
+    expect(ids).toContain('chaulenba');
+    expect(ids).toContain('canha');
+    // These are nice tunes with no Vietnamese words of their own: play them, do not sing them.
+    for (const id of ['twinkle', 'lamb', 'bridge', 'farmer', 'row', 'buns', 'rain']) {
+      expect(ids).not.toContain(id);
+      expect(hasLyrics(findSong(id) as never)).toBe(false);
+    }
+  });
+
+  it('last exactly as long as their melody, so the highlight lands with the tune', () => {
+    for (const song of sung) {
+      const melody = song.notes.reduce((sum, n) => sum + n.d, 0);
+      expect(totalBeats(song.lyrics)).toBeCloseTo(melody, 5);
+    }
+  });
+
+  it('give every line a picture, words and a length', () => {
+    for (const song of sung) {
+      for (const phrase of song.lyrics) {
+        expect(phrase.emoji.length).toBeGreaterThan(0);
+        expect(phrase.text.length).toBeGreaterThan(0);
+        expect(phrase.beats).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe('phraseAt', () => {
+  const phrases = [
+    { emoji: 'a', text: 'a', beats: 4 },
+    { emoji: 'b', text: 'b', beats: 4 },
+    { emoji: 'c', text: 'c', beats: 2 },
+  ];
+
+  it('starts on the first line and steps on each line\'s first beat', () => {
+    expect(phraseAt(phrases, 0)).toBe(0);
+    expect(phraseAt(phrases, 3.5)).toBe(0);
+    expect(phraseAt(phrases, 4)).toBe(1);
+    expect(phraseAt(phrases, 8)).toBe(2);
+  });
+
+  it('holds the last line past the end and copes with no words at all', () => {
+    expect(phraseAt(phrases, 999)).toBe(2);
+    expect(phraseAt([], 4)).toBe(0);
+    expect(totalBeats([])).toBe(0);
   });
 });
