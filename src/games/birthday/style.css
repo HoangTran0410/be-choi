@@ -420,16 +420,32 @@
     grid-column: 1;
     grid-row: 1;
   }
+  /*
+   * Six buttons never fit one column beside the cake, so the strip is two columns of
+   * three — laid out as explicit grid tracks, not a wrapping flex column. WebKit measures
+   * a `flex-wrap: wrap` column as though it held a single line, so the `auto` track came
+   * out one button wide while the buttons laid themselves out in two columns: half of
+   * every button hung outside the track and `overflow: hidden` cut it off, leaving a
+   * sliver nobody could tap. Explicit tracks make the width arithmetic, not a guess.
+   */
   .birthday-buttons {
     grid-column: 2;
     grid-row: 1;
-    flex-direction: column;
-    flex-wrap: wrap;
-    justify-content: safe center;
+    /* Three rows have to fit the height left over above the tray. On a phone held
+       sideways that is less than a full tap, and a smaller button beats a cut one. */
+    --birthday-btn: min(var(--tap), 16dvh);
+    display: grid;
+    grid-template-columns: repeat(2, var(--birthday-btn));
+    grid-auto-rows: var(--birthday-btn);
+    justify-content: center;
     align-content: center;
     gap: 1vmin;
     padding: 1vmin 2vmin 1vmin 0;
-    overflow: hidden;
+  }
+  .birthday-buttons .btn-round {
+    width: var(--birthday-btn);
+    height: var(--birthday-btn);
+    font-size: calc(var(--birthday-btn) * 0.5);
   }
   .birthday .birthday-tray {
     grid-column: 1 / -1;
