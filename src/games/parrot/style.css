@@ -33,6 +33,11 @@
   line-height: 1;
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.2));
   transform-origin: 50% 100%;
+  /* Pressable in its own right, so there is a target nobody can miss. */
+  cursor: pointer;
+}
+.parrot-big:active {
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.25));
 }
 .parrot-big.parrot-jump {
   animation: parrot-jump 0.5s ease-in-out infinite;
@@ -104,10 +109,12 @@
     0 4px 0 var(--btn-shadow);
 }
 
+/* The one button that has to be held while a child is busy singing into it, so
+   it is the biggest thing they can press: a finger that drifts still lands on it. */
 .parrot-mic {
-  width: calc(var(--tap) * 1.15);
-  height: calc(var(--tap) * 1.15);
-  font-size: calc(var(--tap) * 0.6);
+  width: calc(var(--tap) * 1.5);
+  height: calc(var(--tap) * 1.5);
+  font-size: calc(var(--tap) * 0.75);
   background: #fff;
 }
 .parrot-mic.parrot-recording {

@@ -15,8 +15,8 @@ if (!('PointerEvent' in globalThis)) {
   };
 }
 
-function fire(el: Element, type: string): void {
-  el.dispatchEvent(new PointerEvent(type, { pointerId: 1, isPrimary: true, bubbles: true }));
+function fire(el: Element, type: string, pointerId = 1): void {
+  el.dispatchEvent(new PointerEvent(type, { pointerId, isPrimary: pointerId === 1, bubbles: true }));
 }
 
 function q<T extends Element = HTMLElement>(ctx: FakeContext, sel: string): T {
@@ -91,7 +91,7 @@ describe('recording and repeating', () => {
     expect(mic.played[1]?.rate).toBe(findCritter('elephant')?.rate);
   });
 
-  it('stops on its own after five seconds of holding', async () => {
+  it('stops on its own once the hold reaches the time limit', async () => {
     game.start(ctx);
     await turnMicOn();
     const btn = q(ctx, '.parrot-mic');
@@ -104,7 +104,7 @@ describe('recording and repeating', () => {
     expect(mic.played.length).toBe(1);
   });
 
-  it('says so kindly when it heard nothing', async () => {
+  it('tells a child who only tapped to hold on, not to sing louder', async () => {
     game.start(ctx);
     await turnMicOn();
     const btn = q(ctx, '.parrot-mic');
@@ -112,7 +112,90 @@ describe('recording and repeating', () => {
     await vi.advanceTimersByTimeAsync(200);
     fire(btn, 'pointerup');
     expect(mic.played.length).toBe(0);
+    expect(q(ctx, '.parrot-bubble').textContent).toContain('lâu hơn');
+  });
+
+  it('asks for more voice when the button was held but nothing was sung', async () => {
+    game.start(ctx);
+    await turnMicOn();
+    const btn = q(ctx, '.parrot-mic');
+    fire(btn, 'pointerdown');
+    await vi.advanceTimersByTimeAsync(1200);
+    fire(btn, 'pointerup');
+    expect(mic.played.length).toBe(0);
     expect(q(ctx, '.parrot-bubble').textContent).toContain('to hơn');
+  });
+
+  it('ends the recording when the finger comes up somewhere else entirely', async () => {
+    game.start(ctx);
+    await turnMicOn();
+    const btn = q(ctx, '.parrot-mic');
+    fire(btn, 'pointerdown');
+    mic.level = 0.6;
+    await vi.advanceTimersByTimeAsync(300);
+    mic.feed(4);
+    // A finger that drifts off the button releases over whatever is underneath.
+    fire(q(ctx, '.parrot-big'), 'pointerup');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(btn.classList.contains('parrot-recording')).toBe(false);
+    expect(mic.played.length).toBe(1);
+  });
+
+  it('keeps the recording when the browser takes the gesture away', async () => {
+    game.start(ctx);
+    await turnMicOn();
+    const btn = q(ctx, '.parrot-mic');
+    fire(btn, 'pointerdown');
+    mic.level = 0.6;
+    await vi.advanceTimersByTimeAsync(300);
+    mic.feed(4);
+    fire(btn, 'pointercancel');
+    await vi.advanceTimersByTimeAsync(10);
+    // Cancelled is not thrown away: the singing that did arrive still comes back.
+    expect(mic.played.length).toBe(1);
+  });
+
+  it('ignores a second finger landing on the button mid-recording', async () => {
+    game.start(ctx);
+    await turnMicOn();
+    const btn = q(ctx, '.parrot-mic');
+    fire(btn, 'pointerdown');
+    mic.level = 0.6;
+    await vi.advanceTimersByTimeAsync(300);
+    // A palm or a sibling: neither starts a recording nor ends this one.
+    fire(btn, 'pointerdown', 2);
+    fire(btn, 'pointerup', 2);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(btn.classList.contains('parrot-recording')).toBe(true);
+    mic.feed(4);
+    fire(btn, 'pointerup');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(mic.played.length).toBe(1);
+  });
+
+  it('does not let a finished recording cut the next one short', async () => {
+    game.start(ctx);
+    await turnMicOn();
+    const btn = q(ctx, '.parrot-mic');
+    await singInto();
+    // The first hold's time limit is still in the future; the second must outlive it.
+    await vi.advanceTimersByTimeAsync(1000);
+    fire(btn, 'pointerdown');
+    mic.level = 0.6;
+    await vi.advanceTimersByTimeAsync(MAX_RECORD_MS - 1000);
+    expect(btn.classList.contains('parrot-recording')).toBe(true);
+    mic.feed(4);
+    fire(btn, 'pointerup');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(mic.played.length).toBe(2);
+  });
+
+  it('a press on the big animal plays the clip again', async () => {
+    game.start(ctx);
+    await turnMicOn();
+    await singInto();
+    fire(q(ctx, '.parrot-big'), 'pointerdown');
+    expect(mic.played.length).toBe(2);
   });
 
   it('gives a star every third playback', async () => {
@@ -125,6 +208,35 @@ describe('recording and repeating', () => {
     }
     expect(ctx.stars).toBe(1);
     expect(ctx.celebrations).toBe(1);
+  });
+});
+
+describe('asking for the microphone', () => {
+  it('asks on the way down and records that very hold once it is granted', async () => {
+    game.start(ctx);
+    const btn = q(ctx, '.parrot-mic');
+    // No permission yet: the child presses and holds, singing into it as they go.
+    fire(btn, 'pointerdown');
+    await vi.advanceTimersByTimeAsync(50);
+    expect(btn.classList.contains('parrot-recording')).toBe(true);
+    mic.level = 0.6;
+    await vi.advanceTimersByTimeAsync(300);
+    mic.feed(4);
+    fire(btn, 'pointerup');
+    await vi.advanceTimersByTimeAsync(10);
+    // The first hold is the one that used to be swallowed by the prompt.
+    expect(mic.played.length).toBe(1);
+  });
+
+  it('asks on the first touch anywhere, so the microphone is live before it is needed', async () => {
+    game.start(ctx);
+    fire(q(ctx, '.parrot-critter[data-critter="mouse"]'), 'pointerdown');
+    fire(q(ctx, '.parrot-critter[data-critter="mouse"]'), 'pointerup');
+    await vi.advanceTimersByTimeAsync(700);
+    expect(q(ctx, '.parrot-bubble').textContent).toContain('Giữ');
+    // Straight into a hold, with nothing to wait for.
+    await singInto();
+    expect(mic.played.length).toBe(1);
   });
 });
 

@@ -7,6 +7,11 @@ import './style.css';
 
 /** How long the animal keeps bouncing after a playback that reports no end. */
 const JUMP_MS = 600;
+/**
+ * A press let go sooner than this was a tap, not a hold. Nothing is recorded either
+ * way, but a child who tapped needs telling to hold on, not to sing louder.
+ */
+const TAP_MS = 500;
 
 /**
  * Hold the microphone, sing, let go — and the chosen animal sings it back in its
@@ -24,6 +29,18 @@ function start(ctx: GameContext): void {
   /** The microphone was refused. The button stays put and asks again. */
   let micOff = false;
   let bars: number[] = [];
+  /**
+   * The pointer holding the microphone down, if any. A second finger landing on
+   * the button must not end someone else's recording, and a release has to be
+   * matched to its own press — on a tablet the two often land on different elements.
+   */
+  let holdId: number | null = null;
+  let heldAt = 0;
+  /** Set while a permission prompt is open, so a press is not asked for twice. */
+  let asking = false;
+  /** The recording's own time limit, cleared when it ends early: a stale one left
+      running would cut the *next* recording short. */
+  let maxTimer: ReturnType<typeof setTimeout> | null = null;
 
   const root = h('div', { class: 'parrot' });
   const stageCritter = h('span', { class: 'parrot-big' }, chosen.emoji);
@@ -48,12 +65,13 @@ function start(ctx: GameContext): void {
   critterEls.get(chosen.id)?.classList.add('parrot-chosen');
 
   const timers = new Set<ReturnType<typeof setTimeout>>();
-  function after(ms: number, fn: () => void): void {
+  function after(ms: number, fn: () => void): ReturnType<typeof setTimeout> {
     const t = setTimeout(() => {
       timers.delete(t);
       fn();
     }, ms);
     timers.add(t);
+    return t;
   }
 
   function drawBars(): void {
@@ -109,13 +127,18 @@ function start(ctx: GameContext): void {
   function finishRecording(): void {
     if (!recording) return;
     recording = false;
+    if (maxTimer !== null) {
+      clearTimeout(maxTimer);
+      timers.delete(maxTimer);
+      maxTimer = null;
+    }
     micBtn.classList.remove('parrot-recording');
     root.classList.remove('parrot-listening');
     const taken = mic.stopRecord();
     bars = [];
     drawBars();
     if (!taken) {
-      say('Chưa nghe thấy gì, hát to hơn nhé!');
+      say(Date.now() - heldAt < TAP_MS ? 'Giữ 🎤 lâu hơn rồi hát nhé!' : 'Chưa nghe thấy gì, hát to hơn nhé!');
       ctx.audio.boing();
       return;
     }
@@ -135,12 +158,15 @@ function start(ctx: GameContext): void {
     root.classList.add('parrot-listening');
     say('Đang nghe… 🎵');
     mic.record(MAX_RECORD_MS);
-    after(MAX_RECORD_MS, finishRecording);
+    maxTimer = after(MAX_RECORD_MS, finishRecording);
   }
 
   async function askForMic(): Promise<void> {
+    if (asking) return;
+    asking = true;
     micBtn.classList.add('parrot-waiting');
     const ok = await mic.start();
+    asking = false;
     micBtn.classList.remove('parrot-waiting');
     if (!alive) {
       mic.stop();
@@ -163,21 +189,52 @@ function start(ctx: GameContext): void {
     });
     say('Giữ 🎤 rồi hát nhé!');
     ctx.speak('Giữ nút micro rồi hát nhé');
+    // Granted while a finger is still on the button: start now rather than make
+    // the child let go and press again, which is a whole held breath wasted.
+    if (holdId !== null) beginRecording();
   }
 
   function onMicDown(e: PointerEvent): void {
+    // A second finger on the button belongs to nobody: it must not take the hold over.
+    if (holdId !== null) return;
     e.preventDefault();
+    holdId = e.pointerId;
+    heldAt = Date.now();
+    // With the pointer captured, a finger that slides off the button still sends
+    // its move, up and cancel here. Without it the release lands on whatever is
+    // underneath instead, and the recording runs until it times out.
+    try {
+      micBtn.setPointerCapture(e.pointerId);
+    } catch {
+      /* jsdom, and browsers that refuse a capture we can live without */
+    }
     ctx.hint.touch();
     ctx.audio.tick();
-    beginRecording();
+    if (mic.listening) beginRecording();
+    else void askForMic();
   }
 
-  function onMicUp(): void {
-    if (!mic.listening) {
-      void askForMic();
+  /**
+   * The end of a hold, wherever the finger happened to be. `pointercancel` counts:
+   * the browser taking the gesture away is not a reason to throw the singing away.
+   */
+  function onMicRelease(e: PointerEvent): void {
+    if (holdId === null) {
+      // A release with no press of ours behind it: the press was swallowed, or the
+      // finger came down elsewhere and slid onto the button. Still worth reading as
+      // "I want the microphone", which is the only thing a press here ever means.
+      if (e.target === micBtn && !mic.listening) void askForMic();
       return;
     }
-    finishRecording();
+    if (e.pointerId !== holdId) return;
+    holdId = null;
+    try {
+      if (micBtn.hasPointerCapture?.(e.pointerId)) micBtn.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    if (recording) finishRecording();
+    else if (!mic.listening) void askForMic();
   }
 
   row.addEventListener('pointerdown', (e) => {
@@ -189,9 +246,30 @@ function start(ctx: GameContext): void {
     ctx.audio.pop();
     choose(critter);
   });
+  // The animal on stage is the biggest thing on screen: worth a press of its own,
+  // and a much easier target than the row for a child who keeps missing.
+  stageCritter.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    choose(chosen);
+  });
   micBtn.addEventListener('pointerdown', onMicDown);
-  micBtn.addEventListener('pointerup', onMicUp);
-  micBtn.addEventListener('pointercancel', finishRecording);
+  micBtn.addEventListener('pointerup', onMicRelease);
+  micBtn.addEventListener('pointercancel', onMicRelease);
+  // Backstop for a release the button never sees at all — a capture the browser
+  // refused, or a pointer torn away by the shell.
+  window.addEventListener('pointerup', onMicRelease);
+  window.addEventListener('pointercancel', onMicRelease);
+  /**
+   * The microphone is asked for on the first touch anywhere, not only on the
+   * button. A child's first act is nearly always poking an animal, and by the
+   * time they get round to holding 🎤 the permission is long since settled —
+   * where before, the first hold was spent on the prompt and recorded nothing.
+   */
+  const firstTouch = (): void => {
+    root.removeEventListener('pointerup', firstTouch);
+    if (!mic.listening) void askForMic();
+  };
+  root.addEventListener('pointerup', firstTouch);
 
   ctx.hint.arm(() => {
     replay(micOff ? row : micBtn, 'anim-wiggle');
@@ -200,6 +278,10 @@ function start(ctx: GameContext): void {
   ctx.onCleanup(() => {
     alive = false;
     recording = false;
+    holdId = null;
+    root.removeEventListener('pointerup', firstTouch);
+    window.removeEventListener('pointerup', onMicRelease);
+    window.removeEventListener('pointercancel', onMicRelease);
     mic.stop();
     for (const t of timers) clearTimeout(t);
     timers.clear();

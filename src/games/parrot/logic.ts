@@ -23,8 +23,13 @@ export const CRITTERS: readonly Critter[] = [
   { id: 'dino', emoji: '🦖', name: 'khủng long', rate: 0.5, fx: 'roar' },
 ];
 
-/** Longest recording; it stops on its own so a held button never runs away. */
-export const MAX_RECORD_MS = 5000;
+/**
+ * Longest recording; it stops on its own so a held button never runs away. Long
+ * enough for a whole sung line — at five seconds a child was still mid-sentence
+ * when the game cut them off. The slowest animal plays this back at half speed,
+ * so this is also half of the longest playback anyone has to sit through.
+ */
+export const MAX_RECORD_MS = 15000;
 /** Bars in the waveform strip. */
 export const BARS = 16;
 /** A star every this many playbacks. */
