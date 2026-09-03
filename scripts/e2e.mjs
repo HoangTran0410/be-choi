@@ -637,6 +637,41 @@ const bad = voices.filter((v) => !v.ok);
 check(`audio: ${clips.length} animal clips ship with the app`, clips.length >= 20);
 check('audio: every clip downloads and decodes', bad.length === 0, bad.map((v) => `${v.name}: ${v.why}`).join(', '));
 
+// ---- fishing: ease the bait about until something takes it ----
+await open('fishing');
+await page.waitForTimeout(700);
+check('fishing: the lake fills the stage', (await page.locator('.fishing-canvas').evaluate((el) => el.width)) > 0);
+check('fishing: the bucket starts empty', (await page.locator('.fishing-tally').textContent()) === '🪣 0');
+check('fishing: nothing to reel yet', !(await page.locator('.fishing-reel').isVisible()));
+
+const lake = await page.locator('.fishing-canvas').boundingBox();
+let onTheLine = false;
+if (lake) {
+  await page.mouse.move(lake.x + lake.width * 0.2, lake.y + lake.height * 0.3);
+  await page.mouse.down();
+  // Walk the bait about slowly, and let it rest: a snatched line catches nothing.
+  for (let i = 0; i < 60 && !onTheLine; i++) {
+    const px = lake.x + lake.width * (0.2 + 0.6 * Math.abs(((i / 12) % 2) - 1));
+    const py = lake.y + lake.height * (0.3 + 0.35 * Math.abs(((i / 20) % 2) - 1));
+    await page.mouse.move(px, py, { steps: 8 });
+    await page.waitForTimeout(300);
+    onTheLine = await page.locator('.fishing-reel').isVisible();
+  }
+  await page.mouse.up();
+}
+check('fishing: a patient line gets a bite', onTheLine);
+if (onTheLine) {
+  await tap(page.locator('.fishing-reel'));
+  await page.waitForTimeout(1600);
+  check('fishing: the catch lands in the bucket', (await page.locator('.fishing-tally').textContent()) !== '🪣 0');
+  const tankSave = await page.evaluate(() => localStorage.getItem('be-choi:aquarium'));
+  check('fishing: the catch swims into the aquarium', !!tankSave && tankSave.includes('"fish"'), String(tankSave).slice(0, 80));
+  check('fishing: the line can be cast again', await page.locator('.fishing-reel').isVisible());
+  await tap(page.locator('.fishing-reel'));
+  await page.waitForTimeout(1200);
+}
+await page.waitForTimeout(600);
+
 // ---- home + parent gate ----
 await page.goto(`${base}/#/`, { waitUntil: 'networkidle' });
 const parent = page.locator('.home .parent');

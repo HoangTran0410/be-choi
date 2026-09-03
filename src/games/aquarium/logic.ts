@@ -162,6 +162,11 @@ export interface Food {
   fall: number;
   wobble: number;
   eaten: boolean;
+  /**
+   * Bait on a hook. Fish come to it exactly as they come to a flake, and then
+   * nothing happens: swallowing it is not theirs to decide, it is the hook's.
+   */
+  bait?: boolean;
 }
 
 /** How many flakes one press of the food button drops. */
@@ -209,8 +214,45 @@ export const FEAR_SECONDS = 3.6;
 export const JOY_SECONDS = 1.4;
 /** A frightened fish looks for cover no further away than this, in tank units. */
 export const SHELTER_REACH = 5;
-/** More than this many animals and a phone starts dropping frames. */
-export const MAX_CREATURES = 24;
+/**
+ * More than this many animals and a phone starts dropping frames: every one of
+ * them is a spine, a gradient and a look at everybody else, every frame.
+ */
+export const MAX_CREATURES = 30;
+
+/**
+ * Which one goes, when a full tank has to make room. The commonest kind loses a
+ * member — six clownfish will not miss one — and of those the one that has been
+ * in longest. Never the only one of its kind: what a child would notice missing
+ * is the fish there was just one of.
+ */
+export function crowdedOut(ids: readonly string[]): number {
+  const counts = new Map<string, number>();
+  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+  let worst = -1;
+  let most = 0;
+  ids.forEach((id, i) => {
+    const n = counts.get(id) ?? 0;
+    if (n > most) {
+      most = n;
+      worst = i;
+    }
+  });
+  return worst;
+}
+
+/**
+ * Keep a tank down to what a phone can draw, making room rather than turning
+ * arrivals away: a child who has just caught a fish should find it swimming.
+ */
+export function trimStock<T>(fish: readonly T[], idOf: (item: T) => string = String): T[] {
+  const out = [...fish];
+  while (out.length > MAX_CREATURES) {
+    const goes = crowdedOut(out.map(idOf));
+    out.splice(goes >= 0 ? goes : 0, 1);
+  }
+  return out;
+}
 /** A poked plant or ornament is worth a look for this long. */
 export const INTEREST_SECONDS = 2.6;
 
@@ -284,6 +326,11 @@ export interface World {
   interest?: Interest | null;
   /** Everybody else in the tank, so they can shoal, keep apart and take fright together. */
   neighbours?: readonly Creature[];
+  /**
+   * How far the food carries, against a flake's usual reach. Bait on a hook is
+   * worth crossing a lake for; a flake is not.
+   */
+  smell?: number;
 }
 
 const TURN = 3.2;
@@ -624,7 +671,7 @@ export class Creature {
     }
 
     // A hungry fish smells further and will cross the tank for a flake.
-    const flake = this.nearestFood(world.foods, tank);
+    const flake = this.nearestFood(world.foods, tank, world.smell ?? 1);
     if (flake) return { x: flake.x, y: flake.y };
 
     const nudge = world.nudge;
@@ -707,7 +754,7 @@ export class Creature {
   private pickUp(foods: readonly Food[], tank: Tank): boolean {
     const reach = Math.max(tank.unit * 0.4, this.length * 0.45);
     for (const food of foods) {
-      if (food.eaten) continue;
+      if (food.eaten || food.bait) continue;
       if (Math.hypot(food.x - this.x, food.y - this.y) < reach) {
         food.eaten = true;
         this.feed();
@@ -717,13 +764,13 @@ export class Creature {
     return false;
   }
 
-  private nearestFood(foods: readonly Food[], tank: Tank): Food | null {
+  private nearestFood(foods: readonly Food[], tank: Tank, carry = 1): Food | null {
     // A jellyfish does not steer, so it cannot go to a flake; the crab has its
     // own way along the sand.
     if (this.species.kind === 'jelly' || this.species.kind === 'crab') return null;
     let best: Food | null = null;
     // An empty stomach carries a long way.
-    let bestAway = SMELL * tank.unit * (this.hunger >= HUNGRY_AT ? 2.2 : 1);
+    let bestAway = SMELL * tank.unit * (this.hunger >= HUNGRY_AT ? 2.2 : 1) * carry;
     for (const food of foods) {
       if (food.eaten) continue;
       const away = Math.hypot(food.x - this.x, food.y - this.y);
@@ -742,7 +789,7 @@ export class Creature {
     const mouthX = this.x + Math.cos(this.heading) * this.length * 0.15;
     const mouthY = this.y + Math.sin(this.heading) * this.length * 0.15;
     for (const food of foods) {
-      if (food.eaten) continue;
+      if (food.eaten || food.bait) continue;
       if (Math.hypot(food.x - mouthX, food.y - mouthY) < Math.max(tank.unit * 0.3, this.length * 0.25)) {
         food.eaten = true;
         this.feed();
@@ -992,7 +1039,7 @@ export function readSave(raw: string | null): TankSave | null {
     const fish = Array.isArray(save.fish)
       ? save.fish.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
       : [];
-    return { v: 1, fish: fish.slice(0, MAX_CREATURES), decor: fractions(save.decor), plants: fractions(save.plants) };
+    return { v: 1, fish: trimStock(fish), decor: fractions(save.decor), plants: fractions(save.plants) };
   } catch {
     return null;
   }
@@ -1007,7 +1054,7 @@ export function makeSave(
   const across = (x: number): number => Math.min(1, Math.max(0, tank.w > 0 ? x / tank.w : 0));
   return {
     v: 1,
-    fish: creatures.slice(0, MAX_CREATURES).map((cr) => cr.species.id),
+    fish: trimStock(creatures, (cr) => cr.species.id).map((cr) => cr.species.id),
     decor: decor.map((d) => across(d.x)),
     plants: plants.map((plant) => across(plant.x)),
   };

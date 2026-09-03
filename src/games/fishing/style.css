@@ -1,0 +1,56 @@
+.fishing {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #075985;
+}
+.fishing-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* What is in the bucket so far. Never a score to beat, just a count to be proud of. */
+.fishing-tally {
+  position: absolute;
+  left: 2.5vmin;
+  top: 2.5vmin;
+  min-width: calc(var(--tap) * 1.1);
+  padding: 0.6vmin 2vmin;
+  border-radius: calc(var(--tap) * 0.4);
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.36);
+  font-weight: 700;
+  line-height: 1.5;
+  color: #0c4a6e;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
+  pointer-events: none;
+}
+
+/* Only there once something is on the line: winding in by dragging the whole way
+   up is a long reach for a small arm. */
+.fishing-reel {
+  position: absolute;
+  right: 2.5vmin;
+  bottom: 2.5vmin;
+  width: calc(var(--tap) * 1.15);
+  height: calc(var(--tap) * 1.15);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.6);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
+  touch-action: none;
+  transition: transform 0.1s;
+}
+.fishing-reel:active {
+  transform: scale(0.92);
+}
+.fishing [hidden] {
+  display: none !important;
+}

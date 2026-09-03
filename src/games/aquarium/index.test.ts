@@ -232,10 +232,16 @@ describe('aquarium game', () => {
     expect(document.body.contains(ctx.stage)).toBe(false);
   });
 
-  it('will not let a child fill the tank until it stops running', () => {
+  it('always takes the fish the child asked for, and keeps the tank runnable', () => {
+    localStorage.removeItem(SAVE_KEY);
     const { ctx } = mount();
-    for (let i = 0; i < MAX_CREATURES + 8; i++) addFish(ctx);
-    expect(ctx.spoken).toContain('Bể đầy cá rồi!');
+    // Far more than the tank can draw: it makes room rather than refusing them.
+    for (let i = 0; i < MAX_CREATURES + 8; i++) addFish(ctx, 'goldfish');
+    addFish(ctx, 'shark');
+    const save = readSave(localStorage.getItem(SAVE_KEY))!;
+    expect(save.fish.length).toBeLessThanOrEqual(MAX_CREATURES);
+    // The odd one out survives a tank full of goldfish.
+    expect(save.fish).toContain('shark');
     expect(() => vi.advanceTimersByTime(500)).not.toThrow();
     ctx.cleanup();
   });

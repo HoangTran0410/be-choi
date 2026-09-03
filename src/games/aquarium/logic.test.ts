@@ -16,8 +16,10 @@ import {
   makeSave,
   makeTank,
   applySave,
+  crowdedOut,
   readSave,
   savedStock,
+  trimStock,
   nearestShelter,
   plantAt,
   pokeDecor,
@@ -535,6 +537,23 @@ describe('remembering the tank', () => {
     const tooMany = Array.from({ length: MAX_CREATURES + 20 }, () => 'guppy');
     const save = readSave(JSON.stringify({ v: 1, fish: tooMany, decor: [], plants: [] }))!;
     expect(save.fish.length).toBe(MAX_CREATURES);
+  });
+
+  it('makes room by thinning whichever kind there are most of', () => {
+    // Four clownfish, one koi: a clownfish goes, and the earliest one at that.
+    expect(crowdedOut(['clown', 'koi', 'clown', 'clown', 'clown'])).toBe(0);
+    expect(crowdedOut(['koi', 'clown', 'clown'])).toBe(1);
+    // Nothing to choose between them: the first still goes rather than none.
+    expect(crowdedOut(['koi', 'clown'])).toBe(0);
+    expect(crowdedOut([])).toBe(-1);
+  });
+
+  it('never thins the tank down past what it can draw, and keeps the newcomer', () => {
+    const crowd = Array.from({ length: MAX_CREATURES + 5 }, (_, i) => (i < MAX_CREATURES ? 'guppy' : 'shark'));
+    const kept = trimStock(crowd);
+    expect(kept.length).toBe(MAX_CREATURES);
+    // The rare ones survive; the shoal of guppies is what gives way.
+    expect(kept.filter((id) => id === 'shark').length).toBe(5);
   });
 });
 

@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { GAMES, findGame } from './registry';
 
 describe('registry', () => {
-  it('has 34 unique games that all load a module with start()', async () => {
-    expect(GAMES.length).toBe(34);
-    expect(new Set(GAMES.map((g) => g.id)).size).toBe(34);
+  it('has 35 unique games that all load a module with start()', async () => {
+    expect(GAMES.length).toBe(35);
+    expect(new Set(GAMES.map((g) => g.id)).size).toBe(35);
     for (const g of GAMES) {
       const m = (await g.load()).default;
       expect(m.id).toBe(g.id);
