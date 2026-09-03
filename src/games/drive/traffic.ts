@@ -1,4 +1,5 @@
 import { SLOT_UNITS, roadY, type Road } from './logic';
+import type { Shape } from './vehicle';
 
 /**
  * The road is not the child's alone. Vans and tractors trundle along in front,
@@ -6,7 +7,8 @@ import { SLOT_UNITS, roadY, type Road } from './logic';
  * then a train comes through. All of it can be got past by leaning on the horn.
  */
 
-export type TravellerKind = 'car' | 'van' | 'bike' | 'tractor';
+/** The other traffic is built from the same shapes the child drives. */
+export type TravellerKind = Shape;
 
 export interface Traveller {
   /** World x of the middle. */
@@ -36,7 +38,8 @@ const BODIES: readonly [string, string][] = [
   ['#e2e8f0', '#94a3b8'],
 ];
 
-const KINDS: readonly TravellerKind[] = ['car', 'van', 'bike', 'tractor'];
+// Weighted: most of what goes by is an ordinary car.
+const KINDS: readonly TravellerKind[] = ['car', 'car', 'car', 'truck', 'bus', 'tractor'];
 
 /** Slowest thing on the road, as a fraction of the child's top speed. */
 export const DAWDLE_MIN = 0.32;
@@ -46,6 +49,8 @@ export const HURRY_BOOST = 1.9;
 export const HURRY_SECONDS = 2.6;
 /** How close the child's bumper gets to the car in front. */
 export const TAILGATE_UNITS = 1.5;
+/** Far enough ahead that one honk clears a whole jam, not just the front of it. */
+export const HONK_REACH_UNITS = SLOT_UNITS * 1.8;
 /** A jam clears by itself after this long, honk or no honk. */
 export const JAM_SECONDS = 5;
 /** Cars in a jam stand this far apart. */
@@ -114,7 +119,7 @@ export function tailOf(carX: number, travellers: readonly Traveller[], road: Roa
 export function honkAt(carX: number, travellers: readonly Traveller[], road: Road): number {
   let heard = 0;
   for (const t of travellers) {
-    if (t.x < carX - road.unit || t.x > carX + road.unit * SLOT_UNITS * 1.4) continue;
+    if (t.x < carX - road.unit || t.x > carX + road.unit * HONK_REACH_UNITS) continue;
     t.hurry = HURRY_SECONDS;
     t.stuck = 0;
     heard++;
@@ -133,14 +138,16 @@ export interface Crosser {
   name: string;
   count: number;
   hurried: boolean;
+  /** How big one of them is, in units — a cow is not the size of a duckling. */
+  size: number;
 }
 
-const HERDS: readonly { emoji: string; name: string }[] = [
-  { emoji: '🦆', name: 'đàn vịt' },
-  { emoji: '🐤', name: 'đàn gà con' },
-  { emoji: '🐄', name: 'đàn bò' },
-  { emoji: '🐑', name: 'đàn cừu' },
-  { emoji: '🦢', name: 'đàn ngỗng' },
+const HERDS: readonly { emoji: string; name: string; size: number }[] = [
+  { emoji: '🦆', name: 'đàn vịt', size: 0.52 },
+  { emoji: '🐤', name: 'đàn gà con', size: 0.44 },
+  { emoji: '🐄', name: 'đàn bò', size: 0.98 },
+  { emoji: '🐑', name: 'đàn cừu', size: 0.74 },
+  { emoji: '🦢', name: 'đàn ngỗng', size: 0.62 },
 ];
 
 /** How long a herd takes to get across, dawdling. */
@@ -163,10 +170,13 @@ export function crossed(c: Crosser): boolean {
   return c.t >= 1;
 }
 
-/** Where the herd walks: from the verge in front of the road to the far side. */
+/**
+ * Where the herd walks: from the verge in front of the road to the far side. The
+ * bigger the animal the higher its middle sits, so every one of them has its feet
+ * on the tarmac rather than its belly in it.
+ */
 export function crosserY(c: Crosser, road: Road): number {
-  const y = roadY(road, c.x);
-  return y + road.unit * (0.72 - c.t * 0.95);
+  return roadY(road, c.x) + road.unit * (0.72 - c.t * 0.95 - c.size * 0.34);
 }
 
 // ---- the level crossing ----

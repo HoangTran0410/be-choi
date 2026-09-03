@@ -22,11 +22,66 @@ export interface Vehicle {
 }
 
 export const VEHICLES: readonly Vehicle[] = [
-  { id: 'car', name: 'ô tô', emoji: '🚗', body: '#ef4444', trim: '#b91c1c', height: 0.5, wheelbase: 1.05, speed: 4.6, horn: 'honk', shape: 'car' },
-  { id: 'bus', name: 'xe buýt', emoji: '🚌', body: '#f59e0b', trim: '#b45309', height: 0.78, wheelbase: 1.6, speed: 3.6, horn: 'honk', shape: 'bus' },
-  { id: 'fire', name: 'xe cứu hoả', emoji: '🚒', body: '#dc2626', trim: '#7f1d1d', height: 0.66, wheelbase: 1.5, speed: 4.2, horn: 'siren', shape: 'truck' },
-  { id: 'truck', name: 'xe tải', emoji: '🚚', body: '#3b82f6', trim: '#1d4ed8', height: 0.66, wheelbase: 1.55, speed: 3.8, horn: 'honk', shape: 'truck' },
-  { id: 'tractor', name: 'máy cày', emoji: '🚜', body: '#22c55e', trim: '#15803d', height: 0.6, wheelbase: 1.2, speed: 2.6, horn: 'kazoo', shape: 'tractor' },
+  {
+    id: 'car',
+    name: 'ô tô',
+    emoji: '🚗',
+    body: '#ef4444',
+    trim: '#b91c1c',
+    height: 0.5,
+    wheelbase: 1.05,
+    speed: 4.6,
+    horn: 'honk',
+    shape: 'car',
+  },
+  {
+    id: 'bus',
+    name: 'xe buýt',
+    emoji: '🚌',
+    body: '#f59e0b',
+    trim: '#b45309',
+    height: 0.78,
+    wheelbase: 1.6,
+    speed: 3.6,
+    horn: 'honk',
+    shape: 'bus',
+  },
+  {
+    id: 'fire',
+    name: 'xe cứu hoả',
+    emoji: '🚒',
+    body: '#dc2626',
+    trim: '#7f1d1d',
+    height: 0.66,
+    wheelbase: 1.5,
+    speed: 4.2,
+    horn: 'siren',
+    shape: 'truck',
+  },
+  {
+    id: 'truck',
+    name: 'xe tải',
+    emoji: '🚚',
+    body: '#3b82f6',
+    trim: '#1d4ed8',
+    height: 0.66,
+    wheelbase: 1.55,
+    speed: 3.8,
+    horn: 'honk',
+    shape: 'truck',
+  },
+  {
+    id: 'tractor',
+    name: 'máy cày',
+    emoji: '🚜',
+    body: '#22c55e',
+    trim: '#15803d',
+    height: 0.6,
+    wheelbase: 1.2,
+    speed: 2.6,
+    horn: 'kazoo',
+    shape: 'tractor',
+  },
 ];
 
 export function vehicleById(id: string): Vehicle | undefined {
@@ -79,15 +134,19 @@ export const FIRST_LEG: Leg = { from: 0, terrain: 'flat', biome: 'meadow', weath
 
 export function makeRoad(w: number, h: number, legs: readonly Leg[] = [FIRST_LEG]): Road {
   const unit = Math.min(w, h) / 6.5;
-  return { w, h, unit, ground: h * 0.66, legs: legs.length ? legs.map((l) => ({ ...l })) : [{ ...FIRST_LEG }] };
+  return { w, h, unit, ground: h * 0.62, legs: legs.length ? legs.map((l) => ({ ...l })) : [{ ...FIRST_LEG }] };
 }
 
 /** Roadside things stand this many units apart. */
 export const SLOT_UNITS = 5;
 /** A passenger waits three slots before the house that takes them in. */
 export const RIDE_SLOTS = 3;
-/** The road forks this often, and the child picks which way to go. */
-export const FORK_SLOTS = 12;
+/**
+ * The road forks every `FORK_SLOTS` slots, `FORK_OFFSET` of them along. The gap
+ * is a whole number of houses so a fork can never land on one, or on a stop.
+ */
+export const FORK_SLOTS = 10;
+export const FORK_OFFSET = 4;
 /** A new leg eases into its own shape over this many units, so no hill starts with a step. */
 export const BLEND_UNITS = 3.5;
 
@@ -203,19 +262,24 @@ function weatherFor(biome: Biome, roll: number): Weather {
 
 /** Is there a fork at this slot? Forks never land on a house or a bus stop. */
 export function isFork(slot: number): boolean {
-  return slot > 0 && slot % FORK_SLOTS === 0;
+  return slot > 0 && (((slot - FORK_OFFSET) % FORK_SLOTS) + FORK_SLOTS) % FORK_SLOTS === 0;
 }
 
-/** The next fork at or after `slot`. */
+/** The first fork strictly after `slot`. */
 export function nextFork(slot: number): number {
-  return (Math.floor(slot / FORK_SLOTS) + 1) * FORK_SLOTS;
+  return (Math.floor((slot - FORK_OFFSET) / FORK_SLOTS) + 1) * FORK_SLOTS + FORK_OFFSET;
 }
 
-/** The two ways on offer at a fork: one always climbs, one always drops. Same pair every time. */
+/**
+ * The two ways on offer at a fork: one always climbs, one always drops, and they
+ * never lead to the same sort of place — a choice between two meadows is no
+ * choice at all. The same pair every time, so a road driven twice is the same road.
+ */
 export function forkAt(slot: number): readonly [LegPlan, LegPlan] {
   const rng = mulberry32(slot * 3607 + 41);
   const up = UPHILL[Math.floor(rng() * UPHILL.length)] ?? UPHILL[0]!;
-  const down = DOWNHILL[Math.floor(rng() * DOWNHILL.length)] ?? DOWNHILL[0]!;
+  const others = DOWNHILL.filter((d) => d.biome !== up.biome);
+  const down = others[Math.floor(rng() * others.length)] ?? DOWNHILL[0]!;
   return [
     { ...up, up: true, weather: weatherFor(up.biome, rng()) },
     { ...down, up: false, weather: weatherFor(down.biome, rng()) },
@@ -231,17 +295,7 @@ export function takeFork(road: Road, slot: number, plan: LegPlan): void {
 
 // ---- what stands beside it ----
 
-export type PropKind =
-  | 'stop'
-  | 'house'
-  | 'tree'
-  | 'bush'
-  | 'light'
-  | 'puddle'
-  | 'pump'
-  | 'wash'
-  | 'crossing'
-  | 'fork';
+export type PropKind = 'stop' | 'house' | 'tree' | 'bush' | 'light' | 'puddle' | 'pump' | 'wash' | 'crossing' | 'fork';
 
 export interface Prop {
   slot: number;
@@ -366,14 +420,7 @@ function clamp(n: number, lo: number, hi: number): number {
  * is a red light, a lowered barrier or the back of the car in front, and the car
  * may not pass it. The road never runs out forwards and ends at 0 going back.
  */
-export function stepCar(
-  car: Car,
-  target: number,
-  dt: number,
-  road: Road,
-  vehicle: Vehicle,
-  stopX: number | null = null,
-): void {
+export function stepCar(car: Car, target: number, dt: number, road: Road, vehicle: Vehicle, stopX: number | null = null): void {
   const full = vehicle.speed * road.unit;
   const top = full * (car.fuel > 0 ? 1 : LIMP_FRACTION);
   const reach = clamp((target - car.x) / (road.unit * FULL_THROTTLE), -1, 1);

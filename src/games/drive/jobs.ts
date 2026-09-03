@@ -1,5 +1,5 @@
 import { mulberry32 } from '../../core/dom';
-import { SLOT_UNITS, homeSlot, riderAt, type Vehicle } from './logic';
+import { SLOT_UNITS, homeSlot, riderAt, vehicleById, type Vehicle } from './logic';
 
 /**
  * Every vehicle has its own errand, so picking one up the bottom of the screen
@@ -22,6 +22,11 @@ const JOBS: Readonly<Record<JobKind, Omit<Job, 'capacity'>>> = {
   harvest: { kind: 'harvest', brief: 'Gom rau quả ngoài ruộng rồi chở về kho nhé!' },
   fire: { kind: 'fire', brief: 'Nhà nào cháy thì tới xịt nước dập lửa nhé!' },
 };
+
+/** The vehicle with this id, for the places that always have one. */
+export function vehicleFor(id: string): Vehicle {
+  return vehicleById(id) ?? vehicleById('car')!;
+}
 
 export function jobOf(vehicle: Vehicle): Job {
   if (vehicle.id === 'fire') return { ...JOBS.fire, capacity: 0 };

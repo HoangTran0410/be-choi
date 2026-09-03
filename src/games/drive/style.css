@@ -1,16 +1,18 @@
 .drive {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
   background: #bae6fd;
 }
-/* The road fills what is left after the vehicle tray. */
+/* The world gets the whole stage. Every control floats over it, so nothing but
+   the top bar is taken off the little screen a child is holding. */
 .drive-view {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
+}
+/* The buttons set `display`, which would win over the browser's [hidden]. */
+.drive [hidden] {
+  display: none !important;
 }
 .drive-canvas {
   display: block;
@@ -19,10 +21,11 @@
   touch-action: none;
 }
 
-.drive-horn {
+.drive-horn,
+.drive-act,
+.drive-night {
   position: absolute;
   right: 2.5vmin;
-  top: 2.5vmin;
   width: var(--tap);
   height: var(--tap);
   border-radius: 50%;
@@ -33,10 +36,63 @@
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
   touch-action: none;
-  transition: transform 0.1s;
+  transition:
+    transform 0.1s,
+    background 0.3s;
 }
-.drive-horn:active {
+.drive-night {
+  top: 2.5vmin;
+  width: calc(var(--tap) * 0.72);
+  height: calc(var(--tap) * 0.72);
+  font-size: calc(var(--tap) * 0.36);
+}
+.drive-horn {
+  top: calc(2.5vmin + var(--tap) * 0.86);
+}
+/* The one job the child can do right here: fill up, or put the fire out. */
+.drive-act {
+  top: calc(2.5vmin + var(--tap) * 2.02);
+  background: #fde68a;
+}
+.drive-horn:active,
+.drive-act:active,
+.drive-night:active {
   transform: scale(0.92);
+}
+
+/* How much is left in the tank. */
+.drive-fuel {
+  position: absolute;
+  left: 2.5vmin;
+  top: calc(2.5vmin + var(--tap) * 0.84);
+  width: calc(var(--tap) * 1.6);
+  height: calc(var(--tap) * 0.22);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 3px 0 rgba(3, 32, 54, 0.25);
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+/* A brimful tank is nothing to look at: the gauge only shows once it matters. */
+.drive-fuel.full {
+  opacity: 0;
+}
+.drive-fuel i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #84cc16);
+  transition: width 0.2s linear;
+}
+.drive-fuel.low i {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  animation: drive-thirst 0.8s ease-in-out infinite;
+}
+@keyframes drive-thirst {
+  50% {
+    opacity: 0.45;
+  }
 }
 
 /* Who is in the car right now. */
@@ -57,37 +113,162 @@
   pointer-events: none;
 }
 
-/* One row, always: five vehicles have to fit across a phone. */
+/* Three things only — back, the garage door, forward — floating on the road
+   rather than sitting in a bar that would eat a third of the view. */
 .drive-tray {
-  position: static;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   min-height: 0;
   flex: none;
   flex-wrap: nowrap;
-  justify-content: center;
-  align-items: center;
-  gap: 1.5vmin;
-  padding: 1.2vmin;
-  background: rgba(255, 255, 255, 0.55);
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2vmin;
+  padding: 0 3vmin 2.5vmin;
+  background: none;
+  /* The gaps between the buttons are still road: a poke there must reach it. */
+  pointer-events: none;
+  z-index: 2;
 }
-.drive-pick {
-  /* Five have to fit across a phone, and the tray must not eat a landscape screen. */
-  width: min(var(--tap), 16vw, 20vh);
-  height: min(var(--tap), 16vw, 20vh);
+.drive-tray > * {
+  pointer-events: auto;
+}
+/* The two pedals: far apart, and the biggest things on the screen to hit. */
+.drive-go {
+  width: min(calc(var(--tap) * 1.25), 26vw, 22vh);
+  height: min(calc(var(--tap) * 1.05), 22vw, 18vh);
+  border-radius: 28%;
+  display: grid;
+  place-items: center;
+  font-size: min(calc(var(--tap) * 0.6), 12vw, 10vh);
+  line-height: 1;
+  color: #1c1917;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 5px 0 rgba(120, 53, 15, 0.32);
+  touch-action: none;
+  transition:
+    transform 0.08s,
+    background 0.12s;
+}
+.drive-go.fwd {
+  background: #bbf7d0;
+}
+.drive-go.down {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(120, 53, 15, 0.32);
+  background: #fde047;
+}
+/* The garage door: whichever vehicle is out is the picture on it. */
+.drive-garage {
+  width: min(calc(var(--tap) * 0.95), 18vw, 16vh);
+  height: min(calc(var(--tap) * 0.95), 18vw, 16vh);
   border-radius: 30%;
   display: grid;
   place-items: center;
-  font-size: min(calc(var(--tap) * 0.55), 9vw, 11vh);
+  font-size: min(calc(var(--tap) * 0.55), 10vw, 9vh);
   line-height: 1;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.25);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.3);
   touch-action: none;
   transition: transform 0.12s;
 }
-.drive-pick.selected {
-  transform: scale(1.12);
-  background: #fef08a;
-  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.4);
-}
-.drive-pick:active {
+.drive-garage:active {
   transform: scale(0.94);
+}
+
+/* Inside the garage. */
+.drive-pick {
+  flex-direction: column;
+  gap: 0.6vmin;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.92);
+}
+.drive-pick.selected {
+  background-color: #fef08a;
+}
+.drive-pick-face {
+  font-size: clamp(34px, 9vmin, 70px);
+  line-height: 1;
+}
+.drive-pick-name {
+  font-size: clamp(11px, 2.4vmin, 16px);
+  line-height: 1.1;
+  color: #44403c;
+}
+
+/* The fork: two ways, the one that climbs on top of the one that drops. */
+.drive-fork {
+  position: absolute;
+  left: 50%;
+  top: 2.5vmin;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vmin;
+  z-index: 3;
+}
+.drive-way {
+  display: flex;
+  align-items: center;
+  gap: 1.2vmin;
+  padding: 0.8vmin 2vmin;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 0 rgba(3, 32, 54, 0.3);
+  touch-action: none;
+  transition: transform 0.1s;
+}
+.drive-way:active {
+  transform: scale(0.94);
+}
+.drive-way-sign {
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+}
+.drive-way-arrow {
+  font-size: calc(var(--tap) * 0.32);
+  line-height: 1;
+}
+
+/* Once the sun goes down the controls go with it, like the fish tank's. */
+.drive.night .drive-horn,
+.drive.night .drive-act,
+.drive.night .drive-night,
+.drive.night .drive-badge,
+.drive.night .drive-go,
+.drive.night .drive-garage,
+.drive.night .drive-way {
+  background: rgba(15, 23, 55, 0.82);
+  color: #e2e8f0;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+.drive.night .drive-act {
+  background: rgba(120, 53, 15, 0.85);
+}
+.drive.night .drive-go.fwd {
+  background: rgba(21, 74, 45, 0.9);
+}
+.drive.night .drive-go.down {
+  background: #7c5a12;
+}
+.drive.night .drive-fuel {
+  background: rgba(15, 23, 55, 0.72);
+}
+
+/* The garage door takes on the colour of wherever the road has got to. */
+.drive[data-place='seaside'] .drive-garage {
+  background: rgba(254, 243, 199, 0.92);
+}
+.drive[data-place='forest'] .drive-garage {
+  background: rgba(220, 252, 231, 0.92);
+}
+.drive[data-place='snow'] .drive-garage {
+  background: rgba(241, 245, 249, 0.95);
+}
+.drive[data-place='town'] .drive-garage {
+  background: rgba(226, 232, 240, 0.94);
 }

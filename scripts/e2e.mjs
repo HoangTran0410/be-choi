@@ -289,23 +289,90 @@ await page.waitForTimeout(1800);
 await open('drive');
 await page.waitForTimeout(500);
 const driveBox = await page.locator('.drive-canvas').boundingBox();
-check('drive: road and five vehicles', !!driveBox && (await page.locator('.drive-pick').count()) === 5);
-await page.mouse.move(driveBox.x + driveBox.width * 0.9, driveBox.y + driveBox.height * 0.7);
-await page.mouse.down();
-const rider = await page
-  .waitForSelector('.drive-badge:not([hidden])', { timeout: 25000 })
-  .then(() => true)
-  .catch(() => false);
-check('drive: a passenger climbs in', rider);
-const fares = await page
-  .waitForSelector('canvas.confetti', { timeout: 40000 })
-  .then(() => true)
-  .catch(() => false);
-await page.mouse.up();
-check('drive: two fares home earn a star', fares);
+check('drive: road, two pedals and a garage door', !!driveBox && (await page.locator('.drive-go').count()) === 2);
+check('drive: no vehicles on show until the door is opened', !(await page.locator('.drive-pick').count()));
+
+/** Hold the forward pedal until `ready()`, or the time runs out. */
+const drive = async (ready, timeout) => {
+  const pedal = await center(page.locator('.drive-go.fwd'));
+  await page.mouse.move(pedal.x, pedal.y);
+  await page.mouse.down();
+  const got = await ready(timeout).catch(() => false);
+  await page.mouse.up();
+  return got;
+};
+const appears = (selector) => (timeout) => page.waitForSelector(selector, { timeout }).then(() => true);
+
+check('drive: a passenger climbs in', await drive(appears('.drive-badge:not([hidden])'), 25000));
+check('drive: two fares home earn a star', await drive(appears('canvas.confetti'), 40000));
 await page.waitForTimeout(1800);
-await tap(page.locator('.drive-pick').nth(1));
-check('drive: the bus can be picked', (await page.locator('.drive-pick.selected').getAttribute('data-vehicle')) === 'bus');
+
+// Five vehicles behind one door, so there is nothing along the bottom to hit by accident.
+await tap(page.locator('.drive-garage'));
+check('drive: the garage holds all five', (await page.locator('.drive-pick').count()) === 5);
+await page.waitForTimeout(350);
+await tap(page.locator('.drive-pick[data-vehicle="bus"]'));
+check('drive: the bus comes out', (await page.locator('.drive-garage').getAttribute('data-vehicle')) === 'bus');
+
+// The fork puts both ways on screen as buttons, and the road goes the way that is pressed.
+const drivePlace = await page
+  .waitForFunction(() => !!document.querySelector('.drive')?.dataset.way, null, { timeout: 5000 })
+  .then(() => true)
+  .catch(() => false);
+check('drive: a way was taken at the fork', drivePlace);
+const asked = await drive(appears('.drive-fork:not([hidden]) .drive-way'), 30000);
+check('drive: the next fork offers both ways', asked);
+if (asked) {
+  const wanted = await page.locator('.drive-way.down').getAttribute('data-way');
+  await tap(page.locator('.drive-way.down'));
+  check('drive: the way pressed is the way taken', (await page.locator('.drive').getAttribute('data-way')) !== null);
+  check('drive: and the road gets there', await drive(appears(`.drive[data-place="${wanted}"]`), 25000));
+}
+const fuelLeft = () => page.locator('.drive-fuel i').evaluate((el) => parseInt(el.style.width, 10));
+check('drive: the tank has gone down on the way', (await fuelLeft()) < 100);
+// The job button is for the job in hand: away from a pump or a fire there is none.
+check('drive: no job button with no job to do', !(await page.locator('.drive-act').isVisible()));
+
+// The lights go out and the buttons go with them.
+await tap(page.locator('.drive-night'));
+check('drive: night falls', await page.locator('.drive.night').count());
+await tap(page.locator('.drive-night'));
+
+// The fire engine finds a house alight and the hose puts it out.
+await tap(page.locator('.drive-garage'));
+await page.waitForTimeout(350);
+await tap(page.locator('.drive-pick[data-vehicle="fire"]'));
+const alight = await drive(
+  (timeout) =>
+    page
+      .waitForFunction(
+        () => {
+          const btn = document.querySelector('.drive-act');
+          return btn?.textContent === '💦' && !btn.hasAttribute('hidden');
+        },
+        null,
+        { timeout },
+      )
+      .then(() => true),
+  45000,
+);
+check('drive: the fire engine pulls up at a blaze', alight);
+if (alight) {
+  const actBox = await page.locator('.drive-act').boundingBox();
+  await page.mouse.move(actBox.x + actBox.width / 2, actBox.y + actBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(2600);
+  await page.mouse.up();
+  check('drive: the hose puts it out', !(await page.locator('.drive-act').isVisible()));
+}
+
+// Prodding the roadside is answered, and never breaks the drive.
+await tap(page.locator('.drive-garage'));
+await page.waitForTimeout(350);
+await tap(page.locator('.drive-pick[data-vehicle="car"]'));
+await page.mouse.click(driveBox.x + driveBox.width * 0.25, driveBox.y + driveBox.height * 0.4);
+await page.waitForTimeout(400);
+check('drive: still running after a poke at the scenery', await page.locator('.drive-canvas').count());
 
 // ---- farm: the yard runs by itself and everybody comes for the feed ----
 await open('farm');

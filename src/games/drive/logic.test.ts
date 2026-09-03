@@ -1,22 +1,36 @@
 import { describe, it, expect } from 'vitest';
 import { FX } from '../../core/audio';
 import {
+  BLEND_UNITS,
   DELIVERIES_FOR_STAR,
+  FILL_SECONDS,
+  FIRST_LEG,
+  FORK_OFFSET,
+  FORK_SLOTS,
+  MUD_PER_SPLASH,
   REACH_UNITS,
   RIDE_SLOTS,
   SLOT_UNITS,
   VEHICLES,
+  fillUp,
+  forkAt,
   homeSlot,
+  isFork,
+  legAt,
+  legMix,
   makeCar,
   makeRoad,
   propAt,
+  nextFork,
   propsIn,
   reached,
+  rinse,
   riderAt,
   roadTilt,
   roadY,
   slotX,
   stepCar,
+  takeFork,
   vehicleById,
 } from './logic';
 
@@ -162,5 +176,144 @@ describe('driving', () => {
     expect(reached(car, car.x + ROAD.unit * REACH_UNITS * 0.5, ROAD)).toBe(true);
     expect(reached(car, car.x + ROAD.unit * REACH_UNITS * 2, ROAD)).toBe(false);
     expect(DELIVERIES_FOR_STAR).toBeGreaterThan(0);
+  });
+});
+
+describe('the fork in the road', () => {
+  it('offers one way up and one way down, the same pair every time', () => {
+    for (const slot of [FORK_OFFSET, FORK_OFFSET + FORK_SLOTS, 94]) {
+      const [up, down] = forkAt(slot);
+      expect(up.up).toBe(true);
+      expect(down.up).toBe(false);
+      expect(up.emoji.length).toBeGreaterThan(0);
+      expect(down.name.length).toBeGreaterThan(0);
+      expect(forkAt(slot)).toEqual(forkAt(slot));
+      // Two ways to the same sort of place is no choice at all.
+      expect(up.biome).not.toBe(down.biome);
+    }
+  });
+
+  it('puts one on a regular beat, never on a house or a stop', () => {
+    expect(isFork(0)).toBe(false);
+    expect(isFork(FORK_OFFSET)).toBe(true);
+    expect(isFork(FORK_OFFSET + FORK_SLOTS)).toBe(true);
+    expect(nextFork(1)).toBe(FORK_OFFSET);
+    expect(nextFork(FORK_OFFSET)).toBe(FORK_OFFSET + FORK_SLOTS);
+    expect(nextFork(FORK_OFFSET - 1)).toBe(FORK_OFFSET);
+    for (let slot = 1; slot < 200; slot++) {
+      if (!isFork(slot)) continue;
+      const mod = slot % SLOT_UNITS;
+      expect(mod === 0 || mod === SLOT_UNITS - RIDE_SLOTS).toBe(false);
+    }
+  });
+
+  it('changes the land beyond it, and only beyond it', () => {
+    const road = makeRoad(420, 620);
+    const at = slotX(road, FORK_OFFSET);
+    const before = roadY(road, at - road.unit * 4);
+    takeFork(road, FORK_OFFSET, forkAt(FORK_OFFSET)[0]!);
+    expect(roadY(road, at - road.unit * 4)).toBeCloseTo(before, 6);
+    expect(legAt(road, at + road.unit).biome).toBe(forkAt(FORK_OFFSET)[0]!.biome);
+    expect(legAt(road, at - road.unit).biome).toBe('meadow');
+    // A way is taken once: a second try does not stack another leg on top.
+    takeFork(road, FORK_OFFSET, forkAt(FORK_OFFSET)[1]!);
+    expect(road.legs.length).toBe(2);
+  });
+
+  it('eases into the new shape so the road never steps', () => {
+    const road = makeRoad(420, 620);
+    takeFork(road, FORK_OFFSET, { terrain: 'mountain', biome: 'snow', weather: 'snow', emoji: '❄️', name: 'núi', up: true });
+    const at = slotX(road, FORK_OFFSET);
+    let prev = roadY(road, at - road.unit * 2);
+    for (let x = at - road.unit * 2; x < at + road.unit * 10; x += road.unit * 0.1) {
+      const y = roadY(road, x);
+      expect(Math.abs(y - prev)).toBeLessThan(road.unit * 0.1);
+      prev = y;
+    }
+    // At the fork itself the shape is still the old one, and well past it the new.
+    expect(legMix(road, at).k).toBeCloseTo(0, 5);
+    expect(legMix(road, at + road.unit * BLEND_UNITS).k).toBe(1);
+  });
+
+  it('really does climb on a mountain and sit low in a valley', () => {
+    const climb = makeRoad(420, 620, [FIRST_LEG, { from: 1, terrain: 'mountain', biome: 'snow', weather: 'snow' }]);
+    const drop = makeRoad(420, 620, [FIRST_LEG, { from: 1, terrain: 'valley', biome: 'seaside', weather: 'sun' }]);
+    const highs = (road: typeof climb): number[] => {
+      const ys: number[] = [];
+      for (let x = road.unit * 20; x < road.unit * 120; x += road.unit * 0.5) ys.push(roadY(road, x));
+      return ys;
+    };
+    const up = highs(climb);
+    const down = highs(drop);
+    expect(Math.min(...up)).toBeLessThan(Math.min(...down));
+    expect(Math.max(...up) - Math.min(...up)).toBeGreaterThan(Math.max(...down) - Math.min(...down));
+    // Both stay on the screen they are drawn on.
+    for (const y of [...up, ...down]) expect(y).toBeGreaterThan(0);
+    for (const y of [...up, ...down]) expect(y).toBeLessThan(620);
+  });
+
+  it('dresses the roadside with whatever the leg is made of', () => {
+    const road = makeRoad(420, 620);
+    takeFork(road, FORK_OFFSET, { terrain: 'valley', biome: 'seaside', weather: 'sun', emoji: '🏖️', name: 'biển', up: false });
+    expect(propAt(road, 2).biome).toBe('meadow');
+    expect(propAt(road, FORK_OFFSET + 2).biome).toBe('seaside');
+  });
+});
+
+describe('the roadside services', () => {
+  it('lays on petrol, a car wash and a level crossing often enough to find one', () => {
+    const road = makeRoad(420, 620);
+    const kinds = Array.from({ length: 120 }, (_, i) => propAt(road, i).kind);
+    for (const wanted of ['pump', 'wash', 'crossing', 'fork'] as const) {
+      expect(kinds.filter((k) => k === wanted).length).toBeGreaterThan(1);
+    }
+    // Never at the cost of somewhere to pick up or drop off.
+    for (let slot = 0; slot < 120; slot++) {
+      const mod = ((slot % SLOT_UNITS) + SLOT_UNITS) % SLOT_UNITS;
+      if (mod === 0) expect(propAt(road, slot).kind).toBe('house');
+      if (mod === SLOT_UNITS - RIDE_SLOTS) expect(propAt(road, slot).kind).toBe('stop');
+    }
+  });
+});
+
+describe('the tank and the mud', () => {
+  it('burns fuel by the distance covered, not by the clock', () => {
+    const parked = makeCar(ROAD);
+    const going = makeCar(ROAD);
+    for (let i = 0; i < 60 * 10; i++) {
+      stepCar(parked, parked.x, 1 / 60, ROAD, CAR);
+      stepCar(going, going.x + ROAD.unit * 9, 1 / 60, ROAD, CAR);
+    }
+    expect(parked.fuel).toBeCloseTo(1, 2);
+    expect(going.fuel).toBeLessThan(0.95);
+    expect(going.fuel).toBeGreaterThan(0.8);
+  });
+
+  it('crawls on an empty tank but never stops dead', () => {
+    const dry = makeCar(ROAD);
+    const full = makeCar(ROAD);
+    dry.fuel = 0;
+    for (let i = 0; i < 120; i++) {
+      stepCar(dry, dry.x + ROAD.unit * 9, 1 / 60, ROAD, CAR);
+      stepCar(full, full.x + ROAD.unit * 9, 1 / 60, ROAD, CAR);
+    }
+    expect(dry.v).toBeGreaterThan(0);
+    expect(dry.v).toBeLessThan(full.v * 0.5);
+  });
+
+  it('fills up and rinses off, and says so on the last drop', () => {
+    const c = makeCar(ROAD);
+    c.fuel = 0.2;
+    expect(fillUp(c, FILL_SECONDS * 0.5)).toBe(false);
+    expect(c.fuel).toBeGreaterThan(0.6);
+    expect(fillUp(c, FILL_SECONDS)).toBe(true);
+    expect(c.fuel).toBe(1);
+    expect(fillUp(c, 1)).toBe(false);
+
+    c.mud = MUD_PER_SPLASH;
+    expect(rinse(c, 0.05)).toBe(false);
+    expect(rinse(c, 5)).toBe(true);
+    expect(c.mud).toBe(0);
+    expect(rinse(c, 1)).toBe(false);
   });
 });
