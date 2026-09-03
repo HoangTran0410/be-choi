@@ -37,7 +37,7 @@ function toggle(label: string, checked: boolean, onChange: (v: boolean) => void)
 
 /** Settings panel for parents. Opened by holding the 👪 button. */
 export function openParentPanel(deps: AppDeps): void {
-  const { store, audio, speech, install, photos } = deps;
+  const { store, audio, speech, install, update, photos } = deps;
   const settings = store.settings();
 
   // ---- family photos (kept on this device, used by jigsaw / paint / birthday) ----
@@ -193,6 +193,35 @@ export function openParentPanel(deps: AppDeps): void {
 
   idleReset();
 
+  // ---- forcing a new build onto a device still running the old one ----
+  const updateStatus = h('p', { class: 'panel-status' });
+  const updateBtn = h(
+    'button',
+    {
+      class: 'panel-btn',
+      type: 'button',
+      onClick: async () => {
+        audio.tick();
+        updateBtn.disabled = true;
+        updateStatus.textContent = 'Đang tải bản mới…';
+        // A true answer means the page is on its way out, so there is nothing to say.
+        if (await update.force()) return;
+        updateBtn.disabled = false;
+        updateStatus.textContent = 'Cần có mạng để tải bản mới.';
+      },
+    },
+    '⬇️ Tải bản mới nhất',
+  );
+  const updateSection = h(
+    'div',
+    { class: 'panel-section' },
+    h('h3', null, '🔄 Phiên bản'),
+    h('p', { class: 'panel-version' }, `Bé Chơi v${__APP_VERSION__}`),
+    h('p', { class: 'panel-note' }, 'Máy vẫn còn bản cũ? Bấm để xoá bản đã lưu và tải lại từ mạng. App sẽ mở lại ngay sau đó.'),
+    updateBtn,
+    updateStatus,
+  );
+
   const panel = h(
     'div',
     { class: 'panel', onClick: (e: Event) => e.stopPropagation() },
@@ -219,7 +248,7 @@ export function openParentPanel(deps: AppDeps): void {
     photoSection,
     resetBox,
     status,
-    h('p', { class: 'panel-version' }, `Bé Chơi v${__APP_VERSION__}`),
+    updateSection,
     h('button', { class: 'panel-btn close', onClick: close }, 'Đóng'),
   );
 

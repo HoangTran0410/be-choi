@@ -12,10 +12,19 @@ export interface InstallState {
   isStandalone: boolean;
 }
 
+export interface UpdateState {
+  /**
+   * Throw the saved build away and reload from the server. Resolves false when there is
+   * no network — reloading with nothing cached would leave the app with nothing to open.
+   */
+  force(): Promise<boolean>;
+}
+
 export interface AppDeps {
   audio: AudioEngine;
   speech: Speech;
   store: Store;
   install: InstallState;
+  update: UpdateState;
   photos: PhotoStore;
 }

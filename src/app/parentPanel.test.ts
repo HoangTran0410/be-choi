@@ -20,6 +20,7 @@ function deps(): AppDeps {
     speech: fakeSpeech(),
     store: createStore(),
     install: { available: () => false, prompt: () => undefined, isIOS: false, isStandalone: true },
+    update: { force: async () => true },
     photos: createPhotoStore(async () => 'data:image/jpeg;base64,'),
   };
 }
@@ -166,5 +167,54 @@ describe('parent panel: wiping stars', () => {
     openParentPanel(d);
     expect(has('Huỷ')).toBe(false);
     expect(has('Xoá hết sao và sticker')).toBe(true);
+  });
+});
+
+describe('parent panel: fetching a new version', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.body.replaceChildren();
+  });
+
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  /** The button's handler awaits `update.force()`; let those microtasks run. */
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+  };
+
+  it('shows the running version and hands a tap to update.force()', async () => {
+    const d = deps();
+    let calls = 0;
+    d.update = {
+      force: async () => {
+        calls++;
+        return true;
+      },
+    };
+    openParentPanel(d);
+    expect(document.querySelector('.panel-version')?.textContent).toBe('Bé Chơi v0.0.0-test');
+
+    btn('Tải bản mới nhất').click();
+    await settle();
+
+    expect(calls).toBe(1);
+    // The reload is on its way: nothing left to say, and no second tap to give.
+    expect(btn('Tải bản mới nhất').disabled).toBe(true);
+  });
+
+  it('says why nothing happened, and stays tappable, when there is no network', async () => {
+    const d = deps();
+    d.update = { force: async () => false };
+    openParentPanel(d);
+
+    const button = btn('Tải bản mới nhất');
+    button.click();
+    await settle();
+
+    expect(button.nextElementSibling?.textContent).toBe('Cần có mạng để tải bản mới.');
+    expect(button.disabled).toBe(false);
   });
 });

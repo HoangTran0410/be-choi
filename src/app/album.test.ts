@@ -17,6 +17,7 @@ function deps(): AppDeps {
     speech: fakeSpeech(),
     store: createStore(),
     install: { available: () => false, prompt: () => undefined, isIOS: false, isStandalone: true },
+    update: { force: async () => true },
     photos: createPhotoStore(async () => 'data:image/jpeg;base64,'),
   };
 }

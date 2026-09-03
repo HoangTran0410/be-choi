@@ -2,7 +2,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { createAudio } from './core/audio';
 import { createPhotoStore } from './core/photos';
 import { createSpeech } from './core/speech';
-import type { InstallState } from './app/deps';
+import type { InstallState, UpdateState } from './app/deps';
 import { mountAlbum } from './app/album';
 import { mountHome } from './app/home';
 import { findGame } from './app/registry';
@@ -45,7 +45,33 @@ const install: InstallState = {
     (navigator as Navigator & { standalone?: boolean }).standalone === true,
 };
 
-const deps = { audio, speech, store, install, photos };
+// ---- "give me the new version now", from the parent panel ----
+/**
+ * `registerType: 'autoUpdate'` already swaps a new build in, but only once the browser
+ * gets round to re-fetching the service worker. A tablet that never really closes the app
+ * can sit on an old build for days. This is the parent asking for it now: drop the saved
+ * build and the worker serving it, then come back through the network. The cache-busting
+ * search param is for iOS, where a plain reload can still be answered from the HTTP cache.
+ */
+const update: UpdateState = {
+  force: async () => {
+    if (!navigator.onLine) return false;
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    const fresh = new URL(location.href);
+    fresh.searchParams.set('v', Date.now().toString(36));
+    location.replace(fresh.href);
+    return true;
+  },
+};
+
+const deps = { audio, speech, store, install, update, photos };
 
 // ---- Unlock audio/speech inside the first user gesture; keep resuming after backgrounding. ----
 let warmed = false;
