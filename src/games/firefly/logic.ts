@@ -209,18 +209,29 @@ export function nextShootMs(rng: () => number = Math.random): number {
  * thrown outwards; what differs is where they are aimed, so the shape a child sees
  * is drawn by the sparks' own paths rather than painted anywhere.
  */
-export type Burst = 'burst' | 'ring' | 'heart' | 'star' | 'willow' | 'spiral';
+export type Burst = 'burst' | 'ring' | 'heart' | 'star' | 'willow' | 'spiral' | 'flower' | 'smile' | 'moon' | 'rings';
 
-export const BURSTS: readonly Burst[] = ['burst', 'ring', 'heart', 'star', 'willow', 'spiral'];
+export const BURSTS: readonly Burst[] = ['burst', 'ring', 'heart', 'star', 'willow', 'spiral', 'flower', 'smile', 'moon', 'rings'];
 
-/** Sparks in the sky at once, over every firework. A cap, not a target. */
-export const MAX_SPARKS = 320;
+/**
+ * Sparks in the sky at once, over every firework. A cap, not a target — and it is
+ * reached, because a two-year-old presses the button the way they press a doorbell.
+ */
+export const MAX_SPARKS = 280;
 /** Past this many sparks the drawing sheds its widest layer to keep the frame rate. */
-export const BUSY_SKY = 170;
-/** Pull downwards, in field fractions per second squared. */
-export const SPARK_GRAVITY = 0.3;
-/** Air, as a fraction of speed shed per second: what turns a ring into a flower. */
-export const SPARK_DRAG = 0.9;
+export const BUSY_SKY = 150;
+/**
+ * Pull downwards, in field fractions per second squared. Deliberately gentle: at
+ * three times this the sparks were falling before they had finished going out,
+ * and a firework that drops the moment it opens has no bang in it.
+ */
+export const SPARK_GRAVITY = 0.12;
+/**
+ * Air, as a fraction of speed shed per second. High, because that is what a
+ * firework actually does: the sparks are flung out hard, the air stops them
+ * almost at once, and only then do they hang and begin to fall.
+ */
+export const SPARK_DRAG = 1.7;
 /** Seconds a spark spends fading out at the end of its life. */
 export const SPARK_FADE = 0.5;
 /**
@@ -263,6 +274,12 @@ export interface Spark {
   hue: number;
   /** Line width as a fraction of the field's short side. */
   size: number;
+  /**
+   * How much of the streak behind it to draw, as a multiplier. A shape drawn in
+   * outline — a heart, a face — is read by its edge, and long comet tails smear
+   * that edge into a blob; a plain burst is all tail and wants every bit of it.
+   */
+  tail: number;
 }
 
 /** A rocket on its way up, before it becomes a shape. */
@@ -306,6 +323,56 @@ export function sparkAim(kind: Burst, i: number, n: number, rng: () => number = 
       const r = 0.25 + 0.75 * (i / Math.max(1, n - 1));
       return { x: Math.cos(spin) * r, y: Math.sin(spin) * r };
     }
+    case 'flower': {
+      // A rose curve: three lobes of cosine make six petals, and the floor keeps
+      // the petals from meeting in a dot at the middle.
+      const r = 0.38 + 0.62 * Math.abs(Math.cos(3 * turn));
+      return { x: Math.cos(turn) * r, y: Math.sin(turn) * r };
+    }
+    case 'rings': {
+      // Two rings, one inside the other: the same shape twice over, which is
+      // enough to look like a different firework and costs nothing to draw.
+      const inner = i % 2 === 0;
+      const r = inner ? 0.55 : 1;
+      const a = turn * 2 + (inner ? 0.3 : 0);
+      return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+    }
+    case 'moon': {
+      /*
+       * A crescent, as the sliver left when one disc is cut out of another. The
+       * outer edge is the far side of the unit circle; the cutting circle sits off
+       * to one side, and its radius is chosen so the two meet exactly at the horns
+       * — which is what closes the shape instead of leaving two loose arcs.
+       */
+      const horn = 1.85;
+      const off = 0.62;
+      const cut = Math.sqrt(1 - 2 * off * Math.cos(horn) + off * off);
+      const half = Math.floor(n / 2);
+      if (i < half) {
+        const a = horn + (i / Math.max(1, half - 1)) * 2 * (Math.PI - horn);
+        return { x: Math.cos(a), y: Math.sin(a) };
+      }
+      // Where a horn sits as seen from the middle of the cutting circle.
+      const edge = Math.atan2(Math.sin(horn), Math.cos(horn) - off);
+      const phi = edge + ((i - half) / Math.max(1, n - half - 1)) * 2 * (Math.PI - edge);
+      return { x: off + cut * Math.cos(phi), y: cut * Math.sin(phi) };
+    }
+    case 'smile': {
+      /*
+       * A face: two eyes and a mouth. Screen coordinates have y growing downwards,
+       * so the mouth is the *lower* arc of a circle and the eyes sit at negative y.
+       */
+      const eyes = Math.round(n * 0.16);
+      if (i < eyes || (i >= eyes && i < eyes * 2)) {
+        const left = i < eyes;
+        const k = (left ? i : i - eyes) / Math.max(1, eyes - 1);
+        const around = k * Math.PI * 2;
+        return { x: (left ? -0.36 : 0.36) + Math.cos(around) * 0.13, y: -0.34 + Math.sin(around) * 0.13 };
+      }
+      const k = (i - eyes * 2) / Math.max(1, n - eyes * 2 - 1);
+      const a = (0.12 + k * 0.76) * Math.PI;
+      return { x: Math.cos(a) * 0.78, y: Math.sin(a) * 0.78 };
+    }
     case 'willow': {
       // Thrown upwards and outwards; gravity does the drooping.
       const up = -Math.PI / 2 + (rng() - 0.5) * 2.2;
@@ -322,20 +389,29 @@ export function sparkAim(kind: Burst, i: number, n: number, rng: () => number = 
 }
 
 /** How many sparks a shape is drawn with, and how far and long they fly. */
-export function burstStyle(kind: Burst): { sparks: number; reach: number; life: number; size: number } {
+export function burstStyle(kind: Burst): { sparks: number; reach: number; life: number; size: number; tail: number } {
   switch (kind) {
     case 'ring':
-      return { sparks: 34, reach: 0.34, life: 1.5, size: 0.006 };
+      return { sparks: 34, reach: 0.34, life: 1.5, size: 0.006, tail: 0.5 };
     case 'heart':
-      return { sparks: 40, reach: 0.32, life: 1.6, size: 0.007 };
+      return { sparks: 40, reach: 0.32, life: 1.6, size: 0.007, tail: 0.45 };
     case 'star':
-      return { sparks: 44, reach: 0.34, life: 1.5, size: 0.006 };
+      return { sparks: 44, reach: 0.34, life: 1.5, size: 0.006, tail: 0.45 };
     case 'spiral':
-      return { sparks: 40, reach: 0.32, life: 1.5, size: 0.006 };
+      return { sparks: 40, reach: 0.32, life: 1.5, size: 0.006, tail: 0.55 };
     case 'willow':
-      return { sparks: 28, reach: 0.26, life: 2.4, size: 0.009 };
+      return { sparks: 28, reach: 0.26, life: 2.4, size: 0.009, tail: 1 };
+    case 'flower':
+      return { sparks: 48, reach: 0.34, life: 1.6, size: 0.006, tail: 0.45 };
+    case 'rings':
+      return { sparks: 48, reach: 0.33, life: 1.5, size: 0.006, tail: 0.45 };
+    case 'moon':
+      return { sparks: 40, reach: 0.33, life: 1.6, size: 0.006, tail: 0.45 };
+    case 'smile':
+      // A face needs enough sparks that the eyes are eyes and not two stray dots.
+      return { sparks: 56, reach: 0.33, life: 1.8, size: 0.006, tail: 0.4 };
     default:
-      return { sparks: 46, reach: 0.36, life: 1.4, size: 0.007 };
+      return { sparks: 46, reach: 0.36, life: 1.4, size: 0.007, tail: 1 };
   }
 }
 
@@ -345,11 +421,17 @@ export function burstStyle(kind: Burst): { sparks: number; reach: number; life: 
  * child points at.
  */
 export function makeBurst(kind: Burst, x: number, y: number, hue: number, rng: () => number = Math.random): Spark[] {
-  const { sparks, reach, life, size } = burstStyle(kind);
+  const { sparks, reach, life, size, tail } = burstStyle(kind);
   const out: Spark[] = [];
+  /*
+   * The speed that carries a spark `reach` against the air over its life. A spark
+   * under drag travels v0 / drag * (1 - e^(-drag * life)), so this inverts that —
+   * and it comes out several times the old flat reach/life, which is the whole
+   * difference between a shell going off and a handful of confetti let go.
+   */
+  const speed = (reach * SPARK_DRAG) / (1 - Math.exp(-SPARK_DRAG * life));
   for (let i = 0; i < sparks; i++) {
     const aim = sparkAim(kind, i, sparks, rng);
-    const speed = reach / life;
     out.push({
       x,
       y,
@@ -360,6 +442,7 @@ export function makeBurst(kind: Burst, x: number, y: number, hue: number, rng: (
       life: life * (0.8 + rng() * 0.4),
       hue: kind === 'burst' ? Math.round(rng() * 360) : (hue + (rng() - 0.5) * 40 + 360) % 360,
       size,
+      tail,
     });
   }
   return out;
@@ -380,6 +463,7 @@ export function makeEmber(x: number, y: number, hue: number, rng: () => number =
     life: 0.3 + rng() * 0.35,
     hue: (hue + (rng() - 0.5) * 30 + 360) % 360,
     size: 0.004,
+    tail: 1,
   };
 }
 

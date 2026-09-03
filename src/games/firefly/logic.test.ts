@@ -183,6 +183,66 @@ describe('firefly: fireworks', () => {
     expect(Math.max(...spread)).toBeGreaterThan(0.9);
   });
 
+  it('gives the flower six petals', () => {
+    const n = 240;
+    const radii = Array.from({ length: n }, (_, i) => {
+      const a = sparkAim('flower', i, n);
+      return Math.hypot(a.x, a.y);
+    });
+    let petals = 0;
+    for (let i = 0; i < n; i++) {
+      const prev = radii[(i - 1 + n) % n] ?? 0;
+      const here = radii[i] ?? 0;
+      const next = radii[(i + 1) % n] ?? 0;
+      if (here > prev && here >= next) petals++;
+    }
+    expect(petals).toBe(6);
+  });
+
+  it('draws two rings, one inside the other', () => {
+    const n = 48;
+    const radii = Array.from({ length: n }, (_, i) => {
+      const a = sparkAim('rings', i, n);
+      return +Math.hypot(a.x, a.y).toFixed(4);
+    });
+    expect(new Set(radii).size).toBe(2);
+    expect(Math.min(...radii)).toBeLessThan(Math.max(...radii) * 0.7);
+  });
+
+  it('draws the moon as a crescent whose two edges meet at the horns', () => {
+    const n = 40;
+    const pts = Array.from({ length: n }, (_, i) => sparkAim('moon', i, n));
+    const half = Math.floor(n / 2);
+    const outer = pts.slice(0, half);
+    const inner = pts.slice(half);
+    const gap = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+
+    // Nothing outside the circle it was cut from.
+    for (const a of pts) expect(Math.hypot(a.x, a.y)).toBeLessThan(1.02);
+    // The two edges start and finish at the same two points: the horns.
+    expect(gap(outer[0]!, inner[0]!)).toBeLessThan(0.05);
+    expect(gap(outer.at(-1)!, inner.at(-1)!)).toBeLessThan(0.05);
+    // And they are well apart in the middle, or it would be a closed ring.
+    const middle = gap(outer[Math.floor(half / 2)]!, inner[Math.floor((n - half) / 2)]!);
+    expect(middle).toBeGreaterThan(0.15);
+    expect(middle).toBeLessThan(0.7);
+  });
+
+  it('draws a face: two eyes above a mouth that curves up at the ends', () => {
+    const n = 56;
+    const pts = Array.from({ length: n }, (_, i) => sparkAim('smile', i, n));
+    const eyes = pts.filter((a) => a.y < -0.15);
+    // Two clusters, one either side of the middle.
+    expect(eyes.filter((a) => a.x < 0).length).toBeGreaterThan(4);
+    expect(eyes.filter((a) => a.x > 0).length).toBeGreaterThan(4);
+    // Screen coordinates grow downwards, so a smile is lowest in the middle.
+    const mouth = pts.filter((a) => a.y > 0.2);
+    expect(mouth.length).toBeGreaterThan(20);
+    const middle = mouth.reduce((a, b) => (Math.abs(a.x) < Math.abs(b.x) ? a : b));
+    const ends = mouth.reduce((a, b) => (Math.abs(a.x) > Math.abs(b.x) ? a : b));
+    expect(middle.y).toBeGreaterThan(ends.y);
+  });
+
   it('draws a heart the right way up, with a dip at the top and a point below', () => {
     const n = 60;
     const heart = Array.from({ length: n }, (_, i) => sparkAim('heart', i, n));

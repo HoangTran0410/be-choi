@@ -481,9 +481,9 @@ function start(ctx: GameContext): void {
       const fade = sparkFade(s.life);
       const width = Math.max(1.5, short * s.size * (0.5 + 0.5 * fade));
       const halo = haloOf(s.hue);
-      if (wide) streak(s.x, s.y, s.vx, s.vy, halo, width * 4, 0.13 * fade, 3.2);
-      streak(s.x, s.y, s.vx, s.vy, halo, width * (wide ? 1.9 : 2.6), 0.42 * fade, 2);
-      streak(s.x, s.y, s.vx, s.vy, coreOf(s.hue), width * 0.8, 0.98 * fade, 0.85);
+      if (wide) streak(s.x, s.y, s.vx, s.vy, halo, width * 4, 0.13 * fade, 3.2 * s.tail);
+      streak(s.x, s.y, s.vx, s.vy, halo, width * (wide ? 1.9 : 2.6), 0.42 * fade, 2 * s.tail);
+      streak(s.x, s.y, s.vx, s.vy, coreOf(s.hue), width * 0.8, 0.98 * fade, 0.85 * s.tail);
     }
     c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
