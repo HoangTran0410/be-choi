@@ -157,6 +157,57 @@ await page.waitForTimeout(600);
 const frameB = await page.locator('.aquarium-canvas').evaluate((el) => el.toDataURL().slice(0, 4000));
 check('aquarium: the fish are swimming', frameA !== frameB);
 await tap(page.locator('.aquarium-canvas'));
+
+// A tray of fish to add, one per species, each drawn as the animal it adds.
+const chips = page.locator('.aquarium-chip');
+const chipCount = await chips.count();
+check('aquarium: a tray of fish to add', chipCount >= 10);
+const chipArt = await chips.first().locator('canvas').evaluate((el) => el.toDataURL().length);
+check('aquarium: each chip shows the fish it adds', chipArt > 1000);
+await tap(chips.first());
+await page.waitForTimeout(400);
+
+// Picking a fish up brings out the net; putting it back down puts the net away.
+const tankRect = await page.locator('.aquarium-canvas').boundingBox();
+async function liftAFish() {
+  if (!tankRect) return null;
+  for (let y = 0.2; y < 0.8; y += 0.08) {
+    for (let x = 0.1; x < 0.9; x += 0.08) {
+      const px = tankRect.x + tankRect.width * x;
+      const py = tankRect.y + tankRect.height * y;
+      await page.mouse.move(px, py);
+      await page.mouse.down();
+      await page.mouse.move(px + 30, py + 12, { steps: 3 });
+      if (await page.locator('.aquarium.aquarium-dragging').count()) return { x: px + 30, y: py + 12 };
+      await page.mouse.up();
+    }
+  }
+  return null;
+}
+const lifted = await liftAFish();
+check('aquarium: a fish can be picked up and carried', lifted !== null);
+if (lifted) {
+  check('aquarium: the net appears while a fish is held', await page.locator('.aquarium-net').isVisible());
+  const netBox = await page.locator('.aquarium-net').boundingBox();
+  if (netBox) {
+    await page.mouse.move(netBox.x + netBox.width / 2, netBox.y + netBox.height / 2, { steps: 6 });
+    await page.mouse.up();
+  } else {
+    await page.mouse.up();
+  }
+  await page.waitForTimeout(300);
+  check('aquarium: the net goes away again', (await page.locator('.aquarium.aquarium-dragging').count()) === 0);
+}
+
+// Poking the sand, the weeds and the ornaments must never throw.
+if (tankRect) {
+  for (let x = 0.1; x < 0.95; x += 0.12) {
+    await page.mouse.click(tankRect.x + tankRect.width * x, tankRect.y + tankRect.height * 0.9);
+  }
+}
+await page.waitForTimeout(400);
+check('aquarium: the tank still runs after being prodded all over', (await page.locator('.aquarium-canvas').count()) === 1);
+
 await tap(page.locator('.aquarium-feed'));
 const fed = await page
   .waitForSelector('canvas.confetti', { timeout: 25000 })
