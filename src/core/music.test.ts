@@ -89,10 +89,20 @@ describe('lyrics', () => {
     }
   });
 
-  it('last exactly as long as their melody, so the highlight lands with the tune', () => {
+  it('each get their turn on screen while the melody is still playing', () => {
+    // The words are written line by line, but the melody ties notes together inside a line,
+    // so the two do not have to add up to the same number of beats. What the child sees is
+    // what matters: every line has to come up before the music stops…
     for (const song of sung) {
       const melody = song.notes.reduce((sum, n) => sum + n.d, 0);
-      expect(totalBeats(song.lyrics)).toBeCloseTo(melody, 5);
+      let at = 0;
+      for (const phrase of song.lyrics) {
+        expect(at, `${song.id}: "${phrase.text}"`).toBeLessThan(melody);
+        at += phrase.beats;
+      }
+      // …and the last line must not be left hanging for longer than a line of its own.
+      const last = song.lyrics[song.lyrics.length - 1]?.beats ?? 0;
+      expect(melody - totalBeats(song.lyrics), song.id).toBeLessThanOrEqual(last);
     }
   });
 
