@@ -1,0 +1,11 @@
+dist
+node_modules
+package-lock.json
+public
+screenshots
+
+# Markdown is left alone on purpose. Prettier pads markdown tables out to the
+# widest cell — the README's game table becomes lines of 400-odd characters —
+# and it reformats the code samples inside the design docs, which are written
+# compactly to be read, not to compile.
+*.md
