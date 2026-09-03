@@ -465,25 +465,27 @@
   pointer-events: none;
   opacity: 0;
   will-change: opacity;
-  /* Bright at the burst and gone by two thirds of the way out: light thrown across
-     the sky, not a coloured sheet pulled over the whole game. */
+  /* Reaches most of the way across the sky. Kept close in, the light stayed a patch
+     around the burst and the night never actually lit up, which is the whole point. */
   background: radial-gradient(
     circle at var(--fly-fx-x, 50%) var(--fly-fx-y, 30%),
     hsl(var(--fly-fx-h, 40) 100% 74%) 0%,
-    hsl(var(--fly-fx-h, 40) 100% 60% / 0.5) 16%,
-    hsl(var(--fly-fx-h, 40) 95% 50% / 0.14) 40%,
-    hsl(var(--fly-fx-h, 40) 90% 45% / 0) 66%
+    hsl(var(--fly-fx-h, 40) 100% 60% / 0.62) 28%,
+    hsl(var(--fly-fx-h, 40) 95% 48% / 0.2) 60%,
+    hsl(var(--fly-fx-h, 40) 90% 42% / 0) 88%
   );
 }
 .fly-sky-flash.fly-sky-lit {
-  animation: fly-sky-lit 0.45s ease-out;
+  animation: fly-sky-lit 0.5s ease-out;
 }
+/* Hard on, then off quickly. Held any longer it stops reading as a flash of light
+   and starts reading as a coloured sheet pulled over the game. */
 @keyframes fly-sky-lit {
   0% {
-    opacity: 0.34;
+    opacity: 0.66;
   }
-  18% {
-    opacity: 0.22;
+  20% {
+    opacity: 0.44;
   }
   100% {
     opacity: 0;
