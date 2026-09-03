@@ -186,6 +186,87 @@ export interface Nudge {
   held: boolean;
 }
 
+// ---- how a fish feels ----
+
+/**
+ * A fish is never just "swimming". It is frightened, or it wants feeding, or it
+ * has just been made a fuss of — and a two-year-old can read all three off the
+ * screen long before they can read a word. The strongest feeling wins.
+ */
+export type Mood = 'scared' | 'excited' | 'hungry' | 'calm';
+
+/** Seconds from a full belly to a fish that wants feeding. */
+export const FULL_FOR = 70;
+/** Hunger past this shows: the fish rises towards the surface and eats faster. */
+export const HUNGRY_AT = 0.55;
+/** How long a fright lasts. Long enough to reach cover, short enough to come back out. */
+export const FEAR_SECONDS = 3.6;
+/** How long the fuss after being fed, greeted or put down lasts. */
+export const JOY_SECONDS = 1.4;
+/** A frightened fish looks for cover no further away than this, in tank units. */
+export const SHELTER_REACH = 5;
+/** More than this many animals and a phone starts dropping frames. */
+export const MAX_CREATURES = 24;
+/** A poked plant or ornament is worth a look for this long. */
+export const INTEREST_SECONDS = 2.6;
+
+/** Somewhere a frightened fish can tuck itself out of sight. */
+export interface Shelter {
+  x: number;
+  y: number;
+  /** Close enough to count as hidden. */
+  r: number;
+}
+
+/**
+ * Every plant and every ornament big enough to get behind. Cover comes out of
+ * the scenery that is already there, so hiding always looks like hiding
+ * *somewhere* rather than stopping in open water.
+ */
+export function sheltersFrom(tank: Tank, plants: readonly Plant[], decor: readonly Decor[]): Shelter[] {
+  const out: Shelter[] = plants.map((plant) => ({
+    x: plant.x,
+    y: tank.floor - plant.h * 0.55,
+    r: Math.max(tank.unit * 0.5, plant.h * 0.4),
+  }));
+  for (const d of decor) {
+    if (d.kind === 'chest' || d.kind === 'hoop') continue;
+    out.push({ x: d.x, y: tank.floor - d.size * tank.unit * 0.45, r: d.size * tank.unit * 0.55 });
+  }
+  return out;
+}
+
+/** The nearest cover within `SHELTER_REACH`, or null when there is none. */
+export function nearestShelter(shelters: readonly Shelter[], x: number, y: number, tank: Tank): Shelter | null {
+  let best: Shelter | null = null;
+  let bestAway = SHELTER_REACH * tank.unit;
+  for (const shelter of shelters) {
+    const away = Math.hypot(shelter.x - x, shelter.y - y);
+    if (away < bestAway) {
+      bestAway = away;
+      best = shelter;
+    }
+  }
+  return best;
+}
+
+/** Something that just happened and is worth swimming over to look at. */
+export interface Interest {
+  x: number;
+  y: number;
+  /** Seconds left before the fish lose interest. */
+  life: number;
+}
+
+/** Everything outside a fish that it might react to on a given frame. */
+export interface World {
+  foods: readonly Food[];
+  nudge: Nudge | null;
+  shelters?: readonly Shelter[];
+  /** A plant that was just rustled, an ornament that was just poked. */
+  interest?: Interest | null;
+}
+
 const TURN = 3.2;
 
 /** One swimming, drifting or scuttling animal. */
@@ -198,10 +279,20 @@ export class Creature {
   heading = 0;
   /** Tail-beat phase. */
   phase = 0;
-  /** Seconds left of a startled dart. */
-  dart = 0;
-  /** Seconds left of a happy wiggle (just been fed, or just been said hello to). */
-  happy = 0;
+  /** Seconds left of a fright: darting, then hiding. */
+  fear = 0;
+  /** Seconds left of a fuss — just fed, just greeted, just put back down. */
+  joy = 0;
+  /** 0 after a meal, 1 when it really wants feeding. */
+  hunger = 0;
+  /** Held in the child's fingers: it goes where the finger goes. */
+  held = false;
+  /** Tucked into cover and keeping still. */
+  hiding = false;
+  /** Seconds of giddy spinning after being put down. */
+  dizzy = 0;
+  /** The cover it is making for, while frightened. */
+  private den: Shelter | null = null;
   /** Where it is heading when nothing more interesting is happening. */
   private tx = 0;
   private ty = 0;
@@ -212,12 +303,13 @@ export class Creature {
     readonly species: Species,
     tank: Tank,
     rng: () => number = Math.random,
+    spawn?: { x: number; y: number },
   ) {
     this.length = species.size * tank.unit;
     const widths = species.profile.map((p) => p * this.length);
     this.spine = new Spine({ widths, spacing: this.length / (JOINTS - 1), bend: BEND });
-    this.x = tank.w * (0.1 + rng() * 0.8);
-    this.y = this.band(tank, rng);
+    this.x = spawn ? spawn.x : tank.w * (0.1 + rng() * 0.8);
+    this.y = spawn ? spawn.y : this.band(tank, rng);
     this.heading = rng() < 0.5 ? 0 : Math.PI;
     this.phase = rng() * Math.PI * 2;
     this.vx = Math.cos(this.heading) * species.speed * tank.unit;
@@ -225,12 +317,51 @@ export class Creature {
     this.wander(tank, rng);
   }
 
-  /** A y inside this species' favourite slice of the tank. */
+  /**
+   * What this fish is feeling, strongest first. Fright beats everything, then a
+   * fuss, then an empty stomach.
+   */
+  get mood(): Mood {
+    if (this.fear > 0) return 'scared';
+    if (this.joy > 0) return 'excited';
+    if (this.hunger >= HUNGRY_AT) return 'hungry';
+    return 'calm';
+  }
+
+  /**
+   * A y inside this species' favourite slice of the tank. A hungry fish drifts
+   * up towards where food comes from, which is what a hungry tank looks like:
+   * everyone at the top, waiting.
+   */
   private band(tank: Tank, rng: () => number): number {
     const top = tank.h * 0.08;
-    const centre = top + (tank.floor - top) * this.species.depth;
+    const pull = this.hunger >= HUNGRY_AT ? 0.45 : 1;
+    const centre = top + (tank.floor - top) * this.species.depth * pull;
     const spread = tank.h * 0.17;
     return Math.max(top, Math.min(tank.floor - this.length * 0.2, centre + (rng() - 0.5) * 2 * spread));
+  }
+
+  /** Picked up. It stops swimming and simply goes where the finger goes. */
+  hold(px: number, py: number): void {
+    this.held = true;
+    this.hiding = false;
+    this.den = null;
+    this.x = px;
+    this.y = py;
+  }
+
+  /** Put back in the water: a giddy moment, then off it goes. */
+  release(): void {
+    if (!this.held) return;
+    this.held = false;
+    this.dizzy = 1.1;
+    this.joy = JOY_SECONDS;
+  }
+
+  /** Fed. A full fish is a happy fish, and stops crowding the surface. */
+  feed(): void {
+    this.hunger = 0;
+    this.joy = JOY_SECONDS;
   }
 
   private wander(tank: Tank, rng: () => number): void {
@@ -248,53 +379,60 @@ export class Creature {
     return false;
   }
 
-  /** Bolt away from `(px, py)` for a moment. */
-  startle(px: number, py: number): void {
+  /**
+   * Bolt away from `(px, py)`, then go and hide. `hard` is a real fright — a
+   * neighbour being lifted out of the water — rather than a friendly prod.
+   */
+  startle(px: number, py: number, hard = false): void {
+    if (this.held) return;
     const dx = this.x - px;
     const dy = this.y - py;
     const away = Math.hypot(dx, dy) || 1;
     this.vx = (dx / away) * this.species.speed * 2.4;
     this.vy = (dy / away) * this.species.speed * 2.4;
-    this.dart = 0.9;
-    this.happy = 0.7;
+    this.fear = hard ? FEAR_SECONDS : FEAR_SECONDS * 0.35;
+    // A prod from a child it knows is half a fright and half a game.
+    if (!hard) this.joy = JOY_SECONDS * 0.5;
+    this.den = null;
   }
 
   /**
    * Advance one frame. Returns `true` on the frame it swallows a flake, so the
    * caller can make a sound about it.
    */
-  update(dt: number, tank: Tank, foods: readonly Food[], nudge: Nudge | null, rng: () => number = Math.random): boolean {
+  update(dt: number, tank: Tank, world: World, rng: () => number = Math.random): boolean {
     const step = Math.min(0.05, Math.max(0, dt));
-    this.dart = Math.max(0, this.dart - step);
-    this.happy = Math.max(0, this.happy - step);
-    if (this.species.kind === 'crab') return this.walk(step, tank, nudge);
-
-    const cruise = this.species.speed * tank.unit * (this.dart > 0 ? 2.3 : 1);
-    let goalX = this.tx;
-    let goalY = this.ty;
-
-    // A flake in range beats everything; a finger beats wandering.
-    const flake = this.nearestFood(foods, tank);
-    if (flake) {
-      goalX = flake.x;
-      goalY = flake.y;
-    } else if (nudge?.held && this.species.curious !== 0) {
-      const away = Math.hypot(nudge.x - this.x, nudge.y - this.y);
-      if (away < NOTICE * tank.unit) {
-        const pull = this.species.curious;
-        goalX = pull > 0 ? nudge.x : this.x - (nudge.x - this.x);
-        goalY = pull > 0 ? nudge.y : this.y - (nudge.y - this.y);
-      }
-    } else if (Math.hypot(goalX - this.x, goalY - this.y) < tank.unit * 0.6) {
-      this.wander(tank, rng);
+    this.fear = Math.max(0, this.fear - step);
+    this.joy = Math.max(0, this.joy - step);
+    this.dizzy = Math.max(0, this.dizzy - step);
+    if (!this.held) this.hunger = Math.min(1, this.hunger + step / FULL_FOR);
+    if (this.fear === 0) {
+      this.hiding = false;
+      this.den = null;
     }
 
-    const toX = goalX - this.x;
-    const toY = goalY - this.y;
+    // Held: it goes where the finger goes. index.ts has already moved it there,
+    // so all that is left is to keep the body alive in the child's hand.
+    if (this.held) {
+      this.phase += step * 9;
+      this.heading += angleDelta(this.heading, -Math.PI / 2) * Math.min(1, 4 * step);
+      this.spine.follow(this.x, this.y, this.heading);
+      return false;
+    }
+
+    if (this.species.kind === 'crab') return this.walk(step, tank, world.nudge);
+
+    const goal = this.aim(tank, world, rng);
+    const cruise = this.cruise(tank);
+
+    const toX = goal.x - this.x;
+    const toY = goal.y - this.y;
     const far = Math.hypot(toX, toY) || 1;
-    let wantX = (toX / far) * cruise;
+    // Tucked in: hold still and let the fright pass.
+    const ease = this.hiding ? 0.12 : 1;
+    let wantX = (toX / far) * cruise * ease;
     // Damped, because a fish that climbs as fast as it swims looks like it is falling.
-    let wantY = (toY / far) * cruise * 0.55;
+    let wantY = (toY / far) * cruise * 0.55 * ease;
 
     // A jellyfish does not steer, it pulses: mostly up and down, drifting sideways.
     if (this.species.kind === 'jelly') {
@@ -314,16 +452,70 @@ export class Creature {
       const want = Math.atan2(this.vy, this.vx);
       this.heading += angleDelta(this.heading, want) * Math.min(1, 6 * step);
     }
+    // Just put down: one giddy loop before it remembers which way is forward.
+    if (this.dizzy > 0) this.heading += step * 6 * this.dizzy;
     if (this.species.kind !== 'jelly') {
-      this.phase += step * (4 + (Math.hypot(this.vx, this.vy) / Math.max(1, tank.unit)) * 3);
+      const beat = this.mood === 'excited' ? 8 : this.hiding ? 1.5 : 4;
+      this.phase += step * (beat + (Math.hypot(this.vx, this.vy) / Math.max(1, tank.unit)) * 3);
     }
     this.spine.follow(this.x, this.y, this.heading);
-    return this.swallow(foods, tank);
+    return this.swallow(world.foods, tank);
+  }
+
+  /** How fast it is going right now, mood included. */
+  private cruise(tank: Tank): number {
+    let speed = this.species.speed * tank.unit;
+    if (this.fear > 0 && !this.hiding) speed *= 2.3;
+    else if (this.mood === 'excited') speed *= 1.35;
+    else if (this.mood === 'hungry') speed *= 1.2;
+    return speed;
+  }
+
+  /**
+   * Where it wants to be this frame. Fright first — nothing is worth eating
+   * while something enormous is in the water — then food, then whatever the
+   * child is doing, then simply somewhere else.
+   */
+  private aim(tank: Tank, world: World, rng: () => number): { x: number; y: number } {
+    if (this.fear > 0) {
+      this.den ??= nearestShelter(world.shelters ?? [], this.x, this.y, tank);
+      if (this.den) {
+        this.hiding = Math.hypot(this.den.x - this.x, this.den.y - this.y) < this.den.r;
+        return this.den;
+      }
+      // Nowhere to hide: put the far wall between itself and the fright.
+      return { x: this.tx, y: this.ty };
+    }
+
+    // A hungry fish smells further and will cross the tank for a flake.
+    const flake = this.nearestFood(world.foods, tank);
+    if (flake) return { x: flake.x, y: flake.y };
+
+    const nudge = world.nudge;
+    if (nudge?.held && this.species.curious !== 0) {
+      const away = Math.hypot(nudge.x - this.x, nudge.y - this.y);
+      if (away < NOTICE * tank.unit) {
+        // Shy fish swim the other way; hungry ones come to anything, hoping it is food.
+        const pull = this.hunger >= HUNGRY_AT ? 1 : this.species.curious;
+        if (pull > 0) return { x: nudge.x, y: nudge.y };
+        return { x: this.x - (nudge.x - this.x), y: this.y - (nudge.y - this.y) };
+      }
+    }
+
+    // Something was just poked: the nosy ones go and have a look.
+    const interest = world.interest;
+    if (interest && interest.life > 0 && this.species.curious > 0) {
+      const away = Math.hypot(interest.x - this.x, interest.y - this.y);
+      if (away < NOTICE * tank.unit * 2.2) return { x: interest.x, y: interest.y };
+    }
+
+    if (Math.hypot(this.tx - this.x, this.ty - this.y) < tank.unit * 0.6) this.wander(tank, rng);
+    return { x: this.tx, y: this.ty };
   }
 
   /** The crab walks the sand and never leaves it. */
   private walk(step: number, tank: Tank, nudge: Nudge | null): boolean {
-    const speed = tank.unit * this.species.speed * (this.dart > 0 ? 2.6 : 1);
+    const speed = tank.unit * this.species.speed * (this.fear > 0 ? 2.6 : 1);
     if (nudge?.held && Math.abs(nudge.x - this.x) < NOTICE * tank.unit * 0.7) {
       this.vx = Math.sign(this.x - nudge.x || 1) * speed;
     } else if (Math.abs(this.vx) < speed * 0.5) {
@@ -350,7 +542,8 @@ export class Creature {
   private nearestFood(foods: readonly Food[], tank: Tank): Food | null {
     if (this.species.kind === 'jelly' || this.species.kind === 'crab') return null;
     let best: Food | null = null;
-    let bestAway = SMELL * tank.unit;
+    // An empty stomach carries a long way.
+    let bestAway = SMELL * tank.unit * (this.hunger >= HUNGRY_AT ? 2.2 : 1);
     for (const food of foods) {
       if (food.eaten) continue;
       const away = Math.hypot(food.x - this.x, food.y - this.y);
@@ -370,7 +563,7 @@ export class Creature {
       if (food.eaten) continue;
       if (Math.hypot(food.x - mouthX, food.y - mouthY) < Math.max(tank.unit * 0.3, this.length * 0.25)) {
         food.eaten = true;
-        this.happy = 0.8;
+        this.feed();
         return true;
       }
     }
@@ -414,6 +607,8 @@ export interface Plant {
   sway: number;
   phase: number;
   blades: number;
+  /** Seconds left of being thrashed about by a finger or a passing fish. */
+  shake: number;
 }
 
 export function makePlants(tank: Tank, rng: () => number = Math.random): Plant[] {
@@ -426,6 +621,7 @@ export function makePlants(tank: Tank, rng: () => number = Math.random): Plant[]
     sway: 0.2 + rng() * 0.35,
     phase: rng() * Math.PI * 2,
     blades: 3 + Math.floor(rng() * 3),
+    shake: 0,
   }));
 }
 
@@ -458,6 +654,10 @@ export interface Decor {
   layer: 'far' | 'mid' | 'near';
   phase: number;
   hue: number;
+  /** Seconds left of reacting to being poked: a wobble, a curl, a puff of bubbles. */
+  poke: number;
+  /** The chest is the one that stays how the child left it. */
+  open: boolean;
 }
 
 /** Ornaments, laid out in slots across the sand so nothing lands on anything else. */
@@ -499,8 +699,62 @@ export function makeDecor(tank: Tank, rng: () => number = Math.random): Decor[] 
       x: item.layer === 'near' ? want : Math.max(half, Math.min(tank.w - half, want)),
       phase: rng() * Math.PI * 2,
       hue: rng(),
+      poke: 0,
+      open: false,
     };
   });
+}
+
+/** How long an ornament keeps reacting after it is touched. */
+export const POKE_SECONDS = 1.1;
+/** How long a plant keeps waving after it is brushed. */
+export const SHAKE_SECONDS = 1.6;
+
+/** Radius, in px, within which a tap counts as touching this ornament. */
+export function decorReach(d: Decor, tank: Tank): number {
+  return Math.max(tank.unit * 0.6, d.size * tank.unit * 0.7);
+}
+
+/** The ornament under `(x, y)`, if any. Nearest first, so overlapping pieces behave. */
+export function decorAt(decor: readonly Decor[], x: number, y: number, tank: Tank): Decor | null {
+  let best: Decor | null = null;
+  let bestAway = Infinity;
+  for (const d of decor) {
+    const base = tank.floor - d.size * tank.unit * 0.4;
+    const away = Math.hypot(d.x - x, base - y);
+    if (away < decorReach(d, tank) && away < bestAway) {
+      bestAway = away;
+      best = d;
+    }
+  }
+  return best;
+}
+
+/** The plant under `(x, y)`, if any. */
+export function plantAt(plants: readonly Plant[], x: number, y: number, tank: Tank): Plant | null {
+  let best: Plant | null = null;
+  let bestAway = Infinity;
+  for (const plant of plants) {
+    if (y < tank.floor - plant.h * 1.1) continue;
+    const away = Math.abs(plant.x - x);
+    if (away < Math.max(tank.unit * 0.45, plant.w * 3) && away < bestAway) {
+      bestAway = away;
+      best = plant;
+    }
+  }
+  return best;
+}
+
+/** What a poke does, so `index.ts` only has to draw the result. */
+export function pokeDecor(d: Decor): void {
+  d.poke = POKE_SECONDS;
+  if (d.kind === 'chest') d.open = !d.open;
+}
+
+/** Let every reaction die away by `dt`. */
+export function settleScenery(plants: readonly Plant[], decor: readonly Decor[], dt: number): void {
+  for (const plant of plants) plant.shake = Math.max(0, plant.shake - dt);
+  for (const d of decor) d.poke = Math.max(0, d.poke - dt);
 }
 
 export interface Bubble {

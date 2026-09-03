@@ -47,7 +47,7 @@ không có "thua", không giới hạn thời gian.
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
 | 🌻 Vườn cây | 8 loại cây: chọn hạt rồi chạm luống đất để trồng; chạm cây để tưới, cây lớn dần qua 4 lần tưới; chín thì chạm để hái vào giỏ. Có chu kỳ ngày/đêm (mặt trời, mặt trăng, sao, đom đóm). Ong và bướm bay tới hoa đang nở, bọ rùa đi bộ bằng chân IK, chạm vào thì chúng bay/chạy đi | chăm sóc, quan sát |
-| 🐠 Bể cá | bể cá tự chạy: 12 loài (cá vàng, cá hề, koi, cá thần tiên, cá nóc, cá mập con, sứa, cá đuối, cua…) bơi bằng xương sống thủ công, cua đi bằng chân IK. Trong bể có lâu đài, hang đá chui, rương kho báu, vòng, hải quỳ, đá và rong. Chạm con cá để nghe tên, rê ngón tay thì cá tò mò bơi tới còn cá nhát thì chạy, bấm 🍤 thả thức ăn cho cá đớp | quan sát, chăm sóc |
+| 🐠 Bể cá | **bể cá của riêng bé**: chạm con cá trong khay dưới để thả thêm vào bể (khay vẽ đúng con cá sẽ được thả), giữ rồi kéo là **túm được cá** mang đi khắp nơi — lúc đó cái vợt 🪣 hiện ra ở góc, kéo vào đó là vớt cá ra. Cá có tâm trạng thật: **sợ** thì phóng đi rồi chui vào bụi cây / lâu đài nấp, **đói** thì nổi lên mặt nước ngóng và ngửi thấy mồi từ xa gấp đôi, **hào hứng** thì vẫy đuôi nhả bong bóng. Chạm gì cũng có phản ứng: cây rung, rương mở nắp, hải quỳ cụp xúc tu, lâu đài lắc lư, cát tung bụi — và con cá tò mò gần đó bơi lại xem. 12 loài bơi bằng xương sống thủ công, cua đi bằng chân IK | quan sát, chăm sóc, đồng cảm |
 
 | 🐔 Nông trại | sân nông trại tự chạy: gà, vịt, bò, heo, cừu, ngựa, thỏ, dê đi lại bằng chân IK hai đốt (chân đạp đất rồi nhấc lên bước tới). Chạm con vật để nghe tiếng và tên, bấm 🌾 rắc thóc cho cả đàn chạy tới ăn, gà đẻ trứng trong cỏ thì chạm để nhặt vào giỏ | quan sát, chăm sóc |
 

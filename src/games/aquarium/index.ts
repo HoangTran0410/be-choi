@@ -5,20 +5,33 @@ import { meta } from './meta';
 import {
   Creature,
   FOOD_PER_FEED,
+  INTEREST_SECONDS,
+  MAX_CREATURES,
+  POKE_SECONDS,
+  SHAKE_SECONDS,
+  SPECIES,
   STAR_EVERY_TAP,
+  decorAt,
   makeBubble,
   makeDecor,
   makeFood,
   makePlants,
   makeRocks,
   makeTank,
+  plantAt,
+  pokeDecor,
+  settleScenery,
+  sheltersFrom,
   stocking,
   type Bubble,
   type Decor,
   type Food,
+  type Interest,
   type Nudge,
   type Plant,
   type Rock,
+  type Shelter,
+  type Species,
   type Tank,
 } from './logic';
 import './style.css';
@@ -68,7 +81,11 @@ function hash(a: number, b: number): number {
 function start(ctx: GameContext): void {
   const canvas = h('canvas', { class: 'aquarium-canvas' });
   const feed = h('button', { class: 'aquarium-feed', type: 'button', 'aria-label': 'cho cá ăn' }, '🍤');
-  const root = h('div', { class: 'aquarium' }, canvas, feed);
+  // The net only appears while a fish is in the child's fingers, so it can never
+  // be pressed by accident — and a fish can only leave the tank deliberately.
+  const net = h('div', { class: 'aquarium-net', 'aria-hidden': 'true' }, '🪣');
+  const tray = h('div', { class: 'aquarium-tray' });
+  const root = h('div', { class: 'aquarium' }, canvas, tray, feed, net);
   ctx.stage.append(root);
 
   const c = canvas.getContext('2d');
@@ -83,6 +100,13 @@ function start(ctx: GameContext): void {
   const bubbles: Bubble[] = [];
   let foods: Food[] = [];
   let nudge: Nudge | null = null;
+  let shelters: Shelter[] = [];
+  /** Something that was just poked, and is worth a look. */
+  let interest: Interest | null = null;
+  /** The fish in the child's fingers, and where the finger went down. */
+  let held: Creature | null = null;
+  let grabFrom: Point | null = null;
+  let grabCandidate: Creature | null = null;
   let taps = 0;
   let clock = 0;
   let frame = 0;
@@ -106,9 +130,101 @@ function start(ctx: GameContext): void {
     // The sand line, as a handful of heights the floor is drawn through.
     sand = Array.from({ length: 9 }, (_, i) => tank.floor + Math.sin(i * 1.7) * tank.unit * 0.09);
     creatures = stocking(tank).map((species) => new Creature(species, tank));
+    shelters = sheltersFrom(tank, plants, decor);
     bubbles.length = 0;
     foods = [];
     feeding = false;
+    held = null;
+    grabCandidate = null;
+    grabFrom = null;
+    root.classList.remove('aquarium-dragging');
+    net.classList.remove('aquarium-net-over');
+  }
+
+  // ---- the tray of fish to add ----
+
+  /**
+   * One button per species, each showing the animal it will put in the tank —
+   * drawn with the same code that draws it swimming, so the child picks the fish
+   * they can see rather than a word they cannot read.
+   */
+  function buildTray(): void {
+    const px = 64;
+    tray.replaceChildren(
+      ...SPECIES.map((species) => {
+        const chip = h('canvas', { class: 'aquarium-chip-art', width: px * 2, height: px * 2 });
+        const cc = chip.getContext('2d');
+        if (cc) {
+          const mini = makeTank(px * 2, px * 2);
+          const posed = new Creature(species, mini, () => 0.5, { x: px, y: mini.floor - px * 0.55 });
+          posed.heading = 0;
+          posed.spine.replant(posed.x, posed.y, 0);
+          const keep = tank;
+          // The crab stands on the sand, so give it one for the length of the drawing.
+          tank = mini;
+          // A creature's x is its head, not its middle, and every species is a
+          // different size and shape. Fit the whole body to the button instead, so
+          // a guppy is as easy to hit as a shark and nothing hangs off the edge.
+          const box = bodyBox(posed);
+          const zoom = Math.min((px * 1.7) / box.w, (px * 1.7) / box.h);
+          cc.setTransform(zoom, 0, 0, zoom, px - box.cx * zoom, px - box.cy * zoom);
+          drawCreature(cc, posed, 0);
+          cc.setTransform(1, 0, 0, 1, 0, 0);
+          tank = keep;
+        }
+        const button = h(
+          'button',
+          { class: 'aquarium-chip', type: 'button', 'aria-label': `thêm ${species.name}`, 'data-species': species.id },
+          chip,
+        );
+        button.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          addFish(species);
+        });
+        return button;
+      }),
+    );
+  }
+
+  /** Where a creature's whole body sits, fins and all, so it can be framed. */
+  function bodyBox(cr: Creature): { cx: number; cy: number; w: number; h: number } {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    cr.spine.joints.forEach((joint, i) => {
+      // Fins and tentacles reach well past the spine, so pad by the body's width there.
+      const pad = Math.max(cr.spine.widthAt(i) * 2.4, cr.length * 0.12);
+      left = Math.min(left, joint.x - pad);
+      right = Math.max(right, joint.x + pad);
+      top = Math.min(top, joint.y - pad);
+      bottom = Math.max(bottom, joint.y + pad);
+    });
+    return { cx: (left + right) / 2, cy: (top + bottom) / 2, w: right - left, h: bottom - top };
+  }
+
+  /** A new fish swims in from whichever wall is nearer. */
+  function addFish(species: Species): void {
+    ctx.hint.touch();
+    if (creatures.length >= MAX_CREATURES) {
+      replay(tray, 'anim-shake');
+      ctx.audio.boing();
+      ctx.speak('Bể đầy cá rồi!');
+      return;
+    }
+    const fromLeft = Math.random() < 0.5;
+    const cr = new Creature(species, tank, Math.random, {
+      x: fromLeft ? -tank.unit : tank.w + tank.unit,
+      y: tank.h * (0.25 + Math.random() * 0.45),
+    });
+    cr.heading = fromLeft ? 0 : Math.PI;
+    cr.spine.replant(cr.x, cr.y, cr.heading);
+    cr.joy = 1.4;
+    creatures.push(cr);
+    ctx.audio.pop(1.3);
+    navigator.vibrate?.(10);
+    ctx.speak(species.name);
+    for (let i = 0; i < 3; i++) bubbles.push(makeBubble(cr.x, cr.y, tank));
   }
 
   // ---- caustics ----
@@ -224,6 +340,10 @@ function start(ctx: GameContext): void {
   }
 
   function drawPlant(g: CanvasRenderingContext2D, plant: Plant): void {
+    // Just brushed: the blades whip about far harder and far faster, then settle.
+    const stirred = plant.shake / SHAKE_SECONDS;
+    const amp = tank.unit * 0.28 * (1 + stirred * 2.6);
+    const rate = plant.sway * 2 * (1 + stirred * 3.5);
     for (let b = 0; b < plant.blades; b++) {
       const lean = (b - (plant.blades - 1) / 2) * 0.22;
       const base = plant.x + lean * plant.w * 3;
@@ -232,12 +352,12 @@ function start(ctx: GameContext): void {
       g.moveTo(base - plant.w, tank.floor + tank.unit * 0.1);
       for (let s = 0; s <= 6; s++) {
         const along = s / 6;
-        const wave = Math.sin(clock * plant.sway * 2 + plant.phase + b + along * 2.4) * tank.unit * 0.28 * along * along;
+        const wave = Math.sin(clock * rate + plant.phase + b + along * 2.4) * amp * along * along;
         g.lineTo(base + wave - plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
       }
       for (let s = 6; s >= 0; s--) {
         const along = s / 6;
-        const wave = Math.sin(clock * plant.sway * 2 + plant.phase + b + along * 2.4) * tank.unit * 0.28 * along * along;
+        const wave = Math.sin(clock * rate + plant.phase + b + along * 2.4) * amp * along * along;
         g.lineTo(base + wave + plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
       }
       g.closePath();
@@ -338,7 +458,9 @@ function start(ctx: GameContext): void {
   /** Treasure, breathing bubbles as its lid creaks. */
   function drawChest(g: CanvasRenderingContext2D, d: Decor, base: number): void {
     const u = d.size * tank.unit;
-    const open = (Math.sin(clock * 0.7 + d.phase) * 0.5 + 0.5) * 0.55;
+    // The lid is where the child left it, breathing a little rather than flapping.
+    const rest = d.open ? 1.15 : 0.12;
+    const open = rest + Math.sin(clock * 0.7 + d.phase) * 0.06;
     g.fillStyle = '#92400e';
     g.fillRect(d.x - u * 0.5, base - u * 0.5, u, u * 0.5);
     g.fillStyle = '#fcd34d';
@@ -354,7 +476,8 @@ function start(ctx: GameContext): void {
     g.fillStyle = '#fcd34d';
     g.fillRect(u * 0.42, -u * 0.28, u * 0.16, u * 0.28);
     g.restore();
-    if (Math.random() < 0.03 && bubbles.length < MAX_BUBBLES) {
+    // An open chest lets its treasure breathe.
+    if (Math.random() < (d.open ? 0.14 : 0.02) && bubbles.length < MAX_BUBBLES) {
       bubbles.push(makeBubble(d.x, base - u * 0.55, tank));
     }
   }
@@ -378,17 +501,19 @@ function start(ctx: GameContext): void {
 
   function drawAnemone(g: CanvasRenderingContext2D, d: Decor, base: number): void {
     const u = d.size * tank.unit;
+    // Touched, it pulls its tentacles in — the one ornament that shrinks from a finger.
+    const shy = d.poke / POKE_SECONDS;
     g.strokeStyle = `hsl(${300 + d.hue * 70} 78% 70%)`;
-    g.lineWidth = u * 0.16;
+    g.lineWidth = u * 0.16 * (1 + shy * 0.4);
     g.lineCap = 'round';
     for (let i = 0; i < 9; i++) {
-      const lean = (i / 8 - 0.5) * 1.4;
+      const lean = (i / 8 - 0.5) * 1.4 * (1 - shy * 0.75);
       g.beginPath();
       g.moveTo(d.x, base);
       for (let sgmt = 1; sgmt <= 3; sgmt++) {
         const along = sgmt / 3;
-        const wave = Math.sin(clock * 1.6 + d.phase + i) * u * 0.22 * along;
-        g.lineTo(d.x + lean * u * 0.55 * along + wave, base - u * 0.95 * along);
+        const wave = Math.sin(clock * 1.6 + d.phase + i) * u * 0.22 * along * (1 - shy);
+        g.lineTo(d.x + lean * u * 0.55 * along + wave, base - u * 0.95 * along * (1 - shy * 0.7));
       }
       g.stroke();
     }
@@ -421,6 +546,21 @@ function start(ctx: GameContext): void {
 
   function drawDecor(g: CanvasRenderingContext2D, d: Decor): void {
     const base = decorBase(d);
+    // A poked ornament rocks on its base for a moment, so a tap always lands
+    // somewhere visible even on the things that cannot open or curl.
+    if (d.poke > 0) {
+      g.save();
+      g.translate(d.x, base);
+      g.rotate(Math.sin(d.poke * 30) * 0.06 * d.poke);
+      g.translate(-d.x, -base);
+      drawDecorBody(g, d, base);
+      g.restore();
+      return;
+    }
+    drawDecorBody(g, d, base);
+  }
+
+  function drawDecorBody(g: CanvasRenderingContext2D, d: Decor, base: number): void {
     switch (d.kind) {
       case 'boulder':
         return drawBoulder(g, d, base);
@@ -742,16 +882,46 @@ function start(ctx: GameContext): void {
 
   function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: number): void {
     g.save();
-    if (cr.happy > 0) {
+    if (cr.joy > 0) {
       // A little bob of delight, around the animal's own middle.
       g.translate(cr.x, cr.y);
-      g.rotate(Math.sin(cr.happy * 34) * 0.12 * cr.happy);
+      g.rotate(Math.sin(cr.joy * 34) * 0.12 * cr.joy);
       g.translate(-cr.x, -cr.y);
+    }
+    // Tucked into the weeds: still there, but keeping out of it.
+    if (cr.hiding) g.globalAlpha = 0.45;
+    // In the child's hand it is out of the water, so it gets a shadow and a wriggle.
+    if (cr.held) {
+      g.translate(cr.x, cr.y);
+      g.rotate(Math.sin(clock * 22) * 0.16);
+      g.translate(-cr.x, -cr.y);
+      g.shadowColor = 'rgba(3,32,54,0.45)';
+      g.shadowBlur = cr.length * 0.35;
     }
     if (cr.species.kind === 'jelly') drawJelly(g, cr);
     else if (cr.species.kind === 'ray') drawRay(g, cr, index);
     else if (cr.species.kind === 'crab') drawCrab(g, cr);
     else drawFish(g, cr, index);
+    g.restore();
+    drawMood(g, cr);
+  }
+
+  /**
+   * What the fish is feeling, above its head, for a child who cannot read. Only
+   * hunger and delight are shown: fright already reads perfectly well from a fish
+   * bolting into the weeds.
+   */
+  function drawMood(g: CanvasRenderingContext2D, cr: Creature): void {
+    const mood = cr.mood;
+    if (cr.held || (mood !== 'hungry' && mood !== 'excited')) return;
+    const size = Math.max(tank.unit * 0.34, 15);
+    const bob = Math.sin(clock * 3 + cr.x * 0.01) * size * 0.12;
+    g.save();
+    g.globalAlpha = mood === 'hungry' ? 0.55 + 0.35 * Math.sin(clock * 2.2) : 0.9;
+    g.font = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(mood === 'hungry' ? '🍤' : '✨', cr.x, cr.y - cr.length * 0.55 + bob);
     g.restore();
   }
 
@@ -846,10 +1016,26 @@ function start(ctx: GameContext): void {
 
   function step(dt: number): void {
     clock += dt;
+    settleScenery(plants, decor, dt);
+    if (interest) {
+      interest.life -= dt;
+      if (interest.life <= 0) interest = null;
+    }
+    const world = { foods, nudge, shelters, interest };
     for (const cr of creatures) {
-      if (cr.update(dt, tank, foods, nudge)) {
+      if (cr.update(dt, tank, world)) {
         ctx.audio.pop(1.4);
         for (let i = 0; i < 2; i++) bubbles.push(makeBubble(cr.x, cr.y, tank));
+      }
+      // A fish brushing past a weed sets it waving, which is what makes the
+      // planting feel like part of the water rather than wallpaper.
+      if (cr.y > tank.floor - tank.unit * 2.2) {
+        const brushed = plantAt(plants, cr.x, cr.y, tank);
+        if (brushed) brushed.shake = Math.max(brushed.shake, SHAKE_SECONDS * 0.45);
+      }
+      // A hungry fish lets out a small bubble now and then: the tank asking to be fed.
+      if (cr.mood === 'hungry' && Math.random() < dt * 0.5 && bubbles.length < MAX_BUBBLES) {
+        bubbles.push(makeBubble(cr.x, cr.y - cr.length * 0.2, tank));
       }
     }
     for (const food of foods) {
@@ -900,9 +1086,15 @@ function start(ctx: GameContext): void {
     for (const plant of plants) drawPlant(g, plant);
     for (const d of decor) if (d.layer === 'mid') drawDecor(g, d);
     drawFood(g);
-    creatures.forEach((cr, i) => drawCreature(g, cr, i));
+    // The fish in the child's hand is drawn last, so it is never lost behind another.
+    creatures.forEach((cr, i) => {
+      if (!cr.held) drawCreature(g, cr, i);
+    });
     drawBubbles(g);
     for (const d of decor) if (d.layer === 'near') drawDecor(g, d);
+    creatures.forEach((cr, i) => {
+      if (cr.held) drawCreature(g, cr, i);
+    });
     drawCaustics(g);
     drawSurface(g);
   }
@@ -947,17 +1139,98 @@ function start(ctx: GameContext): void {
     }
   }
 
-  canvas.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    const p = at(e);
-    nudge = { x: p.x, y: p.y, held: true };
-    const hit = creatures.find((cr) => cr.hits(p.x, p.y));
-    if (hit) {
-      greet(hit, p);
+  /** How far a finger must travel before a tap on a fish becomes a grab. */
+  const GRAB_SLOP = 14;
+
+  /** Is the finger over the net in the corner? */
+  function overNet(e: PointerEvent): boolean {
+    const r = net.getBoundingClientRect();
+    const pad = r.width * 0.35;
+    return e.clientX > r.left - pad && e.clientX < r.right + pad && e.clientY > r.top - pad && e.clientY < r.bottom + pad;
+  }
+
+  /** Everything a poke does, wherever it lands. */
+  function poke(p: Point): void {
+    const d = decorAt(decor, p.x, p.y, tank);
+    if (d) {
+      pokeDecor(d);
+      interest = { x: d.x, y: tank.floor - d.size * tank.unit * 0.5, life: INTEREST_SECONDS };
+      ctx.audio.pop(d.kind === 'chest' ? 1.6 : 0.9);
+      navigator.vibrate?.(10);
+      const n = d.kind === 'chest' ? 7 : 4;
+      for (let i = 0; i < n; i++) {
+        bubbles.push(makeBubble(d.x + (Math.random() - 0.5) * d.size * tank.unit, tank.floor - d.size * tank.unit * 0.6, tank));
+      }
+      // A hoop is an invitation: the nearest fish is sent through it.
+      if (d.kind === 'hoop') {
+        const guest = nearestTo(d.x, tank.floor - d.size * tank.unit * 0.6);
+        if (guest) guest.joy = 2;
+      }
+      return;
+    }
+    const plant = plantAt(plants, p.x, p.y, tank);
+    if (plant) {
+      plant.shake = SHAKE_SECONDS;
+      interest = { x: plant.x, y: tank.floor - plant.h * 0.6, life: INTEREST_SECONDS };
+      ctx.audio.tick();
+      for (let i = 0; i < 3; i++) bubbles.push(makeBubble(plant.x, tank.floor - plant.h * Math.random(), tank));
+      return;
+    }
+    if (p.y > tank.floor - tank.unit * 0.3) {
+      // The sand: a puff, and every plant near the hand waves.
+      ctx.audio.puff();
+      for (const near of plants) if (Math.abs(near.x - p.x) < tank.unit * 1.4) near.shake = SHAKE_SECONDS * 0.6;
+      for (let i = 0; i < 5; i++) bubbles.push(makeBubble(p.x + (Math.random() - 0.5) * tank.unit, tank.floor, tank));
       return;
     }
     ctx.audio.tick();
     for (let i = 0; i < 3; i++) bubbles.push(makeBubble(p.x, p.y, tank));
+  }
+
+  function nearestTo(x: number, y: number): Creature | null {
+    let best: Creature | null = null;
+    let bestAway = Infinity;
+    for (const cr of creatures) {
+      const away = Math.hypot(cr.x - x, cr.y - y);
+      if (away < bestAway) {
+        bestAway = away;
+        best = cr;
+      }
+    }
+    return best;
+  }
+
+  /** Lift a fish out of the water into the child's fingers. */
+  function grab(cr: Creature, p: Point): void {
+    held = cr;
+    cr.hold(p.x, p.y);
+    root.classList.add('aquarium-dragging');
+    ctx.audio.pop(1.7);
+    navigator.vibrate?.(14);
+    // Everybody else saw that. Nothing frightens a fish like a neighbour vanishing upwards.
+    for (const other of creatures) {
+      if (other !== cr && Math.hypot(other.x - cr.x, other.y - cr.y) < tank.unit * 3.5) other.startle(cr.x, cr.y, true);
+    }
+    for (let i = 0; i < 5; i++) bubbles.push(makeBubble(cr.x, cr.y, tank));
+  }
+
+  /** Scooped out of the tank for good. */
+  function scoop(cr: Creature): void {
+    creatures = creatures.filter((other) => other !== cr);
+    ctx.audio.puff();
+    navigator.vibrate?.(20);
+    ctx.speak('Tạm biệt!');
+    replay(net, 'anim-bounce');
+    for (let i = 0; i < 6; i++) bubbles.push(makeBubble(cr.x, cr.y, tank));
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const p = at(e);
+    nudge = { x: p.x, y: p.y, held: true };
+    grabFrom = p;
+    grabCandidate = creatures.find((cr) => cr.hits(p.x, p.y)) ?? null;
+    if (!grabCandidate) poke(p);
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -965,10 +1238,36 @@ function start(ctx: GameContext): void {
     const p = at(e);
     nudge.x = p.x;
     nudge.y = p.y;
+
+    // A press that travels turns into a grab; a press that stays put is a hello.
+    if (!held && grabCandidate && grabFrom && Math.hypot(p.x - grabFrom.x, p.y - grabFrom.y) > GRAB_SLOP) {
+      grab(grabCandidate, p);
+    }
+    if (held) {
+      held.hold(p.x, p.y);
+      net.classList.toggle('aquarium-net-over', overNet(e));
+      if (Math.random() < 0.4 && bubbles.length < MAX_BUBBLES) bubbles.push(makeBubble(p.x, p.y, tank));
+      return;
+    }
+    // A finger dragged through the weeds sets them waving.
+    const brushed = plantAt(plants, p.x, p.y, tank);
+    if (brushed) brushed.shake = Math.max(brushed.shake, SHAKE_SECONDS * 0.7);
     if (Math.random() < 0.25 && bubbles.length < MAX_BUBBLES) bubbles.push(makeBubble(p.x, p.y, tank));
   });
 
-  const release = (): void => {
+  const release = (e?: PointerEvent): void => {
+    if (held) {
+      if (e && overNet(e)) scoop(held);
+      else held.release();
+      held = null;
+      root.classList.remove('aquarium-dragging');
+      net.classList.remove('aquarium-net-over');
+    } else if (grabCandidate && grabFrom) {
+      // Never moved: that was a hello, not a lift.
+      greet(grabCandidate, grabFrom);
+    }
+    grabCandidate = null;
+    grabFrom = null;
     if (nudge) nudge.held = false;
   };
   canvas.addEventListener('pointerup', release);
@@ -987,9 +1286,11 @@ function start(ctx: GameContext): void {
   });
 
   ctx.hint.arm(() => {
-    replay(feed, 'anim-wiggle');
+    // Point at whatever the tank needs: food when they are hungry, a new friend otherwise.
+    const starving = creatures.filter((cr) => cr.mood === 'hungry').length;
+    replay(starving > creatures.length / 3 ? feed : tray, 'anim-wiggle');
     const cr = creatures[Math.floor(Math.random() * creatures.length)];
-    if (cr) cr.happy = 0.8;
+    if (cr) cr.joy = 0.8;
   });
 
   const onResize = (): void => {
@@ -1004,6 +1305,7 @@ function start(ctx: GameContext): void {
   });
 
   build();
+  buildTray();
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);
 }
 

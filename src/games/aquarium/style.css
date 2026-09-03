@@ -32,6 +32,87 @@
   transform: scale(0.92);
 }
 
+/* ---- the fish you can add ---- */
+/* Along the bottom, clear of the food button. Each one shows the animal it puts
+   in the tank, drawn by the same code that draws it swimming. */
+.aquarium-tray {
+  position: absolute;
+  left: 2vmin;
+  right: calc(var(--tap) + 5vmin);
+  bottom: 2vmin;
+  display: flex;
+  gap: 1.4vmin;
+  padding: 1vmin;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  border-radius: calc(var(--tap) * 0.4);
+  background: rgba(8, 51, 68, 0.42);
+  backdrop-filter: blur(2px);
+}
+.aquarium-tray::-webkit-scrollbar {
+  display: none;
+}
+.aquarium-chip {
+  flex: 0 0 auto;
+  width: calc(var(--tap) * 0.82);
+  height: calc(var(--tap) * 0.82);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 3px 0 rgba(3, 32, 54, 0.35);
+  touch-action: manipulation;
+  transition: transform 0.1s;
+}
+.aquarium-chip:active {
+  transform: scale(0.9);
+}
+.aquarium-chip-art {
+  width: 84%;
+  height: 84%;
+  pointer-events: none;
+}
+
+/* ---- the net ---- */
+/* Only there while a fish is in the child's fingers, so a fish can never leave
+   the tank by accident. */
+.aquarium-net {
+  position: absolute;
+  right: 2.5vmin;
+  top: 2.5vmin;
+  width: calc(var(--tap) * 1.15);
+  height: calc(var(--tap) * 1.15);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.62);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.6) translateY(-1vmin);
+  transition: opacity 0.18s, transform 0.18s, background 0.15s;
+}
+.aquarium-dragging .aquarium-net {
+  opacity: 1;
+  transform: none;
+}
+.aquarium-net-over {
+  background: #fca5a5;
+  transform: scale(1.14);
+}
+
+/* A fish in the fingers should not be dragged through the tray. */
+.aquarium-dragging .aquarium-tray,
+.aquarium-dragging .aquarium-feed {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .aquarium-star {
   position: absolute;
   z-index: 2;
