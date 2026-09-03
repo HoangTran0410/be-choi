@@ -34,11 +34,20 @@
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.2));
   transform-origin: 50% 100%;
 }
-.parrot-big.parrot-jump { animation: parrot-jump 0.5s ease-in-out infinite; }
+.parrot-big.parrot-jump {
+  animation: parrot-jump 0.5s ease-in-out infinite;
+}
 @keyframes parrot-jump {
-  0%, 100% { transform: translateY(0) scale(1); }
-  40% { transform: translateY(-12%) scale(1.06, 0.94); }
-  70% { transform: translateY(0) scale(0.96, 1.04); }
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-12%) scale(1.06, 0.94);
+  }
+  70% {
+    transform: translateY(0) scale(0.96, 1.04);
+  }
 }
 
 /* ---- waveform ---- */
@@ -62,7 +71,9 @@
   background: #16a34a;
   transition: height 0.08s linear;
 }
-.parrot-listening .parrot-bar { background: #ef4444; }
+.parrot-listening .parrot-bar {
+  background: #ef4444;
+}
 
 /* ---- the animals to choose from ---- */
 .parrot-row {
@@ -83,10 +94,14 @@
   box-shadow: 0 4px 0 var(--btn-shadow);
   transition: transform 0.1s;
 }
-.parrot-critter:active { transform: scale(0.94); }
+.parrot-critter:active {
+  transform: scale(0.94);
+}
 .parrot-critter.parrot-chosen {
   background: #fef08a;
-  box-shadow: 0 0 0 0.8vmin #facc15, 0 4px 0 var(--btn-shadow);
+  box-shadow:
+    0 0 0 0.8vmin #facc15,
+    0 4px 0 var(--btn-shadow);
 }
 
 .parrot-mic {
@@ -97,14 +112,24 @@
 }
 .parrot-mic.parrot-recording {
   background: #fecaca;
-  box-shadow: 0 0 0 1.2vmin rgba(239, 68, 68, 0.35), 0 4px 0 var(--btn-shadow);
+  box-shadow:
+    0 0 0 1.2vmin rgba(239, 68, 68, 0.35),
+    0 4px 0 var(--btn-shadow);
   animation: pulse 0.7s ease-in-out infinite;
 }
-.parrot-mic.parrot-waiting { animation: pulse 0.8s ease-in-out infinite; }
+.parrot-mic.parrot-waiting {
+  animation: pulse 0.8s ease-in-out infinite;
+}
 /* Refused, not gone: still a button, and still worth a press. */
-.parrot-mic.parrot-mic-off { opacity: 0.55; }
+.parrot-mic.parrot-mic-off {
+  opacity: 0.55;
+}
 
 @media (orientation: landscape) {
-  .parrot-big { font-size: calc(var(--emoji) * 1.3); }
-  .parrot-wave { height: 9vmin; }
+  .parrot-big {
+    font-size: calc(var(--emoji) * 1.3);
+  }
+  .parrot-wave {
+    height: 9vmin;
+  }
 }

@@ -18,13 +18,16 @@ export interface PickerChoice {
 /** A finger that travelled this far was scrolling the panel, not choosing. */
 const TAP_SLOP = 12;
 
-export function showPhotoPicker(host: HTMLElement, choices: readonly PickerChoice[], onPick: (choice: PickerChoice | null) => void): () => void {
+export function showPhotoPicker(
+  host: HTMLElement,
+  choices: readonly PickerChoice[],
+  onPick: (choice: PickerChoice | null) => void,
+): () => void {
   let done = false;
   /** Where the finger went down, so a scroll is not read as a choice. */
   let from: { x: number; y: number } | null = null;
   /** No recorded start is a tap: something dispatched the release on its own. */
-  const travelled = (e: PointerEvent): boolean =>
-    from !== null && Math.hypot(e.clientX - from.x, e.clientY - from.y) > TAP_SLOP;
+  const travelled = (e: PointerEvent): boolean => from !== null && Math.hypot(e.clientX - from.x, e.clientY - from.y) > TAP_SLOP;
   const finish = (choice: PickerChoice | null) => {
     if (done) return;
     done = true;

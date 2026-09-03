@@ -3,18 +3,7 @@ import { h, replay } from '../../core/dom';
 import { findSong, noteFreq, schedule, SONGS } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import {
-  CHEERS,
-  JOBS,
-  JOB_ICON,
-  LULLABY_BPM,
-  LULLABY_NOTES,
-  NUDGES,
-  UNDOS,
-  makeNight,
-  type Job,
-  type Night,
-} from './logic';
+import { CHEERS, JOBS, JOB_ICON, LULLABY_BPM, LULLABY_NOTES, NUDGES, UNDOS, makeNight, type Job, type Night } from './logic';
 import './style.css';
 
 /** How long a toy takes to fly into the box. */
@@ -167,10 +156,14 @@ function start(ctx: GameContext): void {
   });
 
   function twinkle(): void {
-    const star = h('span', {
-      class: 'bedtime-star',
-      style: `left:${8 + Math.random() * 84}%;top:${6 + Math.random() * 62}%`,
-    }, Math.random() < 0.3 ? '✨' : '⭐');
+    const star = h(
+      'span',
+      {
+        class: 'bedtime-star',
+        style: `left:${8 + Math.random() * 84}%;top:${6 + Math.random() * 62}%`,
+      },
+      Math.random() < 0.3 ? '✨' : '⭐',
+    );
     sky.append(star);
     later(() => star.remove(), 1600);
   }
@@ -244,13 +237,17 @@ function start(ctx: GameContext): void {
     for (const star of sky.querySelectorAll('.bedtime-star')) star.remove();
     floor.replaceChildren(
       ...night.toys.map((toy) => {
-        const el = h('button', {
-          class: 'bedtime-toy',
-          type: 'button',
-          'data-toy': toy.emoji,
-          'aria-label': 'cất đồ chơi',
-          style: `left:${toy.x.toFixed(1)}%;top:${toy.y.toFixed(1)}%`,
-        }, toy.emoji);
+        const el = h(
+          'button',
+          {
+            class: 'bedtime-toy',
+            type: 'button',
+            'data-toy': toy.emoji,
+            'aria-label': 'cất đồ chơi',
+            style: `left:${toy.x.toFixed(1)}%;top:${toy.y.toFixed(1)}%`,
+          },
+          toy.emoji,
+        );
         el.addEventListener('pointerdown', (e) => {
           e.preventDefault();
           ctx.hint.touch();

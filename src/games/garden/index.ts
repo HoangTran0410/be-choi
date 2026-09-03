@@ -44,16 +44,7 @@ function hash(a: number, b: number): number {
 const BASKET = 8;
 
 /** A tapered ribbon from `(x0,y0)` to `(x1,y1)`, bowed sideways by `bow`. */
-function ribbon(
-  g: CanvasRenderingContext2D,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  bow: number,
-  base: number,
-  tip: number,
-): void {
+function ribbon(g: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, bow: number, base: number, tip: number): void {
   const steps = 6;
   const side = (sign: number, s: number): [number, number] => {
     const t = s / steps;
@@ -158,9 +149,7 @@ function start(ctx: GameContext): void {
 
   /** Where the open flowers are, for the bees to work. */
   function blooms(): { x: number; y: number }[] {
-    return plots
-      .filter((p) => p.seed !== null && p.grown > 0.75)
-      .map((p) => ({ x: plotX(p), y: plantTop(p) }));
+    return plots.filter((p) => p.seed !== null && p.grown > 0.75).map((p) => ({ x: plotX(p), y: plantTop(p) }));
   }
 
   // ---- sky and soil ----
@@ -307,7 +296,7 @@ function start(ctx: GameContext): void {
     g.fill();
     g.fillStyle = 'rgba(255,255,255,0.08)';
     for (let i = 0; i < 40; i++) {
-      const x = ((i * 97) % 1000) / 1000 * field.w;
+      const x = (((i * 97) % 1000) / 1000) * field.w;
       const y = field.ground + field.unit * 0.15 + (((i * 53) % 100) / 100) * (field.h - field.ground);
       g.fillRect(x, y, 3, 2);
     }

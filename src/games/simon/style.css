@@ -36,14 +36,7 @@
   --simon-gap: 1.5vmin;
   --simon-w: calc(100vw - 3vmin);
   --simon-h: calc(100dvh - var(--tap) * 0.8 - var(--emoji) - 7.5vmin);
-  --simon-pad: max(
-    var(--tap) * 1.6,
-    min(
-      40vmin,
-      (var(--simon-w) - var(--simon-gap)) / 2,
-      (var(--simon-h) - var(--simon-gap)) / 2
-    )
-  );
+  --simon-pad: max(var(--tap) * 1.6, min(40vmin, (var(--simon-w) - var(--simon-gap)) / 2, (var(--simon-h) - var(--simon-gap)) / 2));
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(2, var(--simon-pad));
@@ -71,7 +64,10 @@
     inset 0 2px 0 rgba(255, 255, 255, 0.35),
     0 5px 0 rgba(0, 0, 0, 0.1);
   touch-action: none;
-  transition: transform 0.1s, filter 0.1s, box-shadow 0.1s;
+  transition:
+    transform 0.1s,
+    filter 0.1s,
+    box-shadow 0.1s;
   will-change: transform;
 }
 .simon-pad:focus:not(:focus-visible) {

@@ -10,7 +10,13 @@ const base = (server.resolvedUrls?.local[0] ?? 'http://127.0.0.1:4174').replace(
 // pattern) and no permission prompt, so they can be played headlessly.
 const media = ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'];
 const browser = await chromium.launch({ args: media });
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, permissions: ['microphone', 'camera'] });
+const context = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  hasTouch: true,
+  isMobile: true,
+  permissions: ['microphone', 'camera'],
+});
 const page = await context.newPage();
 const problems = [];
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
@@ -96,7 +102,11 @@ for (let i = 0; i < ballCount; i++) {
   const color = await ball.getAttribute('data-color');
   await drag(ball, page.locator(`.colors-basket[data-color="${color}"]`));
 }
-check('colors: all balls sorted', (await page.locator('.colors-ball.placed').count()) === ballCount, `${await page.locator('.colors-ball.placed').count()}/${ballCount}`);
+check(
+  'colors: all balls sorted',
+  (await page.locator('.colors-ball.placed').count()) === ballCount,
+  `${await page.locator('.colors-ball.placed').count()}/${ballCount}`,
+);
 check('colors: confetti shown', (await page.locator('canvas.confetti').count()) === 1);
 
 // ---- sizes ----
@@ -163,7 +173,10 @@ check('aquarium: the water is not covered by a tray', (await page.locator('.aqua
 await tap(page.locator('.aquarium-add'));
 const tiles = page.locator('.aquarium-pick');
 check('aquarium: the picker offers every fish', (await tiles.count()) >= 10);
-const chipArt = await tiles.first().locator('canvas').evaluate((el) => el.toDataURL().length);
+const chipArt = await tiles
+  .first()
+  .locator('canvas')
+  .evaluate((el) => el.toDataURL().length);
 check('aquarium: each tile shows the fish it adds', chipArt > 1000);
 await tap(tiles.first());
 await page.waitForTimeout(400);
@@ -313,7 +326,10 @@ await page.waitForTimeout(1800);
 // ---- sounds: listen, then pick the animal that made the noise ----
 await open('sounds');
 await page.waitForTimeout(900);
-check('sounds: a speaker and two animals', (await page.locator('.sounds-speaker').count()) === 1 && (await page.locator('.sounds-card').count()) === 2);
+check(
+  'sounds: a speaker and two animals',
+  (await page.locator('.sounds-speaker').count()) === 1 && (await page.locator('.sounds-card').count()) === 2,
+);
 await tap(page.locator('.sounds-speaker'));
 for (let round = 0; round < 3; round++) {
   const cards = await page.locator('.sounds-card').count();
@@ -342,7 +358,10 @@ check('bedtime: tucked in before tidying up', await page.locator('.bedtime-blank
 // The lullaby, still with the toys all over the floor.
 await tap(page.locator('.bedtime-moon'));
 await page.waitForFunction(() => document.querySelectorAll('.bedtime-tick.done').length >= 3, null, { timeout: 20000 });
-check('bedtime: three jobs done, nobody asleep yet', !(await page.locator('.bedtime-friend').evaluate((el) => el.classList.contains('asleep'))));
+check(
+  'bedtime: three jobs done, nobody asleep yet',
+  !(await page.locator('.bedtime-friend').evaluate((el) => el.classList.contains('asleep'))),
+);
 // Tidying up last is what finishes the night.
 for (const toy of await page.locator('.bedtime-toy').all()) await tap(toy);
 await page.waitForTimeout(1600);
@@ -414,7 +433,10 @@ await open('count');
 const fruits = await page.locator('.count-fruit').count();
 for (let i = 0; i < fruits; i++) await tap(page.locator('.count-fruit').nth(i));
 check('count: total shown', (await page.locator('.count-total').count()) === 1);
-check('count: badges numbered', (await page.locator('.count-badge').allTextContents()).join(',') === Array.from({ length: fruits }, (_, i) => String(i + 1)).join(','));
+check(
+  'count: badges numbered',
+  (await page.locator('.count-badge').allTextContents()).join(',') === Array.from({ length: fruits }, (_, i) => String(i + 1)).join(','),
+);
 
 // ---- memory: flip matching pairs ----
 await open('memory');
@@ -431,17 +453,23 @@ for (let i = 0; i < backs.length; i++) {
 }
 check('memory: all matched', (await page.locator('.memory-card.matched').count()) === backs.length);
 
-
 // ---- xylo: tap a bar, pick a song, hit the glowing bar ----
 await open('xylo');
 check('xylo: 8 bars', (await page.locator('.xylo-bar').count()) === 8);
 await tap(page.locator('.xylo-bar').first());
 await tap(page.locator('.xylo-song').first());
 check('xylo: song mode glows a bar', (await page.locator('.xylo-glow').count()) === 1);
-const glowBefore = await page.locator('.xylo-glow').first().evaluate((el) => Array.from(el.parentElement.children).indexOf(el));
+const glowBefore = await page
+  .locator('.xylo-glow')
+  .first()
+  .evaluate((el) => Array.from(el.parentElement.children).indexOf(el));
 await tap(page.locator('.xylo-glow').first());
-const glowAfter = await page.locator('.xylo-glow').first().evaluate((el) => Array.from(el.parentElement.children).indexOf(el)).catch(() => -1);
-check('xylo: correct hit advances', (await page.locator('.xylo-glow').count()) === 1 && glowAfter !== glowBefore || true);
+const glowAfter = await page
+  .locator('.xylo-glow')
+  .first()
+  .evaluate((el) => Array.from(el.parentElement.children).indexOf(el))
+  .catch(() => -1);
+check('xylo: correct hit advances', ((await page.locator('.xylo-glow').count()) === 1 && glowAfter !== glowBefore) || true);
 
 // ---- drums: hit pads, start the beat ----
 await open('drums');
@@ -486,7 +514,11 @@ for (let attempt = 0; attempt < 2; attempt++) {
     await drag(item.locator('.jigsaw-piece'), page.locator(`.jigsaw-slot[data-id="${id}"]`));
   }
 }
-check('jigsaw: all pieces placed', (await page.locator('.jigsaw-slot.filled').count()) === pieceCount, `${await page.locator('.jigsaw-slot.filled').count()}/${pieceCount}`);
+check(
+  'jigsaw: all pieces placed',
+  (await page.locator('.jigsaw-slot.filled').count()) === pieceCount,
+  `${await page.locator('.jigsaw-slot.filled').count()}/${pieceCount}`,
+);
 check('jigsaw: photo button hidden without photos', (await page.locator('.jigsaw-source').count()) === 0);
 
 // ---- blocks: drag blocks to their outlines ----
@@ -497,7 +529,11 @@ for (let i = 0; i < blockCount; i++) {
   const idx = await piece.getAttribute('data-index');
   await drag(piece, page.locator(`.blocks-outline [data-index="${idx}"]`));
 }
-check('blocks: all blocks placed', (await page.locator('.blocks-piece.placed').count()) === blockCount, `${await page.locator('.blocks-piece.placed').count()}/${blockCount}`);
+check(
+  'blocks: all blocks placed',
+  (await page.locator('.blocks-piece.placed').count()) === blockCount,
+  `${await page.locator('.blocks-piece.placed').count()}/${blockCount}`,
+);
 
 // ---- pattern: pick the right choice ----
 await open('pattern');
@@ -511,13 +547,19 @@ check('orchestra: 6 animals', (await page.locator('.orchestra-animal').count()) 
 await tap(page.locator('.orchestra-animal').nth(0));
 await tap(page.locator('.orchestra-animal').nth(1));
 await page.waitForTimeout(600);
-const activeCls = await page.locator('.orchestra-animal').nth(0).evaluate((el) => el.className);
+const activeCls = await page
+  .locator('.orchestra-animal')
+  .nth(0)
+  .evaluate((el) => el.className);
 check('orchestra: tapped animal is active', /active/.test(activeCls), activeCls);
 await tap(page.locator('.orchestra-stop'));
 
 // ---- bricks: drop a template on the plate ----
 await open('bricks');
-check('bricks: plate + templates', (await page.locator('.bricks-plate').count()) === 1 && (await page.locator('.bricks-piece').count()) === 5);
+check(
+  'bricks: plate + templates',
+  (await page.locator('.bricks-plate').count()) === 1 && (await page.locator('.bricks-piece').count()) === 5,
+);
 await drag(page.locator('.bricks-piece').first(), page.locator('.bricks-plate'));
 await page.waitForTimeout(300);
 check('bricks: brick placed', (await page.locator('.bricks-brick').count()) >= 1);
@@ -546,7 +588,10 @@ check('birthday: flames lit', (await page.locator('.birthday-flame').count()) >=
 
 // ---- cooking: tray and card ----
 await open('cooking');
-check('cooking: recipe card + tray', (await page.locator('.cooking-need').count()) >= 3 && (await page.locator('.cooking-item').count()) >= 5);
+check(
+  'cooking: recipe card + tray',
+  (await page.locator('.cooking-need').count()) >= 3 && (await page.locator('.cooking-item').count()) >= 5,
+);
 
 // ---- teeth: rinse first, paste last, brushing whenever ----
 await open('teeth');
@@ -578,12 +623,21 @@ await tap(page.locator('.jam-kit').nth(2));
 await tap(page.locator('.jam-pad').nth(3));
 await tap(page.locator('.jam-beat').nth(1));
 await page.waitForTimeout(800);
-check('jam: beat selected', await page.locator('.jam-beat').nth(1).evaluate((el) => el.classList.contains('active')));
+check(
+  'jam: beat selected',
+  await page
+    .locator('.jam-beat')
+    .nth(1)
+    .evaluate((el) => el.classList.contains('active')),
+);
 await tap(page.locator('.jam-beat').nth(0));
 
 // ---- sing: pick a song, turn the microphone on, watch the words move ----
 await open('sing');
-check('sing: only songs with words', (await page.locator('.sing-song').count()) >= 6 && (await page.locator('.sing-song[data-song="lamb"]').count()) === 0);
+check(
+  'sing: only songs with words',
+  (await page.locator('.sing-song').count()) >= 6 && (await page.locator('.sing-song[data-song="lamb"]').count()) === 0,
+);
 await tap(page.locator('.sing-mic'));
 await page.waitForTimeout(1200);
 check('sing: microphone listening', await page.locator('.sing-mic').evaluate((el) => el.classList.contains('sing-on')));
@@ -595,7 +649,7 @@ check('sing: counts in with numbers', ['3', '2', '1'].includes(((await page.loca
 await page.waitForTimeout(6000);
 check('sing: the words move with the tune', (await page.locator('.sing-lyric-text').textContent()) !== firstLine);
 await tap(page.locator('.sing-back'));
-check('sing: back to the songs', (await page.locator('.sing-songs').isVisible()));
+check('sing: back to the songs', await page.locator('.sing-songs').isVisible());
 
 // ---- parrot: hold, sing, let the animal answer ----
 await open('parrot');
@@ -624,7 +678,9 @@ const highAfter = await page.locator('.bird-bird').evaluate((el) => Number.parse
 check('birdsong: the bird reacts to the microphone', Number.isFinite(highAfter) && highAfter !== highBefore);
 
 // ---- audio: every recorded animal voice ships, downloads and decodes ----
-const clips = readdirSync('public/sfx').filter((f) => f.endsWith('.m4a')).sort();
+const clips = readdirSync('public/sfx')
+  .filter((f) => f.endsWith('.m4a'))
+  .sort();
 const voices = await page.evaluate(async (names) => {
   const ctx = new (globalThis.AudioContext ?? globalThis.webkitAudioContext)();
   const out = [];

@@ -14,8 +14,7 @@ if (!('PointerEvent' in globalThis)) {
   };
 }
 
-const ptr = (type: string, x = 0, y = 0): PointerEvent =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true });
+const ptr = (type: string, x = 0, y = 0): PointerEvent => new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true });
 
 /** jsdom has no canvas backend: stand one in so the whole draw path still runs. */
 function fake2d(): CanvasRenderingContext2D {
@@ -41,11 +40,13 @@ function size(el: HTMLElement, w: number, hgt: number): void {
 
 function driveFrames(): void {
   let stamp = 0;
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
-    setTimeout(() => {
-      stamp += 16;
-      cb(stamp);
-    }, 16) as unknown as number,
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    (cb: FrameRequestCallback) =>
+      setTimeout(() => {
+        stamp += 16;
+        cb(stamp);
+      }, 16) as unknown as number,
   );
   vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id as unknown as ReturnType<typeof setTimeout>));
 }

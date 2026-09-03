@@ -30,8 +30,13 @@
   line-height: 1;
   transform: translate(-50%, -50%);
 }
-.bird-note { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2)); }
-.bird-ring { font-size: calc(var(--emoji) * 0.9); opacity: 0.9; }
+.bird-note {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
+}
+.bird-ring {
+  font-size: calc(var(--emoji) * 0.9);
+  opacity: 0.9;
+}
 
 .bird-bird {
   position: absolute;
@@ -42,7 +47,9 @@
   transform: translate(-50%, -50%) rotate(var(--bird-tilt, 0deg));
   filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.2));
 }
-.bird-singing .bird-bird { filter: drop-shadow(0 0 2vmin #fde047); }
+.bird-singing .bird-bird {
+  filter: drop-shadow(0 0 2vmin #fde047);
+}
 
 .bird-ground {
   position: absolute;
@@ -71,7 +78,10 @@
   line-height: 1;
   opacity: 0.28;
   filter: grayscale(1);
-  transition: opacity 0.2s, filter 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    filter 0.2s,
+    transform 0.2s;
 }
 .bird-slot.bird-got {
   opacity: 1;
@@ -84,10 +94,16 @@
   right: 1.5vmin;
   bottom: 1.5vmin;
 }
-.bird-mic.bird-on { background: #fef08a; }
-.bird-mic.bird-waiting { animation: pulse 0.8s ease-in-out infinite; }
+.bird-mic.bird-on {
+  background: #fef08a;
+}
+.bird-mic.bird-waiting {
+  animation: pulse 0.8s ease-in-out infinite;
+}
 /* Refused, not gone: still a button, and still worth a press. */
-.bird-mic.bird-mic-off { opacity: 0.55; }
+.bird-mic.bird-mic-off {
+  opacity: 0.55;
+}
 
 .bird-spark {
   position: absolute;
@@ -98,6 +114,12 @@
   animation: bird-spark 0.7s ease-out forwards;
 }
 @keyframes bird-spark {
-  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
-  100% { opacity: 0; transform: translate(-50%, -140%) scale(1.6); }
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -140%) scale(1.6);
+  }
 }

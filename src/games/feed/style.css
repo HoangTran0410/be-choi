@@ -25,7 +25,9 @@
   border-radius: 50%;
   border: 4px dashed rgba(59, 47, 47, 0.25);
   background: rgba(255, 255, 255, 0.35);
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 .feed-board .feed-mouth.feed-over {
   background: rgba(255, 255, 255, 0.55);
@@ -46,5 +48,7 @@
 .feed-food.eaten {
   transform: scale(0);
   opacity: 0;
-  transition: transform 0.3s ease-in, opacity 0.3s ease-in;
+  transition:
+    transform 0.3s ease-in,
+    opacity 0.3s ease-in;
 }

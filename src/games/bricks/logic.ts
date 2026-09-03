@@ -140,8 +140,7 @@ export function serialize(board: Board): string {
   return JSON.stringify({ cols: board.cols, rows: board.rows, bricks: board.bricks });
 }
 
-const isInt = (v: unknown, min: number, max: number): v is number =>
-  typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+const isInt = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
 
 /** Parse a saved board; `null` for anything malformed (garbage, out-of-grid or overlapping bricks). */
 export function deserialize(json: string): Board | null {
@@ -293,9 +292,7 @@ export interface Suggestion {
  * nothing fits (a wrong-colour brick sits on every missing cell).
  */
 export function nextBrick(board: Board, m: Model): Suggestion | null {
-  const missing = m.cells
-    .filter((c) => brickAt(board, c.x, c.y)?.color !== c.color)
-    .sort((a, b) => a.y - b.y || a.x - b.x);
+  const missing = m.cells.filter((c) => brickAt(board, c.x, c.y)?.color !== c.color).sort((a, b) => a.y - b.y || a.x - b.x);
   const sizes = [...BRICK_SIZES].sort((a, b) => b.w * b.h - a.w * a.h);
   for (const target of missing) {
     const wanted = new Set(m.cells.filter((c) => c.color === target.color).map((c) => `${c.x},${c.y}`));

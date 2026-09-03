@@ -63,8 +63,12 @@
   transform-origin: center;
 }
 @keyframes blocks-snap {
-  0% { transform: scale(1.18); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .blocks-fill path {
   transform-box: fill-box;

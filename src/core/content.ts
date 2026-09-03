@@ -126,18 +126,9 @@ export const COLORS: readonly ColorDef[] = [
   { id: 'pink', name: 'màu hồng', hex: '#ec4899' },
 ];
 
-export const NUMBERS_VI: readonly string[] = [
-  'không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười',
-];
+export const NUMBERS_VI: readonly string[] = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười'];
 
-export const PRAISES: readonly string[] = [
-  'Giỏi quá!',
-  'Tuyệt vời!',
-  'Đúng rồi!',
-  'Bé giỏi lắm!',
-  'Hoan hô!',
-  'Làm tốt lắm!',
-];
+export const PRAISES: readonly string[] = ['Giỏi quá!', 'Tuyệt vời!', 'Đúng rồi!', 'Bé giỏi lắm!', 'Hoan hô!', 'Làm tốt lắm!'];
 
 function item(set: readonly Item[], emoji: string): Item {
   const found = set.find((i) => i.emoji === emoji);

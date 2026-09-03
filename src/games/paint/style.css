@@ -71,14 +71,18 @@
   background: #fff;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
   touch-action: manipulation;
-  transition: transform 0.12s, box-shadow 0.12s;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
 }
 .paint-btn:active {
   transform: scale(0.92);
 }
 .paint-btn.selected {
   z-index: 1;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--c-orange);
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px var(--c-orange);
 }
 
 .paint-swatch {
@@ -87,7 +91,9 @@
 }
 .paint-swatch.selected {
   transform: scale(1.15);
-  box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59, 47, 47, 0.25);
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 6px rgba(59, 47, 47, 0.25);
 }
 .paint-swatch.selected:active {
   transform: scale(1.05);

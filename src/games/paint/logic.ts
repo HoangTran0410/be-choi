@@ -55,9 +55,7 @@ export function nextPhotoIndex(current: number, count: number): number {
 }
 
 export type Tool =
-  | { kind: 'brush'; color: string; size: number }
-  | { kind: 'stamp'; emoji: string; size: number }
-  | { kind: 'eraser'; size: number };
+  { kind: 'brush'; color: string; size: number } | { kind: 'stamp'; emoji: string; size: number } | { kind: 'eraser'; size: number };
 
 export const DEFAULT_TOOL: Tool = { kind: 'brush', color: RED.hex, size: DEFAULT_SIZE };
 

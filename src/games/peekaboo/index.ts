@@ -264,9 +264,7 @@ function start(ctx: GameContext): void {
 
   ctx.hint.arm(() => {
     // In a find round the hint points at the animal being looked for.
-    const pool = target
-      ? spots.filter((s) => s.item.emoji === target?.emoji)
-      : spots.filter((s) => !isOpen(s));
+    const pool = target ? spots.filter((s) => s.item.emoji === target?.emoji) : spots.filter((s) => !isOpen(s));
     const spot = pool[randInt(0, pool.length - 1)];
     if (!spot) return;
     replay(spot.el, 'anim-wiggle');

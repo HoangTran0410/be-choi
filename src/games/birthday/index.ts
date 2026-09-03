@@ -97,8 +97,16 @@ function start(ctx: GameContext): void {
 
   const flavorBtn = h('button', { class: 'btn-round birthday-flavor', 'aria-label': 'Đổi vị bánh', onpointerdown: onFlavor }, '🎂');
   const candleBtn = h('button', { class: 'btn-round birthday-add-candle', 'aria-label': 'Thêm nến', onpointerdown: onAddCandle }, '🕯️');
-  const lightBtn = h('button', { class: 'btn-round birthday-light birthday-dim', 'aria-label': 'Thắp nến', onpointerdown: onLightAll }, '🔥');
-  const photoBtn = h('button', { class: 'btn-round birthday-photo', 'aria-label': 'Chọn ảnh', hidden: true, onpointerdown: onPhotoBtn }, '🖼️');
+  const lightBtn = h(
+    'button',
+    { class: 'btn-round birthday-light birthday-dim', 'aria-label': 'Thắp nến', onpointerdown: onLightAll },
+    '🔥',
+  );
+  const photoBtn = h(
+    'button',
+    { class: 'btn-round birthday-photo', 'aria-label': 'Chọn ảnh', hidden: true, onpointerdown: onPhotoBtn },
+    '🖼️',
+  );
   // getUserMedia needs a user activation; on touch screens pointerup grants one, pointerdown may not.
   const micBtn = h('button', { class: 'btn-round birthday-mic', 'aria-label': 'Thổi vào micro', hidden: true, onpointerup: onMic }, '🎤');
   const againBtn = h('button', { class: 'btn-round birthday-again', 'aria-label': 'Làm bánh mới', onpointerdown: onAgain }, '🔁');
@@ -617,7 +625,10 @@ function start(ctx: GameContext): void {
     openPicker();
   }
 
-  void ctx.photos.list().then(applyPhotos).catch(() => undefined);
+  void ctx.photos
+    .list()
+    .then(applyPhotos)
+    .catch(() => undefined);
   const offPhotos = ctx.photos.onChange(applyPhotos);
 
   ctx.onCleanup(() => {

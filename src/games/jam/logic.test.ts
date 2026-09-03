@@ -165,7 +165,15 @@ describe('jam logic', () => {
     const meow = pad('animals', 0);
     const c4 = pad('notes', 0);
     const layers: Layer[] = [
-      { id: 1, kit: 'drums', events: [{ step: 0, pad: kick }, { step: 8, pad: kick }], muted: false },
+      {
+        id: 1,
+        kit: 'drums',
+        events: [
+          { step: 0, pad: kick },
+          { step: 8, pad: kick },
+        ],
+        muted: false,
+      },
       { id: 2, kit: 'animals', events: [{ step: 0, pad: meow }], muted: true },
       { id: 3, kit: 'notes', events: [{ step: 8, pad: c4, voice: 'xylo' }], muted: false },
     ];

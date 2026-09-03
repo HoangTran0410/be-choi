@@ -37,9 +37,7 @@ const CLEAR_HOLD_MS = 700;
 /** Tempo index of 🙂 (factor 1). */
 const TEMPO_NORMAL = 1;
 
-type Rec =
-  | { phase: 'count'; left: number }
-  | { phase: 'rec'; startStep: number; barStart: number; ticks: number; events: LoopEvent[] };
+type Rec = { phase: 'count'; left: number } | { phase: 'rec'; startStep: number; barStart: number; ticks: number; events: LoopEvent[] };
 
 /**
  * Music stage: four kits of twelve multi-touch pads (drums, pentatonic notes
@@ -82,11 +80,7 @@ function start(ctx: GameContext): void {
   const kitsBar = h('div', { class: 'jam-kits' });
   const kitBtns = new Map<string, HTMLButtonElement>();
   for (const k of KITS) {
-    const btn = h(
-      'button',
-      { class: 'jam-kit', type: 'button', 'data-id': k.id, 'aria-label': k.name, 'aria-pressed': 'false' },
-      k.emoji,
-    );
+    const btn = h('button', { class: 'jam-kit', type: 'button', 'data-id': k.id, 'aria-label': k.name, 'aria-pressed': 'false' }, k.emoji);
     kitBtns.set(k.id, btn);
     kitsBar.append(btn);
   }
@@ -101,11 +95,7 @@ function start(ctx: GameContext): void {
   const grid = h('div', { class: 'jam-pads' });
   const padEls: HTMLButtonElement[] = [];
   for (let i = 0; i < firstKit.pads.length; i++) {
-    const el = h(
-      'button',
-      { class: 'jam-pad', type: 'button', 'data-index': i },
-      h('span', { class: 'jam-pad-emoji' }, ''),
-    );
+    const el = h('button', { class: 'jam-pad', type: 'button', 'data-index': i }, h('span', { class: 'jam-pad-emoji' }, ''));
     padEls.push(el);
     grid.append(el);
   }

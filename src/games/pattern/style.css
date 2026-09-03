@@ -70,9 +70,13 @@
   font-size: calc(var(--tap) * 0.62);
   line-height: 1;
   touch-action: none;
-  transition: transform 0.1s, opacity 0.2s;
+  transition:
+    transform 0.1s,
+    opacity 0.2s;
 }
-.pattern-choice:active { transform: scale(0.92); }
+.pattern-choice:active {
+  transform: scale(0.92);
+}
 /* Tray goes quiet once the slot is filled; the picked one stays bright with a green ring. */
 .pattern-choice:disabled {
   opacity: 0.45;
@@ -80,5 +84,7 @@
 }
 .pattern-choice.pattern-picked {
   opacity: 1;
-  box-shadow: 0 0 0 4px var(--c-green), 0 4px 0 rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 0 0 4px var(--c-green),
+    0 4px 0 rgba(0, 0, 0, 0.12);
 }

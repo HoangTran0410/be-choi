@@ -140,11 +140,7 @@ function animal(emoji: string): Item {
  * sock in on purpose, so the pot laughs and spits it back rather than telling
  * them off. `%s` is the thing's name.
  */
-export const SILLY_LINES: readonly string[] = [
-  'Ối, %s không ăn được đâu!',
-  '%s nhảy ra ngoài rồi!',
-  'Buồn cười quá, %s trong nồi kìa!',
-];
+export const SILLY_LINES: readonly string[] = ['Ối, %s không ăn được đâu!', '%s nhảy ra ngoài rồi!', 'Buồn cười quá, %s trong nồi kìa!'];
 
 export function sillyLine(item: Item, rng: () => number = Math.random): string {
   const line = SILLY_LINES[Math.min(SILLY_LINES.length - 1, Math.floor(rng() * SILLY_LINES.length))];

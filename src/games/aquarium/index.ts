@@ -39,14 +39,7 @@ import {
   type Species,
   type Tank,
 } from './logic';
-import {
-  drawBubbles,
-  drawCreature,
-  drawPlant,
-  drawSand,
-  drawWater,
-  type Scene,
-} from './draw';
+import { drawBubbles, drawCreature, drawPlant, drawSand, drawWater, type Scene } from './draw';
 import './style.css';
 
 /** Caustics are baked into a tile this many pixels square and blown up over the tank. */
@@ -386,7 +379,6 @@ function start(ctx: GameContext): void {
 
   // ---- scenery ----
 
-
   function drawRays(g: CanvasRenderingContext2D): void {
     g.save();
     g.globalCompositeOperation = 'screen';
@@ -409,9 +401,6 @@ function start(ctx: GameContext): void {
     }
     g.restore();
   }
-
-
-
 
   // ---- the furniture ----
 
@@ -643,7 +632,6 @@ function start(ctx: GameContext): void {
     }
   }
 
-
   /** Lay the baked square over the tank at a size where the veins read as light on water. */
   /**
    * The light on the water, as one fill of a repeating pattern rather than a few
@@ -711,7 +699,14 @@ function start(ctx: GameContext): void {
     g.restore();
     // A soft vignette so the glass has edges — soft being the point. At nearly a
     // half it was not an edge, it was dusk.
-    const edge = g.createRadialGradient(tank.w / 2, tank.h / 2, Math.min(tank.w, tank.h) * 0.45, tank.w / 2, tank.h / 2, Math.max(tank.w, tank.h) * 0.8);
+    const edge = g.createRadialGradient(
+      tank.w / 2,
+      tank.h / 2,
+      Math.min(tank.w, tank.h) * 0.45,
+      tank.w / 2,
+      tank.h / 2,
+      Math.max(tank.w, tank.h) * 0.8,
+    );
     edge.addColorStop(0, 'rgba(0,0,0,0)');
     edge.addColorStop(1, 'rgba(3,32,54,0.2)');
     g.fillStyle = edge;

@@ -4,7 +4,14 @@ import { maybeUnlockSticker, STARS_PER_STICKER, starsToNext, STICKERS } from './
 
 function mem(): Storage {
   const m = new Map<string, string>();
-  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k), clear: () => m.clear(), key: () => null, length: 0 } as Storage;
+  return {
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
+    clear: () => m.clear(),
+    key: () => null,
+    length: 0,
+  } as Storage;
 }
 
 describe('rewards', () => {

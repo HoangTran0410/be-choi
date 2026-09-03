@@ -152,7 +152,11 @@ function transposeOne(note: string, semis: number): string {
  * are shifted note by note. `'R'` or anything unparseable is returned unchanged.
  */
 export function transpose(note: string, semis: number): string {
-  if (note.includes('+')) return note.split('+').map((n) => transposeOne(n, semis)).join('+');
+  if (note.includes('+'))
+    return note
+      .split('+')
+      .map((n) => transposeOne(n, semis))
+      .join('+');
   return transposeOne(note, semis);
 }
 
@@ -171,12 +175,7 @@ export interface StepEvent {
 }
 
 /** Everything the active parts play on `step` of bar `bar`. Steps wrap past the bar. */
-export function stepEvents(
-  active: ReadonlySet<string>,
-  step: number,
-  bar: number,
-  parts: readonly Part[] = PARTS,
-): StepEvent[] {
+export function stepEvents(active: ReadonlySet<string>, step: number, bar: number, parts: readonly Part[] = PARTS): StepEvent[] {
   const s = ((step % STEPS) + STEPS) % STEPS;
   const out: StepEvent[] = [];
   for (const part of parts) {

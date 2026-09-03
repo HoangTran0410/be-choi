@@ -44,7 +44,11 @@
   line-height: 1;
   background: var(--surface);
   box-shadow: 0 3px 0 var(--btn-shadow);
-  transition: transform 0.1s, background 0.15s, box-shadow 0.15s, opacity 0.2s;
+  transition:
+    transform 0.1s,
+    background 0.15s,
+    box-shadow 0.15s,
+    opacity 0.2s;
 }
 .jam button:focus:not(:focus-visible) {
   outline: none;
@@ -128,7 +132,10 @@
     inset 0 2px 0 rgba(255, 255, 255, 0.35),
     0 4px 10px rgba(0, 0, 0, 0.12);
   touch-action: none;
-  transition: transform 0.06s, filter 0.06s, box-shadow 0.06s;
+  transition:
+    transform 0.06s,
+    filter 0.06s,
+    box-shadow 0.06s;
   will-change: transform;
   container-type: size;
 }
@@ -208,8 +215,13 @@
   opacity: 1;
 }
 @keyframes jam-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .jam-layers {
@@ -268,8 +280,14 @@
   animation: jam-count-pop var(--jam-beat) ease-out;
 }
 @keyframes jam-count-pop {
-  0% { transform: scale(1.5); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.6; }
+  0% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
 }
 
 /* ---- feedback ---- */
@@ -277,18 +295,31 @@
   animation: jam-pop 0.25s ease-out;
 }
 @keyframes jam-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 /* Idle hint: ⏺ or a pad waves for attention. */
 .jam-nudge {
   animation: jam-nudge 0.5s ease-in-out 2;
 }
 @keyframes jam-nudge {
-  0%, 100% { transform: rotate(0) scale(1); }
-  25% { transform: rotate(-12deg) scale(1.12); }
-  75% { transform: rotate(12deg) scale(1.12); }
+  0%,
+  100% {
+    transform: rotate(0) scale(1);
+  }
+  25% {
+    transform: rotate(-12deg) scale(1.12);
+  }
+  75% {
+    transform: rotate(12deg) scale(1.12);
+  }
 }
 
 /* Star: floats up from the middle of the pads. */

@@ -41,15 +41,13 @@ export function makeMouth(round: number, rng: () => number = Math.random, exclud
   if (!character) throw new Error('teeth: no animal to brush');
   const ids = Array.from({ length: TEETH_PER_ROW * 2 }, (_, i) => i);
   const dirty = new Set(pick(ids, dirtyCount(round), rng));
-  const teeth = ids.map(
-    (id): Tooth => ({
-      id,
-      row: id < TEETH_PER_ROW ? 'top' : 'bottom',
-      col: id % TEETH_PER_ROW,
-      dirty: dirty.has(id),
-      scrubs: 0,
-    }),
-  );
+  const teeth = ids.map((id): Tooth => ({
+    id,
+    row: id < TEETH_PER_ROW ? 'top' : 'bottom',
+    col: id % TEETH_PER_ROW,
+    dirty: dirty.has(id),
+    scrubs: 0,
+  }));
   const stains = ids.map(() => STAINS[randInt(0, STAINS.length - 1, rng)] ?? '🍫');
   return { character, teeth, stains };
 }

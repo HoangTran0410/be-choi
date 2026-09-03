@@ -32,7 +32,16 @@ describe('music', () => {
     vi.useFakeTimers();
     const seen: number[] = [];
     const done = vi.fn();
-    const cancel = schedule([{ n: 'C4', d: 1 }, { n: 'D4', d: 0.5 }, { n: 'E4', d: 2 }], 120, (i, _n, ms) => seen.push(i, ms), done);
+    const cancel = schedule(
+      [
+        { n: 'C4', d: 1 },
+        { n: 'D4', d: 0.5 },
+        { n: 'E4', d: 2 },
+      ],
+      120,
+      (i, _n, ms) => seen.push(i, ms),
+      done,
+    );
     expect(seen).toEqual([0, 500]);
     vi.advanceTimersByTime(500);
     expect(seen).toEqual([0, 500, 1, 250]);
@@ -41,7 +50,14 @@ describe('music', () => {
     vi.advanceTimersByTime(1000);
     expect(done).toHaveBeenCalledTimes(1);
     const seen2: number[] = [];
-    const cancel2 = schedule([{ n: 'C4', d: 1 }, { n: 'D4', d: 1 }], 60, (i) => seen2.push(i));
+    const cancel2 = schedule(
+      [
+        { n: 'C4', d: 1 },
+        { n: 'D4', d: 1 },
+      ],
+      60,
+      (i) => seen2.push(i),
+    );
     cancel2();
     vi.advanceTimersByTime(5000);
     expect(seen2).toEqual([0]);
@@ -65,8 +81,30 @@ describe('the shared songbook', () => {
 
 describe('fitsScale', () => {
   it('keeps the wide songs off the eight xylophone bars', () => {
-    expect(fitsScale({ id: 'x', title: 'x', icon: 'x', bpm: 100, notes: [{ n: 'C4', d: 1 }, { n: 'R', d: 1 }] })).toBe(true);
-    expect(fitsScale({ id: 'x', title: 'x', icon: 'x', bpm: 100, notes: [{ n: 'C4', d: 1 }, { n: 'D5', d: 1 }] })).toBe(false);
+    expect(
+      fitsScale({
+        id: 'x',
+        title: 'x',
+        icon: 'x',
+        bpm: 100,
+        notes: [
+          { n: 'C4', d: 1 },
+          { n: 'R', d: 1 },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      fitsScale({
+        id: 'x',
+        title: 'x',
+        icon: 'x',
+        bpm: 100,
+        notes: [
+          { n: 'C4', d: 1 },
+          { n: 'D5', d: 1 },
+        ],
+      }),
+    ).toBe(false);
     const playable = SONGS.filter(fitsScale);
     expect(playable.length).toBeGreaterThanOrEqual(6);
     expect(playable.map((s) => s.id)).toContain('chaulenba');
@@ -124,7 +162,7 @@ describe('phraseAt', () => {
     { emoji: 'c', text: 'c', beats: 2 },
   ];
 
-  it('starts on the first line and steps on each line\'s first beat', () => {
+  it("starts on the first line and steps on each line's first beat", () => {
     expect(phraseAt(phrases, 0)).toBe(0);
     expect(phraseAt(phrases, 3.5)).toBe(0);
     expect(phraseAt(phrases, 4)).toBe(1);

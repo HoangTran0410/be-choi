@@ -305,9 +305,7 @@ export function seqSource(draft: Draft, quote: Quote = '"'): string {
 
 export function lyricsSource(draft: Draft, quote: Quote = '"'): string {
   if (draft.phrases.length === 0) return '';
-  const body = draft.phrases
-    .map((p) => `      line(${str(p.emoji, quote)}, ${str(p.text, quote)}, ${num(p.beats)}),`)
-    .join('\n');
+  const body = draft.phrases.map((p) => `      line(${str(p.emoji, quote)}, ${str(p.text, quote)}, ${num(p.beats)}),`).join('\n');
   return `    lyrics: [\n${body}\n    ],`;
 }
 

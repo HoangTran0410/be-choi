@@ -116,15 +116,7 @@ export class Spine {
  * knees to take. Every degenerate case returns a finite point, because a NaN
  * coordinate draws nothing and looks like a missing leg rather than a bug.
  */
-export function solveTwoBone(
-  hipX: number,
-  hipY: number,
-  footX: number,
-  footY: number,
-  upper: number,
-  lower: number,
-  bend: number,
-): Point {
+export function solveTwoBone(hipX: number, hipY: number, footX: number, footY: number, upper: number, lower: number, bend: number): Point {
   const dx = footX - hipX;
   const dy = footY - hipY;
   const distance = Math.hypot(dx, dy);

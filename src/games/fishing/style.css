@@ -63,8 +63,15 @@
   animation: fishing-slip 0.35s ease-in-out infinite;
 }
 @keyframes fishing-slip {
-  0%, 100% { background: rgba(255, 255, 255, 0.92); transform: scale(1); }
-  50% { background: #fca5a5; transform: scale(1.08); }
+  0%,
+  100% {
+    background: rgba(255, 255, 255, 0.92);
+    transform: scale(1);
+  }
+  50% {
+    background: #fca5a5;
+    transform: scale(1.08);
+  }
 }
 
 /* Held up and named: the moment the whole game is for. */
@@ -92,8 +99,14 @@
   font-size: calc(var(--tap) * 0.55);
 }
 @keyframes fishing-catch {
-  0% { transform: translateX(-50%) scale(0.4); opacity: 0; }
-  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+  0% {
+    transform: translateX(-50%) scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
 }
 
 /* Something on the line: the water stops answering to fingers, so a hand resting

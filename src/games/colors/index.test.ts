@@ -24,7 +24,15 @@ function layout(baskets: HTMLElement[]): void {
   baskets.forEach((el, i) => {
     const left = i * 200;
     el.getBoundingClientRect = () => ({
-      x: left, y: 0, left, top: 0, width: 100, height: 100, right: left + 100, bottom: 100, toJSON: () => ({}),
+      x: left,
+      y: 0,
+      left,
+      top: 0,
+      width: 100,
+      height: 100,
+      right: left + 100,
+      bottom: 100,
+      toJSON: () => ({}),
     });
   });
 }

@@ -14,9 +14,7 @@ export interface Speech {
   cancel(): void;
 }
 
-export function createSpeech(
-  synth: SpeechSynthesis | null = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null,
-): Speech {
+export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null): Speech {
   let enabled = true;
   let voice: SpeechSynthesisVoice | null = null;
 
@@ -41,8 +39,7 @@ export function createSpeech(
   }
 
   function makeUtterance(text: string): SpeechSynthesisUtterance | null {
-    const Ctor = (globalThis as { SpeechSynthesisUtterance?: typeof SpeechSynthesisUtterance })
-      .SpeechSynthesisUtterance;
+    const Ctor = (globalThis as { SpeechSynthesisUtterance?: typeof SpeechSynthesisUtterance }).SpeechSynthesisUtterance;
     if (!Ctor) return null;
     const u = new Ctor(text);
     u.lang = 'vi-VN';

@@ -188,7 +188,7 @@ describe('xylo game', () => {
     expect(note).toHaveBeenCalledTimes(1);
     expect(note).toHaveBeenLastCalledWith(
       expect.closeTo(noteFreq(firstNote.n), 1),
-      expect.closeTo((firstNote.d * beat) / 1000 * 0.9, 3),
+      expect.closeTo(((firstNote.d * beat) / 1000) * 0.9, 3),
       'xylo',
     );
     expect(ctx.stage.querySelectorAll('.xylo-lit').length).toBe(1);

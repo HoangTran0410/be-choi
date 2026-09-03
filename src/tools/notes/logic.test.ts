@@ -265,7 +265,13 @@ describe('saved drafts', () => {
 
   it('always takes the words themselves from the file, never from the draft', () => {
     const raw = serializeDraft(draftFromSong(TOY));
-    const renamed: Song = { ...TOY, lyrics: [{ emoji: '🐤', text: 'Lời mới', beats: 2 }, { emoji: '🎈', text: 'Ba bốn', beats: 2 }] };
+    const renamed: Song = {
+      ...TOY,
+      lyrics: [
+        { emoji: '🐤', text: 'Lời mới', beats: 2 },
+        { emoji: '🎈', text: 'Ba bốn', beats: 2 },
+      ],
+    };
     expect(parseDraft(raw, renamed)?.phrases[0]?.text).toBe('Lời mới');
   });
 

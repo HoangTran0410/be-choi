@@ -23,7 +23,7 @@
   --c-blue: #3b82f6;
   --c-purple: #a855f7;
   --c-pink: #ec4899;
-  --font: -apple-system, "SF Pro Rounded", "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font: -apple-system, 'SF Pro Rounded', 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,9 +57,14 @@
   --btn-shadow: rgba(0, 0, 0, 0.5);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html, body {
+html,
+body {
   height: 100%;
   overflow: hidden;
   background: var(--bg);
@@ -95,7 +100,11 @@ button {
   touch-action: manipulation;
 }
 
-.emoji { font-size: var(--emoji); line-height: 1; display: inline-block; }
+.emoji {
+  font-size: var(--emoji);
+  line-height: 1;
+  display: inline-block;
+}
 
 .stage {
   position: relative;
@@ -124,38 +133,85 @@ button {
   box-shadow: 0 4px 0 var(--btn-shadow);
   transition: transform 0.1s;
 }
-.btn-round:active { transform: scale(0.92); }
+.btn-round:active {
+  transform: scale(0.92);
+}
 
 /* ---- shared animations ---- */
 @keyframes bounce {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.25) translateY(-8%); }
-  60% { transform: scale(0.95); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.25) translateY(-8%);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 @keyframes wiggle {
-  0%, 100% { transform: rotate(0); }
-  25% { transform: rotate(-10deg); }
-  75% { transform: rotate(10deg); }
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
 }
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.12); opacity: 0.85; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
 }
 @keyframes pop {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.8); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
 }
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-8px); }
-  75% { transform: translateX(8px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
 }
-.anim-bounce { animation: bounce 0.45s ease-out; }
-.anim-wiggle { animation: wiggle 0.5s ease-in-out 2; }
-.anim-pulse { animation: pulse 0.8s ease-in-out infinite; }
-.anim-pop { animation: pop 0.3s ease-out forwards; }
-.anim-shake { animation: shake 0.4s ease-in-out; }
+.anim-bounce {
+  animation: bounce 0.45s ease-out;
+}
+.anim-wiggle {
+  animation: wiggle 0.5s ease-in-out 2;
+}
+.anim-pulse {
+  animation: pulse 0.8s ease-in-out infinite;
+}
+.anim-pop {
+  animation: pop 0.3s ease-out forwards;
+}
+.anim-shake {
+  animation: shake 0.4s ease-in-out;
+}
 
 /* ---- drag ---- */
 .dragging {
@@ -163,7 +219,9 @@ button {
   transition: none !important;
   /* No filter/shadow here: adding one mid-gesture forces a re-raster and stalls the first frames on tablets. */
 }
-.spring-back { transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.spring-back {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
 /* ---- hold ring ---- */
 .hold-ring {

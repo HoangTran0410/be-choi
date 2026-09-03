@@ -3,19 +3,7 @@ import { h, replay } from '../../core/dom';
 import { noteFreq, schedule, SONGS } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import {
-  allClean,
-  CHEERS,
-  JOBS,
-  JOB_ICON,
-  makeMouth,
-  NUDGES,
-  scrub,
-  SCRUBS_TO_CLEAN,
-  type Job,
-  type Mouth,
-  type Tooth,
-} from './logic';
+import { allClean, CHEERS, JOBS, JOB_ICON, makeMouth, NUDGES, scrub, SCRUBS_TO_CLEAN, type Job, type Mouth, type Tooth } from './logic';
 import './style.css';
 
 /** Minimum gap between two brush ticks. */
@@ -341,11 +329,7 @@ function start(ctx: GameContext): void {
       const dx = Math.round(Math.cos(a) * 18);
       const dy = Math.round(Math.sin(a) * 12 - 10);
       const delay = i * SPLASH_STAGGER_MS;
-      const el = h(
-        'span',
-        { class: 'teeth-splash', style: `--teeth-dx:${dx}vmin;--teeth-dy:${dy}vmin;animation-delay:${delay}ms` },
-        '💦',
-      );
+      const el = h('span', { class: 'teeth-splash', style: `--teeth-dx:${dx}vmin;--teeth-dy:${dy}vmin;animation-delay:${delay}ms` }, '💦');
       mouthEl.append(el);
       later(() => el.remove(), SPLASH_MS + delay);
     }

@@ -10,14 +10,54 @@ export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' 
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
 /** Sound effects and (very) approximate animal voices, all synthesized. */
 export type FxKind =
-  | 'laser' | 'honk' | 'siren' | 'whistle' | 'slide' | 'zap' | 'sparkle' | 'kazoo' | 'roll' | 'cheer'
-  | 'meow' | 'bark' | 'quack' | 'moo' | 'chirp' | 'roar' | 'frog' | 'pig' | 'owl' | 'elephant' | 'sheep' | 'cricket';
+  | 'laser'
+  | 'honk'
+  | 'siren'
+  | 'whistle'
+  | 'slide'
+  | 'zap'
+  | 'sparkle'
+  | 'kazoo'
+  | 'roll'
+  | 'cheer'
+  | 'meow'
+  | 'bark'
+  | 'quack'
+  | 'moo'
+  | 'chirp'
+  | 'roar'
+  | 'frog'
+  | 'pig'
+  | 'owl'
+  | 'elephant'
+  | 'sheep'
+  | 'cricket';
 
 export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax', 'bass'];
 export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell', 'shaker', 'wood', 'ride', 'triangle', 'crash'];
 export const FX: readonly FxKind[] = [
-  'laser', 'honk', 'siren', 'whistle', 'slide', 'zap', 'sparkle', 'kazoo', 'roll', 'cheer',
-  'meow', 'bark', 'quack', 'moo', 'chirp', 'roar', 'frog', 'pig', 'owl', 'elephant', 'sheep', 'cricket',
+  'laser',
+  'honk',
+  'siren',
+  'whistle',
+  'slide',
+  'zap',
+  'sparkle',
+  'kazoo',
+  'roll',
+  'cheer',
+  'meow',
+  'bark',
+  'quack',
+  'moo',
+  'chirp',
+  'roar',
+  'frog',
+  'pig',
+  'owl',
+  'elephant',
+  'sheep',
+  'cricket',
 ];
 
 /**
@@ -179,8 +219,7 @@ export function createAudio(): AudioEngine {
       return;
     }
     const Ctor =
-      (globalThis as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
-        .AudioContext ??
+      (globalThis as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ??
       (globalThis as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
     try {
@@ -390,16 +429,44 @@ export function createAudio(): AudioEngine {
         noise(Math.min(dur, 0.15), { gain: 0.05, filter: { type: 'bandpass', freq: freq * 2, q: 2 } });
         return;
       case 'trumpet':
-        tone('sawtooth', freq, dur, { gain: 0.35, attack: 0.03, sustain: true, release: 0.08, filter: { type: 'lowpass', freq: 2400, to: 1400, q: 1.2 } });
+        tone('sawtooth', freq, dur, {
+          gain: 0.35,
+          attack: 0.03,
+          sustain: true,
+          release: 0.08,
+          filter: { type: 'lowpass', freq: 2400, to: 1400, q: 1.2 },
+        });
         tone('square', freq, dur, { gain: 0.08, attack: 0.03, sustain: true, release: 0.08, filter: { type: 'lowpass', freq: 1200 } });
         return;
       case 'sax':
-        tone('sawtooth', freq, dur, { gain: 0.3, attack: 0.05, sustain: true, release: 0.12, filter: { type: 'lowpass', freq: 1500, q: 3 }, vibrato: { hz: 5, depth: freq * 0.01 } });
+        tone('sawtooth', freq, dur, {
+          gain: 0.3,
+          attack: 0.05,
+          sustain: true,
+          release: 0.12,
+          filter: { type: 'lowpass', freq: 1500, q: 3 },
+          vibrato: { hz: 5, depth: freq * 0.01 },
+        });
         tone('square', freq / 2, dur, { gain: 0.08, attack: 0.05, sustain: true, release: 0.12, filter: { type: 'lowpass', freq: 800 } });
         return;
       case 'violin':
-        tone('sawtooth', freq, dur, { gain: 0.22, attack: 0.12, sustain: true, release: 0.18, detune: -5, filter: { type: 'lowpass', freq: 2600, q: 0.8 }, vibrato: { hz: 6, depth: freq * 0.008 } });
-        tone('sawtooth', freq, dur, { gain: 0.22, attack: 0.12, sustain: true, release: 0.18, detune: 5, filter: { type: 'lowpass', freq: 2600, q: 0.8 } });
+        tone('sawtooth', freq, dur, {
+          gain: 0.22,
+          attack: 0.12,
+          sustain: true,
+          release: 0.18,
+          detune: -5,
+          filter: { type: 'lowpass', freq: 2600, q: 0.8 },
+          vibrato: { hz: 6, depth: freq * 0.008 },
+        });
+        tone('sawtooth', freq, dur, {
+          gain: 0.22,
+          attack: 0.12,
+          sustain: true,
+          release: 0.18,
+          detune: 5,
+          filter: { type: 'lowpass', freq: 2600, q: 0.8 },
+        });
         return;
       case 'piano':
       default:
@@ -479,7 +546,14 @@ export function createAudio(): AudioEngine {
         tone('sawtooth', 1400, 0.28, { gain: 0.35, attack: 0.002, slideTo: 180, filter: { type: 'lowpass', freq: 3000 } });
         return;
       case 'honk':
-        tone('square', 230, 0.4, { gain: 0.3, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 900 }, vibrato: { hz: 7, depth: 6 } });
+        tone('square', 230, 0.4, {
+          gain: 0.3,
+          attack: 0.02,
+          sustain: true,
+          release: 0.1,
+          filter: { type: 'lowpass', freq: 900 },
+          vibrato: { hz: 7, depth: 6 },
+        });
         tone('sawtooth', 345, 0.4, { gain: 0.12, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 1200 } });
         return;
       case 'siren': {
@@ -487,7 +561,14 @@ export function createAudio(): AudioEngine {
         // so it reads as "xe cứu hoả" rather than a real emergency in the room.
         const swap = 0.22;
         [740, 988, 740, 988].forEach((f, i) => {
-          tone('square', f, swap, { gain: 0.14, attack: 0.012, at: i * swap, sustain: true, release: 0.05, filter: { type: 'lowpass', freq: 1400 } });
+          tone('square', f, swap, {
+            gain: 0.14,
+            attack: 0.012,
+            at: i * swap,
+            sustain: true,
+            release: 0.05,
+            filter: { type: 'lowpass', freq: 1400 },
+          });
           tone('sine', f * 2, swap, { gain: 0.05, attack: 0.012, at: i * swap, sustain: true, release: 0.05 });
         });
         return;
@@ -506,7 +587,14 @@ export function createAudio(): AudioEngine {
         [1568, 1976, 2349, 3136].forEach((f, i) => tone('sine', f, 0.5, { gain: 0.3, attack: 0.005, at: i * 0.06 }));
         return;
       case 'kazoo':
-        tone('sawtooth', 330, 0.5, { gain: 0.25, attack: 0.03, sustain: true, release: 0.1, filter: { type: 'bandpass', freq: 1200, q: 2 }, vibrato: { hz: 9, depth: 12 } });
+        tone('sawtooth', 330, 0.5, {
+          gain: 0.25,
+          attack: 0.03,
+          sustain: true,
+          release: 0.1,
+          filter: { type: 'bandpass', freq: 1200, q: 2 },
+          vibrato: { hz: 9, depth: 12 },
+        });
         return;
       case 'roll': {
         // A snare roll, not a machine gun: uneven strokes that speed up and swell,
@@ -530,8 +618,21 @@ export function createAudio(): AudioEngine {
         return;
       case 'meow':
         // "mee-ow": nasal sawtooth through a moving vowel formant
-        tone('sawtooth', 520, 0.28, { gain: 0.22, attack: 0.04, slideTo: 880, filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 }, vibrato: { hz: 6, depth: 14 } });
-        tone('sawtooth', 880, 0.4, { gain: 0.22, attack: 0.01, at: 0.28, slideTo: 420, filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 }, vibrato: { hz: 6, depth: 14 } });
+        tone('sawtooth', 520, 0.28, {
+          gain: 0.22,
+          attack: 0.04,
+          slideTo: 880,
+          filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 },
+          vibrato: { hz: 6, depth: 14 },
+        });
+        tone('sawtooth', 880, 0.4, {
+          gain: 0.22,
+          attack: 0.01,
+          at: 0.28,
+          slideTo: 420,
+          filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 },
+          vibrato: { hz: 6, depth: 14 },
+        });
         tone('sine', 520, 0.28, { gain: 0.12, attack: 0.04, slideTo: 880 });
         tone('sine', 880, 0.4, { gain: 0.12, attack: 0.01, at: 0.28, slideTo: 420 });
         return;
@@ -539,21 +640,49 @@ export function createAudio(): AudioEngine {
         // "woof woof": two short growly bursts with a throat formant
         [0, 0.22].forEach((t) => {
           noise(0.05, { gain: 0.35, at: t, filter: { type: 'bandpass', freq: 800, q: 1 } });
-          tone('sawtooth', 240, 0.16, { gain: 0.32, attack: 0.004, at: t, slideTo: 120, filter: { type: 'bandpass', freq: 700, to: 400, q: 1.5 } });
+          tone('sawtooth', 240, 0.16, {
+            gain: 0.32,
+            attack: 0.004,
+            at: t,
+            slideTo: 120,
+            filter: { type: 'bandpass', freq: 700, to: 400, q: 1.5 },
+          });
           tone('square', 120, 0.14, { gain: 0.12, attack: 0.004, at: t, slideTo: 80, filter: { type: 'lowpass', freq: 500 } });
         });
         return;
       case 'quack':
         // "quack quack": buzzy reed with a "wa" formant sweep
         [0, 0.2].forEach((t) => {
-          tone('sawtooth', 300, 0.16, { gain: 0.3, attack: 0.006, at: t, slideTo: 230, filter: { type: 'bandpass', freq: 1400, to: 700, q: 3 }, vibrato: { hz: 25, depth: 12 } });
+          tone('sawtooth', 300, 0.16, {
+            gain: 0.3,
+            attack: 0.006,
+            at: t,
+            slideTo: 230,
+            filter: { type: 'bandpass', freq: 1400, to: 700, q: 3 },
+            vibrato: { hz: 25, depth: 12 },
+          });
           tone('square', 150, 0.16, { gain: 0.1, attack: 0.006, at: t, slideTo: 115, filter: { type: 'lowpass', freq: 900 } });
         });
         return;
       case 'moo':
         // "m-oooo": starts closed (dark), opens up, then falls
-        tone('sawtooth', 110, 1.0, { gain: 0.32, attack: 0.15, sustain: true, release: 0.3, slideTo: 90, filter: { type: 'lowpass', freq: 300, to: 700 }, vibrato: { hz: 4.5, depth: 3 } });
-        tone('sawtooth', 165, 0.9, { gain: 0.12, attack: 0.2, sustain: true, release: 0.3, slideTo: 135, filter: { type: 'lowpass', freq: 600 } });
+        tone('sawtooth', 110, 1.0, {
+          gain: 0.32,
+          attack: 0.15,
+          sustain: true,
+          release: 0.3,
+          slideTo: 90,
+          filter: { type: 'lowpass', freq: 300, to: 700 },
+          vibrato: { hz: 4.5, depth: 3 },
+        });
+        tone('sawtooth', 165, 0.9, {
+          gain: 0.12,
+          attack: 0.2,
+          sustain: true,
+          release: 0.3,
+          slideTo: 135,
+          filter: { type: 'lowpass', freq: 600 },
+        });
         return;
       case 'chirp':
         // Three tweets that are not the same tweet: up, down, up.
@@ -568,20 +697,48 @@ export function createAudio(): AudioEngine {
         return;
       case 'roar':
         // A growl that opens out and dies back: a rasping throat over moving air.
-        tone('sawtooth', 88, 0.9, { gain: 0.3, attack: 0.09, sustain: true, release: 0.32, slideTo: 62, filter: { type: 'lowpass', freq: 240, to: 720, q: 2 }, vibrato: { hz: 26, depth: 11 } });
-        tone('sawtooth', 132, 0.85, { gain: 0.1, attack: 0.13, sustain: true, release: 0.3, slideTo: 95, filter: { type: 'lowpass', freq: 900 } });
+        tone('sawtooth', 88, 0.9, {
+          gain: 0.3,
+          attack: 0.09,
+          sustain: true,
+          release: 0.32,
+          slideTo: 62,
+          filter: { type: 'lowpass', freq: 240, to: 720, q: 2 },
+          vibrato: { hz: 26, depth: 11 },
+        });
+        tone('sawtooth', 132, 0.85, {
+          gain: 0.1,
+          attack: 0.13,
+          sustain: true,
+          release: 0.3,
+          slideTo: 95,
+          filter: { type: 'lowpass', freq: 900 },
+        });
         noise(0.8, { gain: 0.2, filter: { type: 'lowpass', freq: 800, to: 260 } });
         return;
       case 'frog':
         // "ộp ộp": a rasping croak — a reed shaken hard, closing as it ends.
         [0, 0.27].forEach((t) => {
-          tone('sawtooth', 150, 0.2, { gain: 0.9, attack: 0.012, at: t, slideTo: 112, filter: { type: 'bandpass', freq: 720, to: 420, q: 2.5 }, vibrato: { hz: 38, depth: 55 } });
+          tone('sawtooth', 150, 0.2, {
+            gain: 0.9,
+            attack: 0.012,
+            at: t,
+            slideTo: 112,
+            filter: { type: 'bandpass', freq: 720, to: 420, q: 2.5 },
+            vibrato: { hz: 38, depth: 55 },
+          });
           noise(0.13, { at: t + 0.02, gain: 0.22, filter: { type: 'bandpass', freq: 900, to: 480, q: 2 } });
         });
         return;
       case 'pig':
         // "oink": fast throat trill plus a snorty puff
-        tone('sawtooth', 170, 0.22, { gain: 0.3, attack: 0.01, slideTo: 130, filter: { type: 'bandpass', freq: 650, q: 2 }, vibrato: { hz: 22, depth: 45 } });
+        tone('sawtooth', 170, 0.22, {
+          gain: 0.3,
+          attack: 0.01,
+          slideTo: 130,
+          filter: { type: 'bandpass', freq: 650, q: 2 },
+          vibrato: { hz: 22, depth: 45 },
+        });
         noise(0.12, { gain: 0.3, at: 0.05, filter: { type: 'bandpass', freq: 450, q: 1.5 } });
         return;
       case 'owl':
@@ -590,21 +747,62 @@ export function createAudio(): AudioEngine {
           { at: 0, dur: 0.3, hz: 470 },
           { at: 0.38, dur: 0.5, hz: 440 },
         ].forEach((hoot) => {
-          tone('sine', hoot.hz * 0.9, hoot.dur, { gain: 0.1, attack: 0.07, at: hoot.at, sustain: true, release: 0.16, slideTo: hoot.hz, filter: { type: 'lowpass', freq: 900 }, vibrato: { hz: 5, depth: 4 } });
+          tone('sine', hoot.hz * 0.9, hoot.dur, {
+            gain: 0.1,
+            attack: 0.07,
+            at: hoot.at,
+            sustain: true,
+            release: 0.16,
+            slideTo: hoot.hz,
+            filter: { type: 'lowpass', freq: 900 },
+            vibrato: { hz: 5, depth: 4 },
+          });
           tone('sine', hoot.hz * 2, hoot.dur, { gain: 0.025, attack: 0.09, at: hoot.at, sustain: true, release: 0.16 });
           noise(hoot.dur * 0.45, { at: hoot.at, gain: 0.035, filter: { type: 'bandpass', freq: 700, q: 1.5 } });
         });
         return;
       case 'elephant':
         // A trumpet blare: up fast, held bright, then falling away.
-        tone('sawtooth', 220, 0.45, { gain: 0.36, attack: 0.04, sustain: true, release: 0.06, slideTo: 620, filter: { type: 'bandpass', freq: 900, to: 2000, q: 1.5 }, vibrato: { hz: 6, depth: 10 } });
-        tone('sawtooth', 620, 0.4, { gain: 0.3, attack: 0.02, at: 0.45, sustain: true, release: 0.22, slideTo: 300, filter: { type: 'bandpass', freq: 2000, to: 800, q: 1.5 } });
+        tone('sawtooth', 220, 0.45, {
+          gain: 0.36,
+          attack: 0.04,
+          sustain: true,
+          release: 0.06,
+          slideTo: 620,
+          filter: { type: 'bandpass', freq: 900, to: 2000, q: 1.5 },
+          vibrato: { hz: 6, depth: 10 },
+        });
+        tone('sawtooth', 620, 0.4, {
+          gain: 0.3,
+          attack: 0.02,
+          at: 0.45,
+          sustain: true,
+          release: 0.22,
+          slideTo: 300,
+          filter: { type: 'bandpass', freq: 2000, to: 800, q: 1.5 },
+        });
         tone('square', 110, 0.7, { gain: 0.08, attack: 0.05, sustain: true, release: 0.2, filter: { type: 'lowpass', freq: 400 } });
         return;
       case 'sheep':
         // "beeee": the bleat wobbles harder and drops as the breath runs out.
-        tone('sawtooth', 330, 0.55, { gain: 0.24, attack: 0.03, sustain: true, release: 0.2, slideTo: 250, filter: { type: 'bandpass', freq: 1100, to: 700, q: 2 }, vibrato: { hz: 13, depth: 26 } });
-        tone('sawtooth', 330, 0.5, { gain: 0.07, attack: 0.05, sustain: true, release: 0.2, slideTo: 250, detune: 12, filter: { type: 'lowpass', freq: 1600 } });
+        tone('sawtooth', 330, 0.55, {
+          gain: 0.24,
+          attack: 0.03,
+          sustain: true,
+          release: 0.2,
+          slideTo: 250,
+          filter: { type: 'bandpass', freq: 1100, to: 700, q: 2 },
+          vibrato: { hz: 13, depth: 26 },
+        });
+        tone('sawtooth', 330, 0.5, {
+          gain: 0.07,
+          attack: 0.05,
+          sustain: true,
+          release: 0.2,
+          slideTo: 250,
+          detune: 12,
+          filter: { type: 'lowpass', freq: 1600 },
+        });
         return;
       case 'cricket':
         // Three bursts of three: a dry little trill, high up and quiet.

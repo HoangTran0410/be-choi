@@ -41,8 +41,14 @@
   box-shadow: inset 0 0 4vmin rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
-.sing-left { left: 0; border-radius: 0 0 40% 0; }
-.sing-right { right: 0; border-radius: 0 0 0 40%; }
+.sing-left {
+  left: 0;
+  border-radius: 0 0 40% 0;
+}
+.sing-right {
+  right: 0;
+  border-radius: 0 0 0 40%;
+}
 
 .sing-lights {
   position: absolute;
@@ -87,10 +93,18 @@
   color: #fff;
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
 }
-.sing-line-in { animation: sing-line-in 0.4s ease-out; }
+.sing-line-in {
+  animation: sing-line-in 0.4s ease-out;
+}
 @keyframes sing-line-in {
-  0% { opacity: 0; transform: translateY(12%) scale(0.9); }
-  100% { opacity: 1; transform: none; }
+  0% {
+    opacity: 0;
+    transform: translateY(12%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---- the count-in ---- */
@@ -112,11 +126,22 @@
   pointer-events: none;
   transform: translate(-50%, -50%);
 }
-.sing-count-in { animation: sing-count-in 0.5s ease-out; }
+.sing-count-in {
+  animation: sing-count-in 0.5s ease-out;
+}
 @keyframes sing-count-in {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
-  35% { opacity: 1; transform: translate(-50%, -50%) scale(1.18); }
-  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 /* ---- song picker ---- */
@@ -157,7 +182,9 @@
   scroll-snap-align: start;
   transition: transform 0.1s;
 }
-.sing-song:active { transform: scale(0.95); }
+.sing-song:active {
+  transform: scale(0.95);
+}
 .sing-song-icon {
   font-size: calc(var(--emoji) * 0.6);
   line-height: 1;
@@ -195,8 +222,13 @@
   animation-delay: calc(var(--sing-fan) * 0.08s);
 }
 @keyframes sing-fan {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  50% { transform: translateY(-12%) rotate(4deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-12%) rotate(4deg);
+  }
 }
 
 /* ---- buttons ---- */
@@ -214,10 +246,14 @@
     0 4px 0 var(--btn-shadow),
     0 0 0 calc(var(--sing-level) * 3vmin) rgba(253, 224, 71, 0.45);
 }
-.sing-waiting { animation: pulse 0.8s ease-in-out infinite; }
+.sing-waiting {
+  animation: pulse 0.8s ease-in-out infinite;
+}
 /* Refused, not gone: still buttons, and still worth a press. */
 .sing-mic.sing-mic-off,
-.sing-cam.sing-cam-off { opacity: 0.55; }
+.sing-cam.sing-cam-off {
+  opacity: 0.55;
+}
 
 /* ---- notes floating out of the microphone ---- */
 .sing-note {
@@ -230,9 +266,17 @@
   animation: sing-note 1.6s ease-out forwards;
 }
 @keyframes sing-note {
-  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -45vmin) scale(1.3) rotate(18deg); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -45vmin) scale(1.3) rotate(18deg);
+  }
 }
 
 .sing-flash {
@@ -243,12 +287,18 @@
   animation: sing-flash 0.4s ease-out forwards;
 }
 @keyframes sing-flash {
-  0% { opacity: 0.9; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 @media (orientation: landscape) {
-  .sing-lyric { top: 8%; }
+  .sing-lyric {
+    top: 8%;
+  }
   .sing-songs {
     left: 16%;
     right: 16%;

@@ -39,9 +39,7 @@ const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPop
  * access is guarded so private browsing or a blocked storage still lets the
  * app run with in-memory state.
  */
-export function createStore(
-  storage: Storage | null = typeof localStorage !== 'undefined' ? localStorage : null,
-): Store {
+export function createStore(storage: Storage | null = typeof localStorage !== 'undefined' ? localStorage : null): Store {
   let state: State = load();
 
   function load(): State {

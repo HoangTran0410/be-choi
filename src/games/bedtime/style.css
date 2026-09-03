@@ -52,7 +52,9 @@
   background: transparent;
   touch-action: none;
   opacity: 0.55;
-  transition: opacity 0.6s, transform 0.15s;
+  transition:
+    opacity 0.6s,
+    transform 0.15s;
 }
 .bedtime.dark .bedtime-moon {
   opacity: 1;
@@ -68,9 +70,18 @@
   animation: bedtime-twinkle 1.6s ease-out forwards;
 }
 @keyframes bedtime-twinkle {
-  0% { transform: scale(0.3); opacity: 0; }
-  30% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0; }
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
 }
 
 /* ---- the lamp ---- */
@@ -88,7 +99,9 @@
   background: radial-gradient(circle, rgba(254, 249, 195, 0.95), rgba(253, 224, 71, 0.35));
   box-shadow: 0 0 6vmin 2vmin rgba(253, 224, 71, 0.45);
   touch-action: none;
-  transition: box-shadow 0.6s, transform 0.15s;
+  transition:
+    box-shadow 0.6s,
+    transform 0.15s;
 }
 .bedtime.dark .bedtime-lamp {
   background: rgba(255, 255, 255, 0.14);
@@ -152,8 +165,13 @@
   animation: bedtime-float 2.4s ease-in-out infinite;
 }
 @keyframes bedtime-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(1.5vmin, -2.5vmin) scale(1.1); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(1.5vmin, -2.5vmin) scale(1.1);
+  }
 }
 
 /* The blanket starts at the foot of the bed and is pulled up over the friend. */
@@ -167,7 +185,9 @@
   background: repeating-linear-gradient(45deg, #60a5fa 0 3vmin, #3b82f6 3vmin 6vmin);
   box-shadow: 0 0.6vmin 0 rgba(30, 58, 138, 0.35);
   touch-action: none;
-  transition: width 0.6s ease, transform 0.15s;
+  transition:
+    width 0.6s ease,
+    transform 0.15s;
 }
 .bedtime-blanket:active {
   transform: scale(0.98);
@@ -200,7 +220,10 @@
   box-shadow: inset 0 0 0 0.4vmin rgba(255, 255, 255, 0.55);
   filter: grayscale(1);
   opacity: 0.5;
-  transition: opacity 0.4s, filter 0.4s, background 0.4s;
+  transition:
+    opacity 0.4s,
+    filter 0.4s,
+    background 0.4s;
 }
 .bedtime-tick.done {
   background: rgba(134, 239, 172, 0.9);
@@ -245,9 +268,18 @@
   animation: bedtime-toss 0.5s ease-in forwards;
 }
 @keyframes bedtime-toss {
-  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  60% { transform: translate(calc(-50% + var(--dx) * 0.6), calc(-50% + var(--dy) * 0.6 - 6vmin)) scale(0.9) rotate(180deg); opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3) rotate(360deg); opacity: 0.2; }
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  60% {
+    transform: translate(calc(-50% + var(--dx) * 0.6), calc(-50% + var(--dy) * 0.6 - 6vmin)) scale(0.9) rotate(180deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3) rotate(360deg);
+    opacity: 0.2;
+  }
 }
 
 .bedtime-box {

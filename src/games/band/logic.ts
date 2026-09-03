@@ -35,12 +35,28 @@ function seq(text: string): SongNote[] {
 
 export const INSTRUMENTS: readonly Instrument[] = [
   { id: 'piano', emoji: '🎹', name: 'đàn piano', timbre: 'piano', color: '#fbcfe8', bpm: 120, phrase: seq('C4 E4 G4 C5:2') },
-  { id: 'guitar', emoji: '🎸', name: 'đàn ghi-ta', timbre: 'guitar', color: '#fed7aa', bpm: 120, phrase: seq('C4:0.5 E4:0.5 G4:0.5 C5:1.5') },
+  {
+    id: 'guitar',
+    emoji: '🎸',
+    name: 'đàn ghi-ta',
+    timbre: 'guitar',
+    color: '#fed7aa',
+    bpm: 120,
+    phrase: seq('C4:0.5 E4:0.5 G4:0.5 C5:1.5'),
+  },
   { id: 'violin', emoji: '🎻', name: 'đàn vi-ô-lông', timbre: 'violin', color: '#ddd6fe', bpm: 96, phrase: seq('E4:1.5 G4:0.5 A4:2') },
   { id: 'trumpet', emoji: '🎺', name: 'kèn trumpet', timbre: 'trumpet', color: '#fef08a', bpm: 120, phrase: seq('G4 G4 C5:2') },
   { id: 'sax', emoji: '🎷', name: 'kèn sắc-xô', timbre: 'sax', color: '#bbf7d0', bpm: 108, phrase: seq('D4 F4 A4:2') },
   { id: 'bell', emoji: '🔔', name: 'chuông', timbre: 'bell', color: '#bfdbfe', bpm: 112, phrase: seq('C5 G4 E4 C4:2') },
-  { id: 'drum', emoji: '🥁', name: 'trống', timbre: 'drum', color: '#fecaca', bpm: 132, phrase: seq('kick snare kick snare:0.5 hat:0.5 kick') },
+  {
+    id: 'drum',
+    emoji: '🥁',
+    name: 'trống',
+    timbre: 'drum',
+    color: '#fecaca',
+    bpm: 132,
+    phrase: seq('kick snare kick snare:0.5 hat:0.5 kick'),
+  },
 ];
 
 export function isDrumKind(n: string): n is DrumKind {
@@ -71,12 +87,7 @@ export function makeQuizRound(rng: () => number = Math.random, excludeId?: strin
  * each note (or rest) starts, `onDone` after the last one ends. Returns a
  * cancel function; cancelling never calls `onDone`.
  */
-export function playPhrase(
-  audio: AudioEngine,
-  inst: Instrument,
-  onStep?: (i: number) => void,
-  onDone?: () => void,
-): () => void {
+export function playPhrase(audio: AudioEngine, inst: Instrument, onStep?: (i: number) => void, onDone?: () => void): () => void {
   return schedule(
     inst.phrase,
     inst.bpm,

@@ -1,15 +1,7 @@
 import { h, replay } from '../../core/dom';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { GameContext, GameModule } from '../../core/types';
-import {
-  drawBubbles,
-  drawCreature,
-  drawPlant,
-  drawSand,
-  drawWater,
-  smoothPath,
-  type Scene,
-} from '../aquarium/draw';
+import { drawBubbles, drawCreature, drawPlant, drawSand, drawWater, smoothPath, type Scene } from '../aquarium/draw';
 import {
   Creature,
   SAVE_KEY,
@@ -252,7 +244,6 @@ function start(ctx: GameContext): void {
 
   // ---- the lake ----
 
-
   function drawSurface(g: CanvasRenderingContext2D): void {
     const top = tank.h * 0.05;
     g.fillStyle = 'rgba(255,255,255,0.35)';
@@ -266,8 +257,6 @@ function start(ctx: GameContext): void {
     g.closePath();
     g.fill();
   }
-
-
 
   /** The line, and the bait on the end of it. */
   function drawLine(g: CanvasRenderingContext2D): void {
@@ -364,7 +353,6 @@ function start(ctx: GameContext): void {
     }
     g.restore();
   }
-
 
   function draw(g: CanvasRenderingContext2D): void {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -608,8 +596,7 @@ function start(ctx: GameContext): void {
     // The bait is a flake that never sinks, and it carries further than food does:
     // that is what makes a lake worth fishing.
     // No bait, no reason for anybody to come: the water is just water again.
-    const bait =
-      hook.caught || !hook.baited ? [] : [{ x: hook.x, y: hook.y, fall: 0, wobble: 0, eaten: false, bait: true }];
+    const bait = hook.caught || !hook.baited ? [] : [{ x: hook.x, y: hook.y, fall: 0, wobble: 0, eaten: false, bait: true }];
     const world = { foods: bait, nudge: null, neighbours: fish, smell: BAIT_SMELL / SMELL };
     for (const cr of fish) {
       if (cr === hook.caught) {

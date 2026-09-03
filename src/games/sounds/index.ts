@@ -91,7 +91,11 @@ function start(ctx: GameContext): void {
     answer = r.answer;
     board.replaceChildren(
       ...r.choices.map((item) => {
-        const card = h('button', { class: 'g-item sounds-card', type: 'button', 'data-emoji': item.emoji, 'aria-label': item.name }, item.emoji);
+        const card = h(
+          'button',
+          { class: 'g-item sounds-card', type: 'button', 'data-emoji': item.emoji, 'aria-label': item.name },
+          item.emoji,
+        );
         card.addEventListener('pointerdown', (e) => {
           e.preventDefault();
           ctx.hint.touch();

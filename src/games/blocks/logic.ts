@@ -2,15 +2,7 @@ import { pick, shuffle } from '../../core/dom';
 
 export type BlockShape = 'square' | 'rect' | 'triangle' | 'circle' | 'semicircle' | 'diamond' | 'trapezoid';
 
-export const BLOCK_SHAPES: readonly BlockShape[] = [
-  'square',
-  'rect',
-  'triangle',
-  'circle',
-  'semicircle',
-  'diamond',
-  'trapezoid',
-];
+export const BLOCK_SHAPES: readonly BlockShape[] = ['square', 'rect', 'triangle', 'circle', 'semicircle', 'diamond', 'trapezoid'];
 
 /** An axis-aligned box in the 100×100 picture; the shape fills the box. */
 export interface Block {
@@ -444,21 +436,11 @@ export function pieceOrder(picture: Picture, rng: () => number = Math.random): n
 
 /** Axis-aligned box overlap; boxes that merely touch (within `tolerance`) do not overlap. */
 export function overlaps(a: Block, b: Block, tolerance = 0.5): boolean {
-  return (
-    a.x + a.w > b.x + tolerance &&
-    b.x + b.w > a.x + tolerance &&
-    a.y + a.h > b.y + tolerance &&
-    b.y + b.h > a.y + tolerance
-  );
+  return a.x + a.w > b.x + tolerance && b.x + b.w > a.x + tolerance && a.y + a.h > b.y + tolerance && b.y + b.h > a.y + tolerance;
 }
 
 /** Same shape, size and rotation: such pieces look identical, so either may fill the other's outline. */
 export function congruent(a: Block, b: Block): boolean {
   const kind = (s: BlockShape) => (s === 'square' ? 'rect' : s);
-  return (
-    kind(a.shape) === kind(b.shape) &&
-    a.w === b.w &&
-    a.h === b.h &&
-    (a.rot ?? 0) % 360 === (b.rot ?? 0) % 360
-  );
+  return kind(a.shape) === kind(b.shape) && a.w === b.w && a.h === b.h && (a.rot ?? 0) % 360 === (b.rot ?? 0) % 360;
 }

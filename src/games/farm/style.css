@@ -56,7 +56,16 @@
   animation: farm-star 0.9s ease-out forwards;
 }
 @keyframes farm-star {
-  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 1; }
-  40% { transform: translate(-50%, -110%) scale(1.3); opacity: 1; }
-  100% { transform: translate(-50%, -200%) scale(1.1); opacity: 0; }
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(-50%, -110%) scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -200%) scale(1.1);
+    opacity: 0;
+  }
 }

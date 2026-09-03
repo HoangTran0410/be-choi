@@ -28,7 +28,15 @@ function layout(plate: HTMLElement): void {
   const width = Number(plate.dataset.cols) * CELL;
   const height = Number(plate.dataset.rows) * CELL;
   plate.getBoundingClientRect = () => ({
-    x: 0, y: 0, left: 0, top: 0, width, height, right: width, bottom: height, toJSON: () => ({}),
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    width,
+    height,
+    right: width,
+    bottom: height,
+    toJSON: () => ({}),
   });
 }
 
@@ -195,14 +203,20 @@ describe('bricks game', () => {
     const from = cellCenter(0, 0);
     drag(first, from.x + 2 * CELL, from.y, from.x, from.y);
     expect(bricks(ctx).length).toBe(2);
-    expect(bricks(ctx).map(cellOf)).toEqual([[5, 0], [2, 0]]);
+    expect(bricks(ctx).map(cellOf)).toEqual([
+      [5, 0],
+      [2, 0],
+    ]);
     expect(first.isConnected).toBe(false);
 
     // Onto the other brick: it stacks.
     const moved = bricks(ctx)[1]!;
     const at = cellCenter(2, 0);
     drag(moved, cellCenter(5, 0).x, at.y, at.x, at.y);
-    expect(bricks(ctx).map(cellOf)).toEqual([[5, 0], [5, 1]]);
+    expect(bricks(ctx).map(cellOf)).toEqual([
+      [5, 0],
+      [5, 1],
+    ]);
 
     // Off the plate: gone.
     pop.mockClear();
@@ -222,11 +236,17 @@ describe('bricks game', () => {
     dropAt(template(2, 2), 3);
     dropAt(template(1, 1), 3);
     const saved = deserialize(localStorage.getItem(STORAGE_KEY) ?? '');
-    expect(saved?.bricks.map((b) => [b.x, b.y, b.w, b.h])).toEqual([[3, 0, 2, 2], [3, 2, 1, 1]]);
+    expect(saved?.bricks.map((b) => [b.x, b.y, b.w, b.h])).toEqual([
+      [3, 0, 2, 2],
+      [3, 2, 1, 1],
+    ]);
     ctx.cleanup();
 
     const next = mount();
-    expect(bricks(next.ctx).map(cellOf)).toEqual([[3, 0], [3, 2]]);
+    expect(bricks(next.ctx).map(cellOf)).toEqual([
+      [3, 0],
+      [3, 2],
+    ]);
     // Deleting a brick also saves.
     const c = cellCenter(3, 2);
     drag(bricks(next.ctx)[1]!, 5000, 5000, c.x, c.y);
@@ -255,7 +275,10 @@ describe('bricks game', () => {
     expect(ghostCells.length).toBe(model.cells.length);
     const offset = centerOffset(model, 10);
     expect(ghostCells.map(cellOf).sort().join(';')).toBe(
-      model.cells.map((c) => [c.x + offset, c.y]).sort().join(';'),
+      model.cells
+        .map((c) => [c.x + offset, c.y])
+        .sort()
+        .join(';'),
     );
     expect(ghostCells[0]?.style.getPropertyValue('--bricks-color')).toMatch(/^#/);
     expect(ctx.spoken.at(-1)).toBe(`Xây ${model.name} nào!`);
@@ -386,7 +409,11 @@ describe('bricks game', () => {
     dropAt(template(2, 1), 1);
     dropAt(template(2, 1), 8);
     dropAt(template(1, 1), 1);
-    expect(bricks(ctx).map(cellOf)).toEqual([[1, 0], [8, 0], [1, 1]]);
+    expect(bricks(ctx).map(cellOf)).toEqual([
+      [1, 0],
+      [8, 0],
+      [1, 1],
+    ]);
     const mm = vi.fn(() => ({ matches: true }) as MediaQueryList);
     Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: mm });
     window.dispatchEvent(new Event('resize'));
@@ -396,7 +423,10 @@ describe('bricks game', () => {
     expect(root.style.getPropertyValue('--bricks-cols')).toBe('8');
     expect(root.style.getPropertyValue('--bricks-rows')).toBe('10');
     // The 2×1 at columns 8–9 no longer fits; the stack at column 1 survives.
-    expect(bricks(ctx).map(cellOf)).toEqual([[1, 0], [1, 1]]);
+    expect(bricks(ctx).map(cellOf)).toEqual([
+      [1, 0],
+      [1, 1],
+    ]);
     expect(deserialize(localStorage.getItem(STORAGE_KEY) ?? '')?.cols).toBe(8);
     // Model mode centres the target on the narrower plate.
     enterModelMode(ctx);

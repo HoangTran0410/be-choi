@@ -4,16 +4,7 @@ import { SCALE_C, scaleIndex, type Song } from '../../core/music';
 export const BARS: readonly string[] = SCALE_C;
 
 /** Rainbow bar colours, low to high. */
-export const BAR_COLORS: readonly string[] = [
-  '#ef4444',
-  '#f97316',
-  '#facc15',
-  '#22c55e',
-  '#06b6d4',
-  '#3b82f6',
-  '#a855f7',
-  '#ec4899',
-];
+export const BAR_COLORS: readonly string[] = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7', '#ec4899'];
 
 /** Length of bar `i` as a percent of the longest bar: 100 for C4, 62 for C5, linear in between. */
 export function barLength(i: number): number {

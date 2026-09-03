@@ -150,16 +150,41 @@ afterEach(() => {
 
 describe('jigsaw polygonArea', () => {
   it('is the shoelace area, orientation-independent', () => {
-    expect(polygonArea([[0, 0], [1, 0], [1, 1], [0, 1]])).toBe(1);
-    expect(polygonArea([[0, 0], [0, 1], [1, 1], [1, 0]])).toBe(1);
-    expect(polygonArea([[0, 0], [1, 0], [0, 1]])).toBeCloseTo(0.5, 12);
+    expect(
+      polygonArea([
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ]),
+    ).toBe(1);
+    expect(
+      polygonArea([
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 0],
+      ]),
+    ).toBe(1);
+    expect(
+      polygonArea([
+        [0, 0],
+        [1, 0],
+        [0, 1],
+      ]),
+    ).toBeCloseTo(0.5, 12);
     expect(polygonArea([])).toBe(0);
   });
 });
 
 describe('jigsaw cutGrid / cutStrips', () => {
   it('cuts cols×rows rectangles in reading order with exact bboxes and centres', () => {
-    for (const [cols, rows] of [[2, 2], [3, 2], [3, 3], [4, 3]] as const) {
+    for (const [cols, rows] of [
+      [2, 2],
+      [3, 2],
+      [3, 3],
+      [4, 3],
+    ] as const) {
       const cut = cutGrid(cols, rows);
       expect(cut.style).toBe('grid');
       checkCut(cut, cols * rows);
@@ -264,7 +289,12 @@ describe('jigsaw cutPie', () => {
 });
 
 describe('jigsaw cutKnobs / cutWavy', () => {
-  const grids = [[2, 2], [3, 2], [3, 3], [4, 3]] as const;
+  const grids = [
+    [2, 2],
+    [3, 2],
+    [3, 3],
+    [4, 3],
+  ] as const;
 
   it('knobs: one piece per cell, curved shared edges that tile the square, bboxes around the cells', () => {
     for (const [cols, rows] of grids) {
@@ -396,7 +426,11 @@ describe('jigsaw levelFor / makeCut', () => {
     expect(makeCut({ style: 'knobs', args: [3, 2] }, rng).pieces.length).toBe(6);
     expect(makeCut({ style: 'wavy', args: [3, 3] }, rng).style).toBe('wavy');
     expect(makeCut({ style: 'wavy', args: [3, 3] }, rng).pieces.length).toBe(9);
-    for (let round = 0; round < 20; round++) checkCut(makeCut(levelFor(round, mulberry32(round)), mulberry32(round)), makeCut(levelFor(round, mulberry32(round)), mulberry32(round)).pieces.length);
+    for (let round = 0; round < 20; round++)
+      checkCut(
+        makeCut(levelFor(round, mulberry32(round)), mulberry32(round)),
+        makeCut(levelFor(round, mulberry32(round)), mulberry32(round)).pieces.length,
+      );
   });
 });
 

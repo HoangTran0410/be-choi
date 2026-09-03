@@ -50,7 +50,20 @@ export interface Kit {
   voices?: Timbre[];
 }
 
-const RAINBOW = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#14b8a6', '#3b82f6', '#a855f7', '#ec4899', '#f43f5e', '#84cc16', '#06b6d4', '#8b5cf6'];
+const RAINBOW = [
+  '#ef4444',
+  '#f97316',
+  '#facc15',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#a855f7',
+  '#ec4899',
+  '#f43f5e',
+  '#84cc16',
+  '#06b6d4',
+  '#8b5cf6',
+];
 
 function drumPad(emoji: string, label: string, drum: DrumKind, i: number): Pad {
   return { emoji, label, color: RAINBOW[i % RAINBOW.length] ?? '#3b82f6', sound: { kind: 'drum', drum } };

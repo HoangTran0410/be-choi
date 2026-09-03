@@ -211,8 +211,25 @@ describe('bricks logic', () => {
     expect(MODELS.length).toBeGreaterThanOrEqual(10);
     expect(new Set(MODELS.map((m) => m.id)).size).toBe(MODELS.length);
     expect(new Set(MODELS.map((m) => m.name)).size).toBe(MODELS.length);
-    const named = ['tháp cao', 'ngôi nhà', 'cầu thang', 'ô tô', 'rô-bốt', 'cái cây', 'cây cầu', 'lâu đài', 'tàu hoả', 'con vịt', 'bông hoa', 'chiếc thuyền'];
-    for (const n of named) expect(MODELS.some((m) => m.name === n), n).toBe(true);
+    const named = [
+      'tháp cao',
+      'ngôi nhà',
+      'cầu thang',
+      'ô tô',
+      'rô-bốt',
+      'cái cây',
+      'cây cầu',
+      'lâu đài',
+      'tàu hoả',
+      'con vịt',
+      'bông hoa',
+      'chiếc thuyền',
+    ];
+    for (const n of named)
+      expect(
+        MODELS.some((m) => m.name === n),
+        n,
+      ).toBe(true);
     for (const m of MODELS) {
       expect(m.name).toMatch(/^[a-zà-ỹ\- ]+$/i);
       expect(m.cells.length).toBeGreaterThanOrEqual(6);
@@ -278,7 +295,11 @@ describe('bricks logic', () => {
     // Removing one cell's brick breaks it again.
     const last = ordered[ordered.length - 1]!;
     const id = brickAt(board, last.x, last.y)!.id;
-    expect(modelProgress(removeBrick(board, id), target)).toEqual({ done: house.cells.length - 1, total: house.cells.length, complete: false });
+    expect(modelProgress(removeBrick(board, id), target)).toEqual({
+      done: house.cells.length - 1,
+      total: house.cells.length,
+      complete: false,
+    });
   });
 
   it('nextBrick suggests the biggest template that only covers the wanted colour', () => {

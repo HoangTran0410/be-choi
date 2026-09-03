@@ -251,7 +251,14 @@ describe('jigsaw game', () => {
     const { ctx } = mount();
     const wrap = ctx.stage.querySelector<HTMLElement>('.jigsaw')!;
     const board = ctx.stage.querySelector<HTMLElement>('.jigsaw-board')!;
-    const rungs: Array<[string, number]> = [['grid', 4], ['strips', 3], ['diag', 4], ['grid', 6], ['knobs', 4], ['pie', 6]];
+    const rungs: Array<[string, number]> = [
+      ['grid', 4],
+      ['strips', 3],
+      ['diag', 4],
+      ['grid', 6],
+      ['knobs', 4],
+      ['pie', 6],
+    ];
     for (const [round, [style, count]] of rungs.entries()) {
       expect(board.dataset.style).toBe(style);
       expect(q(ctx, '.jigsaw-slot').length).toBe(count);

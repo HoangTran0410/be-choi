@@ -41,9 +41,7 @@ describe('sizes game', () => {
     expect(ctx.stage.querySelectorAll('.sizes-piece').length).toBe(4);
     expect(ctx.stage.querySelectorAll('.sizes-piece-big').length).toBe(2);
     expect(ctx.stage.querySelectorAll('.sizes-piece-small').length).toBe(2);
-    const glyphs = new Set(
-      [...ctx.stage.querySelectorAll('.sizes-piece-emoji, .sizes-box-label')].map((el) => el.textContent),
-    );
+    const glyphs = new Set([...ctx.stage.querySelectorAll('.sizes-piece-emoji, .sizes-box-label')].map((el) => el.textContent));
     expect(glyphs.size).toBe(1);
     expect(ctx.spoken[0]).toMatch(/ to và nhỏ$/);
     ctx.cleanup();

@@ -13,14 +13,14 @@ import type { SoundId } from './audio';
  */
 export const LOUDNESS: Readonly<Record<SoundId, number>> = {
   // interface and rewards
-  'pop': 4.7171,
-  'ding': 1.141,
-  'boing': 6.5549,
-  'chomp': 4.954,
-  'tick': 3.441,
-  'jingle': 0.6503,
-  'puff': 1.604,
-  'sample': 0.4858,
+  pop: 4.7171,
+  ding: 1.141,
+  boing: 6.5549,
+  chomp: 4.954,
+  tick: 3.441,
+  jingle: 0.6503,
+  puff: 1.604,
+  sample: 0.4858,
   // musical notes, per instrument
   'note:piano': 1.5359,
   'note:xylo': 1.1422,

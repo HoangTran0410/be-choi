@@ -19,12 +19,7 @@ export interface Target {
 export function hitTest(p: Pt, targets: readonly Target[], tolerance = 0): string | null {
   for (const t of targets) {
     const { left, top, width, height } = t.rect;
-    if (
-      p.x >= left - tolerance &&
-      p.x <= left + width + tolerance &&
-      p.y >= top - tolerance &&
-      p.y <= top + height + tolerance
-    ) {
+    if (p.x >= left - tolerance && p.x <= left + width + tolerance && p.y >= top - tolerance && p.y <= top + height + tolerance) {
       return t.id;
     }
   }

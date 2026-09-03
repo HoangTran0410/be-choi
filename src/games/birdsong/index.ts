@@ -29,7 +29,11 @@ function start(ctx: GameContext): void {
   const world = h('div', { class: 'bird-world' });
   const bird = h('span', { class: 'bird-bird' }, '🐦');
   const ground = h('div', { class: 'bird-ground' });
-  const score = h('div', { class: 'bird-score' }, ...Array.from({ length: NOTES_PER_ROUND }, () => h('span', { class: 'bird-slot' }, '🎵')));
+  const score = h(
+    'div',
+    { class: 'bird-score' },
+    ...Array.from({ length: NOTES_PER_ROUND }, () => h('span', { class: 'bird-slot' }, '🎵')),
+  );
   const micBtn = h('button', { class: 'btn-round bird-mic', type: 'button', 'aria-label': 'Bật micro' }, '🎤');
   root.append(h('span', { class: 'bird-sun' }, '☀️'), world, bird, ground, score, micBtn);
   ctx.stage.append(root);

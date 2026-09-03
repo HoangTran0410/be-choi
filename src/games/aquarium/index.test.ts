@@ -13,8 +13,7 @@ if (!('PointerEvent' in globalThis)) {
   };
 }
 
-const ptr = (type: string, x = 0, y = 0): PointerEvent =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true });
+const ptr = (type: string, x = 0, y = 0): PointerEvent => new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true });
 
 /**
  * jsdom has no canvas backend, so stand one in: every method is a no-op, every
@@ -54,11 +53,13 @@ function size(el: HTMLElement, w: number, hgt: number): void {
  */
 function driveFrames(): void {
   let stamp = 0;
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
-    setTimeout(() => {
-      stamp += 16;
-      cb(stamp);
-    }, 16) as unknown as number,
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    (cb: FrameRequestCallback) =>
+      setTimeout(() => {
+        stamp += 16;
+        cb(stamp);
+      }, 16) as unknown as number,
   );
   vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id as unknown as ReturnType<typeof setTimeout>));
 }
@@ -267,7 +268,15 @@ describe('aquarium game', () => {
     const net = ctx.stage.querySelector<HTMLElement>('.aquarium-net')!;
     // jsdom lays nothing out, so give the net a box to be dropped on.
     vi.spyOn(net, 'getBoundingClientRect').mockReturnValue({
-      x: 300, y: 20, left: 300, top: 20, right: 380, bottom: 100, width: 80, height: 80, toJSON: () => ({}),
+      x: 300,
+      y: 20,
+      left: 300,
+      top: 20,
+      right: 380,
+      bottom: 100,
+      width: 80,
+      height: 80,
+      toJSON: () => ({}),
     } as DOMRect);
 
     expect(grabAnyFish(root, canvas)).not.toBeNull();
@@ -354,10 +363,7 @@ describe('aquarium game', () => {
   });
 
   it('opens the tank the child left behind', () => {
-    localStorage.setItem(
-      SAVE_KEY,
-      JSON.stringify({ v: 1, fish: ['koi', 'koi', 'crab'], decor: [0.5], plants: [0.5] }),
-    );
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, fish: ['koi', 'koi', 'crab'], decor: [0.5], plants: [0.5] }));
     const { ctx } = mount();
     // The saved animals are the ones in the water: adding one more makes four.
     addFish(ctx, 'goldfish');

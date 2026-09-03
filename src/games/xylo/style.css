@@ -33,7 +33,9 @@
   line-height: 1;
   background: #fff;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
 }
 .xylo-song:active,
 .xylo-play:active,
@@ -41,13 +43,27 @@
 .xylo-replay:active {
   transform: scale(0.92);
 }
-.xylo-song:nth-child(7n + 1) { background: #fee2e2; }
-.xylo-song:nth-child(7n + 2) { background: #ffedd5; }
-.xylo-song:nth-child(7n + 3) { background: #fef9c3; }
-.xylo-song:nth-child(7n + 4) { background: #dcfce7; }
-.xylo-song:nth-child(7n + 5) { background: #dbeafe; }
-.xylo-song:nth-child(7n + 6) { background: #f3e8ff; }
-.xylo-song:nth-child(7n + 7) { background: #fce7f3; }
+.xylo-song:nth-child(7n + 1) {
+  background: #fee2e2;
+}
+.xylo-song:nth-child(7n + 2) {
+  background: #ffedd5;
+}
+.xylo-song:nth-child(7n + 3) {
+  background: #fef9c3;
+}
+.xylo-song:nth-child(7n + 4) {
+  background: #dcfce7;
+}
+.xylo-song:nth-child(7n + 5) {
+  background: #dbeafe;
+}
+.xylo-song:nth-child(7n + 6) {
+  background: #f3e8ff;
+}
+.xylo-song:nth-child(7n + 7) {
+  background: #fce7f3;
+}
 .xylo-song.active {
   box-shadow:
     0 0 0 0.7vmin #fb923c,
@@ -74,7 +90,8 @@
   animation: xylo-rec-pulse 1s ease-in-out infinite;
 }
 @keyframes xylo-rec-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow:
       0 0 0 0 rgba(220, 38, 38, 0.75),
       0 3px 0 rgba(0, 0, 0, 0.12);
@@ -125,14 +142,15 @@
   inset: 0;
   border-radius: inherit;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(0, 0, 0, 0.1) 100%),
-    var(--xylo-color, #f97316);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(0, 0, 0, 0.1) 100%), var(--xylo-color, #f97316);
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.45),
     0 0.6vmin 0 rgba(0, 0, 0, 0.16),
     0 4px 10px rgba(0, 0, 0, 0.12);
   pointer-events: none;
-  transition: filter 0.1s, transform 0.1s;
+  transition:
+    filter 0.1s,
+    transform 0.1s;
   will-change: transform;
 }
 /* two nails */
@@ -148,17 +166,28 @@
   left: 50%;
   transform: translateX(-50%);
 }
-.xylo-bar-face::before { top: 6%; }
-.xylo-bar-face::after { bottom: 6%; }
+.xylo-bar-face::before {
+  top: 6%;
+}
+.xylo-bar-face::after {
+  bottom: 6%;
+}
 
 /* softer wiggle than the shared one: the bars are long */
 .xylo-bar-face.anim-wiggle {
   animation: xylo-wiggle 0.5s ease-in-out 2;
 }
 @keyframes xylo-wiggle {
-  0%, 100% { transform: rotate(0); }
-  25% { transform: rotate(-3deg); }
-  75% { transform: rotate(3deg); }
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
 }
 
 .xylo-bar.xylo-lit .xylo-bar-face {
@@ -169,7 +198,8 @@
   animation: xylo-glow 1s ease-in-out infinite;
 }
 @keyframes xylo-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.9);
     filter: brightness(1);
   }
@@ -196,8 +226,13 @@
   animation: xylo-tap 0.6s ease-in-out infinite;
 }
 @keyframes xylo-tap {
-  0%, 100% { transform: translate(var(--xylo-fx), var(--xylo-fy)); }
-  50% { transform: translate(var(--xylo-fx), calc(var(--xylo-fy) - 30%)); }
+  0%,
+  100% {
+    transform: translate(var(--xylo-fx), var(--xylo-fy));
+  }
+  50% {
+    transform: translate(var(--xylo-fx), calc(var(--xylo-fy) - 30%));
+  }
 }
 
 /* floating note at the touch point */
@@ -255,8 +290,12 @@
     bottom: auto;
     transform: translateY(-50%);
   }
-  .xylo-bar-face::before { left: 4%; }
-  .xylo-bar-face::after { right: 4%; }
+  .xylo-bar-face::before {
+    left: 4%;
+  }
+  .xylo-bar-face::after {
+    right: 4%;
+  }
   .xylo-finger {
     left: auto;
     right: 6%;

@@ -62,7 +62,12 @@ const SOURCES = {
     { file: 'Barking of a dog 2.ogg', license: 'CC BY-SA 3.0', by: 'Juandev', want: 2 },
   ],
   quack: [
-    { file: 'Mallard (Anas platyrhynchos) (W1CDR0001518 BD17).ogg', license: 'CC BY-SA 3.0', by: 'British Library / Wildlife Sounds', want: 4 },
+    {
+      file: 'Mallard (Anas platyrhynchos) (W1CDR0001518 BD17).ogg',
+      license: 'CC BY-SA 3.0',
+      by: 'British Library / Wildlife Sounds',
+      want: 4,
+    },
   ],
   moo: [
     { file: 'Sound Ideas, COW - SINGLE MOO, ANIMAL 02.wav', license: 'Public domain', by: 'Sound Ideas', want: 1 },
@@ -73,9 +78,7 @@ const SOURCES = {
     { file: 'Budgerigar chirping.ogg', license: 'Public domain', by: 'Rudolf Ritter', want: 2 },
     { file: '30goldfinch.ogg', license: 'Public domain', by: 'US National Park Service', want: 2 },
   ],
-  roar: [
-    { file: 'Lion raring-sound1TamilNadu178.ogg', license: 'Public domain', by: 'Rakeshkdogra', want: 3 },
-  ],
+  roar: [{ file: 'Lion raring-sound1TamilNadu178.ogg', license: 'Public domain', by: 'Rakeshkdogra', want: 3 }],
   frog: [
     { file: 'Single Frog Croak.oga', license: 'CC BY-SA 4.0', by: 'DavidJCobb', want: 2 },
     { file: 'Wood Frogs calling in spring.ogg', license: 'CC BY-SA 3.0', by: 'Jarek Tuszyński', want: 2 },
@@ -88,9 +91,7 @@ const SOURCES = {
     { file: 'Bubo virginianus - Great Horned Owl XC450919.mp3', license: 'CC BY-SA 4.0', by: 'Bruce Lagerquist (xeno-canto)', want: 3 },
     { file: 'Short-eared Owl.ogg', license: 'CC BY-SA 3.0', by: 'Jarek Tuszyński', want: 1 },
   ],
-  elephant: [
-    { file: 'Elephant voice - trumpeting.ogg', license: 'CC0', by: 'Tanguy Cadeau', want: 3 },
-  ],
+  elephant: [{ file: 'Elephant voice - trumpeting.ogg', license: 'CC0', by: 'Tanguy Cadeau', want: 3 }],
   sheep: [
     { file: 'Sheep bleat.ogg', license: 'CC0', by: 'Nomad-27', want: 1 },
     { file: 'Sheep bleating.ogg', license: 'Public domain', by: 'Ryan Hodnett', want: 2 },
@@ -129,7 +130,8 @@ async function commonsUrl(title) {
     titles: `File:${title}`,
     prop: 'imageinfo',
     iiprop: 'url',
-  })) url.searchParams.set(k, v);
+  }))
+    url.searchParams.set(k, v);
   const data = await (await fetch(url, { headers: { 'User-Agent': UA } })).json();
   return data?.query?.pages?.[0]?.imageinfo?.[0]?.url ?? null;
 }
@@ -168,11 +170,20 @@ function threshold(wav) {
 /** Spans of sound in `wav`, from ffmpeg's silence detector. */
 function calls(wav, silenceDb) {
   const log = ffProbe([
-    '-i', wav,
-    '-af', `highpass=f=${RUMBLE_HZ},silencedetect=noise=${silenceDb.toFixed(1)}dB:d=${SILENCE_GAP}`,
-    '-f', 'null', '-',
+    '-i',
+    wav,
+    '-af',
+    `highpass=f=${RUMBLE_HZ},silencedetect=noise=${silenceDb.toFixed(1)}dB:d=${SILENCE_GAP}`,
+    '-f',
+    'null',
+    '-',
   ]);
-  const total = Number(/Duration: (\d+):(\d+):([\d.]+)/.exec(log)?.slice(1).reduce((a, b, i) => a + Number(b) * [3600, 60, 1][i], 0) ?? 0);
+  const total = Number(
+    /Duration: (\d+):(\d+):([\d.]+)/
+      .exec(log)
+      ?.slice(1)
+      .reduce((a, b, i) => a + Number(b) * [3600, 60, 1][i], 0) ?? 0,
+  );
   const starts = [...log.matchAll(/silence_start: ([\d.-]+)/g)].map((m) => Number(m[1]));
   const ends = [...log.matchAll(/silence_end: ([\d.]+)/g)].map((m) => Number(m[1]));
   // Sound lives between the end of one silence and the start of the next.
@@ -192,7 +203,19 @@ function calls(wav, silenceDb) {
 function byLoudness(wav, spans) {
   return spans
     .map((span) => {
-      const log = ffProbe(['-i', wav, '-ss', String(span.from), '-t', String(span.to - span.from), '-af', 'volumedetect', '-f', 'null', '-']);
+      const log = ffProbe([
+        '-i',
+        wav,
+        '-ss',
+        String(span.from),
+        '-t',
+        String(span.to - span.from),
+        '-af',
+        'volumedetect',
+        '-f',
+        'null',
+        '-',
+      ]);
       return { ...span, peak: Number(/max_volume: ([\d.-]+) dB/.exec(log)?.[1] ?? -99) };
     })
     .sort((a, b) => b.peak - a.peak);
@@ -223,10 +246,14 @@ for (const [kind, sources] of Object.entries(SOURCES)) {
       const len = Math.max(MIN_LEN, span.to - span.from);
       ff([
         '-y',
-        '-ss', String(span.from),
-        '-t', String(len),
-        '-i', work,
-        '-af', [
+        '-ss',
+        String(span.from),
+        '-t',
+        String(len),
+        '-i',
+        work,
+        '-af',
+        [
           // Cut the rumble the animal is not making, then close in on the call from
           // both ends, level it, and take the edges off so it never clicks.
           `highpass=f=${RUMBLE_HZ}`,
@@ -238,11 +265,16 @@ for (const [kind, sources] of Object.entries(SOURCES)) {
           'afade=t=in:st=0:d=0.012',
           `afade=t=out:st=${Math.max(0, len - 0.06).toFixed(3)}:d=0.06`,
         ].join(','),
-        '-ac', '1',
-        '-ar', '32000',
-        '-c:a', 'aac',
-        '-b:a', '48k',
-        '-movflags', '+faststart',
+        '-ac',
+        '1',
+        '-ar',
+        '32000',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '48k',
+        '-movflags',
+        '+faststart',
         out,
       ]);
       manifest[kind] = (manifest[kind] ?? 0) + 1;
@@ -285,7 +317,10 @@ export function sfxUrl(kind: FxKind, take: number): string {
 const seen = new Set();
 const lines = credits
   .filter((c) => !seen.has(`${c.kind}/${c.file}`) && seen.add(`${c.kind}/${c.file}`))
-  .map((c) => `| ${c.kind} | [${c.file}](https://commons.wikimedia.org/wiki/File:${encodeURIComponent(c.file.replace(/ /g, '_'))}) | ${c.by} | ${c.license} |`);
+  .map(
+    (c) =>
+      `| ${c.kind} | [${c.file}](https://commons.wikimedia.org/wiki/File:${encodeURIComponent(c.file.replace(/ /g, '_'))}) | ${c.by} | ${c.license} |`,
+  );
 writeFileSync(
   CREDITS,
   `# Tiếng con vật

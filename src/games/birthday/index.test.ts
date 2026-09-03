@@ -48,8 +48,7 @@ function visibleButtons(ctx: FakeContext): string[] {
     .map((b) => b.textContent ?? '');
 }
 
-const ticksDone = (ctx: FakeContext): string[] =>
-  all(ctx, '.birthday-tick.done').map((el) => el.dataset.job ?? '');
+const ticksDone = (ctx: FakeContext): string[] => all(ctx, '.birthday-tick.done').map((el) => el.dataset.job ?? '');
 
 /** Add `n` candles and light them all with 🔥. The song starts at once. */
 function addAndLight(ctx: FakeContext, n: number): void {

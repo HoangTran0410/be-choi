@@ -33,11 +33,13 @@ function topOf(el: HTMLElement): number {
 /** Frames off the fake clock, with a stamp this file owns. */
 function stubFrames(): void {
   let stamp = 0;
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
-    setTimeout(() => {
-      stamp += 16;
-      cb(stamp);
-    }, 16) as unknown as number,
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    (cb: FrameRequestCallback) =>
+      setTimeout(() => {
+        stamp += 16;
+        cb(stamp);
+      }, 16) as unknown as number,
   );
   vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id as unknown as ReturnType<typeof setTimeout>));
 }

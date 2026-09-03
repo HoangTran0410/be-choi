@@ -61,7 +61,17 @@ function start(ctx: GameContext): void {
   const shotBtn = h('button', { class: 'btn-round sing-shot', type: 'button', 'aria-label': 'Chụp ảnh', hidden: true }, '📷');
   const backBtn = h('button', { class: 'btn-round sing-back', type: 'button', 'aria-label': 'Chọn bài khác', hidden: true }, '⏹');
   const buttons = h('div', { class: 'sing-buttons' }, micBtn, camBtn, shotBtn, backBtn);
-  root.append(mirror, lights, h('div', { class: 'sing-curtain sing-left' }), h('div', { class: 'sing-curtain sing-right' }), lyric, count, picker, audience, buttons);
+  root.append(
+    mirror,
+    lights,
+    h('div', { class: 'sing-curtain sing-left' }),
+    h('div', { class: 'sing-curtain sing-right' }),
+    lyric,
+    count,
+    picker,
+    audience,
+    buttons,
+  );
   ctx.stage.append(root);
 
   for (const song of SONGBOOK) {

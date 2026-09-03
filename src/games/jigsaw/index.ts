@@ -4,15 +4,7 @@ import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import {
-  makeJigsawRound,
-  renderPhotoPicture,
-  renderPicture,
-  scalePath,
-  trayPieceWidth,
-  type CutPiece,
-  type JigsawRound,
-} from './logic';
+import { makeJigsawRound, renderPhotoPicture, renderPicture, scalePath, trayPieceWidth, type CutPiece, type JigsawRound } from './logic';
 import './style.css';
 
 /** Picture bitmap side, clamped: about 70vmin at device resolution. */

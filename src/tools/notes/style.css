@@ -20,7 +20,12 @@ body {
   margin: 0;
   background: var(--ne-bg);
   color: var(--ne-text);
-  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font:
+    13px/1.4 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
 }
 
 .ne {

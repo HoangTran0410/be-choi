@@ -61,10 +61,21 @@ function flanks(cr: Creature, index: number): void {
   const width = cr.spine.widthAt(index);
   const dx = Math.cos(angle) * width;
   const dy = Math.sin(angle) * width;
-  const ax = joint.x + dx, ay = joint.y + dy;
-  const bx = joint.x - dx, by = joint.y - dy;
-  if (ay <= by) { fTop.x = ax; fTop.y = ay; fBottom.x = bx; fBottom.y = by; }
-  else { fTop.x = bx; fTop.y = by; fBottom.x = ax; fBottom.y = ay; }
+  const ax = joint.x + dx,
+    ay = joint.y + dy;
+  const bx = joint.x - dx,
+    by = joint.y - dy;
+  if (ay <= by) {
+    fTop.x = ax;
+    fTop.y = ay;
+    fBottom.x = bx;
+    fBottom.y = by;
+  } else {
+    fTop.x = bx;
+    fTop.y = by;
+    fBottom.x = ax;
+    fBottom.y = ay;
+  }
 }
 
 function bodyGradient(g: CanvasRenderingContext2D, cr: Creature): CanvasGradient {
@@ -104,7 +115,8 @@ function drawPattern(g: CanvasRenderingContext2D, cr: Creature, seed: number, ri
     g.globalAlpha = 0.95;
     for (let i = 1; i <= 3; i++) {
       flanks(cr, i);
-      const top = fTop, bottom = fBottom;
+      const top = fTop,
+        bottom = fBottom;
       const thick = cr.length * 0.045;
       const dx = bottom.x - top.x;
       const dy = bottom.y - top.y;
@@ -456,12 +468,7 @@ export function sandPath(g: CanvasRenderingContext2D, tank: Tank, sand: readonly
   g.closePath();
 }
 
-export function drawSand(
-  g: CanvasRenderingContext2D,
-  tank: Tank,
-  sand: readonly number[],
-  rocks: readonly Rock[] = [],
-): void {
+export function drawSand(g: CanvasRenderingContext2D, tank: Tank, sand: readonly number[], rocks: readonly Rock[] = []): void {
   const grad = g.createLinearGradient(0, tank.floor - tank.unit * 0.2, 0, tank.h);
   grad.addColorStop(0, '#fef3c7');
   grad.addColorStop(0.45, '#fcd34d');

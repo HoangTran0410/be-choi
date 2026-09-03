@@ -78,9 +78,7 @@ describe('stocking the tank', () => {
     expect(stocking(makeTank(1400, 900), mulberry32(4)).length).toBeLessThan(MAX_CREATURES / 2);
   });
   it('puts a few more in a bigger tank', () => {
-    expect(stocking(makeTank(1600, 1000), mulberry32(5)).length).toBeGreaterThanOrEqual(
-      stocking(makeTank(320, 480), mulberry32(5)).length,
-    );
+    expect(stocking(makeTank(1600, 1000), mulberry32(5)).length).toBeGreaterThanOrEqual(stocking(makeTank(320, 480), mulberry32(5)).length);
   });
 });
 

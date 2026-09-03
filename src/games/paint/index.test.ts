@@ -302,10 +302,7 @@ describe('paint game', () => {
   it('paints the saved drawing back when the game opens again', () => {
     vi.useFakeTimers();
     vi.stubGlobal('Image', FakeImage);
-    localStorage.setItem(
-      STORAGE_KEY,
-      serializePainting({ image: SNAPSHOT, w: 100, h: 200, photo: null, lineArt: false }),
-    );
+    localStorage.setItem(STORAGE_KEY, serializePainting({ image: SNAPSHOT, w: 100, h: 200, photo: null, lineArt: false }));
     const c2d = fake2d();
     const getContext = vi
       .spyOn(HTMLCanvasElement.prototype, 'getContext')

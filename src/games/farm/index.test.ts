@@ -13,8 +13,7 @@ if (!('PointerEvent' in globalThis)) {
   };
 }
 
-const ptr = (type: string, x = 0, y = 0): PointerEvent =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true });
+const ptr = (type: string, x = 0, y = 0): PointerEvent => new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true });
 
 /** A canvas that records nothing and refuses nothing, so the draw path really runs. */
 function fake2d(): CanvasRenderingContext2D {
@@ -47,11 +46,13 @@ function size(el: HTMLElement, w: number, hgt: number): void {
 /** Frames off the fake clock, with a stamp this file owns. */
 function driveFrames(): void {
   let stamp = 0;
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
-    setTimeout(() => {
-      stamp += 16;
-      cb(stamp);
-    }, 16) as unknown as number,
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    (cb: FrameRequestCallback) =>
+      setTimeout(() => {
+        stamp += 16;
+        cb(stamp);
+      }, 16) as unknown as number,
   );
   vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id as unknown as ReturnType<typeof setTimeout>));
 }

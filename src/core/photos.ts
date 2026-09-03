@@ -90,7 +90,12 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /** Draw `img` into a `w`×`h` box like CSS `object-fit: cover`. */
-export function drawCover(c: CanvasRenderingContext2D, img: CanvasImageSource & { width: number; height: number }, w: number, h: number): void {
+export function drawCover(
+  c: CanvasRenderingContext2D,
+  img: CanvasImageSource & { width: number; height: number },
+  w: number,
+  h: number,
+): void {
   const s = Math.max(w / img.width, h / img.height);
   const dw = img.width * s;
   const dh = img.height * s;
@@ -195,7 +200,11 @@ export function createPhotoStore(resize: (file: Blob) => Promise<string> = resiz
         } catch {
           continue;
         }
-        const photo: Photo = { id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, url, createdAt: Date.now() + added.length };
+        const photo: Photo = {
+          id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+          url,
+          createdAt: Date.now() + added.length,
+        };
         const d = await db();
         if (d) {
           try {

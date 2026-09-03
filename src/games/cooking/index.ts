@@ -367,13 +367,16 @@ function start(ctx: GameContext): void {
     replay(eaterFace, 'anim-bounce');
     navigator.vibrate?.(20);
     ctx.speak('Ngon quá! Cảm ơn bé!');
-    later(() => {
-      void ctx.celebrate().then(() => {
-        if (!alive) return;
-        ctx.addStar();
-        play(round + 1, recipe?.id);
-      });
-    }, (CHOMPS - 1) * CHOMP_MS + CELEBRATE_DELAY_MS);
+    later(
+      () => {
+        void ctx.celebrate().then(() => {
+          if (!alive) return;
+          ctx.addStar();
+          play(round + 1, recipe?.id);
+        });
+      },
+      (CHOMPS - 1) * CHOMP_MS + CELEBRATE_DELAY_MS,
+    );
   }
 
   // ---- round ----
@@ -393,9 +396,7 @@ function start(ctx: GameContext): void {
     inside.replaceChildren();
 
     cardDish.textContent = recipe.dish;
-    needs.replaceChildren(
-      ...recipe.ingredients.map((i) => h('span', { class: 'cooking-need', 'data-emoji': i.emoji }, i.emoji)),
-    );
+    needs.replaceChildren(...recipe.ingredients.map((i) => h('span', { class: 'cooking-need', 'data-emoji': i.emoji }, i.emoji)));
     replay(card, 'anim-bounce');
 
     tool.textContent = recipe.toolEmoji;

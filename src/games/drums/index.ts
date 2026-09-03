@@ -35,7 +35,11 @@ function start(ctx: GameContext): void {
     padEls.set(pad.kind, el);
     grid.append(el);
   }
-  const beatBtn = h('button', { class: 'drums-beat btn-round', type: 'button', 'aria-label': 'Gõ theo nhịp', 'aria-pressed': 'false' }, '▶');
+  const beatBtn = h(
+    'button',
+    { class: 'drums-beat btn-round', type: 'button', 'aria-label': 'Gõ theo nhịp', 'aria-pressed': 'false' },
+    '▶',
+  );
   root.append(grid, beatBtn);
   ctx.stage.append(root);
 

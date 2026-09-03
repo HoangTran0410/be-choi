@@ -52,7 +52,10 @@ type Drag =
   | { kind: 'phrase'; index: number; x0: number; base: Draft };
 
 function beatsOf(draft: Draft): number {
-  return Math.max(totalNoteBeats(draft.notes), draft.phrases.reduce((sum, p) => sum + p.beats, 0));
+  return Math.max(
+    totalNoteBeats(draft.notes),
+    draft.phrases.reduce((sum, p) => sum + p.beats, 0),
+  );
 }
 
 function loadDraft(song: Song): Draft {
@@ -140,11 +143,7 @@ export function mountEditor(root: HTMLElement, audio: AudioEngine): () => void {
 
   for (const s of SONGS) {
     songStrip.append(
-      h(
-        'button',
-        { class: 'ne-song', type: 'button', 'data-id': s.id, title: s.title, onclick: () => openSong(s) },
-        s.icon,
-      ),
+      h('button', { class: 'ne-song', type: 'button', 'data-id': s.id, title: s.title, onclick: () => openSong(s) }, s.icon),
     );
   }
 
@@ -308,7 +307,7 @@ export function mountEditor(root: HTMLElement, audio: AudioEngine): () => void {
   function onBandDown(e: Event): void {
     const target = e.target as HTMLElement;
     if (!target.classList.contains('ne-band-grip')) return;
-    const index = Number((target.closest<HTMLElement>('.ne-band'))?.dataset.i);
+    const index = Number(target.closest<HTMLElement>('.ne-band')?.dataset.i);
     if (!Number.isFinite(index)) return;
     drag = { kind: 'phrase', index, x0: (e as PointerEvent).clientX, base: draft };
   }
@@ -519,18 +518,40 @@ export function mountEditor(root: HTMLElement, audio: AudioEngine): () => void {
       accBtn('♭', 'b'),
       h('span', { class: 'ne-sep' }, 'dài'),
       ...DURATIONS.map((d) =>
-        h(
-          'button',
-          { class: `ne-btn${note.d === d ? ' on' : ''}`, type: 'button', onclick: () => editSelected({ d }) },
-          String(d),
-        ),
+        h('button', { class: `ne-btn${note.d === d ? ' on' : ''}`, type: 'button', onclick: () => editSelected({ d }) }, String(d)),
       ),
       h('span', { class: 'ne-sep' }),
-      h('button', { class: 'ne-btn', type: 'button', onclick: () => { commit(withInsertedNote(draft, selected)); selectNote(selected + 1); } }, '＋'),
-      h('button', { class: 'ne-btn', type: 'button', onclick: () => { commit(withoutNote(draft, selected)); selectNote(selected); } }, '🗑'),
       h(
         'button',
-        { class: `ne-btn${note.n === REST ? ' on' : ''}`, type: 'button', onclick: () => editSelected({ n: note.n === REST ? 'C4' : REST }) },
+        {
+          class: 'ne-btn',
+          type: 'button',
+          onclick: () => {
+            commit(withInsertedNote(draft, selected));
+            selectNote(selected + 1);
+          },
+        },
+        '＋',
+      ),
+      h(
+        'button',
+        {
+          class: 'ne-btn',
+          type: 'button',
+          onclick: () => {
+            commit(withoutNote(draft, selected));
+            selectNote(selected);
+          },
+        },
+        '🗑',
+      ),
+      h(
+        'button',
+        {
+          class: `ne-btn${note.n === REST ? ' on' : ''}`,
+          type: 'button',
+          onclick: () => editSelected({ n: note.n === REST ? 'C4' : REST }),
+        },
         'lặng',
       ),
     );

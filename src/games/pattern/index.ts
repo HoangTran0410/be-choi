@@ -45,11 +45,7 @@ function start(ctx: GameContext): void {
     row.replaceChildren(...r.sequence.map((item) => h('div', { class: 'pattern-slot' }, item.emoji)), missing);
 
     const choices = r.choices.map((item) => {
-      const btn = h(
-        'button',
-        { class: 'pattern-choice', type: 'button', 'data-emoji': item.emoji, 'aria-label': item.name },
-        item.emoji,
-      );
+      const btn = h('button', { class: 'pattern-choice', type: 'button', 'data-emoji': item.emoji, 'aria-label': item.name }, item.emoji);
       btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         if (locked) return;

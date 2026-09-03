@@ -47,7 +47,10 @@ describe('blocks logic', () => {
   it('every block has a non-congruent sibling, so a wrong outline always exists', () => {
     for (const p of PICTURES) {
       for (const b of p.blocks) {
-        expect(p.blocks.some((other) => !congruent(b, other)), `${p.id}`).toBe(true);
+        expect(
+          p.blocks.some((other) => !congruent(b, other)),
+          `${p.id}`,
+        ).toBe(true);
       }
     }
   });
@@ -85,9 +88,7 @@ describe('blocks logic', () => {
     const b = box(10, 20, 30, 40);
     expect(blockTransform(b)).toBe('translate(10 20) scale(30 40)');
     expect(blockTransform(b, 0, 0)).toBe('translate(0 0) scale(30 40)');
-    expect(blockTransform({ ...b, rot: 180 })).toBe(
-      'translate(25 40) rotate(180) translate(-25 -40) translate(10 20) scale(30 40)',
-    );
+    expect(blockTransform({ ...b, rot: 180 })).toBe('translate(25 40) rotate(180) translate(-25 -40) translate(10 20) scale(30 40)');
     expect(blockTransform({ ...b, rot: 360 })).toBe('translate(10 20) scale(30 40)');
   });
 

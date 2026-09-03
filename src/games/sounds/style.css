@@ -39,13 +39,31 @@
 }
 /* A slow breath, so a child who has not worked it out yet still sees where to press. */
 @keyframes sounds-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 @keyframes sounds-ring {
-  0% { transform: scale(1); box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3); }
-  30% { transform: scale(1.12); box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3), 0 0 0 2vmin rgba(167, 139, 250, 0.45); }
-  100% { transform: scale(1); box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3), 0 0 0 6vmin rgba(167, 139, 250, 0); }
+  0% {
+    transform: scale(1);
+    box-shadow: 0 5px 0 rgba(76, 29, 149, 0.3);
+  }
+  30% {
+    transform: scale(1.12);
+    box-shadow:
+      0 5px 0 rgba(76, 29, 149, 0.3),
+      0 0 0 2vmin rgba(167, 139, 250, 0.45);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 5px 0 rgba(76, 29, 149, 0.3),
+      0 0 0 6vmin rgba(167, 139, 250, 0);
+  }
 }
 
 .sounds-board {
@@ -60,7 +78,9 @@
   border-radius: 28%;
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 5px 0 rgba(76, 29, 149, 0.22);
-  transition: transform 0.12s, opacity 0.3s;
+  transition:
+    transform 0.12s,
+    opacity 0.3s;
 }
 .sounds-card:active {
   transform: scale(0.94);

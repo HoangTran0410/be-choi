@@ -2,11 +2,7 @@ export type Child = Node | string | null | undefined | false;
 export type Attrs = Record<string, string | number | boolean | EventListener>;
 
 /** Tiny element builder. `on*` keys become listeners, `class` sets className. */
-export function h<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  attrs?: Attrs | null,
-  ...children: Child[]
-): HTMLElementTagNameMap[K] {
+export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs?: Attrs | null, ...children: Child[]): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   if (attrs) {
     for (const [key, value] of Object.entries(attrs)) {

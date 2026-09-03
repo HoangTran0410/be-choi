@@ -16,7 +16,9 @@
 }
 .count-fruit.counted {
   background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 0 0 4px var(--c-orange), 0 4px 0 rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 0 0 4px var(--c-orange),
+    0 4px 0 rgba(0, 0, 0, 0.08);
 }
 .count-emoji {
   line-height: 1;
@@ -44,24 +46,47 @@
   animation: count-badge-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 @keyframes count-badge-in {
-  from { transform: scale(0); }
-  to { transform: scale(1); }
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* The shared bounce/wiggle keyframes overwrite `transform`, which would drop the
    centring translate; re-declare them for fruits with the translate baked in. */
-.count-fruit.anim-bounce { animation: count-bounce 0.45s ease-out; }
-.count-fruit.anim-wiggle { animation: count-wiggle 0.5s ease-in-out 2; }
+.count-fruit.anim-bounce {
+  animation: count-bounce 0.45s ease-out;
+}
+.count-fruit.anim-wiggle {
+  animation: count-wiggle 0.5s ease-in-out 2;
+}
 @keyframes count-bounce {
-  0% { transform: translate(-50%, -50%) scale(1); }
-  30% { transform: translate(-50%, -58%) scale(1.25); }
-  60% { transform: translate(-50%, -50%) scale(0.95); }
-  100% { transform: translate(-50%, -50%) scale(1); }
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  30% {
+    transform: translate(-50%, -58%) scale(1.25);
+  }
+  60% {
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 @keyframes count-wiggle {
-  0%, 100% { transform: translate(-50%, -50%) rotate(0); }
-  25% { transform: translate(-50%, -50%) rotate(-10deg); }
-  75% { transform: translate(-50%, -50%) rotate(10deg); }
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(0);
+  }
+  25% {
+    transform: translate(-50%, -50%) rotate(-10deg);
+  }
+  75% {
+    transform: translate(-50%, -50%) rotate(10deg);
+  }
 }
 
 /* Big centred total once every fruit is counted. */
@@ -84,5 +109,7 @@
   font-size: calc(var(--emoji) * 1.4);
   font-weight: 900;
   line-height: 1;
-  box-shadow: 0 0 0 6px var(--c-orange), 0 10px 0 rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 0 0 6px var(--c-orange),
+    0 10px 0 rgba(0, 0, 0, 0.12);
 }

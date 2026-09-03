@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FRUITS } from '../../core/content';
 import { mulberry32 } from '../../core/dom';
-import {
-  makeCountRound,
-  maxCount,
-  MIN_DIST,
-  minDistFor,
-  numberWord,
-  POS_MAX,
-  POS_MIN,
-  scatter,
-  type Point,
-} from './logic';
+import { makeCountRound, maxCount, MIN_DIST, minDistFor, numberWord, POS_MAX, POS_MIN, scatter, type Point } from './logic';
 
 function minPairDist(pts: Point[]): number {
   let min = Infinity;

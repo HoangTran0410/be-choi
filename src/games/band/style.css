@@ -68,7 +68,10 @@
     inset 0 2px 0 rgba(255, 255, 255, 0.55),
     0 5px 0 rgba(0, 0, 0, 0.1);
   touch-action: none;
-  transition: transform 0.1s, opacity 0.25s, box-shadow 0.25s;
+  transition:
+    transform 0.1s,
+    opacity 0.25s,
+    box-shadow 0.25s;
   will-change: transform;
 }
 .band-inst:focus:not(:focus-visible) {
@@ -94,8 +97,13 @@
   animation: band-bob 0.7s ease-in-out infinite;
 }
 @keyframes band-bob {
-  0%, 100% { transform: scale(1) translateY(0); }
-  50% { transform: scale(1.05) translateY(-3%); }
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.05) translateY(-3%);
+  }
 }
 
 /* Not one of this round's options. */

@@ -38,14 +38,16 @@
   place-items: center;
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.15) 40%, transparent 72%),
-    var(--orchestra-color);
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.15) 40%, transparent 72%), var(--orchestra-color);
   box-shadow:
     inset 0 -1vmin 0 rgba(0, 0, 0, 0.14),
     inset 0 2px 0 rgba(255, 255, 255, 0.35),
     0 4px 10px rgba(0, 0, 0, 0.1);
   filter: saturate(0.85) opacity(0.82);
-  transition: filter 0.25s, transform 0.12s, box-shadow 0.25s;
+  transition:
+    filter 0.25s,
+    transform 0.12s,
+    box-shadow 0.25s;
   touch-action: none;
   will-change: transform;
   container-type: size;
@@ -86,10 +88,19 @@
   animation: orchestra-dance calc(var(--orchestra-beat) * 2) ease-in-out infinite;
 }
 @keyframes orchestra-dance {
-  0%, 100% { transform: rotate(-8deg) translateY(0); }
-  25% { transform: rotate(0) translateY(-6%); }
-  50% { transform: rotate(8deg) translateY(0); }
-  75% { transform: rotate(0) translateY(-6%); }
+  0%,
+  100% {
+    transform: rotate(-8deg) translateY(0);
+  }
+  25% {
+    transform: rotate(0) translateY(-6%);
+  }
+  50% {
+    transform: rotate(8deg) translateY(0);
+  }
+  75% {
+    transform: rotate(0) translateY(-6%);
+  }
 }
 
 /* Idle hint: an animal that is not playing waves for attention. */
@@ -97,9 +108,16 @@
   animation: orchestra-nudge 0.5s ease-in-out 2;
 }
 @keyframes orchestra-nudge {
-  0%, 100% { transform: rotate(0) scale(1); }
-  25% { transform: rotate(-12deg) scale(1.12); }
-  75% { transform: rotate(12deg) scale(1.12); }
+  0%,
+  100% {
+    transform: rotate(0) scale(1);
+  }
+  25% {
+    transform: rotate(-12deg) scale(1.12);
+  }
+  75% {
+    transform: rotate(12deg) scale(1.12);
+  }
 }
 
 .orchestra-bar {

@@ -3,14 +3,10 @@ import { fakeContext, type FakeContext } from '../../core/testing';
 import { FIND_AFTER, HIDE_SWAP_MS, REVEAL_MS, SHUFFLE_MS, STAR_EVERY, WIN_MS } from './logic';
 import game from './index';
 
-const spotsOf = (ctx: FakeContext): HTMLElement[] => [
-  ...ctx.stage.querySelectorAll<HTMLElement>('.peekaboo-spot'),
-];
+const spotsOf = (ctx: FakeContext): HTMLElement[] => [...ctx.stage.querySelectorAll<HTMLElement>('.peekaboo-spot')];
 const faceOf = (spot: HTMLElement): string => spot.querySelector('.peekaboo-peek')?.textContent ?? '';
-const questOf = (ctx: FakeContext): string =>
-  ctx.stage.querySelector('.peekaboo-quest-face')?.textContent ?? '';
-const finding = (ctx: FakeContext): boolean =>
-  ctx.stage.querySelector('.peekaboo')?.classList.contains('finding') ?? false;
+const questOf = (ctx: FakeContext): string => ctx.stage.querySelector('.peekaboo-quest-face')?.textContent ?? '';
+const finding = (ctx: FakeContext): boolean => ctx.stage.querySelector('.peekaboo')?.classList.contains('finding') ?? false;
 const tap = (el: HTMLElement): void => {
   el.dispatchEvent(new Event('pointerdown', { bubbles: true }));
 };

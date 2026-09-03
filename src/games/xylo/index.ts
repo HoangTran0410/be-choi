@@ -65,11 +65,7 @@ function start(ctx: GameContext): void {
   const root = h('div', { class: 'xylo' });
   const strip = h('div', { class: 'xylo-songs' });
   const songEls = SONGBOOK.map((s, i) =>
-    h(
-      'button',
-      { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title, onpointerdown: () => selectSong(s) },
-      s.icon,
-    ),
+    h('button', { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title, onpointerdown: () => selectSong(s) }, s.icon),
   );
   const playBtn = h('button', { class: 'xylo-play', type: 'button', 'aria-label': 'Phát bài hát', onpointerdown: togglePlay }, '▶');
   const recBtn = h('button', { class: 'xylo-rec', type: 'button', 'aria-label': 'Ghi âm', onpointerdown: toggleRec }, '⏺');

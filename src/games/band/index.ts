@@ -47,11 +47,7 @@ function start(ctx: GameContext): void {
     tiles.set(inst.id, tile);
     grid.append(tile);
   }
-  const replayBtn = h(
-    'button',
-    { class: 'btn-round band-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: true },
-    '🔁',
-  );
+  const replayBtn = h('button', { class: 'btn-round band-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: true }, '🔁');
   const quizBtn = h('button', { class: 'btn-round band-quiz', type: 'button', 'aria-label': 'Đố nghe' }, '🎧');
   replayBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
