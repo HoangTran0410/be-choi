@@ -13,6 +13,12 @@ export interface Scene {
   tank: Tank;
   /** Seconds since the scene started, for every wobble and shimmer. */
   clock: number;
+  /**
+   * Show the little face above each animal saying how it feels. It is the whole
+   * point in the tank, where a hungry fish is asking to be fed; in the lake it is
+   * a dozen shrimps floating next to a bait, which is just confusing.
+   */
+  moods?: boolean;
 }
 
 /** A curve through the points, so a body reads as flesh rather than a polygon. */
@@ -360,7 +366,7 @@ export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: n
   else if (cr.species.kind === 'crab') drawCrab(g, cr, scene);
   else drawFish(g, cr, index);
   g.restore();
-  drawMood(g, cr, scene);
+  if (scene.moods !== false) drawMood(g, cr, scene);
 }
 
 /**

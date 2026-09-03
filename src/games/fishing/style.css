@@ -54,3 +54,47 @@
 .fishing [hidden] {
   display: none !important;
 }
+
+/* Losing line: the button flashes red, which is all the warning a child needs. */
+.fishing-reel.fishing-slipping {
+  animation: fishing-slip 0.35s ease-in-out infinite;
+}
+@keyframes fishing-slip {
+  0%, 100% { background: rgba(255, 255, 255, 0.92); transform: scale(1); }
+  50% { background: #fca5a5; transform: scale(1.08); }
+}
+
+/* Held up and named: the moment the whole game is for. */
+.fishing-catch {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1.6vmin;
+  padding: 1.4vmin 3.2vmin;
+  border-radius: calc(var(--tap) * 0.5);
+  font-size: calc(var(--tap) * 0.38);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: #0c4a6e;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 0 rgba(3, 32, 54, 0.35);
+  pointer-events: none;
+  animation: fishing-catch 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fishing-catch-emoji {
+  font-size: calc(var(--tap) * 0.55);
+}
+@keyframes fishing-catch {
+  0% { transform: translateX(-50%) scale(0.4); opacity: 0; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* Something on the line: the water stops answering to fingers, so a hand resting
+   on the glass cannot drag the catch off the hook. Only the reel works. */
+.fishing.fishing-fighting .fishing-canvas {
+  pointer-events: none;
+}

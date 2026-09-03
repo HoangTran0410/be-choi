@@ -1,6 +1,6 @@
 import { h, replay } from '../../core/dom';
 import type { GameContext, GameModule } from '../../core/types';
-import { drawCreature, hash, type Scene } from '../aquarium/draw';
+import { drawCreature, hash, smoothPath, type Scene } from '../aquarium/draw';
 import {
   Creature,
   SAVE_KEY,
@@ -26,9 +26,30 @@ import {
   cast,
   makeHook,
   moveHook,
+  PULL_SECONDS,
+  ROD_X,
+  aimCast,
+  castHere,
+  isSlipping,
   needsCast,
   reel,
+  slip,
+  tug,
+  DRIFTERS,
+  DREAD_REACH,
+  STEAL_REACH,
+  makeDrifters,
+  nextVisit,
+  planVisit,
+  visitOver,
+  makeRope,
+  snaggedOn,
+  stepDrifter,
+  stepRope,
   tickSteady,
+  type Drifter,
+  type Rope,
+  type Junk,
   replacement,
   settleHook,
   type Hook,
@@ -38,7 +59,7 @@ import './style.css';
 const MAX_STEP = 0.05;
 const MAX_BUBBLES = 60;
 /** How long the landed fish is held up for the child to look at. */
-const SHOW_MS = 1400;
+const SHOW_MS = 2600;
 
 /**
  * Câu cá: a line with a bait on it, and fish that come to it only if they are
@@ -58,7 +79,9 @@ function start(ctx: GameContext): void {
   // Reeling in by dragging the line all the way up is a long way for a small arm.
   // One button, two jobs: haul the line in with a fish on it, drop it back after.
   const reelBtn = h('button', { class: 'fishing-reel', type: 'button', 'aria-label': 'kéo cần lên' }, '🎣');
-  const root = h('div', { class: 'fishing' }, canvas, tally, reelBtn);
+  // The moment the whole game is for: hold it up and say what it is.
+  const banner = h('div', { class: 'fishing-catch', hidden: true });
+  const root = h('div', { class: 'fishing' }, canvas, tally, reelBtn, banner);
   ctx.stage.append(root);
 
   const c = canvas.getContext('2d');
@@ -67,20 +90,26 @@ function start(ctx: GameContext): void {
   let tank: Tank = makeTank(1, 1);
   let fish: Creature[] = [];
   let plants: Plant[] = [];
+  let drifters: Drifter[] = [];
+  let line: Rope = [];
+  /** The big thing crossing the lake right now, if anything is. */
+  let monster: Creature | null = null;
+  let monsterDir: 1 | -1 = 1;
+  let untilVisit = 0;
   let sand: number[] = [];
   const bubbles: Bubble[] = [];
   let hook: Hook = makeHook(tank);
   let holding = false;
   /** When the bait was last moved, so its speed is measured against real time. */
   let lastDrag = 0;
-  /** Winding the line in on its own, after the reel button. */
-  let reeling = false;
   /** Dropping the line back in, after the cast button. */
   let casting = false;
   let caught = 0;
   let clock = 0;
   /** The fish just landed, held up out of the water for a look. */
   let trophy: Creature | null = null;
+  /** …or the thing that was not a fish. */
+  let trophyJunk: Junk | null = null;
   let showing = 0;
   const timers = new Set<ReturnType<typeof setTimeout>>();
 
@@ -103,21 +132,28 @@ function start(ctx: GameContext): void {
     canvas.height = Math.round(hgt * dpr);
     tank = makeTank(w, hgt);
     plants = makePlants(tank);
+    drifters = makeDrifters(tank);
+    line = makeRope(tank.w * ROD_X, 0, tank.w * ROD_X, tank.h * 0.3);
     sand = Array.from({ length: 9 }, (_, i) => tank.floor + Math.sin(i * 1.7) * tank.unit * 0.09);
     fish = lakeStock(tank).map((species) => new Creature(species, tank));
+    monster = null;
+    untilVisit = nextVisit() * 0.5;
     // Some are hungry and some are not, so the lake has to be read rather than
     // simply dredged: a fish that has just eaten will look at a bait and swim on.
     for (const cr of fish) cr.hunger = Math.random();
     hook = makeHook(tank);
+    line = makeRope(tank.w * ROD_X, 0, hook.x, hook.y);
     bubbles.length = 0;
     holding = false;
-    reeling = false;
     casting = false;
     trophy = null;
+    trophyJunk = null;
     showing = 0;
   }
 
-  const scene = (): Scene => ({ tank, clock });
+  // No mood faces here: in a lake full of bait a row of little shrimps over the
+  // fish reads as more bait, not as hunger.
+  const scene = (): Scene => ({ tank, clock, moods: false });
 
   // ---- the lake ----
 
@@ -180,28 +216,98 @@ function start(ctx: GameContext): void {
 
   /** The line, and the bait on the end of it. */
   function drawLine(g: CanvasRenderingContext2D): void {
-    const fromX = tank.w * 0.5;
     g.strokeStyle = 'rgba(255,255,255,0.75)';
     g.lineWidth = Math.max(1.5, tank.unit * 0.02);
+    g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(fromX, 0);
-    // A slack line bows towards the bait rather than ruling a straight edge.
-    g.quadraticCurveTo((fromX + hook.x) / 2, hook.y * 0.55, hook.x, hook.y);
+    // Through the knots of the rope, so the line sags and swings as it is worked.
+    smoothPath(g, line);
     g.stroke();
 
-    if (!hook.baited) return;
-    const r = tank.unit * 0.18;
-    // Jerked about, the bait flashes red: the one thing the child must notice.
+    const r = tank.unit * 0.2;
     const jerking = isJerking(hook, tank);
-    g.fillStyle = jerking ? '#f87171' : '#fb923c';
+    // A hook is a J of wire: a shank down from the line, a bend, and a point
+    // coming back up. Drawn small, but the shape is what makes it a hook rather
+    // than an orange dot on a string.
+    const top = hook.y - r * 1.1;
+    const bendY = hook.y + r * 0.5;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(15,23,42,0.55)';
+    g.lineWidth = Math.max(3, r * 0.42);
+    for (const pass of ['shadow', 'metal'] as const) {
+      if (pass === 'metal') {
+        g.strokeStyle = '#e2e8f0';
+        g.lineWidth = Math.max(1.6, r * 0.24);
+      }
+      g.beginPath();
+      // The eye the line ties to.
+      g.arc(hook.x, top, r * 0.2, 0, Math.PI * 2);
+      g.moveTo(hook.x, top + r * 0.2);
+      g.lineTo(hook.x, bendY);
+      // The bend, and the point turning back up towards the barb.
+      g.arc(hook.x + r * 0.42, bendY, r * 0.42, Math.PI, Math.PI * 2, true);
+      g.lineTo(hook.x + r * 0.84, hook.y - r * 0.15);
+      g.stroke();
+    }
+    // The barb.
+    g.fillStyle = '#e2e8f0';
     g.beginPath();
-    g.arc(hook.x, hook.y, r * (jerking ? 1.25 : 1), 0, Math.PI * 2);
+    g.moveTo(hook.x + r * 0.84, hook.y - r * 0.2);
+    g.lineTo(hook.x + r * 1.15, hook.y + r * 0.25);
+    g.lineTo(hook.x + r * 0.7, hook.y + r * 0.15);
+    g.closePath();
     g.fill();
-    g.strokeStyle = 'rgba(120,53,15,0.6)';
-    g.lineWidth = Math.max(1, tank.unit * 0.02);
-    g.beginPath();
-    g.arc(hook.x, hook.y + r * 0.5, r * 0.6, Math.PI * 0.1, Math.PI * 0.9);
-    g.stroke();
+
+    if (hook.baited) {
+      // A worm threaded on the shank, wriggling. It flushes red when the line is
+      // being snatched about, which is the one warning the child has to read.
+      const wriggle = jerking ? 3.4 : 1;
+      g.strokeStyle = jerking ? '#f87171' : '#fb7185';
+      g.lineWidth = Math.max(3, r * 0.5);
+      g.beginPath();
+      for (let i = 0; i <= 8; i++) {
+        const along = i / 8;
+        const wy = top + r * 0.35 + along * r * 1.25;
+        const wx = hook.x + Math.sin(clock * 6 + along * 5) * r * 0.3 * wriggle;
+        if (i === 0) g.moveTo(wx, wy);
+        else g.lineTo(wx, wy);
+      }
+      g.stroke();
+      // A pale belly down the worm, so it reads as an animal and not a rope.
+      g.strokeStyle = jerking ? '#fecaca' : '#fda4af';
+      g.lineWidth = Math.max(1.2, r * 0.18);
+      g.stroke();
+    }
+
+    // Snagged on something: it hangs off the hook all the way up.
+    if (hook.junk) {
+      const size = Math.max(tank.unit * 0.7, 26);
+      g.save();
+      g.font = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(hook.junk.emoji, hook.x, hook.y + size * 0.55);
+      g.restore();
+    }
+  }
+
+  /** The rubbish drifting through the water, which the bait must be steered around. */
+  function drawDrifters(g: CanvasRenderingContext2D): void {
+    const size = Math.max(tank.unit * 0.62, 24);
+    g.save();
+    g.font = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (const d of drifters) {
+      g.save();
+      g.translate(d.x, d.y);
+      g.rotate(Math.sin(d.turn) * 0.35);
+      g.globalAlpha = 0.92;
+      g.fillText(d.junk.emoji, 0, 0);
+      g.restore();
+    }
+    g.restore();
   }
 
   function drawBubbles(g: CanvasRenderingContext2D): void {
@@ -221,11 +327,23 @@ function start(ctx: GameContext): void {
     drawWater(g);
     drawSand(g);
     for (const plant of plants) drawPlant(g, plant);
+    drawDrifters(g);
     drawLine(g);
     fish.forEach((cr, i) => drawCreature(g, cr, i, view));
+    // Drawn over everything: a shark going past is the biggest thing in the lake.
+    if (monster) drawCreature(g, monster, 99, view);
     drawBubbles(g);
     drawSurface(g);
     // Above the water, so it is drawn after the surface rather than under it.
+    if (trophyJunk) {
+      const size = Math.max(tank.unit * 1.1, 44);
+      g.save();
+      g.font = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(trophyJunk.emoji, tank.w * 0.5, tank.h * 0.13 + Math.sin(clock * 9) * size * 0.06);
+      g.restore();
+    }
     if (trophy) {
       trophy.hold(tank.w * 0.5, tank.h * 0.13);
       trophy.spine.follow(trophy.x, trophy.y, -Math.PI / 2 + Math.sin(clock * 18) * 0.3);
@@ -233,17 +351,114 @@ function start(ctx: GameContext): void {
     }
   }
 
+  // ---- what passes through ----
+
+  /**
+   * Every so often something far too big crosses the lake. It cannot be caught:
+   * it swims straight through, empties the water in front of it, takes the bait
+   * if the bait is in the way, and is gone. Half the point is that the lake is
+   * not always safe and the child cannot do anything about it but wait.
+   */
+  function visit(dt: number): void {
+    if (!monster) {
+      untilVisit -= dt;
+      if (untilVisit > 0) return;
+      const plan = planVisit(tank);
+      monsterDir = plan.dir;
+      monster = new Creature(plan.species, tank, Math.random, {
+        x: plan.dir > 0 ? -tank.unit * 3 : tank.w + tank.unit * 3,
+        y: plan.y,
+      });
+      monster.heading = plan.dir > 0 ? 0 : Math.PI;
+      monster.spine.replant(monster.x, monster.y, monster.heading);
+      ctx.audio.fx('roar');
+      return;
+    }
+
+    // Straight across, at its own pace: this one is not steered by anything.
+    const cruise = monster.species.speed * tank.unit;
+    monster.x += monsterDir * cruise * dt;
+    monster.y += Math.sin(clock * 0.9) * tank.unit * 0.25 * dt;
+    monster.phase += dt * 5;
+    monster.spine.follow(monster.x, monster.y, monsterDir > 0 ? 0 : Math.PI);
+
+    // Everything small scatters out of its way.
+    for (const cr of fish) {
+      if (Math.hypot(cr.x - monster.x, cr.y - monster.y) < DREAD_REACH * tank.unit) {
+        cr.startle(monster.x, monster.y, true);
+      }
+    }
+
+    // The bait in its path is the bait gone.
+    if (hook.baited && !hook.caught && !hook.junk) {
+      if (Math.hypot(hook.x - monster.x, hook.y - monster.y) < STEAL_REACH * tank.unit) {
+        hook.baited = false;
+        hook.steady = 0;
+        ctx.audio.chomp();
+        navigator.vibrate?.(20);
+        ctx.speak(`${monster.species.name} ăn mất mồi rồi!`);
+        for (let i = 0; i < 6; i++) bubbles.push(makeBubble(hook.x, hook.y, tank));
+      }
+    }
+
+    if (visitOver(monster, tank)) {
+      monster = null;
+      untilVisit = nextVisit();
+    }
+  }
+
   // ---- the catch ----
+
+  /** Whatever was on the line has beaten the child back down and got away. */
+  function escaped(): void {
+    const lost = hook.caught;
+    hook.caught = null;
+    hook.junk = null;
+    hook.baited = false;
+    hook.pull = 0;
+    if (lost) {
+      lost.release();
+      lost.startle(hook.x, hook.y);
+    }
+    ctx.audio.boing();
+    navigator.vibrate?.(12);
+    ctx.speak('Ối, sổng mất rồi! Thả câu lại nhé!');
+    for (let i = 0; i < 6; i++) bubbles.push(makeBubble(hook.x, hook.y, tank));
+  }
 
   /** A fish has taken the bait. */
   function hooked(cr: Creature): void {
     hook.caught = cr;
+    hook.fightFrom = hook.y;
+    hook.pull = PULL_SECONDS;
     cr.joy = 1.2;
     cr.feed();
     ctx.audio.pop(1.8);
     navigator.vibrate?.(18);
-    ctx.speak('Cắn câu rồi! Kéo lên nào!');
+    ctx.speak('Cắn câu rồi! Bấm liên tục để kéo lên!');
     for (let i = 0; i < 5; i++) bubbles.push(makeBubble(hook.x, hook.y, tank));
+  }
+
+  /** Something that is not a fish comes up. Half the fun is that it is not one. */
+  function landJunk(junk: Junk): void {
+    hook.junk = null;
+    hook.baited = false;
+    trophyJunk = junk;
+    trophy = null;
+    banner.replaceChildren(h('span', { class: 'fishing-catch-emoji' }, junk.emoji), h('span', {}, junk.say));
+    banner.hidden = false;
+    showing = SHOW_MS / 1000;
+    ctx.speak(junk.say);
+    navigator.vibrate?.(15);
+    if (junk.treasure) {
+      ctx.audio.jingle();
+      void ctx.celebrate().then(() => {
+        if (alive) ctx.addStar();
+      });
+    } else {
+      // A boot is a joke, not a failure: it gets a laugh, never a sad noise.
+      ctx.audio.boing();
+    }
   }
 
   /** Add one fish to the tank the child keeps in Bể cá. */
@@ -268,6 +483,8 @@ function start(ctx: GameContext): void {
     fish = fish.filter((other) => other !== cr);
     // Held up out of the water for a moment: this is the bit the child is here for.
     trophy = cr;
+    banner.replaceChildren(h('span', { class: 'fishing-catch-emoji' }, '🎉'), h('span', {}, cr.species.name));
+    banner.hidden = false;
     caught++;
     showing = SHOW_MS / 1000;
     tally.textContent = `🪣 ${caught}`;
@@ -298,11 +515,38 @@ function start(ctx: GameContext): void {
   function step(dt: number): void {
     clock += dt;
     showing = Math.max(0, showing - dt);
-    if (showing === 0) trophy = null;
-    if (reeling) reel(hook, dt, tank);
-    else if (casting && cast(hook, dt, tank)) casting = false;
+    if (showing === 0) {
+      trophy = null;
+      trophyJunk = null;
+      banner.hidden = true;
+    }
+    // Something on the line has to be hauled, tug by tug. Stop tugging and it
+    // takes the line back; let it take enough and it is gone.
+    if (hook.caught || hook.junk) {
+      if (hook.pull > 0) reel(hook, dt, tank, clock);
+      else if (slip(hook, dt, tank)) escaped();
+    } else if (casting && cast(hook, dt, tank)) casting = false;
     else if (!holding) settleHook(hook, dt);
     tickSteady(hook, dt, tank);
+
+    visit(dt);
+    stepRope(line, dt, { x: tank.w * ROD_X, y: 0 }, hook, tank);
+    for (const d of drifters) stepDrifter(d, dt, tank);
+    // Not everything down there is a fish, and it is all in plain sight: the
+    // child steers the bait around the rubbish rather than waiting for a dice roll.
+    if (!hook.caught && !hook.junk) {
+      const fouled = snaggedOn(hook, drifters, tank);
+      if (fouled) {
+        hook.junk = fouled.junk;
+        hook.fightFrom = hook.y;
+        hook.pull = PULL_SECONDS;
+        drifters = drifters.filter((d) => d !== fouled);
+        ctx.audio.pop(0.6);
+        navigator.vibrate?.(12);
+        ctx.speak('Mắc phải rồi! Kéo lên xem nào!');
+        for (let i = 0; i < 4; i++) bubbles.push(makeBubble(hook.x, hook.y, tank));
+      }
+    }
 
     // Whoever has their mouth on a bait that is being held still is on the line.
     // Checked before anybody moves, so the fish is still hungry when it bites —
@@ -332,11 +576,14 @@ function start(ctx: GameContext): void {
       }
     }
 
-    if (hook.caught && isLanded(hook, tank)) {
-      const cr = hook.caught;
-      cr.release();
-      reeling = false;
-      land(cr);
+    if (isLanded(hook, tank)) {
+      if (hook.caught) {
+        const cr = hook.caught;
+        cr.release();
+        land(cr);
+      } else if (hook.junk) {
+        landJunk(hook.junk);
+      }
     }
 
     for (let i = bubbles.length - 1; i >= 0; i--) {
@@ -349,13 +596,22 @@ function start(ctx: GameContext): void {
     if (Math.random() < dt * 1.5 && bubbles.length < MAX_BUBBLES) {
       bubbles.push(makeBubble(tank.w * Math.random(), tank.floor, tank));
     }
+    // The lake never runs out of rubbish either.
+    if (drifters.length < DRIFTERS && Math.random() < dt * 0.25) {
+      drifters.push(...makeDrifters(tank, 1));
+    }
 
     // Last, so it answers to what this frame actually did: the same button hauls
-    // a fish out and then puts the line back in.
-    const wantsCast = needsCast(hook, tank) && !casting;
-    reelBtn.hidden = hook.caught === null && !wantsCast;
-    reelBtn.textContent = hook.caught ? '🎣' : '⬇️';
-    reelBtn.setAttribute('aria-label', hook.caught ? 'kéo cần lên' : 'thả câu xuống');
+    // whatever is on the line out, and then puts the line back in.
+    const onTheLine = hook.caught !== null || hook.junk !== null;
+    const wantsCast = needsCast(hook, tank) && !casting && showing === 0;
+    reelBtn.hidden = !onTheLine && !wantsCast;
+    reelBtn.textContent = onTheLine ? '🎣' : '⬇️';
+    reelBtn.setAttribute('aria-label', onTheLine ? 'kéo cần lên' : 'thả câu xuống');
+    // Slipping: the button flashes, which is the only warning a child needs.
+    reelBtn.classList.toggle('fishing-slipping', isSlipping(hook));
+    // Belt and braces: the canvas stops taking pointers at all during a fight.
+    root.classList.toggle('fishing-fighting', onTheLine);
   }
 
   let raf = 0;
@@ -391,23 +647,37 @@ function start(ctx: GameContext): void {
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    // With something on the line the water is not a control any more: the fight
+    // is the reel button and nothing else. A stray hand on the glass used to
+    // drag the line about and lose the catch.
+    if (hook.caught || hook.junk) return;
     ctx.hint.touch();
-    // Taking hold of the line again is the child overruling the reel.
-    reeling = false;
     casting = false;
     holding = true;
     lastDrag = 0;
+    // With nothing on the line and no bait, dropping a finger in the water is the
+    // child casting by hand. Anything else and the line would follow them about
+    // with a bare hook, fishing for nothing.
+    if (showing > 0) return;
+    if (!hook.caught && !hook.junk && !hook.baited) {
+      const p = at(e);
+      castHere(hook, p.x, p.y, tank);
+      ctx.audio.tick();
+      ctx.speak('Thả câu nào!');
+      return;
+    }
     drag(e);
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!holding) return;
+    if (!holding || hook.caught || hook.junk) return;
     drag(e);
   });
 
   const release = (): void => {
     holding = false;
   };
+
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
   canvas.addEventListener('pointerleave', release);
@@ -420,20 +690,21 @@ function start(ctx: GameContext): void {
     holding = false;
     replay(reelBtn, 'anim-bounce');
     ctx.audio.tick();
-    if (hook.caught) {
-      reeling = true;
+    if (hook.caught || hook.junk) {
+      // Every press is one heave on the rod: stop pressing and the fish wins.
+      tug(hook);
       casting = false;
       return;
     }
-    reeling = false;
     casting = true;
+    aimCast(hook, tank);
     ctx.speak('Thả câu nào!');
   });
 
   ctx.hint.arm(() => {
-    if (hook.caught || !reelBtn.hidden) {
+    if (hook.caught || hook.junk || !reelBtn.hidden) {
       replay(reelBtn, 'anim-wiggle');
-      ctx.speak(hook.caught ? 'Kéo lên nào!' : 'Thả câu lại nào!');
+      ctx.speak(hook.caught || hook.junk ? 'Bấm liên tục để kéo lên!' : 'Thả câu lại nào!');
       return;
     }
     const hungry = fish.find((cr) => cr.mood === 'hungry');

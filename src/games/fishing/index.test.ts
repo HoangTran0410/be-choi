@@ -73,48 +73,57 @@ function mount() {
  * until something takes it, then lift it out. Returns false if nothing bit.
  */
 function fishPatiently(canvas: HTMLCanvasElement, ctx: ReturnType<typeof fakeContext>): boolean {
-  const hooked = (): boolean => ctx.spoken.some((s) => s.includes('Cắn câu'));
-  canvas.dispatchEvent(ptr('pointerdown', 30, 120));
-  // Walk the bait over the whole lake, back and forth without ever jumping: a
-  // jump is a yank, and a yank empties the water in front of you.
-  let x = 30;
-  let y = 120;
-  let dir = 1;
-  const ease = (): void => {
+  const root = document.querySelector<HTMLElement>('.fishing')!;
+  const reel = root.querySelector<HTMLElement>('.fishing-reel')!;
+  const landedFish = (): boolean => ctx.spoken.some((line) => line.includes('về bể rồi'));
+
+  let x = 210;
+  let y = 300;
+  const ease = (dx: number, dy: number): void => {
+    x = Math.min(400, Math.max(25, x + dx));
+    y = Math.min(600, Math.max(140, y + dy));
     canvas.dispatchEvent(ptr('pointermove', x, y));
     vi.advanceTimersByTime(40);
   };
-  for (let pass = 0; pass < 3 && !hooked(); pass++) {
-    while (y < 700 && !hooked()) {
-      while (x > 25 && x < 400 && !hooked()) {
-        // 8 px every 40 ms is a child easing the line along, not flicking it.
-        x += 8 * dir;
-        ease();
-      }
-      dir = -dir;
-      x += 8 * dir;
-      for (let down = 0; down < 3 && !hooked(); down++) {
-        y += 8;
-        ease();
-      }
+  /** Hold the line still, which is the whole skill of the game. */
+  const wait = (ms: number): void => {
+    vi.advanceTimersByTime(ms);
+  };
+
+  canvas.dispatchEvent(ptr('pointerdown', x, y));
+  for (let go = 0; go < 150 && !landedFish(); go++) {
+    if (reel.hidden) {
+      // Move a little, then let the bait settle: fish will not come to a jumpy one.
+      const dir = go % 2 === 0 ? 1 : -1;
+      for (let i = 0; i < 8; i++) ease(8 * dir, i % 3 === 0 ? 8 : 0);
+      wait(3500);
+      continue;
     }
-    // Back up to the top the same careful way.
-    while (y > 130 && !hooked()) {
-      y -= 8;
-      ease();
+    // Something is on the line, or the line wants casting again.
+    canvas.dispatchEvent(ptr('pointerup', x, y));
+    if (reel.textContent === '⬇️') {
+      reel.dispatchEvent(ptr('pointerdown'));
+      wait(2500);
+      canvas.dispatchEvent(ptr('pointerdown', x, y));
+      continue;
     }
+    // Hauling is tug after tug: stop and the fish takes the line back.
+    for (let heave = 0; heave < 60 && reel.textContent === '🎣'; heave++) {
+      reel.dispatchEvent(ptr('pointerdown'));
+      wait(300);
+    }
+    // The catch is held up and named before anything else can happen.
+    wait(3200);
+    if (landedFish()) return true;
+    // A boot, or it got away. Drop the line again and carry on.
+    if (!reel.hidden && reel.textContent === '⬇️') {
+      reel.dispatchEvent(ptr('pointerdown'));
+      wait(2500);
+    }
+    canvas.dispatchEvent(ptr('pointerdown', x, y));
   }
-  if (!hooked()) {
-    canvas.dispatchEvent(ptr('pointerup', 210, 400));
-    return false;
-  }
-  // On the line: the reel button hauls it out.
-  canvas.dispatchEvent(ptr('pointerup', 210, 400));
-  const reel = document.querySelector<HTMLElement>('.fishing-reel')!;
-  expect(reel.hidden).toBe(false);
-  reel.dispatchEvent(ptr('pointerdown'));
-  vi.advanceTimersByTime(2000);
-  return true;
+  canvas.dispatchEvent(ptr('pointerup', x, y));
+  return landedFish();
 }
 
 describe('fishing game', () => {
@@ -155,6 +164,7 @@ describe('fishing game', () => {
     const bit = fishPatiently(canvas, ctx);
     expect(bit, 'nothing took the bait').toBe(true);
     vi.advanceTimersByTime(200);
+    expect(ctx.stage.querySelector('.fishing-catch')).not.toBeNull();
 
     expect(ctx.stage.querySelector('.fishing-tally')?.textContent).toBe('🪣 1');
     expect(ctx.spoken.some((s) => s.includes('về bể rồi'))).toBe(true);
@@ -169,7 +179,10 @@ describe('fishing game', () => {
   it('offers to drop the line again once the catch is in, and does', () => {
     const { ctx, canvas } = mount();
     expect(fishPatiently(canvas, ctx)).toBe(true);
-    vi.advanceTimersByTime(200);
+    // The catch is held up for a look first; nothing may be cast over the top of it.
+    const shown = ctx.stage.querySelector<HTMLElement>('.fishing-catch')!;
+    vi.advanceTimersByTime(3200);
+    expect(shown.hidden).toBe(true);
 
     const reel = ctx.stage.querySelector<HTMLElement>('.fishing-reel')!;
     // The line is out of the water and empty: the button now casts.
@@ -215,6 +228,31 @@ describe('fishing game', () => {
     expect(() => vi.advanceTimersByTime(500)).not.toThrow();
     ctx.cleanup();
     set.mockRestore();
+  });
+
+  it('ignores the water entirely while something is on the line', () => {
+    const { ctx, root, canvas } = mount();
+    const reel = ctx.stage.querySelector<HTMLElement>('.fishing-reel')!;
+    // Fish until something is hooked, then stop.
+    canvas.dispatchEvent(ptr('pointerdown', 210, 300));
+    for (let go = 0; go < 40 && reel.textContent !== '🎣'; go++) {
+      for (let i = 0; i < 8; i++) {
+        canvas.dispatchEvent(ptr('pointermove', 200 + i * 8, 300));
+        vi.advanceTimersByTime(40);
+      }
+      vi.advanceTimersByTime(3500);
+    }
+    expect(reel.textContent, 'nothing ever took the line').toBe('🎣');
+    expect(root.classList.contains('fishing-fighting')).toBe(true);
+
+    // A hand on the glass must not take the catch off the hook.
+    canvas.dispatchEvent(ptr('pointerup', 210, 300));
+    canvas.dispatchEvent(ptr('pointerdown', 40, 600));
+    canvas.dispatchEvent(ptr('pointermove', 380, 200));
+    canvas.dispatchEvent(ptr('pointerup', 380, 200));
+    vi.advanceTimersByTime(120);
+    expect(reel.textContent).toBe('🎣');
+    ctx.cleanup();
   });
 
   it('leaves no timers or frames behind', () => {

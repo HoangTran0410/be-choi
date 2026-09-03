@@ -645,30 +645,51 @@ check('fishing: the bucket starts empty', (await page.locator('.fishing-tally').
 check('fishing: nothing to reel yet', !(await page.locator('.fishing-reel').isVisible()));
 
 const lake = await page.locator('.fishing-canvas').boundingBox();
+const reelBtn = page.locator('.fishing-reel');
 let onTheLine = false;
+let hauled = false;
+let landed = false;
 if (lake) {
-  await page.mouse.move(lake.x + lake.width * 0.2, lake.y + lake.height * 0.3);
-  await page.mouse.down();
-  // Walk the bait about slowly, and let it rest: a snatched line catches nothing.
-  for (let i = 0; i < 60 && !onTheLine; i++) {
-    const px = lake.x + lake.width * (0.2 + 0.6 * Math.abs(((i / 12) % 2) - 1));
-    const py = lake.y + lake.height * (0.3 + 0.35 * Math.abs(((i / 20) % 2) - 1));
-    await page.mouse.move(px, py, { steps: 8 });
-    await page.waitForTimeout(300);
-    onTheLine = await page.locator('.fishing-reel').isVisible();
+  const mid = { x: lake.x + lake.width * 0.5, y: lake.y + lake.height * 0.45 };
+  for (let go = 0; go < 40 && !landed; go++) {
+    if (!(await reelBtn.isVisible())) {
+      // Ease the bait about, then hold it still: fish will not come to a jumpy one.
+      await page.mouse.move(mid.x, mid.y);
+      await page.mouse.down();
+      const dir = go % 2 === 0 ? 1 : -1;
+      await page.mouse.move(mid.x + 60 * dir, mid.y + 30, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(3500);
+      onTheLine ||= await reelBtn.isVisible();
+      continue;
+    }
+    // Something is on the line, or the line is asking to be cast again.
+    if ((await reelBtn.textContent()) === '🎣') {
+      // Hauling is tug after tug: stop tapping and it takes the line back.
+      for (let heave = 0; heave < 25 && (await reelBtn.textContent()) === '🎣'; heave++) {
+        await tap(reelBtn);
+        await page.waitForTimeout(240);
+      }
+      await page.waitForTimeout(3200);
+    } else {
+      await tap(reelBtn);
+      await page.waitForTimeout(2200);
+    }
+    // A boot is a perfectly good catch; it just does not go in the bucket.
+    hauled ||= (await reelBtn.textContent()) === '⬇️';
+    landed = (await page.locator('.fishing-tally').textContent()) !== '🪣 0';
   }
-  await page.mouse.up();
 }
-check('fishing: a patient line gets a bite', onTheLine);
-if (onTheLine) {
-  await tap(page.locator('.fishing-reel'));
-  await page.waitForTimeout(1600);
-  check('fishing: the catch lands in the bucket', (await page.locator('.fishing-tally').textContent()) !== '🪣 0');
+check('fishing: a patient line catches something', onTheLine);
+check('fishing: the water stops taking taps during a fight', (await page.locator('.fishing-fighting').count()) === 0);
+check('fishing: whatever is on the line can be hauled out', hauled);
+check('fishing: a fish among it goes in the bucket', landed);
+if (landed) {
   const tankSave = await page.evaluate(() => localStorage.getItem('be-choi:aquarium'));
   check('fishing: the catch swims into the aquarium', !!tankSave && tankSave.includes('"fish"'), String(tankSave).slice(0, 80));
-  check('fishing: the line can be cast again', await page.locator('.fishing-reel').isVisible());
-  await tap(page.locator('.fishing-reel'));
-  await page.waitForTimeout(1200);
+  check('fishing: the line can be cast again', await reelBtn.isVisible());
+  await tap(reelBtn);
+  await page.waitForTimeout(1400);
 }
 await page.waitForTimeout(600);
 
