@@ -4,6 +4,13 @@ export interface Settings {
   sound: boolean;
   voice: boolean;
   theme: Theme;
+  /**
+   * Announce a new sticker with the full-screen moment. Stickers are collected
+   * either way; this is only whether the game stops to say so. In a long game
+   * the stars come thick and fast, and being interrupted every third one is
+   * more of an interruption than a reward.
+   */
+  stickerPopup: boolean;
 }
 
 export interface Store {
@@ -25,7 +32,7 @@ interface State {
 }
 
 const KEY = 'be-choi:v1';
-const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto' };
+const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true };
 
 /**
  * Stars per game and parent settings, persisted in localStorage. Every storage

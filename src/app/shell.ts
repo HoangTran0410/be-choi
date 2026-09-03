@@ -77,7 +77,9 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
     addStar: () => {
       store.addStar(entry.id);
       const sticker = maybeUnlockSticker(store);
-      if (sticker && alive) showStickerReveal(sticker, deps);
+      // Unlocked either way, and waiting in the album. What a parent can turn
+      // off is the game stopping to announce it.
+      if (sticker && alive && store.settings().stickerPopup) showStickerReveal(sticker, deps);
     },
     onCleanup: (fn) => cleanups.push(fn),
     photos: deps.photos,

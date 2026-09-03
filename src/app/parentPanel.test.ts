@@ -34,6 +34,32 @@ function has(label: string): boolean {
   return [...document.querySelectorAll('.panel button')].some((b) => b.textContent?.includes(label));
 }
 
+describe('parent panel: the sticker announcement', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    document.body.replaceChildren();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.replaceChildren();
+  });
+
+  it('can be turned off without turning the stickers themselves off', () => {
+    const d = deps();
+    openParentPanel(d);
+    expect(d.store.settings().stickerPopup).toBe(true);
+
+    btn('Báo sticker mới').dispatchEvent(new Event('pointerup'));
+
+    expect(d.store.settings().stickerPopup).toBe(false);
+    // The album is still what it was for: only the interruption is gone.
+    d.store.addSticker('🐣');
+    expect(d.store.stickers()).toEqual(['🐣']);
+  });
+});
+
 describe('parent panel: wiping stars', () => {
   beforeEach(() => {
     vi.useFakeTimers();

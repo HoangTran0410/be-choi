@@ -207,6 +207,12 @@ export function openParentPanel(deps: AppDeps): void {
       speech.setEnabled(v);
       if (v) speech.speak('Xin chào bé!');
     }),
+    toggle('🎁 Báo sticker mới', settings.stickerPopup, (v) => {
+      store.setSettings({ stickerPopup: v });
+    }),
+    settings.stickerPopup
+      ? null
+      : h('p', { class: 'panel-note' }, 'Bé vẫn nhận sticker như thường, chỉ là không bị ngắt giữa lúc chơi. Xem trong Album nhé.'),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     installRow,
     themeRow,

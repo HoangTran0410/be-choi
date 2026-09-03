@@ -42,10 +42,13 @@ describe('store', () => {
   it('settings default and patch persist', () => {
     const s = mem();
     const a = createStore(s);
-    expect(a.settings()).toEqual({ sound: true, voice: true, theme: 'auto' });
+    expect(a.settings()).toEqual({ sound: true, voice: true, theme: 'auto', stickerPopup: true });
     expect(a.setSettings({ voice: false }).voice).toBe(false);
-    expect(createStore(s).settings()).toEqual({ sound: true, voice: false, theme: 'auto' });
+    expect(createStore(s).settings()).toEqual({ sound: true, voice: false, theme: 'auto', stickerPopup: true });
     expect(a.setSettings({ theme: 'dark' }).theme).toBe('dark');
+    // A parent who turned the sticker announcement off should not find it back on.
+    expect(a.setSettings({ stickerPopup: false }).stickerPopup).toBe(false);
+    expect(createStore(s).settings().stickerPopup).toBe(false);
   });
   it('survives a throwing storage', () => {
     const bad = {
