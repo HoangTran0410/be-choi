@@ -149,6 +149,90 @@ describe('paint game', () => {
     vi.useRealTimers();
   });
 
+  it('puts the ink under the finger while the area is a different size from the backing store', () => {
+    const c = fake2d();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(() => c as unknown as CanvasRenderingContext2D);
+    const ctx = fakeContext();
+    game.start(ctx);
+    const canvas = ctx.stage.querySelector<HTMLCanvasElement>('canvas.paint-canvas');
+    if (!canvas) throw new Error('missing canvas');
+
+    // The toolbar grew (a family photo brought two buttons with it) so the canvas
+    // is laid out at twice the size the backing store was built for.
+    canvas.width = 300;
+    canvas.height = 150;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 600,
+      height: 300,
+      right: 600,
+      bottom: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    canvas.dispatchEvent(ptr('pointerdown', 300, 150));
+    // Halfway across the box the child sees is halfway across the picture, not
+    // 300 px into a picture that is only 300 px wide.
+    expect(c.moveTo).toHaveBeenCalledWith(150, 75);
+
+    ctx.cleanup();
+    getContext.mockRestore();
+  });
+
+  it('follows the drawing area when the toolbar changes size and the window does not', () => {
+    const c = fake2d();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(() => c as unknown as CanvasRenderingContext2D);
+    interface Watch {
+      cb: () => void;
+      el: Element | null;
+    }
+    const watchers: Watch[] = [];
+    class FakeResizeObserver {
+      private readonly watch: Watch;
+      constructor(cb: () => void) {
+        this.watch = { cb, el: null };
+        watchers.push(this.watch);
+      }
+      observe(el: Element): void {
+        this.watch.el = el;
+      }
+      disconnect(): void {
+        this.watch.el = null;
+      }
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    const ctx = fakeContext();
+    game.start(ctx);
+    const canvas = ctx.stage.querySelector<HTMLCanvasElement>('canvas.paint-canvas');
+    const area = ctx.stage.querySelector<HTMLElement>('.paint-area');
+    if (!canvas || !area) throw new Error('missing canvas');
+    expect(watchers[0]?.el).toBe(area);
+
+    // jsdom lays nothing out, so give the area a size and tell the game it changed.
+    Object.defineProperty(area, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(area, 'clientHeight', { value: 260, configurable: true });
+    watchers[0]?.cb();
+    expect(canvas.width).toBe(400);
+    expect(canvas.height).toBe(260);
+
+    // The toolbar takes another row: the backing store follows that too.
+    Object.defineProperty(area, 'clientHeight', { value: 180, configurable: true });
+    watchers[0]?.cb();
+    expect(canvas.height).toBe(180);
+
+    ctx.cleanup();
+    // Nothing is left watching a stage that has gone.
+    expect(watchers[0]?.el).toBeNull();
+    getContext.mockRestore();
+  });
+
   it('lets the child pick a family photo for the background, tries the colouring page and keeps the photo when it fails', async () => {
     vi.useFakeTimers();
     const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);

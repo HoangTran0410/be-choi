@@ -180,7 +180,15 @@ function start(ctx: GameContext): void {
 
   function pos(e: PointerEvent): Point {
     const r = canvas.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    /*
+     * Through the box the browser is really drawing at, not the one the backing
+     * store was last built for. Between a layout change and the resize that answers
+     * it the two differ — and ink that assumes they match lands away from the
+     * finger, further away the nearer the bottom of the page.
+     */
+    const sx = r.width > 0 ? canvas.width / dpr / r.width : 1;
+    const sy = r.height > 0 ? canvas.height / dpr / r.height : 1;
+    return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
   }
 
   function applyStroke(c: CanvasRenderingContext2D): void {
@@ -593,12 +601,25 @@ function start(ctx: GameContext): void {
   let raf = 0;
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(resize);
   window.addEventListener('resize', resize);
+  /*
+   * The drawing area changes size with the window sitting perfectly still: the
+   * toolbar gains the 🖼️ and 🎨 buttons the moment a family photo turns up, a
+   * row of stamps wraps, a tablet's own bars come and go. None of that fires a
+   * window resize, so the backing store used to stay at its old size and every
+   * stroke landed away from the finger. Watch the area itself instead.
+   */
+  let areaWatch: ResizeObserver | null = null;
+  if (typeof ResizeObserver === 'function') {
+    areaWatch = new ResizeObserver(() => resize());
+    areaWatch.observe(area);
+  }
   ctx.onCleanup(() => {
     disposed = true;
     persist();
     offPhotos();
     closePicker?.();
     dropConversion();
+    areaWatch?.disconnect();
     window.removeEventListener('resize', resize);
     if (raf) cancelAnimationFrame(raf);
     strokes.clear();
