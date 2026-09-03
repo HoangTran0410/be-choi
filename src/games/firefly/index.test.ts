@@ -419,6 +419,49 @@ describe('firefly game', () => {
     ctx.cleanup();
   });
 
+  it('🎤 a second press gives the microphone back', async () => {
+    vi.useFakeTimers();
+    driveFrames();
+    fakeCanvas();
+    const mic = fakeBlowMic();
+    const ctx = fakeContext();
+    game.start(ctx);
+    const btn = await listen(ctx);
+    expect(btn.classList.contains('fly-listening')).toBe(true);
+
+    // Pressing it again is the only way a child has of turning it off, and it works.
+    tap(btn);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(btn.classList.contains('fly-listening')).toBe(false);
+    expect(mic.close).toHaveBeenCalled();
+    expect(mic.stop).toHaveBeenCalled();
+
+    // And it can be turned on again afterwards.
+    tap(btn);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(btn.classList.contains('fly-listening')).toBe(true);
+    ctx.cleanup();
+  });
+
+  it('🎆 the whole sky takes the colour of whatever just went off', () => {
+    vi.useFakeTimers();
+    driveFrames();
+    fakeCanvas();
+    const ctx = fakeContext();
+    game.start(ctx);
+    size(q(ctx, '.fly'), 800, 600);
+    const wash = q(ctx, '.fly-sky-flash');
+    expect(wash.classList.contains('fly-sky-lit')).toBe(false);
+
+    q(ctx, '.fly-fw-btn').dispatchEvent(ptr('pointerdown'));
+    vi.advanceTimersByTime(1200);
+    expect(wash.classList.contains('fly-sky-lit')).toBe(true);
+    // Its colour is the firework's own, and it is lit from where the shell opened.
+    expect(wash.style.getPropertyValue('--fly-fx-h')).not.toBe('');
+    expect(wash.style.getPropertyValue('--fly-fx-y')).toMatch(/%$/);
+    ctx.cleanup();
+  });
+
   it('🎤 without a microphone the button steps aside and points at the candle', async () => {
     vi.useFakeTimers();
     driveFrames();

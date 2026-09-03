@@ -336,7 +336,8 @@
 .fly-candle {
   --fly-stick: calc(var(--tap) * 0.44 * var(--fly-tall, 1));
   position: absolute;
-  bottom: 11%;
+  /* Feet on the ground: any higher and the candle hangs in the air over the grass. */
+  bottom: 2%;
   /* Drawn slim, but the box a finger has to land in is most of a tap wide. */
   width: calc(var(--tap) * 0.8);
   height: calc(var(--stick, var(--fly-stick)) + var(--tap) * 0.4);
@@ -451,6 +452,44 @@
 }
 
 /* ---- fireworks ---- */
+/*
+ * The sky lighting up in the colour of the burst. Only `opacity` is animated, and
+ * the gradient is painted once when the colour changes, so this is a composited
+ * layer rather than work for the frame loop. Sits over the meadow and under the
+ * sparks, so what the child sees is the field lit by the firework, not a filter
+ * laid over the firework itself.
+ */
+.fly-sky-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+  /* Bright at the burst and gone by two thirds of the way out: light thrown across
+     the sky, not a coloured sheet pulled over the whole game. */
+  background: radial-gradient(
+    circle at var(--fly-fx-x, 50%) var(--fly-fx-y, 30%),
+    hsl(var(--fly-fx-h, 40) 100% 74%) 0%,
+    hsl(var(--fly-fx-h, 40) 100% 60% / 0.5) 16%,
+    hsl(var(--fly-fx-h, 40) 95% 50% / 0.14) 40%,
+    hsl(var(--fly-fx-h, 40) 90% 45% / 0) 66%
+  );
+}
+.fly-sky-flash.fly-sky-lit {
+  animation: fly-sky-lit 0.45s ease-out;
+}
+@keyframes fly-sky-lit {
+  0% {
+    opacity: 0.34;
+  }
+  18% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 /* Over the meadow, under the buttons, and never in the way of a finger. */
 .fly-fw {
   position: absolute;

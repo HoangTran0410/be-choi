@@ -76,11 +76,12 @@ describe('firefly: the row of candles', () => {
   it('stands them across the meadow, clear of the microphone button', () => {
     const rng = mulberry32(9);
     const xs = Array.from({ length: CANDLES }, (_, i) => makeCandle(i, CANDLES, rng).x);
-    expect(Math.min(...xs)).toBeGreaterThan(0.04);
-    // The bottom right corner belongs to 🎤; a candle under it cannot be lit.
-    expect(Math.max(...xs)).toBeLessThan(CANDLE_LEFT + CANDLE_SPAN + 0.03);
+    // Both bottom corners belong to buttons; a candle under one cannot be lit.
+    expect(Math.min(...xs)).toBeGreaterThan(0.19);
+    expect(Math.max(...xs)).toBeLessThan(0.81);
+    expect(CANDLE_LEFT + CANDLE_SPAN).toBeLessThanOrEqual(0.8);
     // In order, and none on top of another.
-    for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThan((xs[i - 1] ?? 0) + 0.04);
+    for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThan((xs[i - 1] ?? 0) + 0.03);
   });
 
   it('gives them different heights and colours', () => {

@@ -131,6 +131,12 @@ function start(ctx: GameContext): void {
   let micTimer: ReturnType<typeof setInterval> | null = null;
   let micBusy = false;
   let micGone = false;
+  /**
+   * True from the press that asks for the microphone until the press that hands it
+   * back. A press while the permission prompt is still open has to be remembered:
+   * the answer arrives afterwards, and by then nobody wants it any more.
+   */
+  let micWanted = false;
 
   // ---- DOM ----
   const sky = h('div', { class: 'fly-sky' });
@@ -162,7 +168,9 @@ function start(ctx: GameContext): void {
     tree('fly-tree-c'),
   );
   const grass = h('div', { class: 'fly-grass' });
-  for (let i = 0; i < BLADES; i++) {
+  /** Blades painted before the candles stand behind them; the rest stand in front. */
+  const BEHIND = Math.round(BLADES * 0.6);
+  const addBlade = (i: number): void => {
     const b = makeBlade(i, BLADES);
     // Outer blade takes the wind, inner one keeps its idle sway: two transforms
     // on one element would mean the animation stamping over the lean every frame.
@@ -177,7 +185,8 @@ function start(ctx: GameContext): void {
       h('div', { class: 'fly-blade-body' }),
     );
     grass.append(blade);
-  }
+  };
+  for (let i = 0; i < BEHIND; i++) addBlade(i);
 
   for (let i = 0; i < CANDLES; i++) {
     const spec = makeCandle(i, CANDLES);
@@ -198,6 +207,9 @@ function start(ctx: GameContext): void {
     grass.append(el);
     candles.push(candle);
   }
+  // The rest of the grass goes in after, so blades cross in front of the candles.
+  // Drawn over every blade they read as stuck onto the meadow rather than standing in it.
+  for (let i = BEHIND; i < BLADES; i++) addBlade(i);
 
   // getUserMedia needs a user activation; on touch screens pointerup grants one, pointerdown may not.
   const micBtn = h('button', { class: 'btn-round fly-mic', type: 'button', 'aria-label': 'Thổi vào micro', onpointerup: onMic }, '🎤');
@@ -218,6 +230,14 @@ function start(ctx: GameContext): void {
   const warmGlow = h('div', { class: 'fly-glow' });
 
   /*
+   * The whole sky taking the colour of whatever just went off. One element whose
+   * opacity is animated and nothing else, so the tablet hands it to the compositor
+   * and the frame loop never touches it — a wash this size drawn onto the canvas
+   * every frame would cost more than all the sparks put together.
+   */
+  const skyFlash = h('div', { class: 'fly-sky-flash' });
+
+  /*
    * Fireworks go on a canvas rather than into the DOM: a single burst is forty
    * sparks, several at once are hundreds, and hundreds of elements moving every
    * frame is more than a tablet will do smoothly. One canvas, cleared and redrawn,
@@ -230,7 +250,7 @@ function start(ctx: GameContext): void {
     '🎆',
   );
 
-  const field = h('div', { class: 'fly' }, sky, hills, grass, warmGlow, fw, fwBtn, micBtn);
+  const field = h('div', { class: 'fly' }, sky, hills, grass, warmGlow, skyFlash, fw, fwBtn, micBtn);
   ctx.stage.append(field);
 
   const bugs: Bug[] = [];
@@ -360,6 +380,11 @@ function start(ctx: GameContext): void {
     // Oldest sparks go first when the sky is full, so a new firework always shows.
     sparks = [...sparks, ...made].slice(-MAX_SPARKS);
     flashes.push({ x: r.x, y: r.y, hue: r.hue, life: FLASH_LIFE });
+    // The sky takes its colour for a moment, brightest around where it went off.
+    skyFlash.style.setProperty('--fly-fx-h', String(Math.round(r.hue)));
+    skyFlash.style.setProperty('--fly-fx-x', `${(r.x * 100).toFixed(1)}%`);
+    skyFlash.style.setProperty('--fly-fx-y', `${(r.y * 100).toFixed(1)}%`);
+    replay(skyFlash, 'fly-sky-lit');
     ctx.audio.drum('kick');
     ctx.audio.fx('sparkle');
     navigator.vibrate?.(18);
@@ -426,9 +451,18 @@ function start(ctx: GameContext): void {
       g.addColorStop(0.35, `hsla(${f.hue} 100% 72% / ${(0.45 * alpha).toFixed(2)})`);
       g.addColorStop(1, `hsla(${f.hue} 100% 60% / 0)`);
       c.fillStyle = g;
+      c.globalAlpha = 1;
       c.beginPath();
       c.arc(f.x * w, f.y * hgt, r, 0, Math.PI * 2);
       c.fill();
+      // The shell going off: one ring, thrown outwards and thinning as it goes.
+      // Kept close in — a ring the size of the sky reads as a ripple in water.
+      c.globalAlpha = 0.5 * alpha;
+      c.strokeStyle = coreOf(f.hue);
+      c.lineWidth = Math.max(1.5, short * 0.014 * alpha);
+      c.beginPath();
+      c.arc(f.x * w, f.y * hgt, short * 0.13 * spread, 0, Math.PI * 2);
+      c.stroke();
     }
 
     for (const r of rockets) {
@@ -567,6 +601,7 @@ function start(ctx: GameContext): void {
       }
       micCtx = null;
     }
+    micWanted = false;
     windTarget = 0;
     micBtn.classList.remove('fly-listening');
     micBtn.style.removeProperty('--fly-level');
@@ -574,6 +609,7 @@ function start(ctx: GameContext): void {
 
   function micFail(): void {
     micGone = true;
+    micWanted = false;
     micBtn.hidden = true;
     ctx.speak('Chạm vào nến để thổi nhé');
   }
@@ -595,7 +631,7 @@ function start(ctx: GameContext): void {
       return;
     }
     micBusy = false;
-    if (!alive) {
+    if (!alive || !micWanted) {
       stopTracks(stream);
       return;
     }
@@ -655,6 +691,13 @@ function start(ctx: GameContext): void {
   function onMic(): void {
     ctx.hint.touch();
     ctx.audio.tick();
+    // A second press gives the microphone back. A button with only an on is a
+    // button a child cannot undo, and the light on the tablet stays lit.
+    if (micWanted) {
+      stopMic();
+      return;
+    }
+    micWanted = true;
     void startMic();
   }
 

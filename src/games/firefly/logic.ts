@@ -110,9 +110,13 @@ export function makeBlade(i: number, n: number, rng: () => number = Math.random)
   };
 }
 
-/** The microphone button sits bottom right in both orientations; the row stops short of it. */
-export const CANDLE_LEFT = 0.08;
-export const CANDLE_SPAN = 0.72;
+/**
+ * The row keeps clear of both bottom corners: 🎆 sits in one and 🎤 in the other,
+ * and a candle behind a button is a candle that cannot be lit. A button is about
+ * a sixth of the width on a tablet held either way, so a fifth each side is safe.
+ */
+export const CANDLE_LEFT = 0.2;
+export const CANDLE_SPAN = 0.6;
 
 export function makeCandle(i: number, n: number, rng: () => number = Math.random): Candle {
   return {
