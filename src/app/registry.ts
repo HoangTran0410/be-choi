@@ -11,6 +11,7 @@ import { meta as shadows } from '../games/shadows/meta';
 import { meta as sounds } from '../games/sounds/meta';
 import { meta as piano } from '../games/piano/meta';
 import { meta as jam } from '../games/jam/meta';
+import { meta as sing } from '../games/sing/meta';
 import { meta as paint } from '../games/paint/meta';
 import { meta as peekaboo } from '../games/peekaboo/meta';
 import { meta as feed } from '../games/feed/meta';
@@ -49,6 +50,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...shadows, load: () => import('../games/shadows/index') },
   { ...sounds, load: () => import('../games/sounds/index') },
   { ...jam, load: () => import('../games/jam/index') },
+  { ...sing, load: () => import('../games/sing/index') },
   { ...piano, load: () => import('../games/piano/index') },
   { ...paint, load: () => import('../games/paint/index') },
   { ...peekaboo, load: () => import('../games/peekaboo/index') },
