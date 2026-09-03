@@ -45,11 +45,30 @@ export function mountAlbum(root: HTMLElement, deps: AppDeps): () => void {
   const lockedCount = STICKERS.length - owned.length;
   for (let i = 0; i < Math.min(lockedCount, 6); i++) grid.append(h('div', { class: 'album-sticker album-locked' }, '❔'));
 
+  /**
+   * What the stickers are for. They have always been usable — Tô màu turns them
+   * into stamps — but nothing anywhere said so, so a full album looked like a
+   * shelf of trophies with nothing to do.
+   */
+  const toPaint = h(
+    'button',
+    {
+      class: 'album-use',
+      onClick: () => {
+        audio.tick();
+        location.hash = hrefFor({ name: 'game', id: 'paint' });
+      },
+    },
+    h('span', null, 'Sticker của bé dùng làm hình dán trong'),
+    h('strong', null, ' 🖍️ Tô màu'),
+  );
+
   const page = h(
     'div',
     { class: 'album' },
     h('header', { class: 'topbar' }, homeBtn, h('span', { class: 'topbar-title' }, '🏆 Bộ sưu tập'), h('span', { class: 'topbar-spacer' })),
     progress,
+    owned.length ? toPaint : null,
     owned.length ? grid : h('p', { class: 'album-empty' }, 'Chơi và nhận ⭐ để mở sticker nhé!'),
   );
   root.replaceChildren(page);

@@ -16,6 +16,19 @@
   font-weight: 800;
   color: var(--section);
 }
+.album-use {
+  margin: 0 4vmin 1vmin;
+  padding: 2.4vmin 3vmin;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 0 var(--btn-shadow);
+  font-size: clamp(15px, 3.4vmin, 26px);
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  touch-action: manipulation;
+}
+
 .album-grid {
   flex: 1;
   overflow-y: auto;
