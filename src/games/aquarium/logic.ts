@@ -214,6 +214,19 @@ export const MAX_CREATURES = 24;
 /** A poked plant or ornament is worth a look for this long. */
 export const INTEREST_SECONDS = 2.6;
 
+// ---- how they get on with each other ----
+
+/** Fish up to this body length shoal; the big ones travel alone. */
+export const SHOAL_MAX_SIZE = 1.05;
+/** How far a fish looks for company, in tank units. */
+export const SHOAL_RANGE = 2.8;
+/** Body lengths of elbow room every animal wants, whatever it is. */
+export const PERSONAL_SPACE = 1.1;
+/** A neighbour this many times longer is worth keeping clear of. */
+export const BIG_RATIO = 1.7;
+/** How hard shoaling pulls, against the fish's own errand. */
+export const SHOAL_WEIGHT = 0.55;
+
 /** Somewhere a frightened fish can tuck itself out of sight. */
 export interface Shelter {
   x: number;
@@ -269,6 +282,8 @@ export interface World {
   shelters?: readonly Shelter[];
   /** A plant that was just rustled, an ornament that was just poked. */
   interest?: Interest | null;
+  /** Everybody else in the tank, so they can shoal, keep apart and take fright together. */
+  neighbours?: readonly Creature[];
 }
 
 const TURN = 3.2;
@@ -297,9 +312,9 @@ export class Creature {
   dizzy = 0;
   /** The cover it is making for, while frightened. */
   private den: Shelter | null = null;
-  /** What frightened it, so it can keep putting water between them. */
-  private frightX = 0;
-  private frightY = 0;
+  /** What frightened it, so it (and its neighbours) can keep away from it. */
+  frightX = 0;
+  frightY = 0;
   /** Where it is heading when nothing more interesting is happening. */
   private tx = 0;
   private ty = 0;
@@ -343,6 +358,11 @@ export class Creature {
    */
   get forages(): boolean {
     return this.species.kind !== 'jelly';
+  }
+
+  /** Small fish travel together; a shark, a ray or a jellyfish does not. */
+  get shoals(): boolean {
+    return this.species.kind === 'fish' && this.species.size <= SHOAL_MAX_SIZE;
   }
 
   /**
@@ -429,6 +449,7 @@ export class Creature {
       this.hiding = false;
       this.den = null;
     }
+    this.catchFright(tank, world.neighbours ?? []);
 
     // Held: it goes where the finger goes. index.ts has already moved it there,
     // so all that is left is to keep the body alive in the child's hand.
@@ -462,6 +483,11 @@ export class Creature {
       wantY = -pulse * cruise * 1.6 + cruise * 0.5;
     }
 
+    // What the neighbours are doing, on top of wherever this fish was going.
+    const crowd = this.neighbours(tank, world.neighbours ?? []);
+    wantX += crowd.x * cruise;
+    wantY += crowd.y * cruise * 0.55;
+
     this.vx += (wantX - this.vx) * Math.min(1, TURN * step);
     this.vy += (wantY - this.vy) * Math.min(1, TURN * step);
     this.x += this.vx * step;
@@ -480,6 +506,91 @@ export class Creature {
     }
     this.spine.follow(this.x, this.y, this.heading);
     return this.swallow(world.foods, tank);
+  }
+
+  /**
+   * Everything the other animals in the tank do to this one, as one nudge:
+   *
+   * - nobody crowds anybody, whatever species they are;
+   * - anything much bigger gets a wide berth;
+   * - small fish of a kind keep together, face the same way and close the gap.
+   *
+   * The three shoaling rules are the usual ones, and out of them comes a shoal
+   * that turns as a body — the thing that makes a tank look alive rather than
+   * like a dozen fish who happen to share a room.
+   */
+  private neighbours(tank: Tank, others: readonly Creature[]): { x: number; y: number } {
+    if (this.held || this.species.kind === 'jelly') return { x: 0, y: 0 };
+    const range = SHOAL_RANGE * tank.unit;
+    let sepX = 0;
+    let sepY = 0;
+    let alignX = 0;
+    let alignY = 0;
+    let towardX = 0;
+    let towardY = 0;
+    let mates = 0;
+
+    for (const other of others) {
+      if (other === this || other.held) continue;
+      const dx = other.x - this.x;
+      const dy = other.y - this.y;
+      const away = Math.hypot(dx, dy);
+      if (away < 0.001 || away > range) continue;
+      const ux = dx / away;
+      const uy = dy / away;
+
+      const elbow = PERSONAL_SPACE * (this.length + other.length) * 0.5;
+      if (away < elbow) {
+        const push = 1 - away / elbow;
+        sepX -= ux * push;
+        sepY -= uy * push;
+      }
+
+      if (other.length > this.length * BIG_RATIO) {
+        // Give the big one room. Not a fright, just good sense.
+        const wary = 1 - away / range;
+        sepX -= ux * wary * 1.4;
+        sepY -= uy * wary * 1.4;
+        continue;
+      }
+
+      if (this.shoals && other.shoals && other.species.id === this.species.id) {
+        mates++;
+        alignX += other.vx;
+        alignY += other.vy;
+        towardX += dx;
+        towardY += dy;
+      }
+    }
+
+    let x = sepX * 1.5;
+    let y = sepY * 1.5;
+    if (mates > 0) {
+      const speed = Math.hypot(alignX, alignY) || 1;
+      x += (alignX / speed) * SHOAL_WEIGHT;
+      y += (alignY / speed) * SHOAL_WEIGHT;
+      const pull = Math.hypot(towardX, towardY) || 1;
+      x += (towardX / pull) * SHOAL_WEIGHT * 0.8;
+      y += (towardY / pull) * SHOAL_WEIGHT * 0.8;
+    }
+    // Cap it: the shoal is a suggestion, never a tow rope.
+    const size = Math.hypot(x, y);
+    const cap = 1.2;
+    return size > cap ? { x: (x / size) * cap, y: (y / size) * cap } : { x, y };
+  }
+
+  /**
+   * One neighbour bolting is reason enough. Only a fresh fright spreads, and it
+   * spreads weaker than it arrived, so a tank never panics itself empty.
+   */
+  private catchFright(tank: Tank, others: readonly Creature[]): void {
+    if (this.held || this.fear > 0) return;
+    for (const other of others) {
+      if (other === this || other.fear < FEAR_SECONDS * 0.8) continue;
+      if (Math.hypot(other.x - this.x, other.y - this.y) > tank.unit * 1.8) continue;
+      this.startle(other.frightX, other.frightY);
+      return;
+    }
   }
 
   /** How fast it is going right now, mood included. */
@@ -845,3 +956,87 @@ export function makeBubble(x: number, y: number, tank: Tank, rng: () => number =
     wobble: rng() * Math.PI * 2,
   };
 }
+
+// ---- the tank the child built ----
+
+/** The key the tank is kept under. */
+export const SAVE_KEY = 'be-choi:aquarium';
+
+/**
+ * What is worth remembering between visits: who lives here, and where the child
+ * put the furniture. Positions are fractions of the tank's width, so the castle
+ * stays where it was put when the tablet is turned on its side.
+ */
+export interface TankSave {
+  v: 1;
+  /** Species ids, one per animal. */
+  fish: string[];
+  /** Fraction of the tank width, one per ornament, in `makeDecor` order. */
+  decor: number[];
+  /** Fraction of the tank width, one per plant, in `makePlants` order. */
+  plants: number[];
+}
+
+const EMPTY_SAVE: TankSave = { v: 1, fish: [], decor: [], plants: [] };
+
+/** Anything unreadable, from an older version or another app, is simply ignored. */
+export function readSave(raw: string | null): TankSave | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const save = parsed as Partial<TankSave>;
+    if (save.v !== 1) return null;
+    const fractions = (list: unknown): number[] =>
+      Array.isArray(list) ? list.filter((n): n is number => typeof n === 'number' && n >= 0 && n <= 1) : [];
+    const fish = Array.isArray(save.fish)
+      ? save.fish.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
+      : [];
+    return { v: 1, fish: fish.slice(0, MAX_CREATURES), decor: fractions(save.decor), plants: fractions(save.plants) };
+  } catch {
+    return null;
+  }
+}
+
+export function makeSave(
+  creatures: readonly { species: Species }[],
+  decor: readonly Decor[],
+  plants: readonly Plant[],
+  tank: Tank,
+): TankSave {
+  const across = (x: number): number => Math.min(1, Math.max(0, tank.w > 0 ? x / tank.w : 0));
+  return {
+    v: 1,
+    fish: creatures.slice(0, MAX_CREATURES).map((cr) => cr.species.id),
+    decor: decor.map((d) => across(d.x)),
+    plants: plants.map((plant) => across(plant.x)),
+  };
+}
+
+/**
+ * Put the saved positions back. A different screen can hold a different number
+ * of plants, so anything the save does not cover keeps where it was generated.
+ */
+export function applySave(save: TankSave, decor: Decor[], plants: Plant[], tank: Tank): void {
+  save.decor.forEach((fraction, i) => {
+    const d = decor[i];
+    if (d) d.x = fraction * tank.w;
+  });
+  save.plants.forEach((fraction, i) => {
+    const plant = plants[i];
+    if (plant) plant.x = fraction * tank.w;
+  });
+}
+
+/** The animals a saved tank asks for, or `null` when there is no usable save. */
+export function savedStock(save: TankSave | null): Species[] | null {
+  if (!save || save.fish.length === 0) return null;
+  const out: Species[] = [];
+  for (const id of save.fish) {
+    const species = speciesById(id);
+    if (species) out.push(species);
+  }
+  return out.length > 0 ? out : null;
+}
+
+export { EMPTY_SAVE };

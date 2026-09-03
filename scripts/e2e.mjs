@@ -212,6 +212,23 @@ if (tankRect) {
 await page.waitForTimeout(400);
 check('aquarium: the tank still runs after being prodded all over', (await page.locator('.aquarium-canvas').count()) === 1);
 
+// The furniture slides along the sand, and the tank remembers where it was left.
+if (tankRect) {
+  for (let x = 0.2; x < 0.8; x += 0.08) {
+    const px = tankRect.x + tankRect.width * x;
+    const py = tankRect.y + tankRect.height * 0.88;
+    await page.mouse.move(px, py);
+    await page.mouse.down();
+    await page.mouse.move(px + 60, py, { steps: 4 });
+    const sliding = (await page.locator('.aquarium.aquarium-moving').count()) > 0;
+    await page.mouse.up();
+    if (sliding) break;
+  }
+}
+await page.waitForTimeout(300);
+const saved = await page.evaluate(() => localStorage.getItem('be-choi:aquarium'));
+check('aquarium: the tank is written down for next time', !!saved && saved.includes('"v":1'), String(saved).slice(0, 80));
+
 await tap(page.locator('.aquarium-feed'));
 const fed = await page
   .waitForSelector('canvas.confetti', { timeout: 25000 })

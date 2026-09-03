@@ -95,9 +95,12 @@
   transform: scale(1.14);
 }
 
-/* A fish in the fingers should not be dragged onto a button. */
+/* A fish in the fingers should not be dragged onto a button, and neither should
+   a castle being slid along the sand. */
 .aquarium-dragging .aquarium-add,
-.aquarium-dragging .aquarium-feed {
+.aquarium-dragging .aquarium-feed,
+.aquarium-moving .aquarium-add,
+.aquarium-moving .aquarium-feed {
   opacity: 0.35;
   pointer-events: none;
 }

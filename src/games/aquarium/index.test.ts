@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
-import { MAX_CREATURES, SPECIES } from './logic';
+import { MAX_CREATURES, SAVE_KEY, SPECIES, readSave } from './logic';
 import game from './index';
 
 if (!('PointerEvent' in globalThis)) {
@@ -64,6 +64,9 @@ function driveFrames(): void {
 }
 
 describe('aquarium game', () => {
+  beforeEach(() => {
+    localStorage.removeItem(SAVE_KEY);
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -289,6 +292,60 @@ describe('aquarium game', () => {
     // The sand and the weeds both make a noise; something must have answered.
     expect(tick.mock.calls.length + puff.mock.calls.length).toBeGreaterThan(0);
     ctx.cleanup();
+  });
+
+  it('slides an ornament along the sand and remembers where it was left', () => {
+    localStorage.removeItem(SAVE_KEY);
+    const { ctx, root, canvas } = mount();
+
+    // Feel along the sand for something that can be moved.
+    let moved = false;
+    for (let x = 30; x < 400 && !moved; x += 20) {
+      canvas.dispatchEvent(ptr('pointerdown', x, 690));
+      canvas.dispatchEvent(ptr('pointermove', x + 60, 690));
+      if (root.classList.contains('aquarium-moving')) {
+        canvas.dispatchEvent(ptr('pointerup', x + 60, 690));
+        moved = true;
+      } else {
+        canvas.dispatchEvent(ptr('pointerup', x + 60, 690));
+      }
+    }
+    expect(moved, 'nothing on the sand could be moved').toBe(true);
+    expect(root.classList.contains('aquarium-moving')).toBe(false);
+
+    const saved = readSave(localStorage.getItem(SAVE_KEY));
+    expect(saved).not.toBeNull();
+    expect(saved!.decor.length + saved!.plants.length).toBeGreaterThan(0);
+    ctx.cleanup();
+  });
+
+  it('opens the tank the child left behind', () => {
+    localStorage.setItem(
+      SAVE_KEY,
+      JSON.stringify({ v: 1, fish: ['koi', 'koi', 'crab'], decor: [0.5], plants: [0.5] }),
+    );
+    const { ctx } = mount();
+    // The saved animals are the ones in the water: adding one more makes four.
+    addFish(ctx, 'goldfish');
+    const after = readSave(localStorage.getItem(SAVE_KEY))!;
+    expect(after.fish).toEqual(['koi', 'koi', 'crab', 'goldfish']);
+    ctx.cleanup();
+    localStorage.removeItem(SAVE_KEY);
+  });
+
+  it('plays on when storage is not available', () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const { ctx } = mount();
+    expect(() => addFish(ctx)).not.toThrow();
+    expect(() => vi.advanceTimersByTime(400)).not.toThrow();
+    ctx.cleanup();
+    get.mockRestore();
+    set.mockRestore();
   });
 
   it('feeds the fish and celebrates once every flake is gone', async () => {

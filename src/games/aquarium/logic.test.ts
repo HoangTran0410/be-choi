@@ -13,7 +13,11 @@ import {
   makeFood,
   makePlants,
   makeRocks,
+  makeSave,
   makeTank,
+  applySave,
+  readSave,
+  savedStock,
   nearestShelter,
   plantAt,
   pokeDecor,
@@ -338,6 +342,92 @@ describe('how a fish feels', () => {
   });
 });
 
+describe('living together', () => {
+  const run = (crowd: Creature[], seconds: number, rng = mulberry32(21)): void => {
+    for (let i = 0; i < seconds * 60; i++) {
+      for (const cr of crowd) cr.update(1 / 60, TANK, { foods: [], nudge: null, neighbours: crowd }, rng);
+    }
+  };
+
+  /** Average distance from the middle of the group. */
+  const spread = (crowd: readonly Creature[]): number => {
+    const cx = crowd.reduce((sum, c) => sum + c.x, 0) / crowd.length;
+    const cy = crowd.reduce((sum, c) => sum + c.y, 0) / crowd.length;
+    return crowd.reduce((sum, c) => sum + Math.hypot(c.x - cx, c.y - cy), 0) / crowd.length;
+  };
+
+  const school = (id: string, n: number): Creature[] =>
+    Array.from({ length: n }, (_, i) => {
+      const cr = new Creature(speciesById(id)!, TANK, mulberry32(30 + i));
+      cr.x = TANK.w * 0.5 + (i - n / 2) * TANK.unit * 0.9;
+      cr.y = TANK.h * 0.45 + ((i % 3) - 1) * TANK.unit * 0.8;
+      return cr;
+    });
+
+  it('knows which fish keep company and which travel alone', () => {
+    expect(new Creature(speciesById('guppy')!, TANK, mulberry32(1)).shoals).toBe(true);
+    expect(new Creature(speciesById('shark')!, TANK, mulberry32(1)).shoals).toBe(false);
+    expect(new Creature(speciesById('jelly')!, TANK, mulberry32(1)).shoals).toBe(false);
+    expect(new Creature(speciesById('crab')!, TANK, mulberry32(1)).shoals).toBe(false);
+  });
+
+  it('draws a shoal of little fish together and points them the same way', () => {
+    const shoal = school('guppy', 6);
+    run(shoal, 6);
+    // They stay a group rather than scattering to their own corners.
+    expect(spread(shoal)).toBeLessThan(TANK.unit * 2.4);
+    // And they are broadly going the same way.
+    const going = shoal.map((c) => Math.atan2(c.vy, c.vx));
+    const mx = going.reduce((s, a) => s + Math.cos(a), 0) / going.length;
+    const my = going.reduce((s, a) => s + Math.sin(a), 0) / going.length;
+    expect(Math.hypot(mx, my)).toBeGreaterThan(0.5);
+  });
+
+  it('never lets two of them end up in the same place', () => {
+    const shoal = school('guppy', 6);
+    run(shoal, 6);
+    for (let i = 0; i < shoal.length; i++) {
+      for (let j = i + 1; j < shoal.length; j++) {
+        const a = shoal[i]!;
+        const b = shoal[j]!;
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(a.length * 0.3);
+      }
+    }
+  });
+
+  it('gives a much bigger neighbour a wide berth', () => {
+    const little = new Creature(speciesById('guppy')!, TANK, mulberry32(40));
+    const shark = new Creature(speciesById('shark')!, TANK, mulberry32(41));
+    little.x = TANK.w * 0.5;
+    little.y = TANK.h * 0.5;
+    shark.x = TANK.w * 0.5 + TANK.unit;
+    shark.y = TANK.h * 0.5;
+    const before = Math.hypot(little.x - shark.x, little.y - shark.y);
+    const crowd = [little, shark];
+    const rng = mulberry32(42);
+    for (let i = 0; i < 60; i++) little.update(1 / 60, TANK, { foods: [], nudge: null, neighbours: crowd }, rng);
+    expect(Math.hypot(little.x - shark.x, little.y - shark.y)).toBeGreaterThan(before);
+  });
+
+  it('passes a fright to the neighbours, but weaker than it arrived', () => {
+    const crowd = school('clown', 3);
+    const [first, second] = crowd;
+    first!.startle(first!.x, first!.y + TANK.unit, true);
+    const rng = mulberry32(43);
+    for (const cr of crowd) cr.update(1 / 60, TANK, { foods: [], nudge: null, neighbours: crowd }, rng);
+    expect(second!.fear).toBeGreaterThan(0);
+    expect(second!.fear).toBeLessThan(first!.fear);
+  });
+
+  it('does not panic the whole tank empty', () => {
+    const crowd = school('clown', 5);
+    crowd[0]!.startle(crowd[0]!.x, crowd[0]!.y + TANK.unit, true);
+    run(crowd, 12);
+    // Once the fright has run its course everybody is swimming again.
+    for (const cr of crowd) expect(cr.fear).toBe(0);
+  });
+});
+
 describe('touching the tank', () => {
   it('finds the ornament and the plant under a finger, and nothing in open water', () => {
     const decor = makeDecor(TANK, mulberry32(1));
@@ -380,6 +470,71 @@ describe('touching the tank', () => {
     pokeDecor(chest);
     settleScenery(plants, decor, 99);
     expect(chest.open).toBe(true);
+  });
+});
+
+describe('remembering the tank', () => {
+  const tankOf = () => ({ decor: makeDecor(TANK, mulberry32(1)), plants: makePlants(TANK, mulberry32(2)) });
+
+  it('writes down who lives here and where the furniture is', () => {
+    const { decor, plants } = tankOf();
+    const crowd = [speciesById('goldfish')!, speciesById('crab')!].map((sp) => new Creature(sp, TANK, mulberry32(3)));
+    const save = makeSave(crowd, decor, plants, TANK);
+    expect(save.v).toBe(1);
+    expect(save.fish).toEqual(['goldfish', 'crab']);
+    expect(save.decor.length).toBe(decor.length);
+    expect(save.plants.length).toBe(plants.length);
+    // Positions are fractions of the width, so a turned tablet keeps the layout.
+    for (const n of [...save.decor, ...save.plants]) {
+      expect(n).toBeGreaterThanOrEqual(0);
+      expect(n).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('reads its own writing back, and puts everything where it was', () => {
+    const { decor, plants } = tankOf();
+    decor[0]!.x = TANK.w * 0.25;
+    plants[0]!.x = TANK.w * 0.75;
+    const crowd = [new Creature(speciesById('koi')!, TANK, mulberry32(4))];
+    const save = readSave(JSON.stringify(makeSave(crowd, decor, plants, TANK)));
+    expect(save).not.toBeNull();
+
+    const fresh = tankOf();
+    applySave(save!, fresh.decor, fresh.plants, TANK);
+    expect(fresh.decor[0]!.x).toBeCloseTo(TANK.w * 0.25, 0);
+    expect(fresh.plants[0]!.x).toBeCloseTo(TANK.w * 0.75, 0);
+    expect(savedStock(save)).toEqual([speciesById('koi')]);
+  });
+
+  it('leaves a wider screen\u2019s extra plants where they were generated', () => {
+    const { decor, plants } = tankOf();
+    const save = readSave(JSON.stringify(makeSave([], decor, plants, TANK)))!;
+    const wide = makeTank(1600, 900);
+    const many = makePlants(wide, mulberry32(9));
+    expect(many.length).toBeGreaterThan(plants.length);
+    const untouched = many[many.length - 1]!.x;
+    applySave(save, makeDecor(wide, mulberry32(1)), many, wide);
+    expect(many[many.length - 1]!.x).toBe(untouched);
+  });
+
+  it('ignores anything it cannot trust', () => {
+    expect(readSave(null)).toBeNull();
+    expect(readSave('not json')).toBeNull();
+    expect(readSave('{}')).toBeNull();
+    expect(readSave('[1,2,3]')).toBeNull();
+    expect(readSave(JSON.stringify({ v: 99, fish: ['koi'] }))).toBeNull();
+    // A fish that no longer exists, and a position off the end of the tank.
+    const odd = readSave(JSON.stringify({ v: 1, fish: ['koi', 'dodo'], decor: [0.5, 4, -1], plants: 'no' }))!;
+    expect(odd.fish).toEqual(['koi']);
+    expect(odd.decor).toEqual([0.5]);
+    expect(odd.plants).toEqual([]);
+    expect(savedStock(readSave(JSON.stringify({ v: 1, fish: [], decor: [], plants: [] })))).toBeNull();
+  });
+
+  it('will not restore more animals than the tank can run', () => {
+    const tooMany = Array.from({ length: MAX_CREATURES + 20 }, () => 'guppy');
+    const save = readSave(JSON.stringify({ v: 1, fish: tooMany, decor: [], plants: [] }))!;
+    expect(save.fish.length).toBe(MAX_CREATURES);
   });
 });
 

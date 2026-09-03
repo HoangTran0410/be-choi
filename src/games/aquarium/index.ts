@@ -17,9 +17,14 @@ import {
   makeFood,
   makePlants,
   makeRocks,
+  makeSave,
   makeTank,
   plantAt,
   pokeDecor,
+  readSave,
+  SAVE_KEY,
+  savedStock,
+  applySave,
   settleScenery,
   sheltersFrom,
   stocking,
@@ -109,6 +114,10 @@ function start(ctx: GameContext): void {
   let held: Creature | null = null;
   let grabFrom: Point | null = null;
   let grabCandidate: Creature | null = null;
+  /** A plant or an ornament the child is sliding along the sand. */
+  let moving: Plant | Decor | null = null;
+  /** What would be slid along the sand if the finger travels from here. */
+  let movable: Plant | Decor | null = null;
   let taps = 0;
   let clock = 0;
   let frame = 0;
@@ -131,7 +140,10 @@ function start(ctx: GameContext): void {
     rocks = makeRocks(tank);
     // The sand line, as a handful of heights the floor is drawn through.
     sand = Array.from({ length: 9 }, (_, i) => tank.floor + Math.sin(i * 1.7) * tank.unit * 0.09);
-    creatures = stocking(tank).map((species) => new Creature(species, tank));
+    // Put the tank back the way the child left it, if they left one.
+    const save = readSave(load());
+    if (save) applySave(save, decor, plants, tank);
+    creatures = (savedStock(save) ?? stocking(tank)).map((species) => new Creature(species, tank));
     shelters = sheltersFrom(tank, plants, decor);
     bubbles.length = 0;
     foods = [];
@@ -141,6 +153,29 @@ function start(ctx: GameContext): void {
     grabFrom = null;
     root.classList.remove('aquarium-dragging');
     net.classList.remove('aquarium-net-over');
+  }
+
+  // ---- the tank the child built ----
+
+  function load(): string | null {
+    try {
+      return localStorage.getItem(SAVE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Keep who lives here and where the furniture ended up. Called after anything
+   * the child did on purpose, never every frame: this is their tank, not a replay.
+   */
+  function save(): void {
+    if (!tank.w) return;
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(creatures, decor, plants, tank)));
+    } catch {
+      /* private browsing, or storage full: the tank still plays, it just forgets */
+    }
   }
 
   // ---- choosing a fish to add ----
@@ -279,6 +314,7 @@ function start(ctx: GameContext): void {
     cr.spine.replant(cr.x, cr.y, cr.heading);
     cr.joy = 1.4;
     creatures.push(cr);
+    save();
     ctx.audio.pop(1.3);
     navigator.vibrate?.(10);
     ctx.speak(species.name);
@@ -1086,7 +1122,7 @@ function start(ctx: GameContext): void {
       interest.life -= dt;
       if (interest.life <= 0) interest = null;
     }
-    const world = { foods, nudge, shelters, interest };
+    const world = { foods, nudge, shelters, interest, neighbours: creatures };
     for (const cr of creatures) {
       if (cr.update(dt, tank, world)) {
         ctx.audio.pop(1.4);
@@ -1297,7 +1333,11 @@ function start(ctx: GameContext): void {
     nudge = { x: p.x, y: p.y, held: true };
     grabFrom = p;
     grabCandidate = creatures.find((cr) => cr.hits(p.x, p.y)) ?? null;
-    if (!grabCandidate) poke(p);
+    if (grabCandidate) return;
+    // Nothing swimming here, so whatever is planted here can be slid along the
+    // sand instead — but only if the finger travels. A press on the spot pokes it.
+    movable = decorAt(decor, p.x, p.y, tank) ?? plantAt(plants, p.x, p.y, tank);
+    poke(p);
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -1309,6 +1349,20 @@ function start(ctx: GameContext): void {
     // A press that travels turns into a grab; a press that stays put is a hello.
     if (!held && grabCandidate && grabFrom && Math.hypot(p.x - grabFrom.x, p.y - grabFrom.y) > GRAB_SLOP) {
       grab(grabCandidate, p);
+    }
+    if (!held && !moving && movable && grabFrom && Math.abs(p.x - grabFrom.x) > GRAB_SLOP) {
+      moving = movable;
+      root.classList.add('aquarium-moving');
+      ctx.audio.pop(0.7);
+      navigator.vibrate?.(10);
+    }
+    if (moving) {
+      // Along the sand only: these things stand on it. Kept a body's width off
+      // the glass so nothing ends up half outside the tank.
+      const edge = tank.unit * 0.6;
+      moving.x = Math.min(tank.w - edge, Math.max(edge, p.x));
+      shelters = sheltersFrom(tank, plants, decor);
+      return;
     }
     if (held) {
       held.hold(p.x, p.y);
@@ -1323,9 +1377,22 @@ function start(ctx: GameContext): void {
   });
 
   const release = (e?: PointerEvent): void => {
+    if (moving) {
+      moving = null;
+      movable = null;
+      grabCandidate = null;
+      grabFrom = null;
+      root.classList.remove('aquarium-moving');
+      ctx.audio.tick();
+      save();
+      if (nudge) nudge.held = false;
+      return;
+    }
+    movable = null;
     if (held) {
       if (e && overNet(e)) scoop(held);
       else held.release();
+      save();
       held = null;
       root.classList.remove('aquarium-dragging');
       net.classList.remove('aquarium-net-over');
