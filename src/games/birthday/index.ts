@@ -66,6 +66,8 @@ function start(ctx: GameContext): void {
   /** Microphone was refused or is unavailable: keep the 🎤 button away. */
   let micGone = false;
   let micBusy = false;
+  /** True from the press that asks for the microphone until the press that gives it back. */
+  let micWanted = false;
   let candles: HTMLElement[] = [];
   let placed: HTMLElement[] = [];
   let photos: Photo[] = [];
@@ -420,12 +422,14 @@ function start(ctx: GameContext): void {
       }
       micCtx = null;
     }
+    micWanted = false;
     micBtn.classList.remove('birthday-listening');
     micBtn.style.removeProperty('--birthday-level');
   }
 
   function micFail(): void {
     micGone = true;
+    micWanted = false;
     micBtn.hidden = true;
     ctx.speak('Chạm vào nến để thổi nhé');
   }
@@ -455,7 +459,7 @@ function start(ctx: GameContext): void {
       return;
     }
     micBusy = false;
-    if (!alive || !anyLit()) {
+    if (!alive || !anyLit() || !micWanted) {
       stopTracks(stream);
       return;
     }
@@ -509,6 +513,12 @@ function start(ctx: GameContext): void {
     if (!anyLit()) return;
     ctx.hint.touch();
     ctx.audio.tick();
+    // Same as the meadow: what can be turned on has to be turnable off.
+    if (micWanted) {
+      stopMic();
+      return;
+    }
+    micWanted = true;
     void startMic();
   }
 

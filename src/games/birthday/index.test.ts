@@ -377,6 +377,50 @@ describe('birthday game', () => {
     }
   });
 
+  it('🎤 a second press gives the microphone back', async () => {
+    const stop = vi.fn();
+    const stream = { getTracks: () => [{ stop }] } as unknown as MediaStream;
+    const getUserMedia = vi.fn(async () => stream);
+    Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia }, configurable: true });
+    const close = vi.fn(() => Promise.resolve());
+    class FakeAudioContext {
+      state = 'running';
+      createAnalyser() {
+        return { fftSize: 2048, getByteTimeDomainData: (buf: Uint8Array) => buf.fill(128) };
+      }
+      createMediaStreamSource() {
+        return { connect: vi.fn() };
+      }
+      resume() {
+        return Promise.resolve();
+      }
+      close = close;
+    }
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    try {
+      const ctx = fakeContext();
+      game.start(ctx);
+      await addLightAndSing(ctx, 1);
+      const mic = q(ctx, '.birthday-mic');
+      tap(mic);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mic.classList.contains('birthday-listening')).toBe(true);
+
+      // A child who changes their mind can hand the microphone back.
+      tap(mic);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mic.classList.contains('birthday-listening')).toBe(false);
+      expect(stop).toHaveBeenCalled();
+      expect(close).toHaveBeenCalled();
+      // The candle is still lit: giving the microphone back is not blowing it out.
+      expect(all(ctx, '.birthday-out').length).toBe(0);
+      ctx.cleanup();
+    } finally {
+      vi.unstubAllGlobals();
+      Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
+    }
+  });
+
   it('cleanup while the mic is open or the song plays stops everything', async () => {
     const stop = vi.fn();
     const getUserMedia = vi.fn(async () => ({ getTracks: () => [{ stop }] }) as unknown as MediaStream);
