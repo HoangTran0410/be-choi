@@ -1,0 +1,214 @@
+import { SLOT_UNITS, roadY, type Road } from './logic';
+
+/**
+ * The road is not the child's alone. Vans and tractors trundle along in front,
+ * others come the other way, ducks stroll across without looking, and now and
+ * then a train comes through. All of it can be got past by leaning on the horn.
+ */
+
+export type TravellerKind = 'car' | 'van' | 'bike' | 'tractor';
+
+export interface Traveller {
+  /** World x of the middle. */
+  x: number;
+  /** Units per second along the road; negative for the ones coming the other way. */
+  v: number;
+  /** The near lane the child drives in, or the far one across the road. */
+  lane: 'same' | 'opposite';
+  kind: TravellerKind;
+  body: string;
+  roof: string;
+  /** Wheel rotation. */
+  spin: number;
+  /** Seconds left of getting a move on because somebody honked. */
+  hurry: number;
+  /** Seconds left of being stuck in a jam. */
+  stuck: number;
+}
+
+const BODIES: readonly [string, string][] = [
+  ['#f472b6', '#be185d'],
+  ['#a78bfa', '#6d28d9'],
+  ['#34d399', '#047857'],
+  ['#fbbf24', '#b45309'],
+  ['#60a5fa', '#1d4ed8'],
+  ['#f87171', '#b91c1c'],
+  ['#e2e8f0', '#94a3b8'],
+];
+
+const KINDS: readonly TravellerKind[] = ['car', 'van', 'bike', 'tractor'];
+
+/** Slowest thing on the road, as a fraction of the child's top speed. */
+export const DAWDLE_MIN = 0.32;
+export const DAWDLE_MAX = 0.7;
+/** A honked-at vehicle goes this much faster while it gets out of the way. */
+export const HURRY_BOOST = 1.9;
+export const HURRY_SECONDS = 2.6;
+/** How close the child's bumper gets to the car in front. */
+export const TAILGATE_UNITS = 1.5;
+/** A jam clears by itself after this long, honk or no honk. */
+export const JAM_SECONDS = 5;
+/** Cars in a jam stand this far apart. */
+export const JAM_GAP = 1.7;
+/** How far ahead of the screen new traffic appears. */
+export const SPAWN_AHEAD = 4;
+
+export function makeTraveller(x: number, lane: 'same' | 'opposite', top: number, rng: () => number): Traveller {
+  const [body, roof] = BODIES[Math.floor(rng() * BODIES.length)] ?? BODIES[0]!;
+  const kind = KINDS[Math.floor(rng() * KINDS.length)] ?? 'car';
+  const pace = DAWDLE_MIN + rng() * (DAWDLE_MAX - DAWDLE_MIN);
+  return {
+    x,
+    v: top * pace * (lane === 'same' ? 1 : -1.1),
+    lane,
+    kind,
+    body,
+    roof,
+    spin: 0,
+    hurry: 0,
+    stuck: 0,
+  };
+}
+
+/** A row of cars stopped dead. The child honks, or waits, and they move off. */
+export function makeJam(x: number, top: number, rng: () => number, road: Road): Traveller[] {
+  return [0, 1, 2].map((i) => {
+    const t = makeTraveller(x + i * JAM_GAP * road.unit, 'same', top, rng);
+    t.stuck = JAM_SECONDS;
+    t.v = 0;
+    return t;
+  });
+}
+
+export function stepTraveller(t: Traveller, dt: number, road: Road, top: number): void {
+  t.hurry = Math.max(0, t.hurry - dt);
+  if (t.stuck > 0) {
+    t.stuck = Math.max(0, t.stuck - dt);
+    t.v = 0;
+    return;
+  }
+  const pace = t.lane === 'same' ? 1 : -1.1;
+  const want = top * (DAWDLE_MIN + DAWDLE_MAX) * 0.5 * pace * (t.hurry > 0 ? HURRY_BOOST : 1);
+  t.v += (want - t.v) * Math.min(1, dt * 2.2);
+  t.x += t.v * dt;
+  t.spin += (t.v * dt) / (road.unit * 0.18);
+}
+
+/**
+ * The back of the nearest vehicle the child cannot drive through, as a world x
+ * to stop at — or null when the way ahead is clear. Only the near lane counts.
+ */
+export function tailOf(carX: number, travellers: readonly Traveller[], road: Road): number | null {
+  let line: number | null = null;
+  for (const t of travellers) {
+    if (t.lane !== 'same') continue;
+    const back = t.x - road.unit * TAILGATE_UNITS;
+    if (back < carX) continue;
+    if (back > carX + road.unit * SLOT_UNITS) continue;
+    if (line === null || back < line) line = back;
+  }
+  return line;
+}
+
+/** Lean on the horn: everything in front gets a move on. Returns how many heard it. */
+export function honkAt(carX: number, travellers: readonly Traveller[], road: Road): number {
+  let heard = 0;
+  for (const t of travellers) {
+    if (t.x < carX - road.unit || t.x > carX + road.unit * SLOT_UNITS * 1.4) continue;
+    t.hurry = HURRY_SECONDS;
+    t.stuck = 0;
+    heard++;
+  }
+  return heard;
+}
+
+// ---- who is crossing ----
+
+/** A family of ducks (or cows, or ducklings) walking across without looking. */
+export interface Crosser {
+  x: number;
+  /** 0 at the near verge, 1 safely across. */
+  t: number;
+  emoji: string;
+  name: string;
+  count: number;
+  hurried: boolean;
+}
+
+const HERDS: readonly { emoji: string; name: string }[] = [
+  { emoji: '🦆', name: 'đàn vịt' },
+  { emoji: '🐤', name: 'đàn gà con' },
+  { emoji: '🐄', name: 'đàn bò' },
+  { emoji: '🐑', name: 'đàn cừu' },
+  { emoji: '🦢', name: 'đàn ngỗng' },
+];
+
+/** How long a herd takes to get across, dawdling. */
+export const CROSS_SECONDS = 5.5;
+/** How much faster they go once somebody honks. */
+export const SCURRY = 2.8;
+/** The car waits this far short of them. */
+export const CROSS_STOP_UNITS = 1.4;
+
+export function makeCrosser(x: number, rng: () => number): Crosser {
+  const herd = HERDS[Math.floor(rng() * HERDS.length)] ?? HERDS[0]!;
+  return { x, t: 0, ...herd, count: 2 + Math.floor(rng() * 3), hurried: false };
+}
+
+export function stepCrosser(c: Crosser, dt: number): void {
+  c.t = Math.min(1, c.t + (dt / CROSS_SECONDS) * (c.hurried ? SCURRY : 1));
+}
+
+export function crossed(c: Crosser): boolean {
+  return c.t >= 1;
+}
+
+/** Where the herd walks: from the verge in front of the road to the far side. */
+export function crosserY(c: Crosser, road: Road): number {
+  const y = roadY(road, c.x);
+  return y + road.unit * (0.72 - c.t * 0.95);
+}
+
+// ---- the level crossing ----
+
+export const BARRIER_SECONDS = 0.8;
+export const TRAIN_SECONDS = 3.4;
+export const CLEAR_SECONDS = 0.8;
+/** The car waits this far short of the rails. */
+export const RAIL_STOP_UNITS = 1.6;
+/** How far off a crossing the barrier starts coming down. */
+export const RAIL_WAKE_UNITS = 6;
+
+export type RailPhase = 'down' | 'passing' | 'up' | 'clear';
+
+/** A level crossing the car has woken up, `t` seconds into its cycle. */
+export interface Crossing {
+  slot: number;
+  t: number;
+}
+
+export function railPhase(t: number): RailPhase {
+  if (t < BARRIER_SECONDS) return 'down';
+  if (t < BARRIER_SECONDS + TRAIN_SECONDS) return 'passing';
+  if (t < BARRIER_SECONDS + TRAIN_SECONDS + CLEAR_SECONDS) return 'up';
+  return 'clear';
+}
+
+/** 0 with the barrier up, 1 with it down across the road. */
+export function barrierDown(t: number): number {
+  const phase = railPhase(t);
+  if (phase === 'down') return Math.min(1, t / BARRIER_SECONDS);
+  if (phase === 'passing') return 1;
+  if (phase === 'up') return Math.max(0, 1 - (t - BARRIER_SECONDS - TRAIN_SECONDS) / CLEAR_SECONDS);
+  return 0;
+}
+
+/** Where the engine is, from -1 (off the left) to 2 (gone right), or null when there is no train. */
+export function trainAcross(t: number): number | null {
+  if (railPhase(t) !== 'passing') return null;
+  return -1 + ((t - BARRIER_SECONDS) / TRAIN_SECONDS) * 3;
+}
+
+export function railBlocks(t: number): boolean {
+  return barrierDown(t) > 0.35;
+}
