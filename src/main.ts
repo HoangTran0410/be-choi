@@ -67,7 +67,14 @@ document.addEventListener(
 // touchmove there kills zoom, scroll, the tap-vs-drag delay and the magnifier, so
 // pointermove follows the finger immediately. Games use Pointer Events, which keep firing.
 const inStage = (e: Event) => (e.target as Element | null)?.closest?.('.stage') !== null;
+/**
+ * The exception: a panel laid over the stage that is taller than the screen.
+ * It is not the play area — it is a list to look through — and cancelling its
+ * touches leaves the bottom of a long one unreachable.
+ */
+const SCROLLING_PANEL = '.pp-panel';
 const cancelStageTouch = (e: TouchEvent) => {
+  if ((e.target as Element | null)?.closest?.(SCROLLING_PANEL)) return;
   if (inStage(e)) e.preventDefault();
 };
 document.addEventListener('touchstart', cancelStageTouch, { passive: false });

@@ -15,8 +15,16 @@ export interface PickerChoice {
  * so it works with the stage's touch rules. Returns a close function; `onPick(null)`
  * fires when the picker is dismissed without choosing.
  */
+/** A finger that travelled this far was scrolling the panel, not choosing. */
+const TAP_SLOP = 12;
+
 export function showPhotoPicker(host: HTMLElement, choices: readonly PickerChoice[], onPick: (choice: PickerChoice | null) => void): () => void {
   let done = false;
+  /** Where the finger went down, so a scroll is not read as a choice. */
+  let from: { x: number; y: number } | null = null;
+  /** No recorded start is a tap: something dispatched the release on its own. */
+  const travelled = (e: PointerEvent): boolean =>
+    from !== null && Math.hypot(e.clientX - from.x, e.clientY - from.y) > TAP_SLOP;
   const finish = (choice: PickerChoice | null) => {
     if (done) return;
     done = true;
@@ -35,7 +43,14 @@ export function showPhotoPicker(host: HTMLElement, choices: readonly PickerChoic
       },
       c.emoji ?? '',
     );
+    tile.addEventListener('pointerdown', (e) => {
+      from = { x: e.clientX, y: e.clientY };
+    });
     tile.addEventListener('pointerup', (e) => {
+      // Dragging the panel up ends on some tile; that is a scroll, not a choice.
+      const dragged = travelled(e);
+      from = null;
+      if (dragged) return;
       e.preventDefault();
       finish(c);
     });
@@ -49,6 +64,7 @@ export function showPhotoPicker(host: HTMLElement, choices: readonly PickerChoic
   const panel = h('div', { class: 'pp-panel' }, h('div', { class: 'pp-grid' }, ...tiles));
   const overlay = h('div', { class: 'pp-overlay' }, panel, close);
   overlay.addEventListener('pointerdown', (e) => {
+    from = { x: e.clientX, y: e.clientY };
     if (e.target === overlay) finish(null);
   });
   host.append(overlay);

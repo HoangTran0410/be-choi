@@ -237,11 +237,26 @@ button {
 .pp-panel {
   width: min(96%, 900px);
   max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface);
   border-radius: var(--radius);
   padding: 3vmin;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
+/*
+ * `.stage *` turns every touch action off so a drawing finger never scrolls the
+ * page. A panel taller than the screen has to opt back in — and not only the
+ * panel: the finger lands on a tile, and the browser takes the strictest rule
+ * between what was touched and what scrolls. All three, or a full album of
+ * stickers sits below the fold with no way to reach it.
+ */
+.pp-panel,
+.pp-grid,
+.pp-tile {
+  touch-action: pan-y;
+}
+
 .pp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(clamp(76px, 20vmin, 150px), 1fr));

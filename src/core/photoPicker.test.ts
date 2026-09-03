@@ -20,6 +20,28 @@ describe('showPhotoPicker', () => {
     expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'emoji' }));
     expect(host.querySelector('.pp-overlay')).toBeNull();
   });
+  it('reads a drag down the panel as a scroll, not as picking whatever it ended on', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const onPick = vi.fn();
+    showPhotoPicker(host, [{ id: 'a', emoji: '🐻', label: 'Gấu' }], onPick);
+    const tile = host.querySelector<HTMLElement>('.pp-tile[data-id="a"]')!;
+    const at = (type: string, y: number) =>
+      tile.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { clientX: 40, clientY: y }));
+
+    // A panel of stickers taller than the screen is scrolled by dragging it, and
+    // the finger has to come off on some tile. That is not a choice.
+    at('pointerdown', 300);
+    at('pointerup', 60);
+    expect(onPick).not.toHaveBeenCalled();
+    expect(host.querySelector('.pp-overlay')).not.toBeNull();
+
+    // A tap that stays put still picks.
+    at('pointerdown', 300);
+    at('pointerup', 302);
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' }));
+  });
+
   it('dismisses with null on close and only fires once', () => {
     const host = document.createElement('div');
     const onPick = vi.fn();
