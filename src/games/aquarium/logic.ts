@@ -171,12 +171,28 @@ export interface Food {
 
 /** How many flakes one press of the food button drops. */
 export const FOOD_PER_FEED = 6;
+/**
+ * The most flakes the water holds at once. The button may be pressed as often
+ * as a child likes, and a child likes often; without a ceiling a minute of
+ * happy pressing is several hundred flakes falling through the tank.
+ */
+export const MAX_FOOD = 36;
 /** A star after this many fish have been said hello to. */
 export const STAR_EVERY_TAP = 10;
 /** Flakes further than this from a mouth are not noticed. */
 export const SMELL = 3.2;
 /** A finger this close is worth swimming to (or away from). */
 export const NOTICE = 3.6;
+
+/**
+ * Another handful on top of what is already falling, up to what the water will
+ * hold. Adding rather than replacing: the flakes a fish is already swimming
+ * towards should not vanish because the button was pressed again.
+ */
+export function addFood(foods: readonly Food[], tank: Tank, rng: () => number = Math.random): Food[] {
+  const room = Math.max(0, MAX_FOOD - foods.length);
+  return [...foods, ...makeFood(tank, Math.min(FOOD_PER_FEED, room), rng)];
+}
 
 export function makeFood(tank: Tank, n = FOOD_PER_FEED, rng: () => number = Math.random): Food[] {
   return Array.from({ length: n }, () => ({
@@ -212,6 +228,10 @@ export const HUNGRY_AT = 0.55;
 export const FEAR_SECONDS = 3.6;
 /** How long the fuss after being fed, greeted or put down lasts. */
 export const JOY_SECONDS = 1.4;
+/** With the lights out a fish drifts at about this much of its usual pace. */
+export const NIGHT_PACE = 0.45;
+/** …and gets hungry at about this much of its usual rate. */
+export const NIGHT_APPETITE = 0.3;
 /** A frightened fish looks for cover no further away than this, in tank units. */
 export const SHELTER_REACH = 5;
 /**
@@ -331,6 +351,8 @@ export interface World {
    * worth crossing a lake for; a flake is not.
    */
   smell?: number;
+  /** Lights out: everybody slows down, and nobody gets hungry very fast. */
+  night?: boolean;
 }
 
 const TURN = 3.2;
@@ -491,7 +513,11 @@ export class Creature {
     this.fear = Math.max(0, this.fear - step);
     this.joy = Math.max(0, this.joy - step);
     this.dizzy = Math.max(0, this.dizzy - step);
-    if (!this.held && this.forages) this.hunger = Math.min(1, this.hunger + step / FULL_FOR);
+    // Asleep, more or less: a resting fish burns very little.
+    const resting = world.night === true;
+    if (!this.held && this.forages) {
+      this.hunger = Math.min(1, this.hunger + (step / FULL_FOR) * (resting ? NIGHT_APPETITE : 1));
+    }
     if (this.fear === 0) {
       this.hiding = false;
       this.den = null;
@@ -507,10 +533,10 @@ export class Creature {
       return false;
     }
 
-    if (this.species.kind === 'crab') return this.walk(step, tank, world.nudge, world.foods);
+    if (this.species.kind === 'crab') return this.walk(step, tank, world.nudge, world.foods, resting);
 
     const goal = this.aim(tank, world, rng);
-    const cruise = this.cruise(tank);
+    const cruise = this.cruise(tank) * (resting ? NIGHT_PACE : 1);
 
     const toX = goal.x - this.x;
     const toY = goal.y - this.y;
@@ -548,7 +574,7 @@ export class Creature {
     // Just put down: one giddy loop before it remembers which way is forward.
     if (this.dizzy > 0) this.heading += step * 6 * this.dizzy;
     if (this.species.kind !== 'jelly') {
-      const beat = this.mood === 'excited' ? 8 : this.hiding ? 1.5 : 4;
+      const beat = this.mood === 'excited' ? 8 : this.hiding ? 1.5 : resting ? 1.8 : 4;
       this.phase += step * (beat + (Math.hypot(this.vx, this.vy) / Math.max(1, tank.unit)) * 3);
     }
     this.spine.follow(this.x, this.y, this.heading);
@@ -697,8 +723,8 @@ export class Creature {
   }
 
   /** The crab walks the sand and never leaves it. */
-  private walk(step: number, tank: Tank, nudge: Nudge | null, foods: readonly Food[]): boolean {
-    const speed = tank.unit * this.species.speed * (this.fear > 0 ? 2.6 : 1);
+  private walk(step: number, tank: Tank, nudge: Nudge | null, foods: readonly Food[], resting = false): boolean {
+    const speed = tank.unit * this.species.speed * (this.fear > 0 ? 2.6 : resting ? NIGHT_PACE : 1);
     // A crab is a scavenger: it goes along the sand for whatever landed there.
     const crumb = this.fear > 0 ? null : this.crumbOnSand(foods, tank);
     if (nudge?.held && Math.abs(nudge.x - this.x) < NOTICE * tank.unit * 0.7) {
@@ -708,6 +734,9 @@ export class Creature {
     } else if (Math.abs(this.vx) < speed * 0.5) {
       this.vx = (this.vx >= 0 ? 1 : -1) * speed;
     }
+    // Never faster than it means to go: bouncing off a wall used to keep the
+    // speed it had, so a crab that should be dozing carried on at its day pace.
+    if (Math.abs(this.vx) > speed) this.vx = Math.sign(this.vx) * speed;
     this.x += this.vx * step;
     const margin = this.length * 0.7;
     if (this.x < margin) {
@@ -1022,9 +1051,11 @@ export interface TankSave {
   decor: number[];
   /** Fraction of the tank width, one per plant, in `makePlants` order. */
   plants: number[];
+  /** Lights out: the child left the tank on its night setting. */
+  night?: boolean;
 }
 
-const EMPTY_SAVE: TankSave = { v: 1, fish: [], decor: [], plants: [] };
+const EMPTY_SAVE: TankSave = { v: 1, fish: [], decor: [], plants: [], night: false };
 
 /** Anything unreadable, from an older version or another app, is simply ignored. */
 export function readSave(raw: string | null): TankSave | null {
@@ -1039,7 +1070,13 @@ export function readSave(raw: string | null): TankSave | null {
     const fish = Array.isArray(save.fish)
       ? save.fish.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
       : [];
-    return { v: 1, fish: trimStock(fish), decor: fractions(save.decor), plants: fractions(save.plants) };
+    return {
+      v: 1,
+      fish: trimStock(fish),
+      decor: fractions(save.decor),
+      plants: fractions(save.plants),
+      night: save.night === true,
+    };
   } catch {
     return null;
   }
@@ -1050,6 +1087,7 @@ export function makeSave(
   decor: readonly Decor[],
   plants: readonly Plant[],
   tank: Tank,
+  night = false,
 ): TankSave {
   const across = (x: number): number => Math.min(1, Math.max(0, tank.w > 0 ? x / tank.w : 0));
   return {
@@ -1057,6 +1095,7 @@ export function makeSave(
     fish: trimStock(creatures, (cr) => cr.species.id).map((cr) => cr.species.id),
     decor: decor.map((d) => across(d.x)),
     plants: plants.map((plant) => across(plant.x)),
+    night,
   };
 }
 

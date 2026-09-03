@@ -4,7 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
   Creature,
-  FOOD_PER_FEED,
+  addFood,
   INTEREST_SECONDS,
   MAX_CREATURES,
   POKE_SECONDS,
@@ -15,7 +15,6 @@ import {
   decorAt,
   makeBubble,
   makeDecor,
-  makeFood,
   makePlants,
   makeRocks,
   makeSave,
@@ -40,7 +39,14 @@ import {
   type Species,
   type Tank,
 } from './logic';
-import { drawCreature, hash, type Scene } from './draw';
+import {
+  drawBubbles,
+  drawCreature,
+  drawPlant,
+  drawSand,
+  drawWater,
+  type Scene,
+} from './draw';
 import './style.css';
 
 /** Caustics are baked into a tile this many pixels square and blown up over the tank. */
@@ -49,6 +55,13 @@ const CAUSTIC_N = 64;
 const CAUSTIC_EVERY = 3;
 /** Longest frame the simulation will take in one step. */
 const MAX_STEP = 0.05;
+/**
+ * How soon after a press the button drops another handful. A two-year-old
+ * presses a button the way they press a doorbell, and waiting for the last
+ * flake to be eaten before the next press does anything reads as broken; this
+ * is only long enough to keep one press from counting twice.
+ */
+const FEED_EVERY = 0.5;
 const MAX_BUBBLES = 90;
 
 /** A closed path through `pts`, rounded off by putting the corners on the curve midpoints. */
@@ -74,7 +87,9 @@ function start(ctx: GameContext): void {
   // One button rather than a row of them: a tray of thirteen fish took the whole
   // bottom of the tank, which is where the fish are.
   const add = h('button', { class: 'aquarium-add', type: 'button', 'aria-label': 'thêm cá' }, '🐟');
-  const root = h('div', { class: 'aquarium' }, canvas, feed, add, net);
+  // Lights out. At night only the lamp on the lid lights anything.
+  const lamp = h('button', { class: 'aquarium-lamp', type: 'button', 'aria-label': 'bật tắt đèn' }, '🌙');
+  const root = h('div', { class: 'aquarium' }, canvas, feed, add, lamp, net);
   ctx.stage.append(root);
 
   const c = canvas.getContext('2d');
@@ -100,10 +115,16 @@ function start(ctx: GameContext): void {
   let moving: Plant | Decor | null = null;
   /** What would be slid along the sand if the finger travels from here. */
   let movable: Plant | Decor | null = null;
+  /** Lights out: the tank is dark except for the pool under the lamp. */
+  let night = false;
+  /** Eases between day and night so the switch is a dimmer, not a light switch. */
+  let dusk = 0;
   let taps = 0;
   let clock = 0;
   let frame = 0;
   let feeding = false;
+  /** When the last handful went in, on the tank's own clock. */
+  let lastFed = -Infinity;
 
   // ---- the tank itself ----
 
@@ -125,7 +146,13 @@ function start(ctx: GameContext): void {
     sand = Array.from({ length: 9 }, (_, i) => tank.floor + Math.sin(i * 1.7) * tank.unit * 0.09);
     // Put the tank back the way the child left it, if they left one.
     const save = readSave(load());
-    if (save) applySave(save, decor, plants, tank);
+    if (save) {
+      applySave(save, decor, plants, tank);
+      night = save.night === true;
+      dusk = night ? 1 : 0;
+      lamp.textContent = night ? '☀️' : '🌙';
+      root.classList.toggle('aquarium-night', night);
+    }
     creatures = (savedStock(save) ?? stocking(tank)).map((species) => new Creature(species, tank));
     shelters = sheltersFrom(tank, plants, decor);
     bubbles.length = 0;
@@ -155,7 +182,7 @@ function start(ctx: GameContext): void {
   function save(): void {
     if (!tank.w) return;
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(creatures, decor, plants, tank)));
+      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(creatures, decor, plants, tank, night)));
     } catch {
       /* private browsing, or storage full: the tank still plays, it just forgets */
     }
@@ -252,6 +279,20 @@ function start(ctx: GameContext): void {
 
   // Opened on pointerup, not pointerdown: opening on the press means the release
   // of that same tap lands on whichever fish the panel put under the finger.
+  lamp.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    ctx.hint.touch();
+    night = !night;
+    lamp.textContent = night ? '☀️' : '🌙';
+    root.classList.toggle('aquarium-night', night);
+    replay(lamp, 'anim-bounce');
+    ctx.audio.tick();
+    ctx.speak(night ? 'Tắt đèn, ngủ ngon nhé!' : 'Trời sáng rồi!');
+    // Everybody notices the lights going out.
+    for (const cr of creatures) cr.joy = 1;
+    save();
+  });
+
   add.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     replay(add, 'anim-bounce');
@@ -345,15 +386,6 @@ function start(ctx: GameContext): void {
 
   // ---- scenery ----
 
-  function drawWater(g: CanvasRenderingContext2D): void {
-    const sky = g.createLinearGradient(0, 0, 0, tank.h);
-    sky.addColorStop(0, '#7dd3fc');
-    sky.addColorStop(0.35, '#38bdf8');
-    sky.addColorStop(0.75, '#0e7490');
-    sky.addColorStop(1, '#155e75');
-    g.fillStyle = sky;
-    g.fillRect(0, 0, tank.w, tank.h);
-  }
 
   function drawRays(g: CanvasRenderingContext2D): void {
     g.save();
@@ -378,77 +410,8 @@ function start(ctx: GameContext): void {
     g.restore();
   }
 
-  function sandPath(g: CanvasRenderingContext2D): void {
-    g.beginPath();
-    g.moveTo(0, tank.h);
-    g.lineTo(0, sand[0] ?? tank.floor);
-    for (let i = 0; i < sand.length - 1; i++) {
-      const x = (tank.w * i) / (sand.length - 1);
-      const nx = (tank.w * (i + 1)) / (sand.length - 1);
-      g.quadraticCurveTo(x, sand[i]!, (x + nx) / 2, ((sand[i] ?? 0) + (sand[i + 1] ?? 0)) / 2);
-    }
-    g.lineTo(tank.w, sand[sand.length - 1] ?? tank.floor);
-    g.lineTo(tank.w, tank.h);
-    g.closePath();
-  }
 
-  function drawSand(g: CanvasRenderingContext2D): void {
-    const grad = g.createLinearGradient(0, tank.floor - tank.unit * 0.2, 0, tank.h);
-    grad.addColorStop(0, '#fef3c7');
-    grad.addColorStop(0.45, '#fcd34d');
-    grad.addColorStop(1, '#b45309');
-    g.fillStyle = grad;
-    sandPath(g);
-    g.fill();
-    // A scatter of grains, fixed in place.
-    g.fillStyle = 'rgba(120,53,15,0.18)';
-    for (let i = 0; i < 60; i++) {
-      const x = hash(i, 1) * tank.w;
-      const y = tank.floor + tank.unit * 0.12 + hash(i, 2) * (tank.h - tank.floor);
-      g.fillRect(x, y, 2, 2);
-    }
-    for (const rock of rocks) {
-      const y = tank.floor + tank.unit * 0.1;
-      const shade = 90 + rock.tint * 60;
-      g.fillStyle = `rgb(${shade},${shade + 8},${shade + 18})`;
-      g.beginPath();
-      g.ellipse(rock.x, y, rock.r, rock.r * rock.squash, 0, Math.PI, Math.PI * 2);
-      g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.18)';
-      g.beginPath();
-      g.ellipse(rock.x - rock.r * 0.3, y - rock.r * rock.squash * 0.45, rock.r * 0.35, rock.r * rock.squash * 0.3, 0, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
 
-  function drawPlant(g: CanvasRenderingContext2D, plant: Plant): void {
-    // Just brushed: the blades whip about far harder and far faster, then settle.
-    // Brushed: a little more wave and a little more hurry. Anything stronger and
-    // a tap on a weed reads as the tank being shaken rather than the weed.
-    const stirred = plant.shake / SHAKE_SECONDS;
-    const amp = tank.unit * 0.28 * (1 + stirred * 0.3);
-    const rate = plant.sway * 2 * (1 + stirred * 0.4);
-    for (let b = 0; b < plant.blades; b++) {
-      const lean = (b - (plant.blades - 1) / 2) * 0.22;
-      const base = plant.x + lean * plant.w * 3;
-      const tall = plant.h * (0.7 + hash(plant.x, b) * 0.5);
-      g.beginPath();
-      g.moveTo(base - plant.w, tank.floor + tank.unit * 0.1);
-      for (let s = 0; s <= 6; s++) {
-        const along = s / 6;
-        const wave = Math.sin(clock * rate + plant.phase + b + along * 2.4) * amp * along * along;
-        g.lineTo(base + wave - plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
-      }
-      for (let s = 6; s >= 0; s--) {
-        const along = s / 6;
-        const wave = Math.sin(clock * rate + plant.phase + b + along * 2.4) * amp * along * along;
-        g.lineTo(base + wave + plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
-      }
-      g.closePath();
-      g.fillStyle = `hsl(${plant.hue} 65% ${28 + b * 6}%)`;
-      g.fill();
-    }
-  }
 
   // ---- the furniture ----
 
@@ -680,21 +643,6 @@ function start(ctx: GameContext): void {
     }
   }
 
-  function drawBubbles(g: CanvasRenderingContext2D): void {
-    for (const b of bubbles) {
-      g.beginPath();
-      g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(224,247,255,0.22)';
-      g.fill();
-      g.strokeStyle = 'rgba(255,255,255,0.55)';
-      g.lineWidth = 1.2;
-      g.stroke();
-      g.beginPath();
-      g.arc(b.x - b.r * 0.3, b.y - b.r * 0.35, b.r * 0.28, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(255,255,255,0.75)';
-      g.fill();
-    }
-  }
 
   /** Lay the baked square over the tank at a size where the veins read as light on water. */
   /**
@@ -761,10 +709,11 @@ function start(ctx: GameContext): void {
     g.closePath();
     g.fill();
     g.restore();
-    // A soft vignette so the glass has edges.
-    const edge = g.createRadialGradient(tank.w / 2, tank.h / 2, Math.min(tank.w, tank.h) * 0.3, tank.w / 2, tank.h / 2, Math.max(tank.w, tank.h) * 0.75);
+    // A soft vignette so the glass has edges — soft being the point. At nearly a
+    // half it was not an edge, it was dusk.
+    const edge = g.createRadialGradient(tank.w / 2, tank.h / 2, Math.min(tank.w, tank.h) * 0.45, tank.w / 2, tank.h / 2, Math.max(tank.w, tank.h) * 0.8);
     edge.addColorStop(0, 'rgba(0,0,0,0)');
-    edge.addColorStop(1, 'rgba(3,32,54,0.45)');
+    edge.addColorStop(1, 'rgba(3,32,54,0.2)');
     g.fillStyle = edge;
     g.fillRect(0, 0, tank.w, tank.h);
   }
@@ -773,12 +722,14 @@ function start(ctx: GameContext): void {
 
   function step(dt: number): void {
     clock += dt;
+    // A tank does not go dark in one frame; give the eye a couple of seconds.
+    dusk += ((night ? 1 : 0) - dusk) * Math.min(1, dt * 1.2);
     settleScenery(plants, decor, dt);
     if (interest) {
       interest.life -= dt;
       if (interest.life <= 0) interest = null;
     }
-    const world = { foods, nudge, shelters, interest, neighbours: creatures };
+    const world = { foods, nudge, shelters, interest, neighbours: creatures, night: dusk > 0.5 };
     for (const cr of creatures) {
       if (cr.update(dt, tank, world)) {
         ctx.audio.pop(1.4);
@@ -802,7 +753,12 @@ function start(ctx: GameContext): void {
       food.x += Math.sin(food.wobble) * tank.unit * 0.12 * dt;
       if (food.y > tank.floor) food.eaten = true;
     }
-    if (feeding && foods.every((f) => f.eaten)) {
+    // Eaten flakes leave the list rather than lying in it: the button no longer
+    // waits for the water to clear, so nothing else would ever shorten it.
+    if (foods.some((f) => f.eaten)) foods = foods.filter((f) => !f.eaten);
+    // The star is for a tank that has been fed until nothing is left, however
+    // many handfuls that took — so pressing more cannot earn it any faster.
+    if (feeding && foods.length === 0) {
       feeding = false;
       void ctx.celebrate().then(() => {
         if (alive) ctx.addStar();
@@ -835,31 +791,140 @@ function start(ctx: GameContext): void {
     // One of these per frame rather than one per animal: with a tank full of
     // fish that is a few hundred throwaway objects a second.
     const view = scene();
-    drawWater(g);
-    drawRays(g);
+    drawWater(g, tank);
+    // The sun does not shine at night.
+    if (dusk < 0.98) {
+      g.save();
+      g.globalAlpha = 1 - dusk;
+      drawRays(g);
+      g.restore();
+    }
     for (const d of decor) if (d.layer === 'far') drawDecor(g, d);
-    // Distance haze: everything above this line reads as further away, which is
-    // what stops the castle from looking like it stands among the fish.
-    g.fillStyle = 'rgba(13,110,140,0.24)';
+    // Distance haze, so the castle does not look like it stands among the fish.
+    // A pale blue veil at a tenth: the old one was a quarter of a grey-teal over
+    // the whole tank, which is a lot of dirt to put on the water for one castle.
+    g.fillStyle = 'rgba(125,211,252,0.13)';
     g.fillRect(0, 0, tank.w, tank.h);
-    drawSand(g);
+    drawSand(g, tank, sand, rocks);
     drawSandCaustics(g);
     // Every plant goes behind the animals: a weed in front of a fish for no reason
     // reads as a mistake. What belongs in front is the near layer, in the corners.
-    for (const plant of plants) drawPlant(g, plant);
+    for (const plant of plants) drawPlant(g, plant, view, plant.shake / SHAKE_SECONDS);
     for (const d of decor) if (d.layer === 'mid') drawDecor(g, d);
     drawFood(g);
     // The fish in the child's hand is drawn last, so it is never lost behind another.
     creatures.forEach((cr, i) => {
       if (!cr.held) drawCreature(g, cr, i, view);
     });
-    drawBubbles(g);
+    drawBubbles(g, bubbles);
     for (const d of decor) if (d.layer === 'near') drawDecor(g, d);
     creatures.forEach((cr, i) => {
       if (cr.held) drawCreature(g, cr, i, view);
     });
-    drawCaustics(g);
+    if (dusk < 0.98) {
+      g.save();
+      g.globalAlpha = 1 - dusk;
+      drawCaustics(g);
+      g.restore();
+    }
+    drawNight(g);
     drawSurface(g);
+  }
+
+  /**
+   * Night: a dark blue sheet over the whole tank with a soft hole cut in it
+   * under the lamp, so the one lit pool is the only place anything can be seen
+   * properly — which is what an aquarium looks like in a dark room.
+   */
+  /**
+   * The dark, with the beam cut out of it, kept on its own canvas. Cutting the
+   * hole straight into the tank would erase the tank: `destination-out` takes
+   * away everything under it, fish included, and what shows through is the page
+   * behind the canvas. Built here and laid over the top instead, so inside the
+   * beam the tank is simply untouched — which is what "lit" means.
+   */
+  const nightLayer = document.createElement('canvas');
+  let nightBuiltFor = '';
+
+  function buildNight(): void {
+    const key = `${tank.w}x${tank.h}x${dpr}`;
+    if (nightBuiltFor === key) return;
+    nightLayer.width = Math.max(1, Math.round(tank.w * dpr));
+    nightLayer.height = Math.max(1, Math.round(tank.h * dpr));
+    const n = nightLayer.getContext('2d');
+    if (!n) return;
+    nightBuiltFor = key;
+    n.setTransform(dpr, 0, 0, dpr, 0, 0);
+    n.clearRect(0, 0, tank.w, tank.h);
+    n.fillStyle = 'rgba(4,20,48,0.86)';
+    n.fillRect(0, 0, tank.w, tank.h);
+
+    const lampX = tank.w * 0.5;
+    const lampY = tank.h * 0.02;
+    const reach = tank.h * 0.78;
+    const hole = n.createRadialGradient(lampX, lampY, reach * 0.05, lampX, lampY, reach);
+    // Solid through the beam, soft only at its edge: inside the light a fish
+    // should look exactly as it does by day.
+    hole.addColorStop(0, 'rgba(0,0,0,1)');
+    hole.addColorStop(0.72, 'rgba(0,0,0,1)');
+    hole.addColorStop(1, 'rgba(0,0,0,0)');
+    n.globalCompositeOperation = 'destination-out';
+    n.fillStyle = hole;
+    // Blur the cut so the sides of the beam fade rather than ruling two hard
+    // lines across the tank. Baked once, so the blur costs nothing per frame.
+    try {
+      n.filter = `blur(${Math.max(6, tank.unit * 0.45)}px)`;
+    } catch {
+      /* no filter support: a crisp beam is better than none */
+    }
+    n.beginPath();
+    n.moveTo(lampX - tank.unit * 0.55, 0);
+    n.lineTo(lampX + tank.unit * 0.55, 0);
+    n.lineTo(lampX + reach * 0.78, tank.h);
+    n.lineTo(lampX - reach * 0.78, tank.h);
+    n.closePath();
+    n.fill();
+    n.filter = 'none';
+  }
+
+  function drawNight(g: CanvasRenderingContext2D): void {
+    if (dusk < 0.01) return;
+    buildNight();
+    const lampX = tank.w * 0.5;
+    const lampY = tank.h * 0.02;
+
+    g.save();
+    g.globalAlpha = dusk;
+    g.drawImage(nightLayer, 0, 0, tank.w, tank.h);
+    g.restore();
+
+    // A glow at the bulb itself, and nowhere else: that is where a lamp glows.
+    g.save();
+    g.globalAlpha = dusk * 0.5;
+    g.globalCompositeOperation = 'screen';
+    const bulb = g.createRadialGradient(lampX, lampY, 0, lampX, lampY, tank.unit * 1.4);
+    bulb.addColorStop(0, 'rgba(255,241,196,0.85)');
+    bulb.addColorStop(1, 'rgba(255,241,196,0)');
+    g.fillStyle = bulb;
+    g.fillRect(0, 0, tank.w, tank.unit * 3);
+    g.restore();
+
+    // The lamp itself on the lid.
+    g.save();
+    g.globalAlpha = dusk;
+    g.fillStyle = '#334155';
+    g.beginPath();
+    g.moveTo(lampX - tank.unit * 0.5, 0);
+    g.lineTo(lampX + tank.unit * 0.5, 0);
+    g.lineTo(lampX + tank.unit * 0.32, tank.unit * 0.26);
+    g.lineTo(lampX - tank.unit * 0.32, tank.unit * 0.26);
+    g.closePath();
+    g.fill();
+    g.fillStyle = '#fef9c3';
+    g.beginPath();
+    g.ellipse(lampX, tank.unit * 0.26, tank.unit * 0.3, tank.unit * 0.08, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
   }
 
   let raf = 0;
@@ -1073,12 +1138,16 @@ function start(ctx: GameContext): void {
 
   feed.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    if (feeding) return;
+    if (clock - lastFed < FEED_EVERY) return;
+    lastFed = clock;
+    // Said over every press it turns into a stutter, because each phrase cuts
+    // off the one before it. Once per helping of food is what it is for.
+    const first = foods.length === 0;
     feeding = true;
-    foods = makeFood(tank, FOOD_PER_FEED);
+    foods = addFood(foods, tank);
     ctx.audio.tick();
     replay(feed, 'anim-bounce');
-    ctx.speak('Cho cá ăn nào!');
+    if (first) ctx.speak('Cho cá ăn nào!');
   });
 
   ctx.hint.arm(() => {

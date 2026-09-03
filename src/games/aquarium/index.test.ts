@@ -280,6 +280,34 @@ describe('aquarium game', () => {
     ctx.cleanup();
   });
 
+  it('turns the lights out and remembers that it did', () => {
+    localStorage.removeItem(SAVE_KEY);
+    const { ctx } = mount();
+    const lamp = ctx.stage.querySelector<HTMLElement>('.aquarium-lamp')!;
+    expect(lamp.textContent).toBe('🌙');
+
+    lamp.dispatchEvent(ptr('pointerdown'));
+    expect(lamp.textContent).toBe('☀️');
+    expect(ctx.spoken).toContain('Tắt đèn, ngủ ngon nhé!');
+    expect(readSave(localStorage.getItem(SAVE_KEY))!.night).toBe(true);
+    expect(() => vi.advanceTimersByTime(3000)).not.toThrow();
+
+    lamp.dispatchEvent(ptr('pointerdown'));
+    expect(lamp.textContent).toBe('🌙');
+    expect(ctx.spoken).toContain('Trời sáng rồi!');
+    expect(readSave(localStorage.getItem(SAVE_KEY))!.night).toBe(false);
+    ctx.cleanup();
+  });
+
+  it('opens dark if that is how the child left it', () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, fish: ['koi'], decor: [], plants: [], night: true }));
+    const { ctx } = mount();
+    expect(ctx.stage.querySelector('.aquarium-lamp')?.textContent).toBe('☀️');
+    expect(() => vi.advanceTimersByTime(2000)).not.toThrow();
+    ctx.cleanup();
+    localStorage.removeItem(SAVE_KEY);
+  });
+
   it('reacts to a poke anywhere in the tank without ever throwing', () => {
     const { ctx, canvas } = mount();
     const tick = vi.spyOn(ctx.audio, 'tick');
@@ -352,6 +380,40 @@ describe('aquarium game', () => {
     ctx.cleanup();
     get.mockRestore();
     set.mockRestore();
+  });
+
+  it('drops more food whenever it is asked to, and only once per press', async () => {
+    vi.useFakeTimers();
+    driveFrames();
+    const g = fake2d();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => g);
+    const ctx = fakeContext();
+    game.start(ctx);
+    const root = ctx.stage.querySelector<HTMLElement>('.aquarium')!;
+    size(root, 420, 760);
+    vi.advanceTimersByTime(100);
+    const feed = ctx.stage.querySelector<HTMLElement>('.aquarium-feed')!;
+    const tick = vi.spyOn(ctx.audio, 'tick');
+
+    // One press held a moment too long, or a small hand bouncing on the button,
+    // is one helping of food and not three.
+    feed.dispatchEvent(ptr('pointerdown'));
+    feed.dispatchEvent(ptr('pointerdown'));
+    feed.dispatchEvent(ptr('pointerdown'));
+    expect(tick).toHaveBeenCalledTimes(1);
+
+    // A moment later it works again, with the last flakes still in the water:
+    // waiting for a clear tank before the button does anything reads as broken.
+    vi.advanceTimersByTime(700);
+    feed.dispatchEvent(ptr('pointerdown'));
+    expect(tick).toHaveBeenCalledTimes(2);
+    // But it does not say the same sentence over the top of itself.
+    expect(ctx.spoken.filter((t) => t === 'Cho cá ăn nào!')).toHaveLength(1);
+
+    // Still one star for the tank being fed until nothing is left, not one each.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(ctx.stars).toBe(1);
+    ctx.cleanup();
   });
 
   it('feeds the fish and celebrates once every flake is gone', async () => {

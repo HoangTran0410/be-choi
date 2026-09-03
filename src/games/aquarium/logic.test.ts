@@ -5,11 +5,13 @@ import {
   FULL_FOR,
   JOINTS,
   MAX_CREATURES,
+  MAX_FOOD,
   STARTER_MAX,
   STARTER_MIN,
   SPECIES,
   decorAt,
   makeDecor,
+  addFood,
   makeFood,
   makePlants,
   makeRocks,
@@ -330,6 +332,41 @@ describe('how a fish feels', () => {
     expect(fish.hunger).toBe(0);
   });
 
+  it('rests with the lights out: slower, and barely hungry', () => {
+    const travelled = (night: boolean): number => {
+      const fish = new Creature(speciesById('goldfish')!, TANK, mulberry32(19));
+      const rng = mulberry32(20);
+      let moved = 0;
+      let last = { x: fish.x, y: fish.y };
+      for (let i = 0; i < 60 * 20; i++) {
+        fish.update(1 / 60, TANK, world({ night }), rng);
+        moved += Math.hypot(fish.x - last.x, fish.y - last.y);
+        last = { x: fish.x, y: fish.y };
+      }
+      return moved;
+    };
+    expect(travelled(true)).toBeLessThan(travelled(false) * 0.8);
+
+    const hungerAfter = (night: boolean): number => {
+      const fish = new Creature(speciesById('goldfish')!, TANK, mulberry32(21));
+      const rng = mulberry32(22);
+      for (let i = 0; i < FULL_FOR * 30; i++) fish.update(1 / 60, TANK, world({ night }), rng);
+      return fish.hunger;
+    };
+    expect(hungerAfter(true)).toBeLessThan(hungerAfter(false) * 0.5);
+  });
+
+  it('lets the crab doze too', () => {
+    const walked = (night: boolean): number => {
+      const crab = new Creature(speciesById('crab')!, TANK, mulberry32(23));
+      const from = crab.x;
+      const rng = mulberry32(24);
+      for (let i = 0; i < 60 * 8; i++) crab.update(1 / 60, TANK, world({ night }), rng);
+      return Math.abs(crab.x - from);
+    };
+    expect(walked(true)).toBeLessThan(walked(false));
+  });
+
   it('sends the nosy ones over to look at whatever was just poked', () => {
     const away = (id: string): number => {
       const fish = new Creature(speciesById(id)!, TANK, mulberry32(17));
@@ -568,6 +605,22 @@ describe('scenery', () => {
       expect(f.fall).toBeGreaterThan(0);
     }
   });
+  it('adds a handful to the flakes already falling instead of replacing them', () => {
+    const first = makeFood(TANK, FOOD_PER_FEED, mulberry32(1));
+    const both = addFood(first, TANK, mulberry32(2));
+    expect(both.length).toBe(FOOD_PER_FEED * 2);
+    // The fish are already swimming towards these, so they must still be there.
+    for (const f of first) expect(both).toContain(f);
+  });
+
+  it('stops adding flakes once the water is holding as many as it will', () => {
+    let food = makeFood(TANK, FOOD_PER_FEED, mulberry32(1));
+    for (let i = 0; i < 20; i++) food = addFood(food, TANK, mulberry32(i));
+    expect(food.length).toBe(MAX_FOOD);
+    // And a press with no room left is not an error, it just drops nothing.
+    expect(addFood(food, TANK, mulberry32(9)).length).toBe(MAX_FOOD);
+  });
+
   it('plants and rocks scale with the tank and stay inside it', () => {
     const plants = makePlants(TANK, mulberry32(2));
     const rocks = makeRocks(TANK, mulberry32(3));

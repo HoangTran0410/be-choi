@@ -1,5 +1,5 @@
 import { solveTwoBone, type Point } from '../../core/creature';
-import type { Creature, Tank } from './logic';
+import type { Bubble, Creature, Plant, Rock, Tank } from './logic';
 
 /**
  * How the animals are drawn: bodies built from the spine, fins hung off it, an
@@ -21,10 +21,15 @@ export interface Scene {
   moods?: boolean;
 }
 
-/** A curve through the points, so a body reads as flesh rather than a polygon. */
-export function smoothPath(c: CanvasRenderingContext2D, pts: readonly Point[]): void {
+/**
+ * A curve through the points, so a body reads as flesh rather than a polygon.
+ * `move` false continues the path already being built instead of starting a new
+ * one — without it the corner drawn before this call is thrown away.
+ */
+export function smoothPath(c: CanvasRenderingContext2D, pts: readonly Point[], move = true): void {
   if (pts.length === 0) return;
-  c.moveTo(pts[0]!.x, pts[0]!.y);
+  if (move) c.moveTo(pts[0]!.x, pts[0]!.y);
+  else c.lineTo(pts[0]!.x, pts[0]!.y);
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i]!;
     const b = pts[i + 1]!;
@@ -40,15 +45,31 @@ export function hash(a: number, b: number): number {
   return n - Math.floor(n);
 }
 
-function flanks(cr: Creature, index: number): [Point, Point] {
-  const a = cr.spine.edge(index, Math.PI / 2);
-  const b = cr.spine.edge(index, -Math.PI / 2);
-  return a.y <= b.y ? [a, b] : [b, a];
+/** Where `flanks` leaves its answer. Read them before calling it again. */
+const fTop: Point = { x: 0, y: 0 };
+const fBottom: Point = { x: 0, y: 0 };
+
+/**
+ * The body's two edge points at a vertebra, top first. It fills the two points
+ * above rather than returning a fresh pair, because a full tank asks for these
+ * a couple of hundred times a frame and every one was a throwaway object.
+ */
+function flanks(cr: Creature, index: number): void {
+  const joint = cr.spine.joints[index];
+  if (!joint) return;
+  const angle = (cr.spine.angles[index] ?? 0) + Math.PI / 2;
+  const width = cr.spine.widthAt(index);
+  const dx = Math.cos(angle) * width;
+  const dy = Math.sin(angle) * width;
+  const ax = joint.x + dx, ay = joint.y + dy;
+  const bx = joint.x - dx, by = joint.y - dy;
+  if (ay <= by) { fTop.x = ax; fTop.y = ay; fBottom.x = bx; fBottom.y = by; }
+  else { fTop.x = bx; fTop.y = by; fBottom.x = ax; fBottom.y = ay; }
 }
 
 function bodyGradient(g: CanvasRenderingContext2D, cr: Creature): CanvasGradient {
-  const [top, bottom] = flanks(cr, 2);
-  const grad = g.createLinearGradient(top.x, top.y, bottom.x, bottom.y);
+  flanks(cr, 2);
+  const grad = g.createLinearGradient(fTop.x, fTop.y, fBottom.x, fBottom.y);
   grad.addColorStop(0, cr.species.back);
   grad.addColorStop(0.62, cr.species.belly);
   grad.addColorStop(1, cr.species.belly);
@@ -69,17 +90,21 @@ function drawFin(g: CanvasRenderingContext2D, at: Point, angle: number, len: num
   g.restore();
 }
 
-function drawPattern(g: CanvasRenderingContext2D, cr: Creature, seed: number): void {
+function drawPattern(g: CanvasRenderingContext2D, cr: Creature, seed: number, ring: readonly Point[]): void {
   const { species } = cr;
   if (species.pattern === 'none') return;
   g.save();
-  smoothPath(g, cr.spine.outline());
+  // The outline the body was just drawn from, rather than a second one built
+  // from scratch: the same eighteen points, and clipping is dear enough already.
+  g.beginPath();
+  smoothPath(g, ring);
   g.clip();
   g.fillStyle = species.patternColor;
   if (species.pattern === 'stripes') {
     g.globalAlpha = 0.95;
-    for (const i of [1, 2, 3]) {
-      const [top, bottom] = flanks(cr, i);
+    for (let i = 1; i <= 3; i++) {
+      flanks(cr, i);
+      const top = fTop, bottom = fBottom;
       const thick = cr.length * 0.045;
       const dx = bottom.x - top.x;
       const dy = bottom.y - top.y;
@@ -131,23 +156,27 @@ function drawFish(g: CanvasRenderingContext2D, cr: Creature, seed: number): void
   g.restore();
 
   // Dorsal and pectoral fins.
-  const up = flanks(cr, 2)[0];
-  drawFin(g, up, cr.spine.angles[2]! + Math.PI * 1.35, cr.length * 0.24, cr.length * 0.11, cr.species.fin);
+  flanks(cr, 2);
+  drawFin(g, fTop, cr.spine.angles[2]! + Math.PI * 1.35, cr.length * 0.24, cr.length * 0.11, cr.species.fin);
   const side = cr.spine.joints[1]!;
   const flap = Math.sin(cr.phase * 1.6) * 0.5;
   g.globalAlpha = 0.75;
   drawFin(g, side, cr.spine.angles[1]! + Math.PI * 0.75 + flap * 0.3, cr.length * 0.16, cr.length * 0.07, cr.species.fin);
   g.globalAlpha = 1;
 
-  // Body.
-  smoothPath(g, cr.spine.outline());
+  // Body. A path of its own first: the pectoral fin's is still the current one
+  // — save and restore do not put a path back — and without this the body fill
+  // and its dark edge are painted round that fin as well.
+  const ring = cr.spine.outline();
+  g.beginPath();
+  smoothPath(g, ring);
   g.fillStyle = bodyGradient(g, cr);
   g.fill();
   // A dark edge: without it, two fish that overlap read as one odd shape.
   g.strokeStyle = 'rgba(3,32,54,0.28)';
   g.lineWidth = Math.max(1, cr.length * 0.022);
   g.stroke();
-  drawPattern(g, cr, seed);
+  drawPattern(g, cr, seed, ring);
 
   // A rim of light along the back. Not clipped: at this width the spill reads as
   // a highlight, and two dozen clips a frame is a real cost on a cheap tablet.
@@ -155,9 +184,9 @@ function drawFish(g: CanvasRenderingContext2D, cr: Creature, seed: number): void
   g.lineWidth = Math.max(1.5, cr.length * 0.025);
   g.beginPath();
   for (let i = 0; i <= 4; i++) {
-    const e = flanks(cr, i)[0];
-    if (i === 0) g.moveTo(e.x, e.y);
-    else g.lineTo(e.x, e.y);
+    flanks(cr, i);
+    if (i === 0) g.moveTo(fTop.x, fTop.y);
+    else g.lineTo(fTop.x, fTop.y);
   }
   g.stroke();
 
@@ -166,7 +195,8 @@ function drawFish(g: CanvasRenderingContext2D, cr: Creature, seed: number): void
 
 function drawEye(g: CanvasRenderingContext2D, cr: Creature): void {
   const head = cr.spine.joints[0]!;
-  const [top] = flanks(cr, 0);
+  flanks(cr, 0);
+  const top = fTop;
   const ex = head.x + (top.x - head.x) * 0.45 + Math.cos(cr.heading) * cr.length * 0.06;
   const ey = head.y + (top.y - head.y) * 0.45 + Math.sin(cr.heading) * cr.length * 0.06;
   const r = Math.max(2, cr.length * 0.05);
@@ -261,7 +291,7 @@ function drawRay(g: CanvasRenderingContext2D, cr: Creature, seed: number): void 
   g.quadraticCurveTo(-len * 0.7, flap * len * 0.12, -len * 0.95, flap * len * 0.2);
   g.stroke();
   g.fillStyle = '#0f172a';
-  for (const side of [-1, 1]) {
+  for (let side = -1; side <= 1; side += 2) {
     g.beginPath();
     g.arc(len * 0.24, side * len * 0.1, Math.max(1.6, len * 0.03), 0, Math.PI * 2);
     g.fill();
@@ -286,7 +316,7 @@ function drawCrab(g: CanvasRenderingContext2D, cr: Creature, scene: Scene): void
   g.strokeStyle = '#7f1d1d';
   g.lineWidth = Math.max(2.5, len * 0.07);
   g.lineCap = 'round';
-  for (const side of [-1, 1]) {
+  for (let side = -1; side <= 1; side += 2) {
     for (let i = 0; i < 3; i++) {
       const hipX = cr.x + (i - 1) * len * 0.22;
       const hipY = bodyY + len * 0.16;
@@ -304,7 +334,7 @@ function drawCrab(g: CanvasRenderingContext2D, cr: Creature, scene: Scene): void
     }
   }
   // Claws.
-  for (const side of [-1, 1]) {
+  for (let side = -1; side <= 1; side += 2) {
     const cx = cr.x + facing * len * 0.42;
     const cy = bodyY + side * len * 0.16;
     g.beginPath();
@@ -323,7 +353,7 @@ function drawCrab(g: CanvasRenderingContext2D, cr: Creature, scene: Scene): void
   g.beginPath();
   g.ellipse(cr.x, bodyY, len * 0.42, len * 0.3, 0, 0, Math.PI * 2);
   g.fill();
-  for (const side of [-1, 1]) {
+  for (let side = -1; side <= 1; side += 2) {
     const ex = cr.x + facing * len * 0.16 + side * len * 0.06;
     const ey = bodyY - len * 0.3;
     g.strokeStyle = cr.species.fin;
@@ -369,6 +399,10 @@ export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: n
   if (scene.moods !== false) drawMood(g, cr, scene);
 }
 
+/** The mood font, which is one string for as long as the tank is one size. */
+let moodSize = 0;
+let moodFont = '';
+
 /**
  * What the fish is feeling, above its head, for a child who cannot read. Only
  * hunger and delight are shown: fright already reads perfectly well from a fish
@@ -378,13 +412,126 @@ function drawMood(g: CanvasRenderingContext2D, cr: Creature, scene: Scene): void
   const mood = cr.mood;
   if (cr.held || (mood !== 'hungry' && mood !== 'excited')) return;
   const size = Math.max(scene.tank.unit * 0.34, 15);
+  if (size !== moodSize) {
+    moodSize = size;
+    moodFont = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+  }
   const bob = Math.sin(scene.clock * 3 + cr.x * 0.01) * size * 0.12;
   g.save();
   g.globalAlpha = mood === 'hungry' ? 0.55 + 0.35 * Math.sin(scene.clock * 2.2) : 0.9;
-  g.font = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+  g.font = moodFont;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillText(mood === 'hungry' ? '🍤' : '✨', cr.x, cr.y - cr.length * 0.55 + bob);
   g.restore();
 }
 
+// ---- the water everything happens in ----
+
+/**
+ * Water, sand, weed and bubbles, drawn once here for every game that has any.
+ * Câu cá had its own paler copies and the two read as different places, which
+ * they are not: the lake is where the fish in the tank came from.
+ */
+export function drawWater(g: CanvasRenderingContext2D, tank: Tank): void {
+  // Bright most of the way down, dark only at the very bottom.
+  const sky = g.createLinearGradient(0, 0, 0, tank.h);
+  sky.addColorStop(0, '#7dd3fc');
+  sky.addColorStop(0.35, '#38bdf8');
+  sky.addColorStop(0.72, '#0ea5e9');
+  sky.addColorStop(1, '#0369a1');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, tank.w, tank.h);
+}
+
+/** The line the sand is drawn along, given the heights it was generated with. */
+export function sandPath(g: CanvasRenderingContext2D, tank: Tank, sand: readonly number[]): void {
+  g.beginPath();
+  g.moveTo(0, tank.h);
+  g.lineTo(0, sand[0] ?? tank.floor);
+  const pts = sand.map((y, i) => ({ x: (i / Math.max(1, sand.length - 1)) * tank.w, y }));
+  // Continue the path: the bottom-left corner is already in it.
+  smoothPath(g, pts, false);
+  g.lineTo(tank.w, tank.h);
+  g.closePath();
+}
+
+export function drawSand(
+  g: CanvasRenderingContext2D,
+  tank: Tank,
+  sand: readonly number[],
+  rocks: readonly Rock[] = [],
+): void {
+  const grad = g.createLinearGradient(0, tank.floor - tank.unit * 0.2, 0, tank.h);
+  grad.addColorStop(0, '#fef3c7');
+  grad.addColorStop(0.45, '#fcd34d');
+  grad.addColorStop(1, '#b45309');
+  g.fillStyle = grad;
+  sandPath(g, tank, sand);
+  g.fill();
+  // A scatter of grains, fixed in place.
+  g.fillStyle = 'rgba(120,53,15,0.18)';
+  for (let i = 0; i < 60; i++) {
+    const x = hash(i, 1) * tank.w;
+    const y = tank.floor + tank.unit * 0.12 + hash(i, 2) * (tank.h - tank.floor);
+    g.fillRect(x, y, 2, 2);
+  }
+  for (const rock of rocks) {
+    const y = tank.floor + tank.unit * 0.1;
+    const shade = 90 + rock.tint * 60;
+    g.fillStyle = `rgb(${shade},${shade + 8},${shade + 18})`;
+    g.beginPath();
+    g.ellipse(rock.x, y, rock.r, rock.r * rock.squash, 0, Math.PI, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.18)';
+    g.beginPath();
+    g.ellipse(rock.x - rock.r * 0.3, y - rock.r * rock.squash * 0.45, rock.r * 0.35, rock.r * rock.squash * 0.3, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
+/**
+ * A weed. `stirred` is 0…1 of having just been brushed, which makes it wave a
+ * little wider and a little faster before it settles.
+ */
+export function drawPlant(g: CanvasRenderingContext2D, plant: Plant, scene: Scene, stirred = 0): void {
+  const { tank, clock } = scene;
+  const amp = tank.unit * 0.28 * (1 + stirred * 0.3);
+  const rate = plant.sway * 2 * (1 + stirred * 0.4);
+  for (let b = 0; b < plant.blades; b++) {
+    const lean = (b - (plant.blades - 1) / 2) * 0.22;
+    const base = plant.x + lean * plant.w * 3;
+    const tall = plant.h * (0.7 + hash(plant.x, b) * 0.5);
+    const wave = (along: number): number => Math.sin(clock * rate + plant.phase + b + along * 2.4) * amp * along * along;
+    g.beginPath();
+    g.moveTo(base - plant.w, tank.floor + tank.unit * 0.1);
+    for (let s = 0; s <= 6; s++) {
+      const along = s / 6;
+      g.lineTo(base + wave(along) - plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
+    }
+    for (let s = 6; s >= 0; s--) {
+      const along = s / 6;
+      g.lineTo(base + wave(along) + plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
+    }
+    g.closePath();
+    g.fillStyle = `hsl(${plant.hue} 65% ${28 + b * 6}%)`;
+    g.fill();
+  }
+}
+
+/** Bubbles: a glassy shell with a rim and a highlight, not a white dot. */
+export function drawBubbles(g: CanvasRenderingContext2D, bubbles: readonly Bubble[]): void {
+  for (const b of bubbles) {
+    g.beginPath();
+    g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(224,247,255,0.22)';
+    g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.55)';
+    g.lineWidth = 1.2;
+    g.stroke();
+    g.beginPath();
+    g.arc(b.x - b.r * 0.3, b.y - b.r * 0.35, b.r * 0.28, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(255,255,255,0.75)';
+    g.fill();
+  }
+}

@@ -69,6 +69,44 @@ function mount() {
 }
 
 /**
+ * Work the bait down the lake a band at a time, resting between moves, until
+ * something is on the line. This is simply how the game is played.
+ */
+function hookSomething(canvas: HTMLCanvasElement, tries = 150): boolean {
+  const reel = document.querySelector<HTMLElement>('.fishing-reel')!;
+  let x = 210;
+  let y = 160;
+  canvas.dispatchEvent(ptr('pointerdown', x, y));
+  for (let go = 0; go < tries; go++) {
+    if (reel.textContent === '🎣') {
+      canvas.dispatchEvent(ptr('pointerup', x, y));
+      return true;
+    }
+    // A monster may have taken the bait: put a new one on before carrying on,
+    // or the sweep drags a bare hook around for ever.
+    if (!reel.hidden) {
+      canvas.dispatchEvent(ptr('pointerup', x, y));
+      reel.dispatchEvent(ptr('pointerdown'));
+      vi.advanceTimersByTime(2500);
+      canvas.dispatchEvent(ptr('pointerdown', x, y));
+    }
+    const dir = go % 2 === 0 ? 1 : -1;
+    for (let i = 0; i < 10; i++) {
+      x = Math.min(400, Math.max(25, x + 10 * dir));
+      canvas.dispatchEvent(ptr('pointermove', x, y));
+      vi.advanceTimersByTime(40);
+    }
+    vi.advanceTimersByTime(3500);
+    if (go % 2 === 1) {
+      y = y > 580 ? 160 : y + 70;
+      canvas.dispatchEvent(ptr('pointermove', x, y));
+    }
+  }
+  canvas.dispatchEvent(ptr('pointerup', x, y));
+  return reel.textContent === '🎣';
+}
+
+/**
  * Play the game the way a patient child does: ease the bait around the water
  * until something takes it, then lift it out. Returns false if nothing bit.
  */
@@ -93,10 +131,17 @@ function fishPatiently(canvas: HTMLCanvasElement, ctx: ReturnType<typeof fakeCon
   canvas.dispatchEvent(ptr('pointerdown', x, y));
   for (let go = 0; go < 150 && !landedFish(); go++) {
     if (reel.hidden) {
-      // Move a little, then let the bait settle: fish will not come to a jumpy one.
+      // Work down the lake a band at a time: move a little, then let the bait
+      // settle, because fish will not come to a jumpy one.
       const dir = go % 2 === 0 ? 1 : -1;
-      for (let i = 0; i < 8; i++) ease(8 * dir, i % 3 === 0 ? 8 : 0);
+      for (let i = 0; i < 10; i++) ease(10 * dir, 0);
       wait(3500);
+      // Next pass, a band lower; back to the top once the bottom is reached.
+      if (go % 2 === 1) {
+        y += 70;
+        if (y > 580) y = 160;
+        canvas.dispatchEvent(ptr('pointermove', x, y));
+      }
       continue;
     }
     // Something is on the line, or the line wants casting again.
@@ -233,16 +278,9 @@ describe('fishing game', () => {
   it('ignores the water entirely while something is on the line', () => {
     const { ctx, root, canvas } = mount();
     const reel = ctx.stage.querySelector<HTMLElement>('.fishing-reel')!;
-    // Fish until something is hooked, then stop.
-    canvas.dispatchEvent(ptr('pointerdown', 210, 300));
-    for (let go = 0; go < 40 && reel.textContent !== '🎣'; go++) {
-      for (let i = 0; i < 8; i++) {
-        canvas.dispatchEvent(ptr('pointermove', 200 + i * 8, 300));
-        vi.advanceTimersByTime(40);
-      }
-      vi.advanceTimersByTime(3500);
-    }
-    expect(reel.textContent, 'nothing ever took the line').toBe('🎣');
+    // Fish until something is on the line, then stop and leave it there.
+    expect(hookSomething(canvas), 'nothing ever took the line').toBe(true);
+    expect(reel.textContent).toBe('🎣');
     expect(root.classList.contains('fishing-fighting')).toBe(true);
 
     // A hand on the glass must not take the catch off the hook.

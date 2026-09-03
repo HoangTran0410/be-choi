@@ -227,6 +227,17 @@ if (tankRect) {
 }
 await page.waitForTimeout(300);
 const saved = await page.evaluate(() => localStorage.getItem('be-choi:aquarium'));
+// Night: the tank goes dark, the buttons go with it, and it is remembered.
+await tap(page.locator('.aquarium-lamp'));
+await page.waitForTimeout(900);
+check('aquarium: the lights go out', (await page.locator('.aquarium.aquarium-night').count()) === 1);
+check('aquarium: the button offers the day back', (await page.locator('.aquarium-lamp').textContent()) === '☀️');
+const nightSave = await page.evaluate(() => localStorage.getItem('be-choi:aquarium'));
+check('aquarium: it remembers the lights are out', !!nightSave && nightSave.includes('"night":true'));
+await tap(page.locator('.aquarium-lamp'));
+await page.waitForTimeout(700);
+check('aquarium: and the day comes back', (await page.locator('.aquarium.aquarium-night').count()) === 0);
+
 check('aquarium: the tank is written down for next time', !!saved && saved.includes('"v":1'), String(saved).slice(0, 80));
 
 await tap(page.locator('.aquarium-feed'));

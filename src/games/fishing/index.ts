@@ -1,17 +1,27 @@
 import { h, replay } from '../../core/dom';
 import type { GameContext, GameModule } from '../../core/types';
-import { drawCreature, hash, smoothPath, type Scene } from '../aquarium/draw';
+import {
+  drawBubbles,
+  drawCreature,
+  drawPlant,
+  drawSand,
+  drawWater,
+  smoothPath,
+  type Scene,
+} from '../aquarium/draw';
 import {
   Creature,
   SAVE_KEY,
   SMELL,
   makeBubble,
   makePlants,
+  makeRocks,
   makeTank,
   readSave,
   trimStock,
   type Bubble,
   type Plant,
+  type Rock,
   type Tank,
 } from '../aquarium/logic';
 import { meta } from './meta';
@@ -91,6 +101,7 @@ function start(ctx: GameContext): void {
   let fish: Creature[] = [];
   let plants: Plant[] = [];
   let drifters: Drifter[] = [];
+  let rocks: Rock[] = [];
   let line: Rope = [];
   /** The big thing crossing the lake right now, if anything is. */
   let monster: Creature | null = null;
@@ -133,6 +144,7 @@ function start(ctx: GameContext): void {
     tank = makeTank(w, hgt);
     plants = makePlants(tank);
     drifters = makeDrifters(tank);
+    rocks = makeRocks(tank);
     line = makeRope(tank.w * ROD_X, 0, tank.w * ROD_X, tank.h * 0.3);
     sand = Array.from({ length: 9 }, (_, i) => tank.floor + Math.sin(i * 1.7) * tank.unit * 0.09);
     fish = lakeStock(tank).map((species) => new Creature(species, tank));
@@ -157,14 +169,6 @@ function start(ctx: GameContext): void {
 
   // ---- the lake ----
 
-  function drawWater(g: CanvasRenderingContext2D): void {
-    const grad = g.createLinearGradient(0, 0, 0, tank.h);
-    grad.addColorStop(0, '#7dd3fc');
-    grad.addColorStop(0.5, '#0ea5e9');
-    grad.addColorStop(1, '#075985');
-    g.fillStyle = grad;
-    g.fillRect(0, 0, tank.w, tank.h);
-  }
 
   function drawSurface(g: CanvasRenderingContext2D): void {
     const top = tank.h * 0.05;
@@ -180,39 +184,7 @@ function start(ctx: GameContext): void {
     g.fill();
   }
 
-  function drawSand(g: CanvasRenderingContext2D): void {
-    g.fillStyle = '#fcd9a0';
-    g.beginPath();
-    g.moveTo(0, tank.h);
-    g.lineTo(0, sand[0] ?? tank.floor);
-    sand.forEach((y, i) => g.lineTo((i / (sand.length - 1)) * tank.w, y));
-    g.lineTo(tank.w, tank.h);
-    g.closePath();
-    g.fill();
-  }
 
-  function drawPlant(g: CanvasRenderingContext2D, plant: Plant): void {
-    for (let b = 0; b < plant.blades; b++) {
-      const lean = (b - (plant.blades - 1) / 2) * 0.22;
-      const base = plant.x + lean * plant.w * 3;
-      const tall = plant.h * (0.7 + hash(plant.x, b) * 0.5);
-      g.beginPath();
-      g.moveTo(base - plant.w, tank.floor + tank.unit * 0.1);
-      for (let s = 0; s <= 6; s++) {
-        const along = s / 6;
-        const wave = Math.sin(clock * plant.sway * 2 + plant.phase + b + along * 2.4) * tank.unit * 0.28 * along * along;
-        g.lineTo(base + wave - plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
-      }
-      for (let s = 6; s >= 0; s--) {
-        const along = s / 6;
-        const wave = Math.sin(clock * plant.sway * 2 + plant.phase + b + along * 2.4) * tank.unit * 0.28 * along * along;
-        g.lineTo(base + wave + plant.w * (1 - along), tank.floor + tank.unit * 0.1 - tall * along);
-      }
-      g.closePath();
-      g.fillStyle = `hsl(${plant.hue} 65% ${28 + b * 6}%)`;
-      g.fill();
-    }
-  }
 
   /** The line, and the bait on the end of it. */
   function drawLine(g: CanvasRenderingContext2D): void {
@@ -310,29 +282,21 @@ function start(ctx: GameContext): void {
     g.restore();
   }
 
-  function drawBubbles(g: CanvasRenderingContext2D): void {
-    g.fillStyle = 'rgba(255,255,255,0.5)';
-    for (const b of bubbles) {
-      g.beginPath();
-      g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
 
   function draw(g: CanvasRenderingContext2D): void {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     // One of these per frame rather than one per animal: with a tank full of
     // fish that is a few hundred throwaway objects a second.
     const view = scene();
-    drawWater(g);
-    drawSand(g);
-    for (const plant of plants) drawPlant(g, plant);
+    drawWater(g, tank);
+    drawSand(g, tank, sand, rocks);
+    for (const plant of plants) drawPlant(g, plant, view);
     drawDrifters(g);
     drawLine(g);
     fish.forEach((cr, i) => drawCreature(g, cr, i, view));
     // Drawn over everything: a shark going past is the biggest thing in the lake.
     if (monster) drawCreature(g, monster, 99, view);
-    drawBubbles(g);
+    drawBubbles(g, bubbles);
     drawSurface(g);
     // Above the water, so it is drawn after the surface rather than under it.
     if (trophyJunk) {
