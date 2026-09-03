@@ -55,8 +55,9 @@ khung sân khấu đè lên. Không quyền → `start()` trả `null` êm, khô
 
 - `core/testing.ts` thêm `fakeMic()`: giả `navigator.mediaDevices.getUserMedia` + `AudioContext` để smoke test
   bơm được `level` tuỳ ý trong jsdom.
-- `games/birthday` chuyển sang `createMic` (bỏ ~50 dòng xin quyền/dọn dẹp trùng lặp); `blowStrength` trong
-  `birthday/logic.ts` bỏ đi, dùng `rms` của core, `BLOW_THRESHOLD` giữ nguyên.
+- ~~`games/birthday` chuyển sang `createMic`~~ — **bỏ**: trong lúc làm có một phiên khác đang sửa chính
+  game Sinh nhật, đụng vào là giẫm chân nhau. Game đó vẫn dùng đoạn mic riêng của nó; đổi sang `createMic`
+  để dành cho lần sau.
 
 ## 2. Ba game
 
@@ -113,6 +114,15 @@ Cả ba `skill: 'music'` (mục 🎵 Âm nhạc), cấu trúc `meta.ts · logic.
   Thiết bị giả của Chromium phát tone nên e2e kiểm được chim thật sự bay lên và đèn sân khấu sáng.
   WebKit không có cờ này → hai game mic chỉ chụp ảnh ở trạng thái "chưa bật mic" khi chạy `BROWSER=webkit`.
 - README: thêm 3 dòng bảng game, mục nói về quyền mic/camera (chỉ xử lý trên máy, không gửi đi đâu).
+
+## 3b. Bài hát dùng chung (bổ sung sau khi làm)
+
+Gia đình muốn bé hát bài Việt Nam, nên `core/music.ts` thành songbook chung của mọi game: dời 3 bài riêng
+của Đàn gõ lên core, thêm Chúc mừng sinh nhật, và chép 5 bài thiếu nhi Việt (Bắc kim thang, Cả nhà thương
+nhau, Cháu lên ba, Cháu yêu bà, Chúc bé ngủ ngon) từ cảm âm gia đình sưu tầm — 14 bài. Cảm âm chỉ cho cao
+độ nên **tiết tấu là ghi theo tai**, và vài chỗ không đánh dấu quãng thì chọn quãng gần nốt trước nhất.
+Nhiều bài rộng hơn một quãng tám nên thêm `fitsScale(song)`: Đàn gõ chỉ hiện bài nằm gọn trong 8 thanh,
+Ca sĩ nhí hát tất. Bài Lý cây bông chưa thêm: bản cảm âm thiếu dấu quãng và số nốt không khớp số tiếng.
 
 ## 4. Rủi ro
 
