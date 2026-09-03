@@ -1,0 +1,355 @@
+/* Editor chrome. This is a tool for a grown-up on a laptop, so it keeps none of the
+   toddler-proofing (or the pastel) of the app itself. */
+:root {
+  --ne-bg: #14161a;
+  --ne-panel: #1d2026;
+  --ne-line: #2b3038;
+  --ne-text: #e6e8ec;
+  --ne-dim: #8b93a1;
+  --ne-note: #4f8cff;
+  --ne-sel: #ffb020;
+  --ne-now: #34d17a;
+  --ne-warn: #ff8a3d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ne-bg);
+  color: var(--ne-text);
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.ne {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ---- Top bar ---- */
+
+.ne-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--ne-panel);
+  border-bottom: 1px solid var(--ne-line);
+  flex-wrap: wrap;
+}
+
+.ne-songs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ne-song {
+  font-size: 18px;
+  line-height: 1;
+  padding: 5px 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ne-song:hover {
+  background: var(--ne-line);
+}
+
+.ne-song.on {
+  border-color: var(--ne-sel);
+  background: var(--ne-line);
+}
+
+.ne-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.ne-title {
+  font-weight: 600;
+}
+
+.ne-check {
+  color: var(--ne-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ne-check.warn {
+  color: var(--ne-warn);
+}
+
+.ne-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.ne-btn {
+  background: var(--ne-line);
+  color: var(--ne-text);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 5px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ne-btn:hover:not(:disabled) {
+  border-color: var(--ne-dim);
+}
+
+.ne-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ne-btn.on {
+  background: var(--ne-sel);
+  color: #1b1200;
+  font-weight: 600;
+}
+
+.ne-quote {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.ne-sel {
+  background: var(--ne-line);
+  color: var(--ne-text);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 5px 7px;
+  font: inherit;
+}
+
+/* ---- The grid ---- */
+
+.ne-board {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ne-keys {
+  flex: none;
+  width: 54px;
+  border-right: 1px solid var(--ne-line);
+  background: var(--ne-panel);
+  overflow: hidden;
+}
+
+.ne-key {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 11px;
+  color: var(--ne-dim);
+  border-top: 1px solid var(--ne-line);
+}
+
+.ne-key.c {
+  color: var(--ne-text);
+}
+
+.ne-key.rest {
+  border-top: 2px solid var(--ne-line);
+}
+
+.ne-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.ne-canvas {
+  position: relative;
+  min-width: 100%;
+}
+
+.ne-bands {
+  display: flex;
+  position: relative;
+}
+
+.ne-band {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--ne-panel);
+  border-right: 1px solid var(--ne-line);
+  border-bottom: 1px solid var(--ne-line);
+  font-size: 11px;
+  color: var(--ne-dim);
+}
+
+/* A note is held across the end of this line, so the karaoke line turns mid-note.
+   This is the whole point of the screen: it has to be impossible to miss. */
+.ne-band.bad {
+  background: #5a3110;
+  color: #ffd7b0;
+  box-shadow: inset 0 -3px 0 var(--ne-warn);
+}
+
+.ne-band.on {
+  outline: 1px solid var(--ne-now);
+  outline-offset: -1px;
+}
+
+.ne-band-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ne-band-beats {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.ne-band-grip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 7px;
+  height: 100%;
+  cursor: ew-resize;
+  background: var(--ne-line);
+}
+
+.ne-band-grip:hover {
+  background: var(--ne-sel);
+}
+
+.ne-rows {
+  position: relative;
+}
+
+.ne-row {
+  position: relative;
+  border-top: 1px solid var(--ne-line);
+  background-image: repeating-linear-gradient(to right, #21252c 0 1px, transparent 1px 46px);
+}
+
+.ne-row.c {
+  background-color: #191c22;
+}
+
+.ne-row.rest {
+  border-top: 2px solid var(--ne-line);
+  background-color: #16181d;
+}
+
+.ne-note {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  border-radius: 4px;
+  background: var(--ne-note);
+  color: #06101f;
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.ne-note.is-rest {
+  background: #454b56;
+  color: var(--ne-dim);
+}
+
+.ne-note.sel {
+  background: var(--ne-sel);
+  box-shadow: 0 0 0 2px var(--ne-text);
+  z-index: 2;
+}
+
+.ne-note.now {
+  background: var(--ne-now);
+}
+
+.ne-note-name {
+  pointer-events: none;
+}
+
+.ne-grip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.ne-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ne-dim);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ne-playhead.on {
+  background: var(--ne-now);
+  opacity: 1;
+}
+
+/* ---- Selected note, transport ---- */
+
+.ne-inspect,
+.ne-transport {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: var(--ne-panel);
+  border-top: 1px solid var(--ne-line);
+  flex-wrap: wrap;
+}
+
+.ne-pill {
+  color: var(--ne-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ne-pill.big {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ne-sel);
+  min-width: 46px;
+}
+
+.ne-sep {
+  color: var(--ne-dim);
+  margin-left: 8px;
+}
+
+.ne-play {
+  min-width: 44px;
+}
+
+.ne-help {
+  margin-left: auto;
+  color: var(--ne-dim);
+  font-size: 11px;
+}
