@@ -16,6 +16,7 @@ import {
   nextTool,
   serializePainting,
   stampFontPx,
+  STAMPS,
   stampList,
   strokeWidth,
   type SavedPainting,
@@ -296,8 +297,10 @@ function start(ctx: GameContext): void {
     return btn;
   });
 
-  // Default stamps, then the stickers the child has unlocked so far.
-  const stamps = stampList(ctx.stickers()).map((emoji) => {
+  // The toolbar carries the handful of everyday stamps. Everything the child has
+  // unlocked lives behind the 🎁 button: forty-odd of them along the toolbar
+  // would leave no paper to draw on.
+  const stamps = STAMPS.map((emoji) => {
     const btn = h('button', { class: 'paint-btn paint-stamp', 'aria-label': `dán hình ${emoji}`, 'data-emoji': emoji }, emoji);
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -305,6 +308,30 @@ function start(ctx: GameContext): void {
     });
     return btn;
   });
+
+  /**
+   * Every sticker the child has earned, behind one button. Before this they went
+   * to the album and stopped there: the toolbar took the first eight and the
+   * rest were collected and never seen, which made collecting them pointless.
+   */
+  const owned = ctx.stickers();
+  const allStamps = stampList(owned);
+  const moreBtn = h('button', { class: 'paint-btn paint-stamp-more', 'aria-label': 'chọn hình dán', hidden: owned.length === 0 }, '🎁');
+  let closeStickers: (() => void) | null = null;
+  moreBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    ctx.audio.tick();
+    const choices: PickerChoice[] = allStamps.map((emoji) => ({ id: emoji, emoji, label: `hình dán ${emoji}` }));
+    closeStickers = showPhotoPicker(root, choices, (choice) => {
+      closeStickers = null;
+      if (!choice?.emoji) return;
+      moreBtn.textContent = choice.emoji;
+      select(nextTool(tool, { emoji: choice.emoji }));
+    });
+  });
+  ctx.onCleanup(() => closeStickers?.());
+
+  const stampButtons = [...stamps, moreBtn];
 
   const eraser = h('button', { class: 'paint-btn paint-eraser', 'aria-label': 'cục tẩy' }, '🧹');
   eraser.addEventListener('pointerdown', (e) => {
@@ -319,7 +346,7 @@ function start(ctx: GameContext): void {
     group('paint-group-colors', ...swatches.slice(0, GROUP_SIZE)),
     group('paint-group-colors', ...swatches.slice(GROUP_SIZE)),
     group('paint-group-sizes', ...sizes),
-    ...chunk(stamps, GROUP_SIZE).map((run) => group('paint-group-stamps', ...run)),
+    ...chunk(stampButtons, GROUP_SIZE).map((run) => group('paint-group-stamps', ...run)),
     group('paint-group-actions', eraser, trash),
   );
 
@@ -327,6 +354,8 @@ function start(ctx: GameContext): void {
     for (const b of swatches) b.classList.toggle('selected', tool.kind === 'brush' && b.dataset.color === tool.color);
     for (const b of sizes) b.classList.toggle('selected', Number(b.dataset.size) === tool.size);
     for (const b of stamps) b.classList.toggle('selected', tool.kind === 'stamp' && b.dataset.emoji === tool.emoji);
+    // Lit when the stamp in hand came from the collection rather than the toolbar.
+    moreBtn.classList.toggle('selected', tool.kind === 'stamp' && !STAMPS.includes(tool.emoji));
     eraser.classList.toggle('selected', tool.kind === 'eraser');
   }
 

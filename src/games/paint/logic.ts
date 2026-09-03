@@ -36,16 +36,15 @@ export const DEFAULT_SIZE: number = BRUSH_SIZES[1];
 
 export const STAMPS: readonly string[] = ['⭐', '❤️', '🌸', '🐣'];
 
-/** At most this many unlocked stickers join the toolbar after the default stamps. */
-export const MAX_STICKER_STAMPS = 8;
-
-/** `STAMPS` followed by up to `MAX_STICKER_STAMPS` of `stickers`, skipping duplicates. */
+/**
+ * `STAMPS` followed by every sticker the child has unlocked, skipping duplicates.
+ * All of them: the toolbar used to take the first eight and stop, so past the
+ * eighth an unlocked sticker went to the album and nowhere else — which made
+ * collecting the rest of them pointless. The strip scrolls instead.
+ */
 export function stampList(stickers: readonly string[]): string[] {
   const out = [...STAMPS];
-  for (const emoji of stickers) {
-    if (out.length >= STAMPS.length + MAX_STICKER_STAMPS) break;
-    if (!out.includes(emoji)) out.push(emoji);
-  }
+  for (const emoji of stickers) if (!out.includes(emoji)) out.push(emoji);
   return out;
 }
 

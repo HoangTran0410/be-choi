@@ -3,7 +3,6 @@ import {
   BRUSHES,
   DEFAULT_TOOL,
   ERASER_SCALE,
-  MAX_STICKER_STAMPS,
   PALETTE,
   SAVE_MAX_PX,
   SAVE_MS,
@@ -81,13 +80,13 @@ describe('stampList', () => {
   it('is the default stamps when the child has no stickers', () => {
     expect(stampList([])).toEqual(STAMPS);
   });
-  it('appends stickers after the defaults, skipping duplicates, at most MAX_STICKER_STAMPS', () => {
+  it('appends every sticker after the defaults, skipping duplicates', () => {
     expect(stampList(['🐻', '⭐', '🦊', '🐻'])).toEqual([...STAMPS, '🐻', '🦊']);
+    // Past the eighth, a sticker used to be collected and then never seen again.
     const many = ['🐻', '🦊', '🐸', '🐼', '🐨', '🦁', '🐯', '🐮', '🐷', '🐵'];
     const out = stampList(many);
-    expect(MAX_STICKER_STAMPS).toBe(8);
-    expect(out.length).toBe(STAMPS.length + MAX_STICKER_STAMPS);
-    expect(out.slice(STAMPS.length)).toEqual(many.slice(0, MAX_STICKER_STAMPS));
+    expect(out.length).toBe(STAMPS.length + many.length);
+    expect(out.slice(STAMPS.length)).toEqual(many);
   });
 });
 

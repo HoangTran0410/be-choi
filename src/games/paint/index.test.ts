@@ -235,19 +235,29 @@ describe('paint game', () => {
     vi.useRealTimers();
   });
 
-  it('adds unlocked stickers as extra stamps', () => {
+  it('offers every unlocked sticker behind the 🎁 button', () => {
     const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
     const ctx = fakeContext();
     ctx.stickers = () => ['🐻', '🦊'];
     game.start(ctx);
 
+    // The toolbar keeps the everyday stamps; the collection lives in the picker,
+    // however big it grows.
     const stamps = [...ctx.stage.querySelectorAll<HTMLElement>('.paint-stamp')];
-    expect(stamps.length).toBe(6);
-    expect(stamps.map((s) => s.dataset.emoji)).toEqual([...STAMPS, '🐻', '🦊']);
+    expect(stamps.map((s) => s.dataset.emoji)).toEqual([...STAMPS]);
 
-    stamps[4]?.dispatchEvent(ptr('pointerdown'));
-    expect(stamps[4]?.classList.contains('selected')).toBe(true);
-    expect(stamps.filter((s) => s.classList.contains('selected')).length).toBe(1);
+    const more = ctx.stage.querySelector<HTMLElement>('.paint-stamp-more')!;
+    expect(more.hidden).toBe(false);
+    more.dispatchEvent(ptr('pointerup'));
+
+    const tiles = [...ctx.stage.querySelectorAll<HTMLElement>('.pp-tile')];
+    expect(tiles.map((t) => t.dataset.id)).toEqual([...STAMPS, '🐻', '🦊']);
+
+    tiles[4]?.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
+    expect(more.textContent).toBe('🐻');
+    expect(more.classList.contains('selected')).toBe(true);
+    expect(stamps.filter((s) => s.classList.contains('selected')).length).toBe(0);
     expect([...ctx.stage.querySelectorAll('.paint-swatch.selected')].length).toBe(0);
     expect(ctx.stage.querySelector('.paint-eraser')?.classList.contains('selected')).toBe(false);
 
