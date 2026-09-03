@@ -1,0 +1,97 @@
+.birdsong {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  background: linear-gradient(180deg, #93c5fd 0%, #dbeafe 60%, #fef9c3 100%);
+}
+
+.bird-sun {
+  position: absolute;
+  top: 3%;
+  right: 6%;
+  font-size: calc(var(--emoji) * 0.7);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.bird-world {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bird-item {
+  position: absolute;
+  font-size: calc(var(--emoji) * 0.6);
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+.bird-note { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2)); }
+.bird-ring { font-size: calc(var(--emoji) * 0.9); opacity: 0.9; }
+
+.bird-bird {
+  position: absolute;
+  left: 25%;
+  font-size: calc(var(--emoji) * 0.8);
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(var(--bird-tilt, 0deg));
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.2));
+}
+.bird-singing .bird-bird { filter: drop-shadow(0 0 2vmin #fde047); }
+
+.bird-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14%;
+  background: linear-gradient(180deg, #86efac 0%, #4ade80 100%);
+  border-radius: 40% 40% 0 0 / 12% 12% 0 0;
+  pointer-events: none;
+}
+
+.bird-score {
+  position: absolute;
+  top: 1.5vmin;
+  left: 1.5vmin;
+  display: flex;
+  gap: 0.6vmin;
+  padding: 0.8vmin 1.4vmin;
+  border-radius: 999px;
+  background: var(--tray-bg);
+  pointer-events: none;
+}
+.bird-slot {
+  font-size: clamp(14px, 3vmin, 26px);
+  line-height: 1;
+  opacity: 0.28;
+  filter: grayscale(1);
+  transition: opacity 0.2s, filter 0.2s, transform 0.2s;
+}
+.bird-slot.bird-got {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.15);
+}
+
+.bird-mic {
+  position: absolute;
+  right: 1.5vmin;
+  bottom: 1.5vmin;
+}
+.bird-mic.bird-on { background: #fef08a; }
+.bird-mic.bird-waiting { animation: pulse 0.8s ease-in-out infinite; }
+
+.bird-spark {
+  position: absolute;
+  font-size: calc(var(--emoji) * 0.6);
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: bird-spark 0.7s ease-out forwards;
+}
+@keyframes bird-spark {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+  100% { opacity: 0; transform: translate(-50%, -140%) scale(1.6); }
+}

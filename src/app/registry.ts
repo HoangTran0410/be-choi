@@ -13,6 +13,7 @@ import { meta as piano } from '../games/piano/meta';
 import { meta as jam } from '../games/jam/meta';
 import { meta as sing } from '../games/sing/meta';
 import { meta as parrot } from '../games/parrot/meta';
+import { meta as birdsong } from '../games/birdsong/meta';
 import { meta as paint } from '../games/paint/meta';
 import { meta as peekaboo } from '../games/peekaboo/meta';
 import { meta as feed } from '../games/feed/meta';
@@ -53,6 +54,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...jam, load: () => import('../games/jam/index') },
   { ...sing, load: () => import('../games/sing/index') },
   { ...parrot, load: () => import('../games/parrot/index') },
+  { ...birdsong, load: () => import('../games/birdsong/index') },
   { ...piano, load: () => import('../games/piano/index') },
   { ...paint, load: () => import('../games/paint/index') },
   { ...peekaboo, load: () => import('../games/peekaboo/index') },
