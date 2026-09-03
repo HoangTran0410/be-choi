@@ -62,6 +62,20 @@ describe('the stage', () => {
     expect(q(ctx, '.sing-songs').hidden).toBe(true);
   });
 
+  it('counts three, two, one before the first note', async () => {
+    game.start(ctx);
+    fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');
+    const count = q(ctx, '.sing-count');
+    expect(count.hidden).toBe(true);
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(count.hidden).toBe(false);
+    expect(count.textContent).toBe('3');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(count.textContent).toBe('1');
+    await vi.advanceTimersByTimeAsync(700);
+    expect(count.hidden).toBe(true);
+  });
+
   it('moves the words on as the melody plays', async () => {
     game.start(ctx);
     fire(q(ctx, '.sing-song[data-song="lamb"]'), 'pointerdown');

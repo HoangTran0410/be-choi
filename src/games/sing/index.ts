@@ -13,8 +13,10 @@ import './style.css';
  * to take a breath and for iOS to finish speaking (it ducks Web Audio while it does).
  */
 const INTRO_MS = 3000;
-/** Three counting ticks in the last part of that wait, so the start is not a surprise. */
-const COUNT_IN_MS = [1500, 2100, 2700];
+/** The numbers counted in before the first note. */
+const COUNT_IN = ['3', '2', '1'];
+/** A count-in never starts before this, so it does not talk over the spoken title. */
+const COUNT_IN_FROM_MS = 1100;
 /** The child is singing loudly enough for the stage to react. */
 const LOUD = 0.28;
 /** …and has gone quiet again (hysteresis, so the lights do not flicker). */
@@ -42,6 +44,7 @@ function start(ctx: GameContext): void {
   const lyricEmoji = h('span', { class: 'sing-lyric-emoji' }, '🎵');
   const lyricText = h('span', { class: 'sing-lyric-text' }, '');
   const lyric = h('div', { class: 'sing-lyric', hidden: true }, lyricEmoji, lyricText);
+  const count = h('div', { class: 'sing-count', hidden: true, 'aria-hidden': 'true' });
   const audience = h(
     'div',
     { class: 'sing-audience' },
@@ -53,7 +56,7 @@ function start(ctx: GameContext): void {
   const shotBtn = h('button', { class: 'btn-round sing-shot', type: 'button', 'aria-label': 'Chụp ảnh', hidden: true }, '📷');
   const backBtn = h('button', { class: 'btn-round sing-back', type: 'button', 'aria-label': 'Chọn bài khác', hidden: true }, '⏹');
   const buttons = h('div', { class: 'sing-buttons' }, micBtn, camBtn, shotBtn, backBtn);
-  root.append(mirror, lights, h('div', { class: 'sing-curtain sing-left' }), h('div', { class: 'sing-curtain sing-right' }), lyric, picker, audience, buttons);
+  root.append(mirror, lights, h('div', { class: 'sing-curtain sing-left' }), h('div', { class: 'sing-curtain sing-right' }), lyric, count, picker, audience, buttons);
   ctx.stage.append(root);
 
   for (const song of SONGS) {
@@ -109,6 +112,7 @@ function start(ctx: GameContext): void {
 
   function toPicker(): void {
     root.dataset.phase = 'pick';
+    count.hidden = true;
     picker.hidden = false;
     lyric.hidden = true;
     backBtn.hidden = true;
@@ -144,15 +148,24 @@ function start(ctx: GameContext): void {
     backBtn.hidden = false;
     showPhrase(0);
     ctx.speak(song.title);
-    for (const at of COUNT_IN_MS) {
+    // One number per beat of this song, landing on the first note: the child hears
+    // the tempo before having to sing in it.
+    const beatMs = 60000 / song.bpm;
+    count.hidden = true;
+    COUNT_IN.forEach((text, i) => {
+      const at = Math.max(COUNT_IN_FROM_MS, INTRO_MS - (COUNT_IN.length - i) * beatMs);
       after(at, () => {
         if (!alive) return;
+        count.hidden = false;
+        count.textContent = text;
+        replay(count, 'sing-count-in');
         ctx.audio.tick();
-        replay(lyricEmoji, 'anim-bounce');
       });
-    }
+    });
     after(INTRO_MS, () => {
-      if (alive) cancelSong = schedule(song.notes, song.bpm, onNote, () => void onSongDone());
+      if (!alive) return;
+      count.hidden = true;
+      cancelSong = schedule(song.notes, song.bpm, onNote, () => void onSongDone());
     });
   }
 

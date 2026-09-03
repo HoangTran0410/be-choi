@@ -543,6 +543,73 @@ await page.waitForTimeout(2500);
 const highAfter = await page.locator('.bird-bird').evaluate((el) => Number.parseFloat(el.style.top));
 check('birdsong: the bird reacts to the microphone', Number.isFinite(highAfter) && highAfter !== highBefore);
 
+// ---- sing: pick a song, turn the microphone on, watch the words move ----
+await open('sing');
+check('sing: a card per song', (await page.locator('.sing-song').count()) >= 9);
+await tap(page.locator('.sing-mic'));
+await page.waitForTimeout(1200);
+check('sing: microphone listening', await page.locator('.sing-mic').evaluate((el) => el.classList.contains('sing-on')));
+await tap(page.locator('.sing-song[data-song="lamb"]'));
+const firstLine = await page.locator('.sing-lyric-text').textContent();
+await page.waitForTimeout(1600);
+check('sing: counts in with numbers', ['3', '2', '1'].includes(((await page.locator('.sing-count').textContent()) ?? '').trim()));
+// The rest of the count-in, then enough melody to reach the second line.
+await page.waitForTimeout(6000);
+check('sing: the words move with the tune', (await page.locator('.sing-lyric-text').textContent()) !== firstLine);
+await tap(page.locator('.sing-back'));
+check('sing: back to the songs', (await page.locator('.sing-songs').isVisible()));
+
+// ---- parrot: hold, sing, let the animal answer ----
+await open('parrot');
+check('parrot: five animals', (await page.locator('.parrot-critter').count()) === 5);
+await tap(page.locator('.parrot-mic'));
+await page.waitForTimeout(1200);
+const micBox = await page.locator('.parrot-mic').boundingBox();
+if (micBox) {
+  await page.mouse.move(micBox.x + micBox.width / 2, micBox.y + micBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1500);
+  check('parrot: recording', await page.locator('.parrot-mic').evaluate((el) => el.classList.contains('parrot-recording')));
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+}
+check('parrot: the animal answered', (await page.locator('.parrot-bubble').textContent())?.includes('hát') === true);
+
+// ---- birdsong: the fake microphone tone should lift the bird ----
+await open('birdsong');
+check('birdsong: eight note slots', (await page.locator('.bird-slot').count()) === 8);
+await tap(page.locator('.bird-mic'));
+await page.waitForTimeout(1500);
+const highBefore = await page.locator('.bird-bird').evaluate((el) => Number.parseFloat(el.style.top));
+await page.waitForTimeout(2500);
+const highAfter = await page.locator('.bird-bird').evaluate((el) => Number.parseFloat(el.style.top));
+check('birdsong: the bird reacts to the microphone', Number.isFinite(highAfter) && highAfter !== highBefore);
+
+// ---- audio: every recorded animal voice ships, downloads and decodes ----
+const clips = readdirSync('public/sfx').filter((f) => f.endsWith('.m4a')).sort();
+const voices = await page.evaluate(async (names) => {
+  const ctx = new (globalThis.AudioContext ?? globalThis.webkitAudioContext)();
+  const out = [];
+  for (const name of names) {
+    try {
+      const res = await fetch(`sfx/${name}`);
+      if (!res.ok) {
+        out.push({ name, ok: false, why: String(res.status) });
+        continue;
+      }
+      const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+      out.push({ name, ok: buf.duration > 0.1, secs: buf.duration });
+    } catch (err) {
+      out.push({ name, ok: false, why: String(err) });
+    }
+  }
+  await ctx.close();
+  return out;
+}, clips);
+const bad = voices.filter((v) => !v.ok);
+check(`audio: ${clips.length} animal clips ship with the app`, clips.length >= 20);
+check('audio: every clip downloads and decodes', bad.length === 0, bad.map((v) => `${v.name}: ${v.why}`).join(', '));
+
 // ---- home + parent gate ----
 await page.goto(`${base}/#/`, { waitUntil: 'networkidle' });
 const parent = page.locator('.home .parent');
