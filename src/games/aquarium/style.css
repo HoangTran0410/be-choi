@@ -33,47 +33,36 @@
 }
 
 /* ---- the fish you can add ---- */
-/* Along the bottom, clear of the food button. Each one shows the animal it puts
-   in the tank, drawn by the same code that draws it swimming. */
-.aquarium-tray {
+/* One button, not a row of them: a tray of every species took the whole bottom
+   of the tank, which is the part with the fish in it. */
+.aquarium-add {
   position: absolute;
-  left: 2vmin;
-  right: calc(var(--tap) + 5vmin);
-  bottom: 2vmin;
-  display: flex;
-  gap: 1.4vmin;
-  padding: 1vmin;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  border-radius: calc(var(--tap) * 0.4);
-  background: rgba(8, 51, 68, 0.42);
-  backdrop-filter: blur(2px);
-}
-.aquarium-tray::-webkit-scrollbar {
-  display: none;
-}
-.aquarium-chip {
-  flex: 0 0 auto;
-  width: calc(var(--tap) * 0.82);
-  height: calc(var(--tap) * 0.82);
+  left: 2.5vmin;
+  bottom: 2.5vmin;
+  width: var(--tap);
+  height: var(--tap);
   border-radius: 50%;
   display: grid;
   place-items: center;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 3px 0 rgba(3, 32, 54, 0.35);
-  touch-action: manipulation;
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 4px 0 rgba(3, 32, 54, 0.35);
+  touch-action: none;
   transition: transform 0.1s;
 }
-.aquarium-chip:active {
-  transform: scale(0.9);
+.aquarium-add:active {
+  transform: scale(0.92);
 }
+
+/* The picker borrows the shared overlay; only the fish inside it are ours. */
 .aquarium-chip-art {
-  width: 84%;
-  height: 84%;
+  width: 88%;
+  height: 88%;
   pointer-events: none;
+}
+.aquarium-pick {
+  background-color: rgba(255, 255, 255, 0.92);
 }
 
 /* ---- the net ---- */
@@ -106,8 +95,8 @@
   transform: scale(1.14);
 }
 
-/* A fish in the fingers should not be dragged through the tray. */
-.aquarium-dragging .aquarium-tray,
+/* A fish in the fingers should not be dragged onto a button. */
+.aquarium-dragging .aquarium-add,
 .aquarium-dragging .aquarium-feed {
   opacity: 0.35;
   pointer-events: none;

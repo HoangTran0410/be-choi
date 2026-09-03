@@ -4,6 +4,9 @@ import {
   FOOD_PER_FEED,
   FULL_FOR,
   JOINTS,
+  MAX_CREATURES,
+  STARTER_MAX,
+  STARTER_MIN,
   SPECIES,
   decorAt,
   makeDecor,
@@ -53,14 +56,23 @@ describe('species', () => {
 });
 
 describe('stocking the tank', () => {
-  it('always holds at least one of every kind', () => {
-    for (const tank of [makeTank(320, 480), makeTank(1024, 700)]) {
-      const ids = new Set(stocking(tank).map((s) => s.id));
-      expect(ids.size).toBe(SPECIES.length);
+  it('opens with a handful of animals, no two the same', () => {
+    for (const tank of [makeTank(320, 480), makeTank(1024, 700), makeTank(1600, 1000)]) {
+      const start = stocking(tank, mulberry32(3));
+      expect(start.length).toBeGreaterThanOrEqual(STARTER_MIN);
+      expect(start.length).toBeLessThanOrEqual(STARTER_MAX);
+      expect(new Set(start.map((s) => s.id)).size).toBe(start.length);
+      for (const species of start) expect(SPECIES).toContain(species);
     }
   });
-  it('puts more fish in a bigger tank', () => {
-    expect(stocking(makeTank(1400, 900)).length).toBeGreaterThan(stocking(makeTank(320, 480)).length);
+  it('leaves plenty of room for the child to add their own', () => {
+    expect(STARTER_MAX).toBeLessThan(SPECIES.length);
+    expect(stocking(makeTank(1400, 900), mulberry32(4)).length).toBeLessThan(MAX_CREATURES / 2);
+  });
+  it('puts a few more in a bigger tank', () => {
+    expect(stocking(makeTank(1600, 1000), mulberry32(5)).length).toBeGreaterThanOrEqual(
+      stocking(makeTank(320, 480), mulberry32(5)).length,
+    );
   });
 });
 
@@ -104,12 +116,37 @@ describe('a creature in the water', () => {
     expect(creature.mood).toBe('excited');
   });
 
-  it('leaves the flakes to the fish: a jellyfish has no mouth for them', () => {
+  it('lets a jellyfish take only what drifts into it, and never go hunting', () => {
     const jelly = new Creature(speciesById('jelly')!, TANK, mulberry32(2));
-    const food = [{ x: jelly.x, y: jelly.y, fall: 0, wobble: 0, eaten: false }];
+    // Well out of reach: a jellyfish cannot steer, so it must never get there.
+    const far = [{ x: jelly.x + TANK.unit * 4, y: jelly.y, fall: 0, wobble: 0, eaten: false }];
     const rng = mulberry32(5);
-    for (let i = 0; i < 120; i++) expect(jelly.update(1 / 60, TANK, { foods: food, nudge: null }, rng)).toBe(false);
-    expect(food[0]?.eaten).toBe(false);
+    for (let i = 0; i < 120; i++) jelly.update(1 / 60, TANK, { foods: far, nudge: null }, rng);
+    expect(far[0]?.eaten).toBe(false);
+    // A flake right where it is drifting, though, is a meal.
+    const under = [{ x: jelly.x, y: jelly.y, fall: 0, wobble: 0, eaten: false }];
+    expect(jelly.update(1 / 60, TANK, { foods: under, nudge: null }, rng)).toBe(true);
+    expect(under[0]?.eaten).toBe(true);
+  });
+
+  it('never leaves an animal hungry that cannot go and feed itself', () => {
+    const jelly = new Creature(speciesById('jelly')!, TANK, mulberry32(3));
+    expect(jelly.forages).toBe(false);
+    const rng = mulberry32(4);
+    for (let i = 0; i < FULL_FOR * 90; i++) jelly.update(1 / 60, TANK, { foods: [], nudge: null }, rng);
+    expect(jelly.hunger).toBe(0);
+    expect(jelly.mood).not.toBe('hungry');
+  });
+
+  it('sends the crab along the sand for a flake that landed there', () => {
+    const crab = new Creature(speciesById('crab')!, TANK, mulberry32(6));
+    expect(crab.forages).toBe(true);
+    const food = [{ x: crab.x + TANK.unit * 2.5, y: TANK.floor - crab.length * 0.1, fall: 0, wobble: 0, eaten: false }];
+    const rng = mulberry32(7);
+    let ate = false;
+    for (let i = 0; i < 60 * 10 && !ate; i++) ate = crab.update(1 / 60, TANK, { foods: food, nudge: null }, rng);
+    expect(ate).toBe(true);
+    expect(crab.hunger).toBe(0);
   });
 
   it('bolts away from a finger that pokes it', () => {
@@ -126,6 +163,21 @@ describe('a creature in the water', () => {
     const creature = new Creature(speciesById('guppy')!, TANK, mulberry32(6));
     expect(creature.hits(creature.x, creature.y)).toBe(true);
     expect(creature.hits(creature.x + TANK.w, creature.y)).toBe(false);
+  });
+
+  it('sinks a crab that is dropped in mid-water instead of snapping it down', () => {
+    const crab = new Creature(speciesById('crab')!, TANK, mulberry32(8));
+    crab.hold(TANK.w / 2, TANK.h * 0.3);
+    crab.release();
+    const high = crab.y;
+    const rng = mulberry32(9);
+    // One frame in it should have moved, but nowhere near the sand yet.
+    crab.update(1 / 60, TANK, { foods: [], nudge: null }, rng);
+    expect(crab.y).toBeGreaterThan(high);
+    expect(TANK.floor - crab.y).toBeGreaterThan(TANK.h * 0.3);
+    // Given a moment, it lands and stays there.
+    for (let i = 0; i < 60 * 4; i++) crab.update(1 / 60, TANK, { foods: [], nudge: null }, rng);
+    expect(Math.abs(crab.y - (TANK.floor - crab.length * 0.06))).toBeLessThan(1);
   });
 
   it('keeps the crab on the sand and walking', () => {

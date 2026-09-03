@@ -84,8 +84,10 @@ function start(ctx: GameContext): void {
   // The net only appears while a fish is in the child's fingers, so it can never
   // be pressed by accident — and a fish can only leave the tank deliberately.
   const net = h('div', { class: 'aquarium-net', 'aria-hidden': 'true' }, '🪣');
-  const tray = h('div', { class: 'aquarium-tray' });
-  const root = h('div', { class: 'aquarium' }, canvas, tray, feed, net);
+  // One button rather than a row of them: a tray of thirteen fish took the whole
+  // bottom of the tank, which is where the fish are.
+  const add = h('button', { class: 'aquarium-add', type: 'button', 'aria-label': 'thêm cá' }, '🐟');
+  const root = h('div', { class: 'aquarium' }, canvas, feed, add, net);
   ctx.stage.append(root);
 
   const c = canvas.getContext('2d');
@@ -141,50 +143,106 @@ function start(ctx: GameContext): void {
     net.classList.remove('aquarium-net-over');
   }
 
-  // ---- the tray of fish to add ----
+  // ---- choosing a fish to add ----
+
+  /** One little picture per species, drawn once and kept for the picker. */
+  const portraits = new Map<string, HTMLCanvasElement>();
+  /** The open picker, so leaving the game takes it with us. */
+  let closePicker: (() => void) | null = null;
 
   /**
-   * One button per species, each showing the animal it will put in the tank —
-   * drawn with the same code that draws it swimming, so the child picks the fish
-   * they can see rather than a word they cannot read.
+   * A portrait of one species, drawn with the same code that draws it swimming.
+   * The child picks the fish they can see rather than a word they cannot read.
    */
-  function buildTray(): void {
+  function portrait(species: Species): HTMLCanvasElement {
+    const found = portraits.get(species.id);
+    if (found) return found;
     const px = 64;
-    tray.replaceChildren(
-      ...SPECIES.map((species) => {
-        const chip = h('canvas', { class: 'aquarium-chip-art', width: px * 2, height: px * 2 });
-        const cc = chip.getContext('2d');
-        if (cc) {
-          const mini = makeTank(px * 2, px * 2);
-          const posed = new Creature(species, mini, () => 0.5, { x: px, y: mini.floor - px * 0.55 });
-          posed.heading = 0;
-          posed.spine.replant(posed.x, posed.y, 0);
-          const keep = tank;
-          // The crab stands on the sand, so give it one for the length of the drawing.
-          tank = mini;
-          // A creature's x is its head, not its middle, and every species is a
-          // different size and shape. Fit the whole body to the button instead, so
-          // a guppy is as easy to hit as a shark and nothing hangs off the edge.
-          const box = bodyBox(posed);
-          const zoom = Math.min((px * 1.7) / box.w, (px * 1.7) / box.h);
-          cc.setTransform(zoom, 0, 0, zoom, px - box.cx * zoom, px - box.cy * zoom);
-          drawCreature(cc, posed, 0);
-          cc.setTransform(1, 0, 0, 1, 0, 0);
-          tank = keep;
-        }
-        const button = h(
-          'button',
-          { class: 'aquarium-chip', type: 'button', 'aria-label': `thêm ${species.name}`, 'data-species': species.id },
-          chip,
-        );
-        button.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          addFish(species);
-        });
-        return button;
-      }),
-    );
+    const art = h('canvas', { class: 'aquarium-chip-art', width: px * 2, height: px * 2 });
+    const cc = art.getContext('2d');
+    if (cc) {
+      const mini = makeTank(px * 2, px * 2);
+      const posed = new Creature(species, mini, () => 0.5, { x: px, y: mini.floor - px * 0.55 });
+      posed.heading = 0;
+      posed.spine.replant(posed.x, posed.y, 0);
+      const keep = tank;
+      // The crab stands on the sand, so give it one for the length of the drawing.
+      tank = mini;
+      // A creature's x is its head, not its middle, and every species is a
+      // different size and shape. Fit the whole body to the button instead, so
+      // a guppy is as easy to hit as a shark and nothing hangs off the edge.
+      const box = bodyBox(posed);
+      const zoom = Math.min((px * 1.7) / box.w, (px * 1.7) / box.h);
+      cc.setTransform(zoom, 0, 0, zoom, px - box.cx * zoom, px - box.cy * zoom);
+      drawCreature(cc, posed, 0);
+      cc.setTransform(1, 0, 0, 1, 0, 0);
+      tank = keep;
+    }
+    portraits.set(species.id, art);
+    return art;
   }
+
+  /**
+   * The picker. Choosing closes it, because the point of choosing a fish is
+   * watching it swim in — which cannot be seen from behind a panel.
+   */
+  function openPicker(): void {
+    if (closePicker) return;
+    let done = false;
+    // The tap that opened this must not also choose from it. Even opening on
+    // pointerup, a finger held down over a tile would land on it the moment the
+    // panel appeared underneath.
+    const opened = Date.now();
+    const settled = (): boolean => Date.now() - opened > 250;
+    const finish = (species: Species | null): void => {
+      if (done) return;
+      done = true;
+      overlay.remove();
+      closePicker = null;
+      if (species) addFish(species);
+    };
+    const tiles = SPECIES.map((species) => {
+      const tile = h(
+        'button',
+        { class: 'pp-tile aquarium-pick', type: 'button', 'aria-label': species.name, 'data-species': species.id },
+        portrait(species),
+      );
+      tile.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        if (settled()) finish(species);
+      });
+      return tile;
+    });
+    const shut = h('button', { class: 'pp-close btn-round', type: 'button', 'aria-label': 'Đóng' }, '✕');
+    shut.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      if (settled()) finish(null);
+    });
+    const overlay = h(
+      'div',
+      { class: 'pp-overlay aquarium-picker' },
+      h('div', { class: 'pp-panel' }, h('div', { class: 'pp-grid' }, ...tiles)),
+      shut,
+    );
+    overlay.addEventListener('pointerdown', (e) => {
+      if (e.target === overlay && settled()) finish(null);
+    });
+    root.append(overlay);
+    closePicker = () => finish(null);
+    ctx.audio.tick();
+  }
+
+  // Opened on pointerup, not pointerdown: opening on the press means the release
+  // of that same tap lands on whichever fish the panel put under the finger.
+  add.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    replay(add, 'anim-bounce');
+  });
+  add.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    ctx.hint.touch();
+    openPicker();
+  });
 
   /** Where a creature's whole body sits, fins and all, so it can be framed. */
   function bodyBox(cr: Creature): { cx: number; cy: number; w: number; h: number } {
@@ -207,7 +265,7 @@ function start(ctx: GameContext): void {
   function addFish(species: Species): void {
     ctx.hint.touch();
     if (creatures.length >= MAX_CREATURES) {
-      replay(tray, 'anim-shake');
+      replay(add, 'anim-shake');
       ctx.audio.boing();
       ctx.speak('Bể đầy cá rồi!');
       return;
@@ -341,9 +399,11 @@ function start(ctx: GameContext): void {
 
   function drawPlant(g: CanvasRenderingContext2D, plant: Plant): void {
     // Just brushed: the blades whip about far harder and far faster, then settle.
+    // Brushed: a little more wave and a little more hurry. Anything stronger and
+    // a tap on a weed reads as the tank being shaken rather than the weed.
     const stirred = plant.shake / SHAKE_SECONDS;
-    const amp = tank.unit * 0.28 * (1 + stirred * 2.6);
-    const rate = plant.sway * 2 * (1 + stirred * 3.5);
+    const amp = tank.unit * 0.28 * (1 + stirred * 0.3);
+    const rate = plant.sway * 2 * (1 + stirred * 0.4);
     for (let b = 0; b < plant.blades; b++) {
       const lean = (b - (plant.blades - 1) / 2) * 0.22;
       const base = plant.x + lean * plant.w * 3;
@@ -816,6 +876,9 @@ function start(ctx: GameContext): void {
     const len = cr.length;
     const facing = cr.vx >= 0 ? 1 : -1;
     const bodyY = cr.y - len * 0.12;
+    // Held up in the child's fingers there is no sand to stand on, so the legs
+    // dangle from the body instead of stretching down to where the floor is.
+    const ground = cr.held ? cr.y + len * 0.34 : tank.floor;
     // Long enough bones that the knee has somewhere to lift to: a crab's legs are
     // read from the peak above the body, not from the foot.
     const upper = len * 0.42;
@@ -829,7 +892,7 @@ function start(ctx: GameContext): void {
         const hipY = bodyY + len * 0.16;
         const step = cr.phase + i * 2.1 + (side > 0 ? Math.PI : 0);
         const footX = hipX + side * len * 0.42 + Math.cos(step) * len * 0.18 * facing;
-        const footY = tank.floor + len * 0.14 - Math.max(0, Math.sin(step)) * len * 0.16;
+        const footY = ground + len * 0.14 - Math.max(0, Math.sin(step)) * len * 0.16;
         // -side, so the knee lifts above the hip-to-foot line the way a crab's does,
         // instead of buckling under it.
         const knee = solveTwoBone(hipX, hipY, footX, footY, upper, lower, -side);
@@ -1209,7 +1272,9 @@ function start(ctx: GameContext): void {
     navigator.vibrate?.(14);
     // Everybody else saw that. Nothing frightens a fish like a neighbour vanishing upwards.
     for (const other of creatures) {
-      if (other !== cr && Math.hypot(other.x - cr.x, other.y - cr.y) < tank.unit * 3.5) other.startle(cr.x, cr.y, true);
+      // Only the neighbours who really saw it. Frightening half the tank at once
+      // empties the water and leaves the child holding a fish in a dead room.
+      if (other !== cr && Math.hypot(other.x - cr.x, other.y - cr.y) < tank.unit * 2) other.startle(cr.x, cr.y, true);
     }
     for (let i = 0; i < 5; i++) bubbles.push(makeBubble(cr.x, cr.y, tank));
   }
@@ -1288,7 +1353,7 @@ function start(ctx: GameContext): void {
   ctx.hint.arm(() => {
     // Point at whatever the tank needs: food when they are hungry, a new friend otherwise.
     const starving = creatures.filter((cr) => cr.mood === 'hungry').length;
-    replay(starving > creatures.length / 3 ? feed : tray, 'anim-wiggle');
+    replay(starving > creatures.length / 3 ? feed : add, 'anim-wiggle');
     const cr = creatures[Math.floor(Math.random() * creatures.length)];
     if (cr) cr.joy = 0.8;
   });
@@ -1300,12 +1365,12 @@ function start(ctx: GameContext): void {
   window.addEventListener('resize', onResize);
   ctx.onCleanup(() => {
     alive = false;
+    closePicker?.();
     window.removeEventListener('resize', onResize);
     if (raf) cancelAnimationFrame(raf);
   });
 
   build();
-  buildTray();
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);
 }
 

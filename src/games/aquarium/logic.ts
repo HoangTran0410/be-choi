@@ -4,6 +4,7 @@
  * has already decided; the bodies themselves come from `core/creature`.
  */
 import { Spine, angleDelta } from '../../core/creature';
+import { pick } from '../../core/dom';
 
 // ---- who lives in the tank ----
 
@@ -138,17 +139,20 @@ export function makeTank(w: number, h: number): Tank {
   };
 }
 
-/** A small tank holds fewer fish, so a phone is never a soup of them. */
-export function stocking(tank: Tank): Species[] {
+/** How many animals a fresh tank starts with. A small tank starts with fewer. */
+export const STARTER_MIN = 4;
+export const STARTER_MAX = 7;
+
+/**
+ * What is already swimming when the child arrives: a handful of different
+ * animals, no two the same. The tank used to open with one of every species and
+ * a soup of them at that — which left nothing to add and nowhere to put it.
+ * Filling it up is the child's job now.
+ */
+export function stocking(tank: Tank, rng: () => number = Math.random): Species[] {
   const room = (tank.w * tank.h) / (520 * 820);
-  const share = Math.max(0.45, Math.min(1, room));
-  const out: Species[] = [];
-  for (const species of SPECIES) {
-    // Always at least one of everything: the point is that there are many kinds.
-    const n = Math.max(1, Math.round(species.count * share));
-    for (let i = 0; i < n; i++) out.push(species);
-  }
-  return out;
+  const n = Math.round(Math.max(STARTER_MIN, Math.min(STARTER_MAX, STARTER_MIN + room * 2)));
+  return pick(SPECIES, Math.min(n, SPECIES.length), rng);
 }
 
 export interface Food {
@@ -293,6 +297,9 @@ export class Creature {
   dizzy = 0;
   /** The cover it is making for, while frightened. */
   private den: Shelter | null = null;
+  /** What frightened it, so it can keep putting water between them. */
+  private frightX = 0;
+  private frightY = 0;
   /** Where it is heading when nothing more interesting is happening. */
   private tx = 0;
   private ty = 0;
@@ -326,6 +333,16 @@ export class Creature {
     if (this.joy > 0) return 'excited';
     if (this.hunger >= HUNGRY_AT) return 'hungry';
     return 'calm';
+  }
+
+  /**
+   * Can it go and get a flake? A fish or a ray swims to one and a crab walks to
+   * one; a jellyfish has no say in where it goes and only eats what drifts into
+   * it. Anything that cannot feed itself must not get hungry either, or it wears
+   * an empty-stomach face for ever.
+   */
+  get forages(): boolean {
+    return this.species.kind !== 'jelly';
   }
 
   /**
@@ -390,6 +407,8 @@ export class Creature {
     const away = Math.hypot(dx, dy) || 1;
     this.vx = (dx / away) * this.species.speed * 2.4;
     this.vy = (dy / away) * this.species.speed * 2.4;
+    this.frightX = px;
+    this.frightY = py;
     this.fear = hard ? FEAR_SECONDS : FEAR_SECONDS * 0.35;
     // A prod from a child it knows is half a fright and half a game.
     if (!hard) this.joy = JOY_SECONDS * 0.5;
@@ -405,7 +424,7 @@ export class Creature {
     this.fear = Math.max(0, this.fear - step);
     this.joy = Math.max(0, this.joy - step);
     this.dizzy = Math.max(0, this.dizzy - step);
-    if (!this.held) this.hunger = Math.min(1, this.hunger + step / FULL_FOR);
+    if (!this.held && this.forages) this.hunger = Math.min(1, this.hunger + step / FULL_FOR);
     if (this.fear === 0) {
       this.hiding = false;
       this.den = null;
@@ -420,7 +439,7 @@ export class Creature {
       return false;
     }
 
-    if (this.species.kind === 'crab') return this.walk(step, tank, world.nudge);
+    if (this.species.kind === 'crab') return this.walk(step, tank, world.nudge, world.foods);
 
     const goal = this.aim(tank, world, rng);
     const cruise = this.cruise(tank);
@@ -428,8 +447,9 @@ export class Creature {
     const toX = goal.x - this.x;
     const toY = goal.y - this.y;
     const far = Math.hypot(toX, toY) || 1;
-    // Tucked in: hold still and let the fright pass.
-    const ease = this.hiding ? 0.12 : 1;
+    // Tucked in: keep low and let the fright pass — but keep moving, because a
+    // fish frozen mid-water reads as a broken game, not as a frightened animal.
+    const ease = this.hiding ? 0.45 : 1;
     let wantX = (toX / far) * cruise * ease;
     // Damped, because a fish that climbs as fast as it swims looks like it is falling.
     let wantY = (toY / far) * cruise * 0.55 * ease;
@@ -483,8 +503,13 @@ export class Creature {
         this.hiding = Math.hypot(this.den.x - this.x, this.den.y - this.y) < this.den.r;
         return this.den;
       }
-      // Nowhere to hide: put the far wall between itself and the fright.
-      return { x: this.tx, y: this.ty };
+      // Nowhere to hide: keep swimming away from whatever it was. Heading for the
+      // old wander target instead would leave it sitting still the moment it
+      // arrived, which looks like the tank has stopped rather than like fear.
+      const dx = this.x - this.frightX;
+      const dy = this.y - this.frightY;
+      const away = Math.hypot(dx, dy) || 1;
+      return { x: this.x + (dx / away) * tank.unit * 4, y: this.y + (dy / away) * tank.unit * 2 };
     }
 
     // A hungry fish smells further and will cross the tank for a flake.
@@ -514,10 +539,14 @@ export class Creature {
   }
 
   /** The crab walks the sand and never leaves it. */
-  private walk(step: number, tank: Tank, nudge: Nudge | null): boolean {
+  private walk(step: number, tank: Tank, nudge: Nudge | null, foods: readonly Food[]): boolean {
     const speed = tank.unit * this.species.speed * (this.fear > 0 ? 2.6 : 1);
+    // A crab is a scavenger: it goes along the sand for whatever landed there.
+    const crumb = this.fear > 0 ? null : this.crumbOnSand(foods, tank);
     if (nudge?.held && Math.abs(nudge.x - this.x) < NOTICE * tank.unit * 0.7) {
       this.vx = Math.sign(this.x - nudge.x || 1) * speed;
+    } else if (crumb) {
+      this.vx = Math.sign(crumb.x - this.x || 1) * speed * 1.4;
     } else if (Math.abs(this.vx) < speed * 0.5) {
       this.vx = (this.vx >= 0 ? 1 : -1) * speed;
     }
@@ -532,14 +561,54 @@ export class Creature {
       this.vx = -Math.abs(this.vx);
     }
     // Stood a little clear of the sand, so its legs have somewhere to come down to.
-    this.y = tank.floor - this.length * 0.06;
+    const stand = tank.floor - this.length * 0.06;
+    if (this.y < stand - 0.5) {
+      // Put down in mid-water: a crab sinks. Snapping it to the sand the instant
+      // the finger lets go looks like the game took it away again.
+      this.vy = Math.min(tank.unit * 3.2, this.vy + tank.unit * 7 * step);
+      this.y = Math.min(stand, this.y + this.vy * step);
+    } else {
+      this.y = stand;
+      this.vy = 0;
+    }
     this.heading = this.vx >= 0 ? 0 : Math.PI;
     this.phase += step * Math.abs(this.vx) * 0.09;
     this.spine.replant(this.x, this.y, this.heading);
+    return this.pickUp(foods, tank);
+  }
+
+  /** The nearest flake that has settled within a claw's reach along the sand. */
+  private crumbOnSand(foods: readonly Food[], tank: Tank): Food | null {
+    let best: Food | null = null;
+    let bestAway = SMELL * tank.unit * 1.6;
+    for (const food of foods) {
+      if (food.eaten || food.y < tank.floor - this.length * 0.9) continue;
+      const away = Math.abs(food.x - this.x);
+      if (away < bestAway) {
+        bestAway = away;
+        best = food;
+      }
+    }
+    return best;
+  }
+
+  /** A crab eats what it walks over; a jellyfish eats what drifts into it. */
+  private pickUp(foods: readonly Food[], tank: Tank): boolean {
+    const reach = Math.max(tank.unit * 0.4, this.length * 0.45);
+    for (const food of foods) {
+      if (food.eaten) continue;
+      if (Math.hypot(food.x - this.x, food.y - this.y) < reach) {
+        food.eaten = true;
+        this.feed();
+        return true;
+      }
+    }
     return false;
   }
 
   private nearestFood(foods: readonly Food[], tank: Tank): Food | null {
+    // A jellyfish does not steer, so it cannot go to a flake; the crab has its
+    // own way along the sand.
     if (this.species.kind === 'jelly' || this.species.kind === 'crab') return null;
     let best: Food | null = null;
     // An empty stomach carries a long way.
@@ -556,7 +625,9 @@ export class Creature {
   }
 
   private swallow(foods: readonly Food[], tank: Tank): boolean {
-    if (this.species.kind === 'jelly' || this.species.kind === 'crab') return false;
+    // Drifting into a flake still counts: a jellyfish catches what touches it.
+    if (this.species.kind === 'jelly') return this.pickUp(foods, tank);
+    if (this.species.kind === 'crab') return false;
     const mouthX = this.x + Math.cos(this.heading) * this.length * 0.15;
     const mouthY = this.y + Math.sin(this.heading) * this.length * 0.15;
     for (const food of foods) {

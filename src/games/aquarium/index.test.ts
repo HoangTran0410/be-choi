@@ -158,24 +158,80 @@ describe('aquarium game', () => {
     return null;
   }
 
-  it('offers one of every fish and puts the one that is tapped into the tank', () => {
-    const { ctx } = mount();
-    const chips = [...ctx.stage.querySelectorAll<HTMLElement>('.aquarium-chip')];
-    expect(chips.length).toBe(SPECIES.length);
-    for (const chip of chips) expect(chip.querySelector('canvas')).not.toBeNull();
+  /** Open the picker the way a child does: press, release, then choose. */
+  function openPicker(ctx: ReturnType<typeof fakeContext>): void {
+    const add = ctx.stage.querySelector<HTMLElement>('.aquarium-add')!;
+    add.dispatchEvent(ptr('pointerdown'));
+    add.dispatchEvent(ptr('pointerup'));
+    // The panel ignores the tap that opened it; give the finger time to lift.
+    vi.advanceTimersByTime(300);
+  }
 
-    const goldfish = ctx.stage.querySelector<HTMLElement>('.aquarium-chip[data-species="goldfish"]')!;
+  function addFish(ctx: ReturnType<typeof fakeContext>, id?: string): void {
+    openPicker(ctx);
+    const tile = ctx.stage.querySelector<HTMLElement>(id ? `.aquarium-pick[data-species="${id}"]` : '.aquarium-pick')!;
+    tile.dispatchEvent(ptr('pointerup'));
+  }
+
+  it('does not choose a fish with the same tap that opened the picker', () => {
+    const { ctx } = mount();
+    const add = ctx.stage.querySelector<HTMLElement>('.aquarium-add')!;
     ctx.spoken.length = 0;
-    goldfish.dispatchEvent(ptr('pointerdown'));
+    add.dispatchEvent(ptr('pointerdown'));
+    add.dispatchEvent(ptr('pointerup'));
+    // The release of that same tap lands on whichever tile the panel put there.
+    ctx.stage.querySelector<HTMLElement>('.aquarium-pick')!.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.aquarium-picker')).not.toBeNull();
+    expect(ctx.spoken).toEqual([]);
+    ctx.cleanup();
+  });
+
+  it('keeps the bottom of the tank clear, and offers every fish behind one button', () => {
+    const { ctx } = mount();
+    // Nothing but the two round buttons sits over the water.
+    expect(ctx.stage.querySelector('.aquarium-tray')).toBeNull();
+    expect(ctx.stage.querySelector('.aquarium-add')).not.toBeNull();
+    expect(ctx.stage.querySelector('.aquarium-picker')).toBeNull();
+
+    openPicker(ctx);
+    const tiles = [...ctx.stage.querySelectorAll<HTMLElement>('.aquarium-pick')];
+    expect(tiles.length).toBe(SPECIES.length);
+    for (const tile of tiles) expect(tile.querySelector('canvas')).not.toBeNull();
+
+    // A second press does not stack a second picker.
+    openPicker(ctx);
+    expect(ctx.stage.querySelectorAll('.aquarium-picker').length).toBe(1);
+
+    // Choosing closes it, because the point is watching the fish swim in.
+    ctx.spoken.length = 0;
+    ctx.stage.querySelector<HTMLElement>('.aquarium-pick[data-species="goldfish"]')!.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.aquarium-picker')).toBeNull();
     expect(ctx.spoken).toContain('cá vàng');
     expect(() => vi.advanceTimersByTime(300)).not.toThrow();
     ctx.cleanup();
   });
 
+  it('closes the picker without adding anything', () => {
+    const { ctx } = mount();
+    openPicker(ctx);
+    ctx.spoken.length = 0;
+    ctx.stage.querySelector<HTMLElement>('.aquarium-picker .pp-close')!.dispatchEvent(ptr('pointerup'));
+    expect(ctx.stage.querySelector('.aquarium-picker')).toBeNull();
+    expect(ctx.spoken).toEqual([]);
+    ctx.cleanup();
+  });
+
+  it('takes the picker with it when the child leaves the game', () => {
+    const { ctx } = mount();
+    openPicker(ctx);
+    expect(ctx.stage.querySelector('.aquarium-picker')).not.toBeNull();
+    ctx.cleanup();
+    expect(document.body.contains(ctx.stage)).toBe(false);
+  });
+
   it('will not let a child fill the tank until it stops running', () => {
     const { ctx } = mount();
-    const chip = ctx.stage.querySelector<HTMLElement>('.aquarium-chip')!;
-    for (let i = 0; i < MAX_CREATURES + 8; i++) chip.dispatchEvent(ptr('pointerdown'));
+    for (let i = 0; i < MAX_CREATURES + 8; i++) addFish(ctx);
     expect(ctx.spoken).toContain('Bể đầy cá rồi!');
     expect(() => vi.advanceTimersByTime(500)).not.toThrow();
     ctx.cleanup();

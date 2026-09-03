@@ -158,14 +158,16 @@ const frameB = await page.locator('.aquarium-canvas').evaluate((el) => el.toData
 check('aquarium: the fish are swimming', frameA !== frameB);
 await tap(page.locator('.aquarium-canvas'));
 
-// A tray of fish to add, one per species, each drawn as the animal it adds.
-const chips = page.locator('.aquarium-chip');
-const chipCount = await chips.count();
-check('aquarium: a tray of fish to add', chipCount >= 10);
-const chipArt = await chips.first().locator('canvas').evaluate((el) => el.toDataURL().length);
-check('aquarium: each chip shows the fish it adds', chipArt > 1000);
-await tap(chips.first());
+// One button opens a picker of every species, each drawn as the animal it adds.
+check('aquarium: the water is not covered by a tray', (await page.locator('.aquarium-tray').count()) === 0);
+await tap(page.locator('.aquarium-add'));
+const tiles = page.locator('.aquarium-pick');
+check('aquarium: the picker offers every fish', (await tiles.count()) >= 10);
+const chipArt = await tiles.first().locator('canvas').evaluate((el) => el.toDataURL().length);
+check('aquarium: each tile shows the fish it adds', chipArt > 1000);
+await tap(tiles.first());
 await page.waitForTimeout(400);
+check('aquarium: choosing a fish closes the picker', (await page.locator('.aquarium-picker').count()) === 0);
 
 // Picking a fish up brings out the net; putting it back down puts the net away.
 const tankRect = await page.locator('.aquarium-canvas').boundingBox();
