@@ -25,7 +25,11 @@ mkdirSync('screenshots', { recursive: true });
 // BROWSER=webkit approximates iPad Safari. Screenshots get a '-webkit' suffix.
 const engine = process.env.BROWSER === 'webkit' ? webkit : chromium;
 const suffix = process.env.BROWSER === 'webkit' ? '-webkit' : '';
-const browser = await engine.launch();
+// Chromium can fake a microphone and camera, so the singing games render in their
+// "listening" state instead of stopping at a permission prompt. WebKit cannot.
+const browser = await engine.launch(
+  engine === chromium ? { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } : {},
+);
 const problems = [];
 
 for (const vp of VIEWPORTS) {
@@ -34,6 +38,8 @@ for (const vp of VIEWPORTS) {
     deviceScaleFactor: 2,
     hasTouch: true,
     isMobile: true,
+    // WebKit has no such permissions to grant; asking would throw.
+    ...(engine === chromium ? { permissions: ['microphone', 'camera'] } : {}),
   });
   const page = await context.newPage();
   page.on('pageerror', (e) => problems.push(`${vp.name}: pageerror ${e.message}`));

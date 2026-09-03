@@ -1,7 +1,10 @@
 import { h, replay } from '../../core/dom';
-import { noteFreq, scaleIndex, schedule, type Song } from '../../core/music';
+import { fitsScale, noteFreq, scaleIndex, schedule, SONGS, type Song } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
+
+/** Only songs that fit the eight bars: the play-along has to be able to ask for every note. */
+const SONGBOOK: readonly Song[] = SONGS.filter(fitsScale);
 import {
   advance,
   BAR_COLORS,
@@ -14,7 +17,6 @@ import {
   serializeRec,
   type RecEvent,
 } from './logic';
-import { ALL_SONGS } from './songs';
 import './style.css';
 
 const NOTE_GLYPHS = ['🎵', '🎶'] as const;
@@ -62,7 +64,7 @@ function start(ctx: GameContext): void {
 
   const root = h('div', { class: 'xylo' });
   const strip = h('div', { class: 'xylo-songs' });
-  const songEls = ALL_SONGS.map((s, i) =>
+  const songEls = SONGBOOK.map((s, i) =>
     h(
       'button',
       { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title, onpointerdown: () => selectSong(s) },
@@ -156,7 +158,7 @@ function start(ctx: GameContext): void {
     stop();
     song = s;
     index = 0;
-    songEls.forEach((el, i) => el.classList.toggle('active', ALL_SONGS[i] === s));
+    songEls.forEach((el, i) => el.classList.toggle('active', SONGBOOK[i] === s));
     ctx.speak(s.title);
     showExpected();
     ctx.hint.arm(() => {
@@ -251,7 +253,7 @@ function start(ctx: GameContext): void {
   }
 
   function play(): void {
-    const s = song ?? ALL_SONGS[0];
+    const s = song ?? SONGBOOK[0];
     if (!s) return;
     stop();
     stopReplay();

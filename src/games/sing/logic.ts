@@ -67,6 +67,66 @@ export const LYRICS: Readonly<Record<string, readonly Phrase[]>> = {
     line('🦆', 'Vịt kêu cạp cạp', 4),
     line('🎉', 'Vui quá vui!', 2),
   ],
+  birthday: [
+    line('🎂', 'Chúc mừng sinh nhật', 6),
+    line('🎉', 'Chúc mừng sinh nhật', 6),
+    line('🥳', 'Chúc mừng bé yêu của cả nhà', 7),
+    line('🎈', 'Chúc mừng sinh nhật!', 6),
+  ],
+  row: [
+    line('🚣', 'Chèo chèo chèo thuyền đi', 4),
+    line('🌊', 'Nhẹ theo dòng sông', 3),
+    line('😄', 'Vui vui vui vui vui vui', 3.96),
+    line('💭', 'Đời là giấc mơ xinh', 4),
+  ],
+  buns: [
+    line('🥐', 'Bánh nướng thơm ơi', 4),
+    line('🥐', 'Bánh nướng thơm ơi', 4),
+    line('🪙', 'Một đồng một cái, hai đồng hai cái', 4),
+    line('🥐', 'Bánh nướng thơm ơi', 4),
+  ],
+  rain: [
+    line('🌧️', 'Mưa ơi mưa ơi', 5),
+    line('☔', 'Mưa đi chỗ khác chơi nhé', 6),
+    line('🌈', 'Để bé còn ra sân chơi', 6),
+    line('🌧️', 'Mưa ơi mưa ơi', 5),
+  ],
+  backimthang: [
+    line('🪜', 'Bắc kim thang, cà lang bí rợ', 8),
+    line('🏠', 'Cột qua kèo, là kèo qua cột', 8),
+    line('🛢️', 'Chú bán dầu, qua cầu mà té', 8),
+    line('🐸', 'Chú bán ếch, ở lại làm chi', 9),
+    line('🥁', 'Con le le, đánh trống thổi kèn', 9),
+    line('🐦', 'Con bìm bịp thổi tò tí te tò te', 10),
+  ],
+  canha: [
+    line('👨', 'Ba thương con vì con giống mẹ', 8),
+    line('👩', 'Mẹ thương con vì con giống ba', 8),
+    line('🏡', 'Cả nhà ta cùng yêu thương nhau', 8),
+    line('💗', 'Xa là nhớ, gần nhau là cười', 8),
+  ],
+  chaulenba: [
+    line('🧒', 'Cháu lên ba, cháu đi mẫu giáo', 8),
+    line('👩‍🏫', 'Cô thương cháu vì cháu không khóc nhè', 9),
+    line('🌱', 'Không khóc nhè thì mẹ trồng cây trái', 9),
+    line('🚜', 'Ông vào nhà máy, ông bà vui cấy cày', 10),
+    line('🎶', 'Là lá la la, là là lá la la', 10),
+  ],
+  chauyeuba: [
+    line('👵', 'Bà ơi bà, cháu yêu bà lắm', 8),
+    line('☁️', 'Tóc bà trắng, màu trắng như mây', 8),
+    line('🤝', 'Cháu yêu bà, cháu nắm bàn tay', 8),
+    line('😊', 'Khi cháu vâng lời, cháu biết bà vui', 9),
+    line('🤝', 'Cháu yêu bà, cháu nắm bàn tay', 8),
+    line('😊', 'Khi cháu vâng lời, cháu biết bà vui', 9),
+  ],
+  ngungon: [
+    line('🌙', 'Bé ơi ngủ đi, đêm đã khuya rồi', 10),
+    line('💭', 'Để những giấc mơ đẹp sẽ luôn bên em', 10),
+    line('🛏️', 'Bé ơi ngủ ngoan, trong tiếng ru hời', 9),
+    line('🌕', 'Vầng trăng đợi em cùng bay vào giấc mơ', 10),
+    line('💤', 'À ơi… à ơi… à à ơi…', 8),
+  ],
 };
 
 /** Animals watching from the front row. */

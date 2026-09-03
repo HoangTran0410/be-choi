@@ -10,7 +10,7 @@ describe('lyrics', () => {
   it('last exactly as long as the melody, so the highlight lands with the tune', () => {
     for (const song of SONGS) {
       const melody = song.notes.reduce((sum, n) => sum + n.d, 0);
-      expect(totalBeats(phrasesFor(song.id))).toBe(melody);
+      expect(totalBeats(phrasesFor(song.id))).toBeCloseTo(melody, 5);
     }
   });
 

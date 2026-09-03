@@ -5,8 +5,11 @@ import { preview } from 'vite';
 
 const server = await preview({ preview: { port: 4174, host: '127.0.0.1' }, logLevel: 'silent' });
 const base = (server.resolvedUrls?.local[0] ?? 'http://127.0.0.1:4174').replace(/\/$/, '');
-const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+// Fake mic and camera: the singing games get a real MediaStream (a tone and a test
+// pattern) and no permission prompt, so they can be played headlessly.
+const media = ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'];
+const browser = await chromium.launch({ args: media });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, permissions: ['microphone', 'camera'] });
 const page = await context.newPage();
 const problems = [];
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
@@ -460,6 +463,45 @@ await tap(page.locator('.jam-beat').nth(1));
 await page.waitForTimeout(800);
 check('jam: beat selected', await page.locator('.jam-beat').nth(1).evaluate((el) => el.classList.contains('active')));
 await tap(page.locator('.jam-beat').nth(0));
+
+// ---- sing: pick a song, turn the microphone on, watch the words move ----
+await open('sing');
+check('sing: a card per song', (await page.locator('.sing-song').count()) >= 9);
+await tap(page.locator('.sing-mic'));
+await page.waitForTimeout(1200);
+check('sing: microphone listening', await page.locator('.sing-mic').evaluate((el) => el.classList.contains('sing-on')));
+await tap(page.locator('.sing-song[data-song="lamb"]'));
+const firstLine = await page.locator('.sing-lyric-text').textContent();
+await page.waitForTimeout(4000);
+check('sing: the words move with the tune', (await page.locator('.sing-lyric-text').textContent()) !== firstLine);
+await tap(page.locator('.sing-back'));
+check('sing: back to the songs', (await page.locator('.sing-songs').isVisible()));
+
+// ---- parrot: hold, sing, let the animal answer ----
+await open('parrot');
+check('parrot: five animals', (await page.locator('.parrot-critter').count()) === 5);
+await tap(page.locator('.parrot-mic'));
+await page.waitForTimeout(1200);
+const micBox = await page.locator('.parrot-mic').boundingBox();
+if (micBox) {
+  await page.mouse.move(micBox.x + micBox.width / 2, micBox.y + micBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1500);
+  check('parrot: recording', await page.locator('.parrot-mic').evaluate((el) => el.classList.contains('parrot-recording')));
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+}
+check('parrot: the animal answered', (await page.locator('.parrot-bubble').textContent())?.includes('hát') === true);
+
+// ---- birdsong: the fake microphone tone should lift the bird ----
+await open('birdsong');
+check('birdsong: eight note slots', (await page.locator('.bird-slot').count()) === 8);
+await tap(page.locator('.bird-mic'));
+await page.waitForTimeout(1500);
+const highBefore = await page.locator('.bird-bird').evaluate((el) => Number.parseFloat(el.style.top));
+await page.waitForTimeout(2500);
+const highAfter = await page.locator('.bird-bird').evaluate((el) => Number.parseFloat(el.style.top));
+check('birdsong: the bird reacts to the microphone', Number.isFinite(highAfter) && highAfter !== highBefore);
 
 // ---- home + parent gate ----
 await page.goto(`${base}/#/`, { waitUntil: 'networkidle' });

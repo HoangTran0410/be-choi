@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { noteFreq, SCALE_C, scaleIndex, SONGS, schedule, findSong } from './music';
+import { fitsScale, noteFreq, SCALE_C, scaleIndex, SONGS, schedule, findSong } from './music';
 
 describe('music', () => {
   it('converts note names to frequencies', () => {
@@ -17,12 +17,12 @@ describe('music', () => {
     expect(scaleIndex('G4')).toBe(4);
     expect(scaleIndex('G3')).toBe(-1);
   });
-  it('songs only use scale notes or rests, with positive durations', () => {
+  it('songs have playable notes and positive durations', () => {
     expect(SONGS.length).toBeGreaterThanOrEqual(5);
     for (const s of SONGS) {
       expect(s.notes.length).toBeGreaterThan(8);
       for (const n of s.notes) {
-        expect(n.n === 'R' || SCALE_C.includes(n.n)).toBe(true);
+        expect(n.n === 'R' || noteFreq(n.n) > 0).toBe(true);
         expect(n.d).toBeGreaterThan(0);
       }
     }
@@ -47,5 +47,29 @@ describe('music', () => {
     expect(seen2).toEqual([0]);
     cancel();
     vi.useRealTimers();
+  });
+});
+
+describe('the shared songbook', () => {
+  it('holds unique songs that all have a title, an icon and a tempo', () => {
+    expect(SONGS.length).toBeGreaterThanOrEqual(9);
+    expect(new Set(SONGS.map((s) => s.id)).size).toBe(SONGS.length);
+    for (const song of SONGS) {
+      expect(song.title.trim().length).toBeGreaterThan(0);
+      expect(song.icon.trim().length).toBeGreaterThan(0);
+      expect(song.bpm).toBeGreaterThan(0);
+      expect(song.notes.length).toBeGreaterThan(8);
+    }
+  });
+});
+
+describe('fitsScale', () => {
+  it('keeps the wide songs off the eight xylophone bars', () => {
+    expect(fitsScale({ id: 'x', title: 'x', icon: 'x', bpm: 100, notes: [{ n: 'C4', d: 1 }, { n: 'R', d: 1 }] })).toBe(true);
+    expect(fitsScale({ id: 'x', title: 'x', icon: 'x', bpm: 100, notes: [{ n: 'C4', d: 1 }, { n: 'D5', d: 1 }] })).toBe(false);
+    const playable = SONGS.filter(fitsScale);
+    expect(playable.length).toBeGreaterThanOrEqual(6);
+    expect(playable.map((s) => s.id)).toContain('chaulenba');
+    expect(playable.map((s) => s.id)).not.toContain('canha');
   });
 });

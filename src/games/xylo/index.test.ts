@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
-import { noteFreq, SONGS } from '../../core/music';
+import { fitsScale, noteFreq, SONGS } from '../../core/music';
 import { advance, BARS, expectedBar, REC_MAX_MS, serializeRec } from './logic';
-import { ALL_SONGS } from './songs';
 import game from './index';
 
 const REC_KEY = 'be-choi:xylo-rec';
@@ -44,8 +43,7 @@ describe('xylo game', () => {
     game.start(ctx);
     const bars = ctx.stage.querySelectorAll<HTMLElement>('.xylo-bar');
     expect(bars.length).toBe(8);
-    expect(ctx.stage.querySelectorAll('.xylo-song').length).toBe(ALL_SONGS.length);
-    expect(ALL_SONGS.length).toBeGreaterThan(SONGS.length);
+    expect(ctx.stage.querySelectorAll('.xylo-song').length).toBe(SONGS.filter(fitsScale).length);
     expect(ctx.stage.querySelectorAll('.xylo-play').length).toBe(1);
     expect(ctx.stage.querySelectorAll('.xylo-rec').length).toBe(1);
     expect(ctx.stage.querySelectorAll('.xylo-glow').length).toBe(0);

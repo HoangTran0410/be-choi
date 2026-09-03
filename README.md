@@ -4,7 +4,7 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 31 trò chơi
+## 34 trò chơi
 
 **🎵 Âm nhạc**
 
@@ -17,6 +17,9 @@ không có "thua", không giới hạn thời gian.
 | 🎺 Nhạc cụ | nghe tiếng piano, ghi-ta, vi-ô-lông, kèn…; đố "nghe và tìm" | phân biệt âm thanh |
 | 🎶 Nhớ giai điệu | máy chơi chuỗi nốt, bé gõ lại; dài dần đến 6 nốt | trí nhớ thính giác |
 | 🎪 Ban nhạc thú | chạm từng con thú để thêm/bớt bè nhạc lặp (trống, bass, hợp âm…), 3 nhịp điệu | sáng tạo âm nhạc |
+| 🎙️ Ca sĩ nhí | chọn 1 trong 14 bài (Ngôi sao lấp lánh, Bắc kim thang, Cả nhà thương nhau, Cháu lên ba, Cháu yêu bà, Chúc bé ngủ ngon, Chúc mừng sinh nhật…), nhạc đệm chạy và lời hiện từng câu bằng emoji to sáng theo nhịp; bé hát vào mic thì đèn sân khấu bừng sáng, khán giả thú nhún nhảy, nốt nhạc bay lên. Bật 🪞 lấy camera trước làm nền sân khấu, bấm 📷 lưu một tấm ảnh ca sĩ vào Ảnh của bé | hát, nhịp điệu |
+| 🦜 Vẹt nhại giọng | giữ nút 🎤 rồi hát (tối đa 5 giây, có sóng âm chạy theo giọng), thả tay ra là vẹt hát lại đúng giọng bé; chạm chuột, rô-bốt, voi, khủng long để nghe lại đoạn đó bằng giọng cao thấp khác nhau | nghe, nhân quả |
+| 🐦 Hát cho chim bay | bé hát to thì chim bay lên, im thì chim hạ xuống; bay qua vòng mây và nhặt nốt nhạc, đủ 8 nốt được ⭐. Không có mic thì giữ tay lên màn hình chim cũng bay | hơi thở, nhân quả |
 
 **🧩 Xếp hình & suy nghĩ**
 
@@ -72,6 +75,14 @@ Giữ 👪 → **📷 Ảnh của bé** → *Thêm ảnh / chụp ảnh* (iOS h�
 thu nhỏ còn 1024 px, lưu IndexedDB **trên máy**, không gửi đi đâu. Trong game, bé chạm nút 🖼️ để mở
 bảng chọn ảnh (thumbnail to): Ghép tranh (hoặc chọn 🐣 tranh emoji), Tô màu (chọn ảnh nền, ✏️ biến thành
 nét vẽ để tô, ⬜ bỏ ảnh), Sinh nhật (chạm ảnh trên bánh để đổi, nhớ lựa chọn cho lần sau).
+
+## Micro và camera
+
+Ba trò Ca sĩ nhí, Vẹt nhại giọng, Hát cho chim bay dùng micro; Ca sĩ nhí dùng thêm camera trước làm nền
+sân khấu. Trình duyệt chỉ hỏi quyền khi bé chạm nút 🎤 hoặc 🪞, và **mọi thứ chỉ xử lý trên máy**: giọng
+được đo/thu trong bộ nhớ rồi phát lại ngay, ảnh chụp lưu vào Ảnh của bé (IndexedDB) — không có request
+mạng nào. Rời game là micro và camera tắt hẳn (đèn báo trên máy tắt theo). Bố mẹ từ chối quyền cũng
+không sao: mỗi game có đường chơi bằng ngón tay.
 
 ## Chạy thử
 
@@ -147,7 +158,7 @@ docs/superpowers/    spec và plan
 
 Không có runtime dependency: đồ hoạ là emoji + SVG, âm thanh và tiếng nhạc cụ sinh bằng Web Audio
 (piano, xylophone, chuông, ghi-ta Karplus-Strong, sáo, kèn, vi-ô-lông, bộ trống), giọng nói
-bằng Web Speech API. Bài hát trong Đàn gõ là giai điệu public domain có lời Việt. Vì vậy offline 100 % và bundle rất nhỏ.
+bằng Web Speech API. 14 bài hát dùng chung nằm ở `core/music.ts` (Đàn gõ, Ca sĩ nhí và bài ru của Giờ đi ngủ đều lấy từ đó): đồng dao/nursery rhyme public domain, cộng vài bài thiếu nhi Việt Nam chép lại từ cảm âm cho bé nhà mình hát. Đàn gõ chỉ hiện những bài nằm gọn trong 8 thanh (`fitsScale`), bài rộng hơn thì chỉ hát ở Ca sĩ nhí. Vì vậy offline 100 % và bundle rất nhỏ.
 
 ## Thêm một game mới
 
