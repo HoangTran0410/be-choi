@@ -1,22 +1,25 @@
+import { createChecklist } from '../../core/chores';
 import { h, replay } from '../../core/dom';
 import { findSong, noteFreq, schedule, SONGS } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
+  CHEERS,
+  JOBS,
+  JOB_ICON,
   LULLABY_BPM,
   LULLABY_NOTES,
-  PROMPTS,
+  NUDGES,
+  UNDOS,
   makeNight,
-  nextPhase,
+  type Job,
   type Night,
-  type Phase,
-  type PhaseEvent,
 } from './logic';
 import './style.css';
 
 /** How long a toy takes to fly into the box. */
 const TOY_FLY_MS = 500;
-/** Breath between the last toy landing and the lamp being asked for. */
+/** Breath between the last toy landing and the tick going green. */
 const STEP_MS = 700;
 const NEXT_NIGHT_MS = 2200;
 const ZZZ_MS = 1600;
@@ -24,19 +27,25 @@ const ZZZ_MS = 1600;
 const LULLABY = findSong('twinkle') ?? SONGS[0];
 
 /**
- * Giờ đi ngủ: the four things that happen before bed, in order — put the toys
- * away, turn the lamp off, pull the blanket up, then ask the moon for a song.
+ * Giờ đi ngủ: the four things that happen before bed — put the toys away, turn
+ * the lamp off, pull the blanket up, and ask the moon for a song.
  *
- * It is the quiet game of the set: the room dims as it goes, the last step is a
- * lullaby on bells with the stars coming out, and it ends with a sleeping friend.
+ * Nothing here waits its turn. A two-year-old presses whatever catches their
+ * eye, so every object works the moment it is touched, the lamp and the blanket
+ * go back and forth as often as they like, and the friend only falls asleep once
+ * all four ticks along the top have turned green — in whatever order they got there.
  */
 function start(ctx: GameContext): void {
   let alive = true;
   let round = 0;
-  let phase: Phase = 'toys';
+  const chores = createChecklist(JOBS);
+  /** True from the moment the friend drops off until the next night begins. */
+  let asleep = false;
   let night: Night | null = null;
   let left = 0;
   let cancelSong: (() => void) | null = null;
+  /** Jobs already asked for out loud tonight, so the hint does not repeat itself. */
+  const nudged = new Set<Job>();
   const timers = new Set<ReturnType<typeof setTimeout>>();
 
   const friend = h('div', { class: 'bedtime-friend' });
@@ -57,7 +66,13 @@ function start(ctx: GameContext): void {
   const window_ = h('div', { class: 'bedtime-window' }, sky);
   const box = h('div', { class: 'bedtime-box' }, h('span', { class: 'bedtime-box-lid' }, '🧺'));
   const floor = h('div', { class: 'bedtime-floor' });
-  const room = h('div', { class: 'bedtime-room' }, window_, lamp, bed, box, floor);
+  /** One tick per job, so the child can see what is left without being told. */
+  const ticks = new Map<Job, HTMLElement>();
+  for (const job of JOBS) {
+    ticks.set(job, h('div', { class: 'bedtime-tick', 'data-job': job }, JOB_ICON[job]));
+  }
+  const todo = h('div', { class: 'bedtime-todo' }, ...ticks.values());
+  const room = h('div', { class: 'bedtime-room' }, window_, lamp, bed, box, floor, todo);
   const wrap = h('div', { class: 'bedtime' }, room);
   ctx.stage.append(wrap);
 
@@ -69,39 +84,46 @@ function start(ctx: GameContext): void {
     timers.add(t);
   }
 
-  // ---- phases ----
+  // ---- the jobs, none of which waits for another ----
 
+  /** Wiggle something still to do, so a stuck child has somewhere to look. */
   function armHint(): void {
-    if (phase === 'done') {
-      ctx.hint.clear();
-      return;
-    }
     ctx.hint.arm(() => {
-      if (phase === 'toys') {
+      const waiting = chores.left();
+      const job = waiting[Math.floor(Math.random() * waiting.length)];
+      if (!job) return;
+      const tick = ticks.get(job);
+      if (tick) replay(tick, 'anim-wiggle');
+      if (job === 'toys') {
         const toy = floor.querySelector('.bedtime-toy:not(.away)');
         if (toy) replay(toy, 'anim-wiggle');
-      } else if (phase === 'light') replay(lamp, 'anim-wiggle');
-      else if (phase === 'blanket') replay(blanket, 'anim-wiggle');
-      else if (phase === 'lullaby') replay(moon, 'anim-wiggle');
+      } else if (job === 'light') replay(lamp, 'anim-wiggle');
+      else if (job === 'blanket') replay(blanket, 'anim-wiggle');
+      else replay(moon, 'anim-wiggle');
+      // Asking out loud once per job is a reminder; asking every six seconds is nagging.
+      if (nudged.has(job)) return;
+      nudged.add(job);
+      ctx.speak(NUDGES[job]);
     });
   }
 
-  function enter(next: Phase): void {
-    phase = next;
-    wrap.dataset.phase = next;
-    if (next !== 'done') ctx.speak(PROMPTS[next]);
-    armHint();
+  /**
+   * Mark a job done or undone. Says so out loud, ticks it off, and puts the
+   * friend to sleep when this was the last one outstanding.
+   */
+  function setJob(job: Job, done: boolean): void {
+    if (!chores.set(job, done)) return;
+    const tick = ticks.get(job);
+    tick?.classList.toggle('done', done);
+    if (tick && done) replay(tick, 'anim-bounce');
+    const line = done ? CHEERS[job] : UNDOS[job];
+    if (line) ctx.speak(line);
+    if (done && chores.allDone()) void sleep();
+    else armHint();
   }
-
-  function transition(event: PhaseEvent): void {
-    const next = nextPhase(phase, event);
-    if (next !== phase) enter(next);
-  }
-
-  // ---- the jobs ----
 
   function tidy(toy: HTMLElement): void {
-    if (phase !== 'toys' || toy.classList.contains('away')) return;
+    if (asleep || toy.classList.contains('away')) return;
     toy.classList.add('away');
     // Fly to the basket: the box is in the bottom corner, so aim there.
     const from = toy.getBoundingClientRect();
@@ -115,7 +137,7 @@ function start(ctx: GameContext): void {
       toy.remove();
       replay(box, 'anim-bounce');
       ctx.audio.tick();
-      if (left === 0) later(() => transition('tidy'), STEP_MS);
+      if (left === 0) later(() => setJob('toys', true), STEP_MS);
     }, TOY_FLY_MS);
   }
 
@@ -123,24 +145,25 @@ function start(ctx: GameContext): void {
     e.preventDefault();
     ctx.hint.touch();
     replay(lamp, 'anim-bounce');
-    if (phase !== 'light') return;
-    wrap.classList.add('dark');
+    if (asleep) return;
+    // A switch, not a step: off, on, off again is a game in itself at this age.
+    const off = !chores.done('light');
+    wrap.classList.toggle('dark', off);
     ctx.audio.tick();
-    ctx.audio.pop(0.6);
-    transition('dark');
+    ctx.audio.pop(off ? 0.6 : 1.4);
+    setJob('light', off);
   });
 
   blanket.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     ctx.hint.touch();
-    if (phase !== 'blanket') {
-      replay(blanket, 'anim-wiggle');
-      return;
-    }
-    blanket.classList.add('tucked');
-    ctx.audio.puff();
+    if (asleep) return;
+    const tucked = !chores.done('blanket');
+    blanket.classList.toggle('tucked', tucked);
+    if (tucked) ctx.audio.puff();
+    else ctx.audio.pop(0.8);
     navigator.vibrate?.(12);
-    transition('tucked');
+    setJob('blanket', tucked);
   });
 
   function twinkle(): void {
@@ -157,30 +180,15 @@ function start(ctx: GameContext): void {
     cancelSong = null;
   }
 
-  async function slept(): Promise<void> {
-    transition('sung');
-    friend.classList.add('asleep');
-    zzz.classList.add('showing');
-    ctx.speak('Ngủ ngon nhé!');
-    ctx.hint.clear();
-    await ctx.celebrate();
-    if (!alive) return;
-    ctx.addStar();
-    later(() => {
-      round++;
-      play(night?.friend.emoji);
-    }, NEXT_NIGHT_MS);
-  }
-
   moon.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     ctx.hint.touch();
     replay(moon, 'anim-bounce');
-    if (phase !== 'lullaby' || cancelSong) return;
-    ctx.hint.clear();
+    // Singing again is always allowed; only a song already in the air is not interrupted.
+    if (asleep || cancelSong) return;
     const notes = (LULLABY?.notes ?? []).slice(0, LULLABY_NOTES);
     if (notes.length === 0) {
-      void slept();
+      setJob('lullaby', true);
       return;
     }
     ctx.speak(LULLABY?.title ?? '');
@@ -194,16 +202,37 @@ function start(ctx: GameContext): void {
       },
       () => {
         cancelSong = null;
-        later(() => void slept(), ZZZ_MS * 0.4);
+        later(() => setJob('lullaby', true), ZZZ_MS * 0.4);
       },
     );
   });
+
+  // ---- lights out ----
+
+  async function sleep(): Promise<void> {
+    asleep = true;
+    stopSong();
+    friend.classList.add('asleep');
+    zzz.classList.add('showing');
+    ctx.speak('Ngủ ngon nhé!');
+    ctx.hint.clear();
+    await ctx.celebrate();
+    if (!alive) return;
+    ctx.addStar();
+    later(() => {
+      round++;
+      play(night?.friend.emoji);
+    }, NEXT_NIGHT_MS);
+  }
 
   // ---- a night ----
 
   function play(exclude?: string): void {
     if (!alive) return;
     stopSong();
+    chores.reset();
+    asleep = false;
+    nudged.clear();
     night = makeNight(round, Math.random, exclude);
     left = night.toys.length;
     friend.textContent = night.friend.emoji;
@@ -211,6 +240,7 @@ function start(ctx: GameContext): void {
     zzz.classList.remove('showing');
     blanket.classList.remove('tucked');
     wrap.classList.remove('dark');
+    for (const tick of ticks.values()) tick.classList.remove('done');
     for (const star of sky.querySelectorAll('.bedtime-star')) star.remove();
     floor.replaceChildren(
       ...night.toys.map((toy) => {
@@ -229,9 +259,8 @@ function start(ctx: GameContext): void {
         return el;
       }),
     );
-    // Introduce tonight's friend, then the first job.
     ctx.speak(`Tới giờ ngủ của ${night.friend.name} rồi!`);
-    enter('toys');
+    armHint();
   }
 
   ctx.onCleanup(() => {

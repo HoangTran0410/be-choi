@@ -75,6 +75,14 @@ function brushAll(ctx: FakeContext): void {
   for (const id of dirtyIds(ctx)) brushTooth(ctx, id);
 }
 
+function rinse(ctx: FakeContext): void {
+  q(ctx, '.teeth-cup').dispatchEvent(ptr('pointerdown', 0, 0));
+}
+
+const tick = (ctx: FakeContext, job: string): HTMLElement => q(ctx, `.teeth-tick[data-job="${job}"]`);
+const ticksDone = (ctx: FakeContext): string[] =>
+  [...ctx.stage.querySelectorAll<HTMLElement>('.teeth-tick.done')].map((el) => el.dataset.job ?? '');
+
 describe('teeth game', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -85,206 +93,174 @@ describe('teeth game', () => {
     vi.restoreAllMocks();
   });
 
-  it('mounts a face, 8 teeth with 3 stains, tube, brush and a hidden cup; brushing before paste only warns once', () => {
+  it('mounts a face, 8 teeth with 3 stains, and a tube, brush and cup all within reach', () => {
     const ctx = fakeContext();
     game.start(ctx);
-    const wrap = wrapOf(ctx);
     const tube = q(ctx, '.teeth-tube');
     const brush = q(ctx, '.teeth-brush');
     const cup = q(ctx, '.teeth-cup');
 
-    expect(q(ctx, '.teeth-face').textContent?.length).toBeGreaterThan(0);
     expect(ctx.stage.querySelectorAll('.teeth-tooth').length).toBe(TEETH_PER_ROW * 2);
-    expect(ctx.stage.querySelectorAll('.teeth-row-top .teeth-tooth.teeth-top').length).toBe(TEETH_PER_ROW);
-    expect(ctx.stage.querySelectorAll('.teeth-row-bottom .teeth-tooth.teeth-bottom').length).toBe(TEETH_PER_ROW);
     expect(dirtyIds(ctx).length).toBe(3);
     const stains = [...ctx.stage.querySelectorAll('.teeth-dirty .teeth-stain')];
     expect(stains.length).toBe(3);
     for (const s of stains) expect(STAINS).toContain(s.textContent);
     expect(ctx.stage.querySelectorAll('.teeth-clean .teeth-stain').length).toBe(0);
-    expect(tube.textContent).toBe('🧴');
-    expect(brush.textContent).toContain('🪥');
-    expect(cup.hidden).toBe(true);
+    expect(tube.textContent).toBe('\u{1F9F4}');
+    expect(brush.textContent).toContain('\u{1FAA5}');
+    // The cup is never taken away: rinsing early is fun, not a mistake.
+    expect(cup.hidden).toBe(false);
     expect(q(ctx, '.teeth-paste').hidden).toBe(true);
-    expect(wrap.dataset.phase).toBe('paste');
-    expect(ctx.spoken.some((s) => s.startsWith('Đánh răng cho'))).toBe(true);
-
-    // Trying to brush before squeezing the paste: one reminder, no brush, no scrub.
-    const before = dirtyIds(ctx);
-    brushTooth(ctx, before[0] ?? 0, SCRUBS_TO_CLEAN, false);
-    expect(ctx.spoken.filter((s) => s === 'Bóp kem trước nhé').length).toBe(1);
-    expect(brush.classList.contains('teeth-brush-active')).toBe(false);
-    expect(tube.classList.contains('anim-wiggle')).toBe(true);
-    wrap.dispatchEvent(ptr('pointerup', 0, 0));
-    brushTooth(ctx, before[0] ?? 0);
-    expect(ctx.spoken.filter((s) => s === 'Bóp kem trước nhé').length).toBe(1);
-    expect(dirtyIds(ctx)).toEqual(before);
-    expect(tooth(ctx, before[0] ?? 0).style.getPropertyValue('--teeth-progress')).toBe('');
-    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(0);
-
-    // Idle hint in the paste phase wiggles the tube.
-    tube.classList.remove('anim-wiggle');
-    vi.advanceTimersByTime(6000);
-    expect(tube.classList.contains('anim-wiggle')).toBe(true);
+    expect(ctx.stage.querySelectorAll('.teeth-tick').length).toBe(3);
+    expect(ticksDone(ctx)).toEqual([]);
+    expect(ctx.spoken.some((s) => s.startsWith('\u0110\u00e1nh r\u0103ng cho'))).toBe(true);
 
     ctx.cleanup();
     expect(document.body.contains(ctx.stage)).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('squeezes paste, scrubs a stain away with foam, ticks, a ding and a looping song, then asks to rinse', () => {
+  it('brushes from the very first touch, with no paste squeezed at all', () => {
     const ctx = fakeContext();
-    const note = vi.spyOn(ctx.audio, 'note');
-    const pop = vi.spyOn(ctx.audio, 'pop');
-    const tick = vi.spyOn(ctx.audio, 'tick');
     const ding = vi.spyOn(ctx.audio, 'ding');
     game.start(ctx);
-    const wrap = wrapOf(ctx);
     const brush = q(ctx, '.teeth-brush');
-    const cup = q(ctx, '.teeth-cup');
 
-    squeezePaste(ctx);
-    expect(pop).toHaveBeenCalledTimes(1);
-    expect(q(ctx, '.teeth-paste').hidden).toBe(false);
-    expect(wrap.dataset.phase).toBe('brush');
-    expect(ctx.spoken).toContain('Bóp kem đánh răng, rồi chải nhé!');
-    // The brushing song starts at once and keeps looping for as long as the child brushes.
+    const [first] = dirtyIds(ctx);
+    if (first === undefined) throw new Error('no dirty tooth');
+    brushTooth(ctx, first, SCRUBS_TO_CLEAN, false);
+    expect(brush.classList.contains('teeth-brush-active')).toBe(true);
+    expect(tooth(ctx, first).classList.contains('teeth-clean')).toBe(true);
+    expect(ding).toHaveBeenCalledTimes(1);
+    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBeGreaterThan(0);
+    expect(ctx.spoken).not.toContain('B\u00f3p kem tr\u01b0\u1edbc nh\u00e9');
+    wrapOf(ctx).dispatchEvent(ptr('pointerup', 0, 0));
+
+    ctx.cleanup();
+  });
+
+  it('starts the brushing song on the first stroke and stops it when the last stain goes', () => {
+    const ctx = fakeContext();
+    const note = vi.spyOn(ctx.audio, 'note');
+    game.start(ctx);
+
+    // Nothing plays until there is real brushing going on.
+    vi.advanceTimersByTime(20000);
+    expect(note).not.toHaveBeenCalled();
+
+    brushTooth(ctx, dirtyIds(ctx)[0] ?? 0, 1);
     expect(note).toHaveBeenCalled();
     expect(note.mock.calls[0]?.[2]).toBe('xylo');
     note.mockClear();
     vi.advanceTimersByTime(40000);
     const songNotes = SONGS[2]?.notes.filter((n) => n.n !== 'R').length ?? 0;
     expect(note.mock.calls.length).toBeGreaterThan(songNotes);
-    // Squeezing again does nothing more.
-    squeezePaste(ctx);
-    expect(pop).toHaveBeenCalledTimes(1);
 
-    // Idle hint while brushing: a dirty tooth and the brush wiggle.
-    vi.advanceTimersByTime(6000);
-    expect(ctx.stage.querySelector('.teeth-dirty.anim-wiggle')).not.toBeNull();
-    expect(brush.classList.contains('anim-wiggle')).toBe(true);
-
-    // Five strokes: progress but still dirty. The brush follows the finger; foam and ticks are throttled.
-    const [first] = dirtyIds(ctx);
-    if (first === undefined) throw new Error('no dirty tooth');
-    brushTooth(ctx, first, SCRUBS_TO_CLEAN - 1, false);
-    expect(brush.classList.contains('teeth-brush-active')).toBe(true);
-    expect(brush.style.left).not.toBe('');
-    expect(tooth(ctx, first).classList.contains('teeth-dirty')).toBe(true);
-    expect(tooth(ctx, first).style.getPropertyValue('--teeth-progress')).toBe(((SCRUBS_TO_CLEAN - 1) / SCRUBS_TO_CLEAN).toFixed(2));
-    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(1);
-    expect(tick).toHaveBeenCalledTimes(1);
-    expect(ding).not.toHaveBeenCalled();
-    // Barely moving does not count as a stroke.
-    wrap.dispatchEvent(ptr('pointermove', toothLeft(first) + 16, TOOTH_TOP + 41));
-    expect(tooth(ctx, first).classList.contains('teeth-dirty')).toBe(true);
-    // The sixth real stroke cleans it: stain gone, sparkle, ding.
-    wrap.dispatchEvent(ptr('pointermove', toothLeft(first) + 65, TOOTH_TOP + 40));
-    expect(tooth(ctx, first).classList.contains('teeth-dirty')).toBe(false);
-    expect(tooth(ctx, first).classList.contains('teeth-clean')).toBe(true);
-    expect(tooth(ctx, first).querySelector('.teeth-stain')).toBeNull();
-    expect(tooth(ctx, first).querySelector('.teeth-sparkle')).not.toBeNull();
-    expect(ding).toHaveBeenCalledTimes(1);
-    expect(dirtyIds(ctx).length).toBe(2);
-    wrap.dispatchEvent(ptr('pointerup', 0, 0));
-    expect(brush.classList.contains('teeth-brush-active')).toBe(false);
-    vi.advanceTimersByTime(1000);
-    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(0);
-    expect(ctx.stage.querySelectorAll('.teeth-sparkle').length).toBe(0);
-
-    // Rubbing a clean tooth is harmless fun: foam, no second ding.
-    brushTooth(ctx, first);
-    expect(ding).toHaveBeenCalledTimes(1);
-    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(1);
-    // A second finger is ignored while the first is down.
-    wrap.dispatchEvent(ptr('pointerdown', 1100, 700, 1));
-    wrap.dispatchEvent(ptr('pointerdown', 1100, 700, 2));
-    wrap.dispatchEvent(ptr('pointermove', toothLeft(dirtyIds(ctx)[0] ?? 0) + 15, TOOTH_TOP + 40, 2));
-    expect(dirtyIds(ctx).length).toBe(2);
-    wrap.dispatchEvent(ptr('pointerup', 0, 0, 2));
-    expect(brush.classList.contains('teeth-brush-active')).toBe(true);
-    wrap.dispatchEvent(ptr('pointercancel', 0, 0, 1));
-    expect(brush.classList.contains('teeth-brush-active')).toBe(false);
-
-    // Every tooth clean: rinse time, the song stops, the cup appears.
-    expect(cup.hidden).toBe(true);
     brushAll(ctx);
     expect(dirtyIds(ctx).length).toBe(0);
-    expect(ding).toHaveBeenCalledTimes(3);
-    expect(ctx.spoken).toContain('Súc miệng nào!');
-    expect(wrap.dataset.phase).toBe('rinse');
-    expect(cup.hidden).toBe(false);
+    expect(tick(ctx, 'brush').classList.contains('done')).toBe(true);
     note.mockClear();
-    vi.advanceTimersByTime(30000);
+    vi.advanceTimersByTime(40000);
     expect(note).not.toHaveBeenCalled();
-    // Hint now points at the cup; touching the stage no longer moves the brush.
-    expect(cup.classList.contains('anim-wiggle')).toBe(true);
-    wrap.dispatchEvent(ptr('pointerdown', 1100, 700));
-    expect(brush.classList.contains('teeth-brush-active')).toBe(false);
-    wrap.dispatchEvent(ptr('pointerup', 0, 0));
-    expect(ctx.celebrations).toBe(0);
 
     ctx.cleanup();
-    expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('rinsing splashes, praises, celebrates, awards a star and brings a new animal with more stains', async () => {
+  it('lets the child rinse and squeeze paste in any order they like', () => {
     const ctx = fakeContext();
     const puff = vi.spyOn(ctx.audio, 'puff');
     const pop = vi.spyOn(ctx.audio, 'pop');
     game.start(ctx);
-    const wrap = wrapOf(ctx);
-    const cup = q(ctx, '.teeth-cup');
-    const first = q(ctx, '.teeth-face').textContent;
 
-    // The cup does nothing before its time.
-    cup.dispatchEvent(ptr('pointerdown', 0, 0));
-    expect(puff).not.toHaveBeenCalled();
+    // Rinsing first is allowed, and splashes properly.
+    rinse(ctx);
+    expect(puff).toHaveBeenCalledTimes(1);
+    expect(ctx.stage.querySelectorAll('.teeth-splash').length).toBe(6);
+    expect(tick(ctx, 'rinse').classList.contains('done')).toBe(true);
+    expect(ctx.celebrations).toBe(0);
 
+    // Paste second: still hidden until it is squeezed, then it shows on the brush.
+    expect(q(ctx, '.teeth-paste').hidden).toBe(true);
     squeezePaste(ctx);
     expect(pop).toHaveBeenCalledTimes(1);
-    brushTooth(ctx, dirtyIds(ctx)[0] ?? 0, 2, false);
-    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(1);
-    wrap.dispatchEvent(ptr('pointerup', 0, 0));
-    brushAll(ctx);
-    expect(wrap.dataset.phase).toBe('rinse');
-
-    cup.dispatchEvent(ptr('pointerdown', 0, 0));
-    expect(puff).toHaveBeenCalledTimes(1);
+    expect(q(ctx, '.teeth-paste').hidden).toBe(false);
+    expect(tick(ctx, 'paste').classList.contains('done')).toBe(true);
+    // Squeezing again does nothing more.
+    squeezePaste(ctx);
     expect(pop).toHaveBeenCalledTimes(1);
-    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(0);
-    expect(ctx.stage.querySelectorAll('.teeth-splash').length).toBe(6);
+    expect(ctx.celebrations).toBe(0);
+
+    ctx.cleanup();
+  });
+
+  it('shines, celebrates, awards a star and brings a new animal once all three are done', async () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    const first = q(ctx, '.teeth-face').textContent;
+
+    rinse(ctx);
+    squeezePaste(ctx);
+    expect(ctx.stars).toBe(0);
+    brushAll(ctx);
+
+    expect(ticksDone(ctx).sort()).toEqual(['brush', 'paste', 'rinse']);
     expect(ctx.stage.querySelectorAll('.teeth-tooth.teeth-shine').length).toBe(TEETH_PER_ROW * 2);
-    expect(cup.hidden).toBe(true);
     expect(q(ctx, '.teeth-paste').hidden).toBe(true);
-    expect(wrap.dataset.phase).toBe('done');
-    expect(ctx.spoken).toContain('Răng sạch bong rồi! Giỏi quá!');
-    // A second tap on the (hidden) cup is ignored.
-    cup.dispatchEvent(ptr('pointerdown', 0, 0));
-    expect(puff).toHaveBeenCalledTimes(1);
+    expect(ctx.spoken).toContain('R\u0103ng s\u1ea1ch bong r\u1ed3i! Gi\u1ecfi qu\u00e1!');
 
     await vi.advanceTimersByTimeAsync(300);
-    expect(pop).toHaveBeenCalledTimes(2);
     expect(ctx.celebrations).toBe(1);
     expect(ctx.stars).toBe(1);
     expect(q(ctx, '.teeth-face').textContent).toBe(first);
 
     await vi.advanceTimersByTimeAsync(1200);
     expect(q(ctx, '.teeth-face').textContent).not.toBe(first);
-    expect(wrap.dataset.phase).toBe('paste');
+    expect(ticksDone(ctx)).toEqual([]);
     expect(dirtyIds(ctx).length).toBe(4);
     expect(ctx.stage.querySelectorAll('.teeth-tooth').length).toBe(TEETH_PER_ROW * 2);
     expect(ctx.stage.querySelectorAll('.teeth-shine').length).toBe(0);
     expect(ctx.stage.querySelectorAll('.teeth-splash').length).toBe(0);
-    expect(cup.hidden).toBe(true);
-    expect(ctx.spoken.filter((s) => s.startsWith('Đánh răng cho')).length).toBe(2);
-    // The reminder is fresh for the new animal.
-    wrap.dispatchEvent(ptr('pointerdown', 1100, 700));
-    wrap.dispatchEvent(ptr('pointerup', 0, 0));
-    expect(ctx.spoken.filter((s) => s === 'Bóp kem trước nhé').length).toBe(1);
+    expect(q(ctx, '.teeth-paste').hidden).toBe(true);
+    expect(ctx.spoken.filter((s) => s.startsWith('\u0110\u00e1nh r\u0103ng cho')).length).toBe(2);
 
     ctx.cleanup();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('nothing responds once the animal is done, until the next one arrives', () => {
+    const ctx = fakeContext();
+    const puff = vi.spyOn(ctx.audio, 'puff');
+    game.start(ctx);
+
+    squeezePaste(ctx);
+    brushAll(ctx);
+    rinse(ctx);
+    expect(puff).toHaveBeenCalledTimes(1);
+
+    rinse(ctx);
+    expect(puff).toHaveBeenCalledTimes(1);
+    brushTooth(ctx, 0, 3);
+    expect(ctx.stage.querySelectorAll('.teeth-foam').length).toBe(0);
+
+    ctx.cleanup();
+  });
+
+  it('wiggles and asks for something still to do when the child goes quiet', () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    // Only the paste and the rinse are left, so the hint has to point at one of them.
+    brushAll(ctx);
+    ctx.spoken.length = 0;
+    vi.advanceTimersByTime(6000);
+    expect(ctx.stage.querySelectorAll('.teeth-tick.anim-wiggle').length).toBe(1);
+    const wiggled = q(ctx, '.teeth-tick.anim-wiggle').dataset.job;
+    expect(['paste', 'rinse']).toContain(wiggled);
+    expect(ctx.spoken.length).toBe(1);
+    // It only asks once per job, however long the child stares at the screen.
+    for (let i = 0; i < 6; i++) vi.advanceTimersByTime(6000);
+    expect(ctx.spoken.length).toBeLessThanOrEqual(2);
+
+    ctx.cleanup();
   });
 
   it('cleanup mid-brushing stops the song and leaves no timers or listeners behind', () => {

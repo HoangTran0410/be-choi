@@ -12,11 +12,12 @@ import {
   HAPPY_BIRTHDAY_BPM,
   MAX_CANDLES,
   TOPPINGS,
+  JOBS,
+  JOB_ICON,
   blowStrength,
   candleWord,
-  nextPhase,
   type Flavor,
-  type Phase,
+  type Job,
 } from './logic';
 import './style.css';
 
@@ -45,13 +46,23 @@ type AudioCtor = new () => AudioContext;
  * Birthday: decorate a cake with toppings, add candles (counted like the child's
  * age), light them one by one, hear "Happy Birthday", then blow them out by
  * blowing into the microphone or by touching the flames.
+ *
+ * None of it is a running order. Every button and every topping works at every
+ * moment: a candle lights when it is tapped, goes out when it is tapped again,
+ * and lights once more after that; toppings go on a cake that is already blazing;
+ * a fresh candle can join a cake that has just been blown out. "Happy Birthday"
+ * plays whenever the whole cake is alight, and a star lands whenever a lit cake
+ * is blown out — as often as the child cares to do it.
  */
 function start(ctx: GameContext): void {
   let alive = true;
-  let phase: Phase = 'decorate';
   let flavor = 0;
-  /** The melody is playing: candles are all lit but not yet blowable. */
+  /** The melody is playing. Everything still responds; the song just carries on. */
   let singing = false;
+  /** Sung for this set of flames already: relighting or adding a candle earns a new one. */
+  let sung = false;
+  /** A candle has been lit since the last celebration, so blowing out is worth a star. */
+  let blownRound = false;
   /** Microphone was refused or is unavailable: keep the 🎤 button away. */
   let micGone = false;
   let micBusy = false;
@@ -90,8 +101,15 @@ function start(ctx: GameContext): void {
   const photoBtn = h('button', { class: 'btn-round birthday-photo', 'aria-label': 'Chọn ảnh', hidden: true, onpointerdown: onPhotoBtn }, '🖼️');
   // getUserMedia needs a user activation; on touch screens pointerup grants one, pointerdown may not.
   const micBtn = h('button', { class: 'btn-round birthday-mic', 'aria-label': 'Thổi vào micro', hidden: true, onpointerup: onMic }, '🎤');
-  const againBtn = h('button', { class: 'btn-round birthday-again', 'aria-label': 'Làm bánh mới', hidden: true, onpointerdown: onAgain }, '🔁');
+  const againBtn = h('button', { class: 'btn-round birthday-again', 'aria-label': 'Làm bánh mới', onpointerdown: onAgain }, '🔁');
   const buttons = h('div', { class: 'birthday-buttons' }, flavorBtn, candleBtn, lightBtn, photoBtn, micBtn, againBtn);
+
+  /** One tick per job, so the child can see where the cake has got to. */
+  const ticks = new Map<Job, HTMLElement>();
+  for (const job of JOBS) {
+    ticks.set(job, h('div', { class: 'birthday-tick', 'data-job': job }, JOB_ICON[job]));
+  }
+  const todo = h('div', { class: 'birthday-todo' }, ...ticks.values());
 
   const tray = h('div', { class: 'g-tray birthday-tray' });
   for (const item of TOPPINGS) {
@@ -103,7 +121,8 @@ function start(ctx: GameContext): void {
         },
         onDrop(_el, p) {
           // The tray piece always floats home; a copy stays where it was dropped.
-          if (phase === 'decorate' && overCake(p)) place(item.emoji, p);
+          // A cake in full blaze is still worth decorating.
+          if (overCake(p)) place(item.emoji, p);
           return false;
         },
       }),
@@ -111,7 +130,7 @@ function start(ctx: GameContext): void {
     tray.append(el);
   }
 
-  wrap.append(main, buttons, tray);
+  wrap.append(todo, main, buttons, tray);
   ctx.stage.append(wrap);
 
   // ---- helpers ----
@@ -149,42 +168,44 @@ function start(ctx: GameContext): void {
     return id === null ? null : (lit[Number(id)] ?? null);
   }
 
+  const isOut = (c: HTMLElement): boolean => c.classList.contains('birthday-out');
+  const anyLit = (): boolean => candles.some(isLit);
+  const allLit = (): boolean => candles.length > 0 && candles.every(isLit);
+
+  /**
+   * Every control stays where it is; only the ticks and the two conditional
+   * buttons change. Nothing is ever taken away mid-play.
+   */
   function syncUi(): void {
-    const decorate = phase === 'decorate';
-    wrap.dataset.phase = phase;
-    flavorBtn.hidden = !decorate;
-    candleBtn.hidden = !decorate;
-    lightBtn.hidden = !decorate;
-    lightBtn.classList.toggle('birthday-dim', candles.length === 0);
-    photoBtn.hidden = !decorate || photos.length === 0;
-    micBtn.hidden = phase !== 'blow' || micGone;
-    if (phase !== 'done') againBtn.hidden = true;
-    tray.classList.toggle('birthday-inert', !decorate);
+    lightBtn.classList.toggle('birthday-dim', candles.length === 0 || allLit());
+    photoBtn.hidden = photos.length === 0;
+    micBtn.hidden = micGone || !anyLit();
+    ticks.get('candles')?.classList.toggle('done', candles.length > 0);
+    ticks.get('lit')?.classList.toggle('done', allLit());
+    ticks.get('out')?.classList.toggle('done', candles.length > 0 && candles.every(isOut));
   }
 
+  /** Wiggle whatever would move the cake along, without insisting on it. */
   function armHint(): void {
     ctx.hint.arm(() => {
-      if (!alive || singing) return;
-      switch (phase) {
-        case 'decorate':
-          anim(candles.length === 0 ? candleBtn : lightBtn, 'anim-wiggle');
-          return;
-        case 'light': {
-          const c = candles.find((x) => !isLit(x));
-          if (c) anim(c, 'anim-wiggle');
-          return;
-        }
-        case 'blow': {
-          if (pressed.size > 0) return;
-          const c = candles.find(isLit);
-          if (c) anim(c, 'anim-wiggle');
-          anim(micBtn, 'anim-wiggle');
-          return;
-        }
-        case 'done':
-          anim(againBtn, 'anim-wiggle');
-          return;
+      if (!alive || singing || pressed.size > 0) return;
+      if (candles.length === 0) {
+        anim(candleBtn, 'anim-wiggle');
+        return;
       }
+      const unlit = candles.find((c) => !isLit(c));
+      if (unlit) {
+        anim(unlit, 'anim-wiggle');
+        anim(lightBtn, 'anim-wiggle');
+        return;
+      }
+      const lit = candles.find(isLit);
+      if (lit) {
+        anim(lit, 'anim-wiggle');
+        if (!micBtn.hidden) anim(micBtn, 'anim-wiggle');
+        return;
+      }
+      anim(againBtn, 'anim-wiggle');
     });
   }
 
@@ -199,7 +220,6 @@ function start(ctx: GameContext): void {
   }
 
   function onFlavor(): void {
-    if (phase !== 'decorate') return;
     ctx.hint.touch();
     const f = setFlavor(flavor + 1);
     ctx.audio.tick();
@@ -221,7 +241,6 @@ function start(ctx: GameContext): void {
   }
 
   function onAddCandle(): void {
-    if (phase !== 'decorate') return;
     ctx.hint.touch();
     if (candles.length >= MAX_CANDLES) {
       anim(candleBtn, 'anim-shake');
@@ -236,12 +255,14 @@ function start(ctx: GameContext): void {
     anim(candle, 'anim-bounce');
     ctx.audio.pop(1 + i * 0.12);
     ctx.speak(candleWord(candles.length));
+    // A new candle is a new cake to sing to.
+    sung = false;
     syncUi();
     armHint();
   }
 
+  /** 🔥 lights everything still dark, whenever it is pressed. */
   function onLightAll(): void {
-    if (phase !== 'decorate') return;
     ctx.hint.touch();
     if (candles.length === 0) {
       anim(candleBtn, 'anim-wiggle');
@@ -249,22 +270,31 @@ function start(ctx: GameContext): void {
       ctx.speak('Thêm nến trước nhé!');
       return;
     }
-    phase = nextPhase(phase, 'lightAll');
-    syncUi();
+    const dark = candles.filter((c) => !isLit(c));
+    if (dark.length === 0) {
+      anim(lightBtn, 'anim-shake');
+      return;
+    }
     ctx.speak('Thắp nến nào!');
-    armHint();
+    for (const c of dark) light(c);
   }
 
   // ---- light ----
+  /** A candle is its own little switch: dark → lit → out → lit again. */
   function light(candle: HTMLElement): void {
-    if (isLit(candle) || candle.classList.contains('birthday-out')) return;
+    if (isLit(candle)) return;
+    candle.classList.remove('birthday-out');
+    candle.querySelector('.birthday-flame')?.remove();
     candle.classList.add('birthday-lit');
     const i = candles.indexOf(candle);
     const flame = h('div', { class: 'birthday-flame', style: `--birthday-delay:-${(Math.max(0, i) * 0.13).toFixed(2)}s` }, '🔥');
     candle.append(flame);
     ctx.audio.pop(1.5);
     navigator.vibrate?.(10);
-    if (candles.every(isLit)) sing();
+    // Something is alight, so blowing the cake out is worth a star again.
+    blownRound = true;
+    syncUi();
+    if (allLit() && !sung && !singing) sing();
     else armHint();
   }
 
@@ -278,8 +308,10 @@ function start(ctx: GameContext): void {
     later(() => el.remove(), NOTE_MS);
   }
 
+  /** The whole cake is alight: play the song. Everything stays live while it does. */
   function sing(): void {
     singing = true;
+    sung = true;
     ctx.hint.clear();
     ctx.speak('Chúc mừng sinh nhật!');
     cancelSong = schedule(
@@ -293,9 +325,8 @@ function start(ctx: GameContext): void {
         cancelSong = null;
         if (!alive) return;
         singing = false;
-        phase = nextPhase(phase, 'allLit');
         syncUi();
-        ctx.speak('Thổi nến nào!');
+        if (anyLit()) ctx.speak('Thổi nến nào!');
         armHint();
       },
     );
@@ -316,12 +347,16 @@ function start(ctx: GameContext): void {
     later(() => puff.remove(), PUFF_MS);
     ctx.audio.puff();
     navigator.vibrate?.(10);
-    if (candles.every((c) => c.classList.contains('birthday-out'))) void allOut();
+    // Relighting a candle earns the song again, and the cake another blow-out.
+    sung = false;
+    syncUi();
+    if (blownRound && candles.length > 0 && candles.every(isOut)) void allOut();
     else armHint();
   }
 
+  /** Every flame is out: a star, and the cake is ready to be lit all over again. */
   async function allOut(): Promise<void> {
-    phase = nextPhase(phase, 'allOut');
+    blownRound = false;
     stopMic();
     pressed.clear();
     syncUi();
@@ -330,14 +365,15 @@ function start(ctx: GameContext): void {
     await ctx.celebrate();
     if (!alive) return;
     ctx.addStar();
-    againBtn.hidden = false;
     anim(againBtn, 'anim-bounce');
     armHint();
   }
 
   function onAgain(): void {
-    if (phase !== 'done') return;
-    phase = nextPhase(phase, 'again');
+    ctx.hint.touch();
+    sung = false;
+    blownRound = false;
+    stopMic();
     for (const c of candles) c.remove();
     candles = [];
     for (const p of placed) p.remove();
@@ -411,7 +447,7 @@ function start(ctx: GameContext): void {
       return;
     }
     micBusy = false;
-    if (!alive || phase !== 'blow') {
+    if (!alive || !anyLit()) {
       stopTracks(stream);
       return;
     }
@@ -441,7 +477,7 @@ function start(ctx: GameContext): void {
     micBtn.classList.add('birthday-listening');
     ctx.speak('Thổi mạnh vào micro nào!');
     micTimer = setInterval(() => {
-      if (!alive || phase !== 'blow') {
+      if (!alive || !anyLit()) {
         stopMic();
         return;
       }
@@ -462,7 +498,7 @@ function start(ctx: GameContext): void {
   }
 
   function onMic(): void {
-    if (phase !== 'blow') return;
+    if (!anyLit()) return;
     ctx.hint.touch();
     ctx.audio.tick();
     void startMic();
@@ -479,13 +515,6 @@ function start(ctx: GameContext): void {
   cake.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     ctx.hint.touch();
-    if (phase === 'light') {
-      if (singing) return;
-      const c = candleFromEvent(e);
-      if (c) light(c);
-      return;
-    }
-    if (phase !== 'blow') return;
     e.preventDefault();
     pressed.add(e.pointerId);
     try {
@@ -493,11 +522,15 @@ function start(ctx: GameContext): void {
     } catch {
       /* jsdom */
     }
+    // One gesture for the whole candle: dark lights, lit goes out, out lights again.
     const c = candleFromEvent(e) ?? litCandleAt({ x: e.clientX, y: e.clientY });
-    if (c) blowOut(c);
+    if (!c) return;
+    if (isLit(c)) blowOut(c);
+    else light(c);
   });
   cake.addEventListener('pointermove', (e) => {
-    if (phase !== 'blow' || !pressed.has(e.pointerId)) return;
+    if (!pressed.has(e.pointerId)) return;
+    // A swipe only ever puts flames out; it never lights a whole cake by accident.
     const c = litCandleAt({ x: e.clientX, y: e.clientY });
     if (c) blowOut(c);
   });

@@ -13,6 +13,40 @@
   display: none !important;
 }
 
+/* ---- where the cake has got to ---- */
+/* Read straight off the candles, so the ticks fill and empty as the child plays.
+   Floats over the grid so it never takes a row from the cake. */
+.birthday-todo {
+  position: absolute;
+  top: 1.4vmin;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: 1.2vmin;
+  pointer-events: none;
+}
+.birthday-tick {
+  width: calc(var(--tap) * 0.42);
+  height: calc(var(--tap) * 0.42);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.24);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 0.4vmin rgba(219, 39, 119, 0.18);
+  filter: grayscale(1);
+  opacity: 0.5;
+  transition: opacity 0.4s, filter 0.4s, background 0.4s;
+}
+.birthday-tick.done {
+  background: rgba(134, 239, 172, 0.95);
+  box-shadow: inset 0 0 0 0.4vmin rgba(22, 101, 52, 0.35);
+  filter: none;
+  opacity: 1;
+}
+
 .birthday-main {
   position: relative;
   min-width: 0;
@@ -323,10 +357,6 @@
   flex-wrap: wrap;
   row-gap: 1vmin;
   transition: opacity 0.3s;
-}
-.birthday .birthday-tray.birthday-inert {
-  opacity: 0.4;
-  pointer-events: none;
 }
 .birthday-tray .birthday-topping {
   border-radius: 50%;

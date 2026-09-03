@@ -1,19 +1,22 @@
 import { describe, it, expect } from 'vitest';
+import { createChecklist } from '../../core/chores';
 import { ANIMALS } from '../../core/content';
 import { mulberry32 } from '../../core/dom';
 import {
   allClean,
+  CHEERS,
   dirtyCount,
+  JOBS,
+  JOB_ICON,
   makeMouth,
   MAX_DIRTY,
   MIN_DIRTY,
-  nextPhase,
+  NUDGES,
   SCRUBS_TO_CLEAN,
   scrub,
   STAINS,
   TEETH_PER_ROW,
-  type Phase,
-  type PhaseEvent,
+  type Job,
   type Tooth,
 } from './logic';
 
@@ -123,18 +126,24 @@ describe('teeth allClean', () => {
   });
 });
 
-describe('teeth nextPhase', () => {
-  it('follows the paste → brush → rinse → done → paste table and stays put otherwise', () => {
-    const phases: Phase[] = ['paste', 'brush', 'rinse', 'done'];
-    const events: PhaseEvent[] = ['paste', 'clean', 'rinse', 'again'];
-    const expected: Record<Phase, Partial<Record<PhaseEvent, Phase>>> = {
-      paste: { paste: 'brush' },
-      brush: { clean: 'rinse' },
-      rinse: { rinse: 'done' },
-      done: { again: 'paste' },
-    };
-    for (const p of phases) {
-      for (const e of events) expect(nextPhase(p, e)).toBe(expected[p][e] ?? p);
+describe('the three jobs', () => {
+  it('has paste, brushing and rinsing, and none of them waits for another', () => {
+    expect([...JOBS].sort()).toEqual(['brush', 'paste', 'rinse']);
+    const chores = createChecklist(JOBS);
+    // Rinse first, paste last: a two-year-old's running order.
+    chores.set('rinse', true);
+    chores.set('brush', true);
+    expect(chores.left()).toEqual(['paste']);
+    expect(chores.allDone()).toBe(false);
+    chores.set('paste', true);
+    expect(chores.allDone()).toBe(true);
+  });
+
+  it('has a picture, a nudge and a cheer for every job', () => {
+    for (const job of JOBS as Job[]) {
+      expect(JOB_ICON[job].length).toBeGreaterThan(0);
+      expect(NUDGES[job].length).toBeGreaterThan(0);
+      expect(CHEERS[job].length).toBeGreaterThan(0);
     }
   });
 });

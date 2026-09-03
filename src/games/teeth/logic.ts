@@ -74,17 +74,33 @@ export function allClean(teeth: Tooth[]): boolean {
   return teeth.every((t) => !t.dirty);
 }
 
-export type Phase = 'paste' | 'brush' | 'rinse' | 'done';
-export type PhaseEvent = 'paste' | 'clean' | 'rinse' | 'again';
+/**
+ * The three things that make up brushing teeth. Like the jobs in Giờ đi ngủ they
+ * are independent: the brush works with or without paste on it, the cup is always
+ * within reach, and the animal is only done once all three are ticked off — in
+ * whatever order the child got round to them.
+ */
+export type Job = 'paste' | 'brush' | 'rinse';
 
-const TRANSITIONS: Record<Phase, Partial<Record<PhaseEvent, Phase>>> = {
-  paste: { paste: 'brush' },
-  brush: { clean: 'rinse' },
-  rinse: { rinse: 'done' },
-  done: { again: 'paste' },
+export const JOBS: readonly Job[] = ['paste', 'brush', 'rinse'];
+
+/** The picture on each job's tick in the little row of things still to do. */
+export const JOB_ICON: Readonly<Record<Job, string>> = {
+  paste: '🧴',
+  brush: '🪥',
+  rinse: '🥤',
 };
 
-/** paste+paste→brush, brush+clean→rinse, rinse+rinse→done, done+again→paste; anything else stays. */
-export function nextPhase(phase: Phase, event: PhaseEvent): Phase {
-  return TRANSITIONS[phase][event] ?? phase;
-}
+/** Said when a job is still waiting and the child has gone quiet. */
+export const NUDGES: Readonly<Record<Job, string>> = {
+  paste: 'Bóp kem đánh răng nào!',
+  brush: 'Chải sạch răng nhé!',
+  rinse: 'Súc miệng nào!',
+};
+
+/** Said the moment a job is finished, whichever one it happens to be. */
+export const CHEERS: Readonly<Record<Job, string>> = {
+  paste: 'Kem thơm quá!',
+  brush: 'Răng trắng tinh rồi!',
+  rinse: 'Sạch miệng rồi!',
+};

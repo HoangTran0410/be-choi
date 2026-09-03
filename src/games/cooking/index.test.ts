@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
-import { EATERS, RECIPES, STIR_TURNS, type Recipe } from './logic';
+import { EATERS, RECIPES, SILLY_LINES, STIR_TURNS, type Recipe } from './logic';
 import game from './index';
+
+/** Every decoy's spoken name, so a spat-out one can be recognised by what is said. */
+const DECOY_NAMES = new Map(RECIPES.flatMap((r) => r.decoys.map((d) => [d.emoji, d.name] as const)));
 
 if (!('PointerEvent' in globalThis)) {
   (globalThis as unknown as { PointerEvent: unknown }).PointerEvent = class extends MouseEvent {
@@ -130,12 +133,16 @@ describe('cooking game', () => {
     const r = currentRecipe(stage);
     const tool = stage.querySelector<HTMLElement>('.cooking-tool')!;
 
-    // ---- add: a decoy is refused, ingredients go in one by one ----
+    // ---- add: a decoy is laughed off by name, ingredients go in one by one ----
     const decoy = trayItems(stage).find((el) => !r.ingredients.some((ing) => ing.emoji === el.dataset.emoji))!;
+    const decoyName = DECOY_NAMES.get(decoy.dataset.emoji ?? '');
     drop(decoy);
     expect(boing).toHaveBeenCalledTimes(1);
-    expect(ctx.spoken).toContain('Không phải cái này');
     expect(tool.classList.contains('anim-shake')).toBe(true);
+    // Named and laughed at rather than told off, and nothing lands in the pot.
+    expect(ctx.spoken.at(-1)).toContain(decoyName);
+    expect(SILLY_LINES.some((l) => ctx.spoken.at(-1) === l.replace('%s', decoyName ?? ''))).toBe(true);
+    expect(stage.querySelectorAll('.cooking-bit').length).toBe(0);
     expect(decoy.classList.contains('spring-back')).toBe(true);
     expect(trayItems(stage).length).toBe(r.ingredients.length + 2);
 

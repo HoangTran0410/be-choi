@@ -23,6 +23,7 @@ export function fakeAudio(): AudioEngine {
     drum: noop,
     fx: noop,
     puff: noop,
+    ready: () => Promise.resolve(),
   };
 }
 

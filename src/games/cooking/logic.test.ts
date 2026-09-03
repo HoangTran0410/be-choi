@@ -5,6 +5,8 @@ import {
   EATERS,
   makeCookRound,
   RECIPES,
+  SILLY_LINES,
+  sillyLine,
   STIR_TURNS,
   TRAY_DECOYS,
   turnDelta,
@@ -134,5 +136,23 @@ describe('EATERS', () => {
     expect(EATERS.length).toBe(4);
     expect(new Set(EATERS.map((e) => e.emoji)).size).toBe(4);
     for (const e of EATERS) expect(ANIMALS).toContainEqual(e);
+  });
+});
+
+describe('cooking sillyLine', () => {
+  it('names the silly thing and never scolds', () => {
+    const sock = RECIPES[0]!.decoys[0]!;
+    for (const [i, template] of SILLY_LINES.entries()) {
+      const line = sillyLine(sock, () => i / SILLY_LINES.length);
+      expect(line).toBe(template.replace('%s', sock.name));
+      expect(line).toContain(sock.name);
+      expect(line).not.toContain('%s');
+    }
+  });
+
+  it('stays in range when the dice come up 1', () => {
+    const sock = RECIPES[0]!.decoys[0]!;
+    expect(sillyLine(sock, () => 0.999999)).toContain(sock.name);
+    expect(sillyLine(sock, () => 1)).toContain(sock.name);
   });
 });

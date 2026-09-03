@@ -49,22 +49,20 @@ export const HAPPY_BIRTHDAY: readonly SongNote[] = seq(
 );
 export const HAPPY_BIRTHDAY_BPM = 120;
 
-export type Phase = 'decorate' | 'light' | 'blow' | 'done';
-export type PhaseEvent = 'lightAll' | 'allLit' | 'allOut' | 'again';
+/**
+ * Where the cake has got to. Not a running order: the ticks are read straight
+ * off the candles, so they light up and go dark again as the child plays.
+ */
+export type Job = 'candles' | 'lit' | 'out';
 
-/** Decorate → light → blow → done → decorate. Events that do not apply keep the phase. */
-export function nextPhase(phase: Phase, event: PhaseEvent): Phase {
-  switch (phase) {
-    case 'decorate':
-      return event === 'lightAll' ? 'light' : phase;
-    case 'light':
-      return event === 'allLit' ? 'blow' : phase;
-    case 'blow':
-      return event === 'allOut' ? 'done' : phase;
-    case 'done':
-      return event === 'again' ? 'decorate' : phase;
-  }
-}
+export const JOBS: readonly Job[] = ['candles', 'lit', 'out'];
+
+/** The picture on each tick. */
+export const JOB_ICON: Readonly<Record<Job, string>> = {
+  candles: '🕯️',
+  lit: '🔥',
+  out: '💨',
+};
 
 /**
  * Loudness of a time-domain byte buffer from an AnalyserNode (128 = silence):

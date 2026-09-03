@@ -28,7 +28,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
+        // m4a: the recorded animal voices in public/sfx, so they play offline too.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest,m4a}'],
         navigateFallback: 'index.html',
       },
     }),

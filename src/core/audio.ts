@@ -3,6 +3,9 @@
  * and works fully offline. All methods are silent no-ops until `unlock()` has run inside
  * a user gesture (browser autoplay policy) or when sound is disabled.
  */
+import { LOUDNESS } from './loudness';
+import { SFX_TAKES, sfxUrl } from './sfx';
+
 export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax' | 'bass';
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
 /** Sound effects and (very) approximate animal voices, all synthesized. */
@@ -16,6 +19,28 @@ export const FX: readonly FxKind[] = [
   'laser', 'honk', 'siren', 'whistle', 'slide', 'zap', 'sparkle', 'kazoo', 'roll', 'cheer',
   'meow', 'bark', 'quack', 'moo', 'chirp', 'roar', 'frog', 'pig', 'owl', 'elephant', 'sheep', 'cricket',
 ];
+
+/**
+ * Every sound the engine can make, as one flat name. This is what the loudness
+ * table is keyed on, so a new sound cannot be added without giving it a level.
+ */
+export type SoundId =
+  | 'pop'
+  | 'ding'
+  | 'boing'
+  | 'chomp'
+  | 'tick'
+  | 'jingle'
+  | 'puff'
+  | `note:${Timbre}`
+  | `drum:${DrumKind}`
+  | `fx:${FxKind}`
+  /**
+   * The recorded animal voices share one level: `scripts/sfx.mjs` already
+   * normalises them against each other, so they only need bringing to the
+   * house level as a group.
+   */
+  | 'sample';
 
 export interface AudioEngine {
   readonly enabled: boolean;
@@ -42,6 +67,8 @@ export interface AudioEngine {
   puff(): void;
   /** Sound effect / animal voice. */
   fx(kind: FxKind): void;
+  /** Resolves once the recorded animal voices are decoded (or known to be missing). */
+  ready(): Promise<void>;
 }
 
 type Ctx = AudioContext;
@@ -110,6 +137,42 @@ export function createAudio(): AudioEngine {
     return ctx;
   }
 
+  /**
+   * Recorded animal voices, decoded and ready to play. A voice with none here
+   * keeps its synthesized version, so a missing or unplayable file is a
+   * downgrade rather than silence.
+   */
+  const takes = new Map<FxKind, AudioBuffer[]>();
+  let loaded: Promise<void> | null = null;
+
+  /**
+   * Fetch and decode the recordings in the background. Nothing waits on this:
+   * the first tap plays the synth, and the real voices take over once they land
+   * — usually well before a two-year-old has found the animal.
+   */
+  function loadTakes(c: Ctx): Promise<void> {
+    if (loaded) return loaded;
+    const base = import.meta.env.BASE_URL;
+    const jobs: Promise<void>[] = [];
+    for (const [kind, count] of Object.entries(SFX_TAKES) as [FxKind, number][]) {
+      for (let i = 0; i < count; i++) {
+        jobs.push(
+          fetch(`${base}${sfxUrl(kind, i)}`)
+            .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+            .then((raw) => c.decodeAudioData(raw))
+            .then((buf) => {
+              const list = takes.get(kind);
+              if (list) list.push(buf);
+              else takes.set(kind, [buf]);
+            })
+            .catch(() => undefined),
+        );
+      }
+    }
+    loaded = Promise.all(jobs).then(() => undefined);
+    return loaded;
+  }
+
   function unlock(): void {
     if (ctx) {
       if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
@@ -124,7 +187,8 @@ export function createAudio(): AudioEngine {
       ctx = new Ctor();
       master = ctx.createGain();
       master.gain.value = 0.85;
-      // Gentle compressor: percussion and chords stay loud on small tablet speakers without clipping.
+      // Every sound is levelled at source (see loudness.ts), so the compressor only has
+      // to catch chords and drum rolls stacking up — not to rescue a 30 dB spread.
       let sink: AudioNode = ctx.destination;
       try {
         // Tame hiss from noise-based sounds on small tablet speakers (and little ears).
@@ -133,9 +197,9 @@ export function createAudio(): AudioEngine {
         tone.frequency.value = 9000;
         tone.Q.value = 0.5;
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -18;
-        comp.knee.value = 12;
-        comp.ratio.value = 6;
+        comp.threshold.value = -12;
+        comp.knee.value = 10;
+        comp.ratio.value = 3;
         comp.attack.value = 0.003;
         comp.release.value = 0.2;
         comp.connect(ctx.destination);
@@ -147,9 +211,26 @@ export function createAudio(): AudioEngine {
       master.connect(sink);
       void ctx.resume().catch(() => undefined);
       startKeepAlive();
+      void loadTakes(ctx).catch(() => undefined);
     } catch {
       ctx = null;
       master = null;
+    }
+  }
+
+  /**
+   * Loudness trim of the sound being built right now. Set for the whole of one
+   * public call, so every oscillator and burst of noise inside it is scaled
+   * together and the sound keeps its internal balance.
+   */
+  let trim = 1;
+
+  function at<T>(id: SoundId, play: () => T): T {
+    trim = LOUDNESS[id] ?? 1;
+    try {
+      return play();
+    } finally {
+      trim = 1;
     }
   }
 
@@ -178,7 +259,7 @@ export function createAudio(): AudioEngine {
       osc.frequency.setValueAtTime(freq, t0);
       if (opts.detune) osc.detune.value = opts.detune;
       if (opts.slideTo !== undefined) osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t0 + dur);
-      const peak = opts.gain ?? 0.6;
+      const peak = (opts.gain ?? 0.6) * trim;
       const attack = opts.attack ?? 0.005;
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(peak, t0 + attack);
@@ -243,7 +324,7 @@ export function createAudio(): AudioEngine {
       if (opts.filter?.to) filter.frequency.exponentialRampToValueAtTime(opts.filter.to, t0 + dur);
       if (opts.filter?.q) filter.Q.value = opts.filter.q;
       const g = c.createGain();
-      g.gain.value = opts.gain ?? 0.5;
+      g.gain.value = (opts.gain ?? 0.5) * trim;
       src.connect(filter).connect(g).connect(master);
       src.start(t0);
     } catch {
@@ -274,7 +355,7 @@ export function createAudio(): AudioEngine {
       const src = c.createBufferSource();
       src.buffer = buf;
       const g = c.createGain();
-      g.gain.value = gain;
+      g.gain.value = gain * trim;
       src.connect(g).connect(master);
       src.start(c.currentTime);
     } catch {
@@ -282,7 +363,7 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  function note(freq: number, dur = 0.5, timbre: Timbre = 'piano'): void {
+  function playNote(freq: number, dur: number, timbre: Timbre): void {
     switch (timbre) {
       case 'xylo':
         tone('sine', freq, Math.min(dur, 0.7), { gain: 0.6, attack: 0.002 });
@@ -342,7 +423,7 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  function drum(kind: DrumKind): void {
+  function playDrum(kind: DrumKind): void {
     switch (kind) {
       case 'kick':
         tone('sine', 150, 0.4, { gain: 1.3, attack: 0.002, slideTo: 40 });
@@ -392,7 +473,7 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  function fx(kind: FxKind): void {
+  function playFx(kind: FxKind): void {
     switch (kind) {
       case 'laser':
         tone('sawtooth', 1400, 0.28, { gain: 0.35, attack: 0.002, slideTo: 180, filter: { type: 'lowpass', freq: 3000 } });
@@ -538,6 +619,43 @@ export function createAudio(): AudioEngine {
     }
   }
 
+  function note(freq: number, dur = 0.5, timbre: Timbre = 'piano'): void {
+    at(`note:${timbre}`, () => playNote(freq, dur, timbre));
+  }
+
+  function drum(kind: DrumKind): void {
+    at(`drum:${kind}`, () => playDrum(kind));
+  }
+
+  /**
+   * One of the recorded takes of this animal, picked at random so that twenty
+   * taps are twenty slightly different cats. False when there are none.
+   */
+  function playTake(kind: FxKind): boolean {
+    const list = takes.get(kind);
+    const c = getCtx();
+    if (!list || list.length === 0 || !c || !master) return false;
+    const buf = list[Math.floor(Math.random() * list.length)];
+    if (!buf) return false;
+    try {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = LOUDNESS.sample;
+      src.connect(g).connect(master);
+      src.start(c.currentTime);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function fx(kind: FxKind): void {
+    at(`fx:${kind}`, () => {
+      if (!playTake(kind)) playFx(kind);
+    });
+  }
+
   return {
     get enabled() {
       return enabled;
@@ -553,14 +671,16 @@ export function createAudio(): AudioEngine {
       }
     },
     pop(pitch = 1) {
-      tone('sine', 600 * pitch, 0.09, { gain: 0.5, slideTo: 300 * pitch });
+      at('pop', () => tone('sine', 600 * pitch, 0.09, { gain: 0.5, slideTo: 300 * pitch }));
     },
     ding() {
-      tone('sine', 880, 0.18, { gain: 0.5 });
-      tone('sine', 1320, 0.25, { gain: 0.4, at: 0.09 });
+      at('ding', () => {
+        tone('sine', 880, 0.18, { gain: 0.5 });
+        tone('sine', 1320, 0.25, { gain: 0.4, at: 0.09 });
+      });
     },
     boing() {
-      tone('triangle', 300, 0.25, { gain: 0.3, slideTo: 120 });
+      at('boing', () => tone('triangle', 300, 0.25, { gain: 0.3, slideTo: 120 }));
     },
     chomp() {
       // A bite is three things at once: teeth meeting (a crisp band of noise), the
@@ -568,25 +688,42 @@ export function createAudio(): AudioEngine {
       // low body so it reads as a mouth rather than a knock on the table. The small
       // random shift keeps a run of bites from sounding like one sample on repeat.
       const v = 0.9 + Math.random() * 0.25;
-      noise(0.05, { gain: 0.26, filter: { type: 'bandpass', freq: 1900 * v, to: 700 * v, q: 1.1 } });
-      noise(0.13, { gain: 0.5, filter: { type: 'lowpass', freq: 1100 * v, to: 190 * v, q: 6 } });
-      tone('triangle', 210 * v, 0.09, { gain: 0.14, slideTo: 95 * v, attack: 0.006 });
-      // The jaw meeting a second time, quiet enough to still read as a single bite.
-      noise(0.06, { at: 0.075, gain: 0.18, filter: { type: 'lowpass', freq: 700 * v, to: 200 * v, q: 5 } });
+      at('chomp', () => {
+        noise(0.05, { gain: 0.26, filter: { type: 'bandpass', freq: 1900 * v, to: 700 * v, q: 1.1 } });
+        noise(0.13, { gain: 0.5, filter: { type: 'lowpass', freq: 1100 * v, to: 190 * v, q: 6 } });
+        tone('triangle', 210 * v, 0.09, { gain: 0.14, slideTo: 95 * v, attack: 0.006 });
+        // The jaw meeting a second time, quiet enough to still read as a single bite.
+        noise(0.06, { at: 0.075, gain: 0.18, filter: { type: 'lowpass', freq: 700 * v, to: 200 * v, q: 5 } });
+      });
     },
     tick() {
-      tone('square', 1200, 0.02, { gain: 0.15 });
+      at('tick', () => {
+        // A finger tapping wood, not a beep. The old click was 20 ms of a 1200 Hz
+        // square wave: nothing but upper harmonics, which a tablet speaker turns
+        // into a thin sting, and far too short to hear without turning everything
+        // else up. This is the contact (a snip of filtered noise) over a little
+        // body that drops away at once — short enough to fire forty times a
+        // minute, warm enough to live next to a child's ear all afternoon.
+        noise(0.014, { gain: 0.3, filter: { type: 'bandpass', freq: 2400, to: 1400, q: 1.1 } });
+        tone('sine', 760, 0.055, { gain: 0.55, attack: 0.001, slideTo: 400 });
+        tone('triangle', 1520, 0.028, { gain: 0.1, attack: 0.001, slideTo: 900 });
+      });
     },
     jingle() {
-      const notes = [523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((f, i) => tone('triangle', f, 0.35, { gain: 0.45, at: i * 0.08 }));
-      tone('sine', 1567.98, 0.5, { gain: 0.25, at: notes.length * 0.08 });
+      at('jingle', () => {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((f, i) => tone('triangle', f, 0.35, { gain: 0.45, at: i * 0.08 }));
+        tone('sine', 1567.98, 0.5, { gain: 0.25, at: notes.length * 0.08 });
+      });
     },
     note,
     drum,
     fx,
+    ready() {
+      return loaded ?? Promise.resolve();
+    },
     puff() {
-      noise(0.35, { gain: 0.8, filter: { type: 'lowpass', freq: 500 } });
+      at('puff', () => noise(0.35, { gain: 0.8, filter: { type: 'lowpass', freq: 500 } }));
     },
   };
 }

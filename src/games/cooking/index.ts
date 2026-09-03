@@ -3,7 +3,7 @@ import { centerOf, hitTest, makeDraggable, type Pt } from '../../core/drag';
 import type { Item } from '../../core/content';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { EATERS, makeCookRound, STIR_TURNS, turnDelta, type Recipe } from './logic';
+import { EATERS, makeCookRound, sillyLine, STIR_TURNS, turnDelta, type Recipe } from './logic';
 import './style.css';
 
 type Phase = 'add' | 'stir' | 'cook' | 'serve';
@@ -191,6 +191,17 @@ function start(ctx: GameContext): void {
     later(startStir, STIR_DELAY_MS);
   }
 
+  /**
+   * A sock in the soup is the joke, not a mistake: the pot shakes and laughs it
+   * off by name. Nothing is ever refused with a scolding.
+   */
+  function refuse(item: Item): void {
+    replay(tool, 'anim-shake');
+    ctx.audio.boing();
+    navigator.vibrate?.(20);
+    ctx.speak(sillyLine(item));
+  }
+
   function fillTray(items: Item[]): void {
     trayItems.clear();
     const els = items.map((item) => {
@@ -210,9 +221,7 @@ function start(ctx: GameContext): void {
             if (!over(e, p, bowl)) return false;
             const needed = recipe.ingredients.some((i) => i.emoji === item.emoji) && !added.has(item.emoji);
             if (!needed) {
-              replay(tool, 'anim-shake');
-              ctx.audio.boing();
-              ctx.speak('Không phải cái này');
+              refuse(item);
               return false;
             }
             addIngredient(e, item);

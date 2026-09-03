@@ -175,9 +175,45 @@
 .bedtime-blanket.tucked {
   width: 88%;
 }
-/* Only the job in hand is worth pressing. */
-.bedtime:not([data-phase='blanket']) .bedtime-blanket {
+
+/* ---- the four things still to do ---- */
+/* One tick per job, in the free band between the window and the bed. They fill in
+   as the jobs are done, in whatever order the child got to them. */
+.bedtime-todo {
+  position: absolute;
+  left: 50%;
+  top: 33%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1.4vmin;
   pointer-events: none;
+}
+.bedtime-tick {
+  width: calc(var(--tap) * 0.42);
+  height: calc(var(--tap) * 0.42);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.24);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 0.4vmin rgba(255, 255, 255, 0.55);
+  filter: grayscale(1);
+  opacity: 0.5;
+  transition: opacity 0.4s, filter 0.4s, background 0.4s;
+}
+.bedtime-tick.done {
+  background: rgba(134, 239, 172, 0.9);
+  box-shadow: inset 0 0 0 0.4vmin rgba(22, 101, 52, 0.35);
+  filter: none;
+  opacity: 1;
+}
+.bedtime.dark .bedtime-tick {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 0.4vmin rgba(255, 255, 255, 0.28);
+}
+.bedtime.dark .bedtime-tick.done {
+  background: rgba(74, 222, 128, 0.75);
 }
 
 /* ---- the floor and the toys on it ---- */
@@ -246,6 +282,10 @@
   }
   .bedtime-floor {
     height: 28%;
+  }
+  .bedtime-todo {
+    left: 15%;
+    top: 46%;
   }
   .bedtime-box {
     width: min(calc(var(--tap) * 1.1), 26vh);

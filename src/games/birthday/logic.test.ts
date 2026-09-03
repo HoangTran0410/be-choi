@@ -9,9 +9,9 @@ import {
   TOPPINGS,
   blowStrength,
   candleWord,
-  nextPhase,
-  type Phase,
-  type PhaseEvent,
+  JOBS,
+  JOB_ICON,
+  type Job,
 } from './logic';
 
 describe('birthday content', () => {
@@ -43,23 +43,10 @@ describe('birthday content', () => {
   });
 });
 
-describe('birthday nextPhase', () => {
-  it('walks decorate → light → blow → done → decorate', () => {
-    expect(nextPhase('decorate', 'lightAll')).toBe('light');
-    expect(nextPhase('light', 'allLit')).toBe('blow');
-    expect(nextPhase('blow', 'allOut')).toBe('done');
-    expect(nextPhase('done', 'again')).toBe('decorate');
-  });
-  it('ignores events that do not apply to the phase', () => {
-    const phases: Phase[] = ['decorate', 'light', 'blow', 'done'];
-    const events: PhaseEvent[] = ['lightAll', 'allLit', 'allOut', 'again'];
-    const ok: Record<Phase, PhaseEvent> = { decorate: 'lightAll', light: 'allLit', blow: 'allOut', done: 'again' };
-    for (const p of phases) {
-      for (const e of events) {
-        if (e === ok[p]) continue;
-        expect(nextPhase(p, e)).toBe(p);
-      }
-    }
+describe('birthday ticks', () => {
+  it('has a picture for candles, flames and puffs', () => {
+    expect([...JOBS]).toEqual(['candles', 'lit', 'out']);
+    for (const job of JOBS as Job[]) expect(JOB_ICON[job].length).toBeGreaterThan(0);
   });
 });
 

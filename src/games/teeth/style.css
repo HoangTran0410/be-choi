@@ -15,6 +15,39 @@
   background: linear-gradient(180deg, #ecfeff 0%, #cffafe 60%, #a5f3fc 100%);
 }
 
+/* ---- the three things still to do ---- */
+/* Ticks fill in as the jobs are done, in whatever order the child got to them.
+   They float over the grid so they never take a row from the mouth. */
+.teeth-todo {
+  position: absolute;
+  top: 1.4vmin;
+  left: 2vmin;
+  z-index: 2;
+  display: flex;
+  gap: 1.2vmin;
+  pointer-events: none;
+}
+.teeth-tick {
+  width: calc(var(--tap) * 0.42);
+  height: calc(var(--tap) * 0.42);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.24);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 0.4vmin rgba(8, 145, 178, 0.2);
+  filter: grayscale(1);
+  opacity: 0.5;
+  transition: opacity 0.4s, filter 0.4s, background 0.4s;
+}
+.teeth-tick.done {
+  background: rgba(134, 239, 172, 0.95);
+  box-shadow: inset 0 0 0 0.4vmin rgba(22, 101, 52, 0.35);
+  filter: none;
+  opacity: 1;
+}
+
 .teeth-face {
   grid-area: face;
   display: grid;
@@ -293,6 +326,11 @@
   }
   .teeth-face {
     padding: 0 1vmin 0 3vmin;
+  }
+  /* The face takes the left-hand column in landscape, so the ticks move over the mouth. */
+  .teeth-todo {
+    left: 50%;
+    transform: translateX(-50%);
   }
   .teeth .teeth-tray {
     flex-direction: column;

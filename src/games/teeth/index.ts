@@ -1,16 +1,19 @@
+import { createChecklist } from '../../core/chores';
 import { h, replay } from '../../core/dom';
 import { noteFreq, schedule, SONGS } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
   allClean,
+  CHEERS,
+  JOBS,
+  JOB_ICON,
   makeMouth,
-  nextPhase,
+  NUDGES,
   scrub,
   SCRUBS_TO_CLEAN,
+  type Job,
   type Mouth,
-  type Phase,
-  type PhaseEvent,
   type Tooth,
 } from './logic';
 import './style.css';
@@ -47,21 +50,27 @@ interface ToothRect {
 }
 
 /**
- * Brush an animal's teeth: squeeze toothpaste on the brush, scrub every
- * stained tooth while a melody loops, rinse with the cup, sparkle, star.
+ * Brush an animal's teeth: squeeze toothpaste on the brush, scrub every stained
+ * tooth while a melody loops, rinse with the cup, sparkle, star.
+ *
+ * None of that waits its turn. The brush works with or without paste on it, the
+ * cup splashes whenever it is pressed, and the animal only beams once all three
+ * ticks along the top are green — in whatever order the child got round to them.
  */
 function start(ctx: GameContext): void {
   let alive = true;
   let round = 0;
-  let phase: Phase = 'paste';
+  const chores = createChecklist(JOBS);
+  /** True from the moment the animal beams until the next one arrives. */
+  let finished = false;
   let mouth: Mouth | null = null;
   let teeth: Tooth[] = [];
   /** Tooth elements indexed by tooth id. */
   let toothEls: HTMLElement[] = [];
   /** Tooth boxes, cached on pointerdown (client coords, with slack). */
   let rects: ToothRect[] = [];
-  /** 'Bóp kem trước nhé' is said once per round. */
-  let warned = false;
+  /** Jobs already asked for out loud this round, so the hint does not repeat itself. */
+  const nudged = new Set<Job>();
   let activePointer: number | null = null;
   let lastStroke: { x: number; y: number } | null = null;
   let lastTick = 0;
@@ -78,9 +87,15 @@ function start(ctx: GameContext): void {
   const paste = h('span', { class: 'teeth-paste', hidden: true });
   const brush = h('div', { class: 'teeth-brush' }, '🪥', paste);
   const slot = h('div', { class: 'teeth-brush-slot' }, brush);
-  const cup = h('button', { class: 'btn-round teeth-cup', type: 'button', 'aria-label': 'Súc miệng', hidden: true }, '🥤');
+  const cup = h('button', { class: 'btn-round teeth-cup', type: 'button', 'aria-label': 'Súc miệng' }, '🥤');
   const tray = h('div', { class: 'g-tray teeth-tray' }, tube, slot, cup);
-  const wrap = h('div', { class: 'teeth' }, face, scene, tray);
+  /** One tick per job, so the child can see what is left without being told. */
+  const ticks = new Map<Job, HTMLElement>();
+  for (const job of JOBS) {
+    ticks.set(job, h('div', { class: 'teeth-tick', 'data-job': job }, JOB_ICON[job]));
+  }
+  const todo = h('div', { class: 'teeth-todo' }, ...ticks.values());
+  const wrap = h('div', { class: 'teeth' }, todo, face, scene, tray);
   ctx.stage.append(wrap);
 
   function later(fn: () => void, ms: number): void {
@@ -117,49 +132,48 @@ function start(ctx: GameContext): void {
       () => {
         cancelMelody = null;
         later(() => {
-          if (phase === 'brush') startMelody();
+          if (!finished && !allClean(teeth)) startMelody();
         }, LOOP_GAP_MS);
       },
     );
   }
 
-  // ---- phases ----
+  // ---- the jobs, none of which waits for another ----
 
+  /** Wiggle something still to do, so a stuck child has somewhere to look. */
   function armHint(): void {
-    if (phase === 'done') {
-      ctx.hint.clear();
-      return;
-    }
     ctx.hint.arm(() => {
-      if (phase === 'paste') {
-        replay(tube, 'anim-wiggle');
-      } else if (phase === 'brush') {
-        if (activePointer !== null) return;
+      const waiting = chores.left();
+      const job = waiting[Math.floor(Math.random() * waiting.length)];
+      if (!job) return;
+      const tick = ticks.get(job);
+      if (tick) replay(tick, 'anim-wiggle');
+      if (job === 'paste') replay(tube, 'anim-wiggle');
+      else if (job === 'rinse') replay(cup, 'anim-wiggle');
+      else if (activePointer === null) {
         const dirty = toothEls.find((el) => el.classList.contains('teeth-dirty'));
         if (dirty) replay(dirty, 'anim-wiggle');
         replay(brush, 'anim-wiggle');
-      } else if (phase === 'rinse') {
-        replay(cup, 'anim-wiggle');
       }
+      // Asking out loud once per job is a reminder; asking every six seconds is nagging.
+      if (nudged.has(job)) return;
+      nudged.add(job);
+      ctx.speak(NUDGES[job]);
     });
   }
 
-  function enter(next: Phase): void {
-    if (phase === 'brush') {
-      stopMelody();
-      release();
-    }
-    phase = next;
-    wrap.dataset.phase = next;
-    cup.hidden = next !== 'rinse';
-    paste.hidden = next === 'paste' || next === 'done';
-    if (next === 'brush') startMelody();
-    armHint();
-  }
-
-  function transition(event: PhaseEvent): void {
-    const next = nextPhase(phase, event);
-    if (next !== phase) enter(next);
+  /**
+   * Tick a job off. Says so out loud, and sends the animal off beaming when this
+   * was the last one outstanding.
+   */
+  function setJob(job: Job, done: boolean): void {
+    if (!chores.set(job, done)) return;
+    const tick = ticks.get(job);
+    tick?.classList.toggle('done', done);
+    if (tick && done) replay(tick, 'anim-bounce');
+    if (done) ctx.speak(CHEERS[job]);
+    if (done && chores.allDone()) void finish();
+    else armHint();
   }
 
   // ---- teeth ----
@@ -221,8 +235,8 @@ function start(ctx: GameContext): void {
     ctx.audio.ding();
     navigator.vibrate?.(15);
     if (allClean(teeth)) {
-      ctx.speak('Súc miệng nào!');
-      transition('clean');
+      stopMelody();
+      setJob('brush', true);
     }
   }
 
@@ -243,6 +257,8 @@ function start(ctx: GameContext): void {
       ctx.audio.tick();
     }
     navigator.vibrate?.(5);
+    // The song only starts once there is real brushing going on, and stops when it is done.
+    if (!cancelMelody && !allClean(teeth)) startMelody();
     const res = scrub(teeth, r.id);
     if (res.teeth === teeth) return;
     teeth = res.teeth;
@@ -269,19 +285,8 @@ function start(ctx: GameContext): void {
   function onDown(e: PointerEvent): void {
     if (e.button > 0) return;
     ctx.hint.touch();
-    if (phase === 'paste') {
-      if (!warned) {
-        warned = true;
-        ctx.speak('Bóp kem trước nhé');
-      }
-      replay(tube, 'anim-wiggle');
-      return;
-    }
-    if (phase === 'rinse') {
-      replay(cup, 'anim-wiggle');
-      return;
-    }
-    if (phase !== 'brush' || activePointer !== null) return;
+    // The brush works from the first second, with or without paste on it.
+    if (finished || activePointer !== null) return;
     e.preventDefault();
     activePointer = e.pointerId;
     lastStroke = null;
@@ -292,7 +297,7 @@ function start(ctx: GameContext): void {
   }
 
   function onMove(e: PointerEvent): void {
-    if (phase !== 'brush' || e.pointerId !== activePointer) return;
+    if (e.pointerId !== activePointer) return;
     const p = local(e.clientX, e.clientY);
     showBrush(p.x, p.y);
     stroke(e.clientX, e.clientY);
@@ -314,18 +319,18 @@ function start(ctx: GameContext): void {
     e.preventDefault();
     ctx.hint.touch();
     replay(tube, 'anim-bounce');
-    if (phase !== 'paste') return;
+    if (finished || chores.done('paste')) return;
+    paste.hidden = false;
     ctx.audio.pop();
-    transition('paste');
     replay(brush, 'anim-wiggle');
-    ctx.speak('Bóp kem đánh răng, rồi chải nhé!');
+    setJob('paste', true);
   });
 
   cup.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     e.preventDefault();
     ctx.hint.touch();
-    if (phase !== 'rinse') return;
+    if (finished) return;
     replay(cup, 'anim-bounce');
     rinse();
   });
@@ -346,16 +351,20 @@ function start(ctx: GameContext): void {
     }
   }
 
+  /** A mouthful of water, whenever the child fancies one. Always worth a splash. */
   function rinse(): void {
-    transition('rinse');
     for (const f of wrap.querySelectorAll('.teeth-foam')) f.remove();
     splash();
     ctx.audio.puff();
     later(() => ctx.audio.pop(), POP_AFTER_PUFF_MS);
-    void finish();
+    setJob('rinse', true);
   }
 
   async function finish(): Promise<void> {
+    finished = true;
+    stopMelody();
+    release();
+    paste.hidden = true;
     for (const el of toothEls) el.classList.add('teeth-shine');
     replay(face, 'anim-bounce');
     navigator.vibrate?.(20);
@@ -371,16 +380,20 @@ function start(ctx: GameContext): void {
   }
 
   function play(exclude?: string): void {
-    warned = false;
+    chores.reset();
+    nudged.clear();
+    finished = false;
+    paste.hidden = true;
     lastStroke = null;
+    for (const tick of ticks.values()) tick.classList.remove('done');
     mouth = makeMouth(round, Math.random, exclude);
     teeth = mouth.teeth;
     face.textContent = mouth.character.emoji;
     replay(face, 'anim-bounce');
     buildTeeth();
     for (const el of wrap.querySelectorAll('.teeth-foam, .teeth-splash')) el.remove();
-    enter('paste');
     ctx.speak(`Đánh răng cho ${mouth.character.name} nào!`);
+    armHint();
   }
 
   wrap.addEventListener('pointerdown', onDown);

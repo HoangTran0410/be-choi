@@ -135,6 +135,8 @@ describe('farm game', () => {
       if (attempt % 100 === 99) await vi.advanceTimersByTimeAsync(20000);
     }
     expect(picked).toBe(EGGS_FOR_STAR);
+    // The star lands after ctx.celebrate() resolves, which may be the very last pick.
+    await vi.advanceTimersByTimeAsync(0);
     expect(basket.textContent).toBe(`🧺 ${EGGS_FOR_STAR}`);
     expect(ctx.spoken).toContain('Quả trứng!');
     expect(ctx.stars).toBeGreaterThan(0);

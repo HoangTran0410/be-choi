@@ -56,13 +56,13 @@ không có "thua", không giới hạn thời gian.
 | Trò chơi | Cách chơi | Kỹ năng |
 |---|---|---|
 | 🫧 Bong bóng | chạm để làm nổ bong bóng, có con vật bên trong thì đọc tên | nhân quả, vận động tinh |
-| 🎂 Sinh nhật | trang trí bánh, cắm nến theo tuổi, thắp nến, nghe "Chúc mừng sinh nhật", thổi vào micro để tắt nến | vui chơi, đếm |
-| 🍳 Nấu ăn | theo công thức bằng hình, bỏ nguyên liệu, khuấy, nấu, đút cho thú ăn | trình tự, chăm sóc |
-| 🪥 Đánh răng | bóp kem, chải sạch từng răng, súc miệng | thói quen vệ sinh |
+| 🎂 Sinh nhật | trang trí bánh, cắm nến theo tuổi, thắp nến, nghe "Chúc mừng sinh nhật", thổi vào micro để tắt nến; mỗi cây nến là một công tắc (chạm để thắp, chạm để thổi, chạm để thắp lại) và khay kẹo với nút thêm nến không bao giờ bị khoá | vui chơi, đếm |
+| 🍳 Nấu ăn | theo công thức bằng hình, bỏ nguyên liệu (thứ tự nào cũng được), khuấy, nấu, đút cho thú ăn; thả chiếc tất vào nồi thì nồi cười và nhả ra | trình tự, chăm sóc |
+| 🪥 Đánh răng | bóp kem, chải sạch từng răng, súc miệng — làm việc nào trước cũng được, ba dấu tick trên đầu sáng dần | thói quen vệ sinh |
 | 🖍️ Tô màu | vẽ ngón tay, 8 màu, 3 cỡ cọ, stamp (+ sticker đã mở), chọn ảnh làm nền hoặc biến ảnh thành nét vẽ để tô; tranh tự lưu lại, thoát ra vào lại vẫn còn (giữ 🗑️ để xoá hết) | sáng tạo |
 | 🙈 Ú oà | chạm hộp/cửa/mây/lều — mỗi thứ mở một kiểu, con vật nhảy hẳn ra trước, kêu tiếng của mình và được gọi tên; thỉnh thoảng có bướm/bóng bay/mưa sao bay ra. Cứ vài lượt lại đổi sang lượt "Tìm con mèo!": thú ló đầu ra sau hộp, hộp trượt đổi chỗ, tìm đúng thì có confetti + ⭐ (chọn sai chỉ là một bạn khác chào) | nhân quả, quan sát |
 | 🚗 Bé lái xe | đặt ngón tay chỗ muốn xe tới, xe chạy theo — bánh quay đúng quãng đường, thân xe nghiêng theo dốc. Đón bạn đang đứng ở trạm rồi chở về nhà bạn ấy (cách đó 3 cột đèn), gặp đèn đỏ thì dừng chờ xanh, qua vũng nước thì bắn nước; đổi được ô tô, xe buýt, xe cứu hoả (có còi hú), xe tải, máy cày | nhân quả, quan sát |
-| 🌙 Giờ đi ngủ | bốn việc trước khi ngủ: cất đồ chơi vào giỏ, tắt đèn (cả phòng tối dần), đắp chăn, rồi chạm mặt trăng để nghe ru "Ngôi sao lấp lánh" bằng tiếng chuông trong lúc sao mọc — xong thì bạn nhỏ ngủ 💤 | thói quen, thư giãn |
+| 🌙 Giờ đi ngủ | bốn việc trước khi ngủ, bấm cái nào trước cũng được: cất đồ chơi vào giỏ, tắt đèn (công tắc bật tắt được, cả phòng tối dần), đắp chăn, và chạm mặt trăng để nghe ru "Ngôi sao lấp lánh" bằng tiếng chuông trong lúc sao mọc; xong đủ bốn việc thì bạn nhỏ ngủ 💤 | thói quen, thư giãn |
 | 🍎 Cho ăn | kéo đúng món cho con vật đói | chăm sóc, logic |
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
 
@@ -105,6 +105,7 @@ Chụp màn hình mọi game ở 3 cỡ (điện thoại dọc/ngang, tablet) v�
 npm run build && node scripts/screenshot.mjs        # ảnh trong ./screenshots
 node scripts/screenshot.mjs shapes memory           # chỉ vài game
 npm run e2e                                         # chơi thật các game trong Chromium headless
+npm run loudness:check                              # đo lại âm lượng mọi âm thanh, fail nếu lệch
 BROWSER=webkit node scripts/screenshot.mjs          # engine WebKit (giống Safari/iPad)
 ```
 
@@ -149,10 +150,11 @@ Deploy chỗ khác (Netlify, Vercel) thì chỉ cần `npm run build` và trỏ 
 src/
   main.ts            boot: audio, giọng nói, router, service worker
   app/               home, shell (khung game), registry, storage, parent panel
-  core/              types (hợp đồng game), dom, audio synth (8 nhạc cụ + trống), music (nốt, bài hát), speech, drag, hold, hint, celebrate
+  core/              types (hợp đồng game), dom, audio synth (8 nhạc cụ + trống) + bảng cân âm lượng, music (nốt, bài hát), speech, drag, hold, hint, celebrate, chores (việc làm tuỳ thứ tự)
+  public/sfx/        tiếng con vật thu thật (sinh bằng scripts/sfx.mjs)
   games/<id>/        meta.ts · logic.ts (thuần, có test) · index.ts (DOM) · style.css
   styles/            base.css (token, animation, class dùng chung), home.css, shell.css
-scripts/screenshot.mjs
+scripts/           screenshot, e2e, loudness (cân âm lượng), sfx (dựng tiếng con vật)
 docs/superpowers/    spec và plan
 ```
 
@@ -169,7 +171,10 @@ bằng Web Speech API. 14 bài hát dùng chung nằm ở `core/music.ts` (Đàn
 4. Thêm vào `src/app/registry.ts` (`{ ...meta, load: () => import('../games/<id>/index') }`).
 5. `npm test`, `npm run build`, `node scripts/screenshot.mjs <id>`.
 
-Nguyên tắc UX cho bé 2 tuổi: mọi thứ bé chạm ≥ `var(--tap)` (72–140 px), Pointer Events +
+Nguyên tắc UX cho bé 2 tuổi: **không game nào ép thứ tự** — bé bấm loạn xạ là chuyện bình thường, nên
+mọi thứ trên màn hình luôn bấm được, mỗi vật là một việc độc lập (`core/chores.ts`), và vòng chơi xong
+khi *đủ* việc chứ không phải *đúng* thứ tự; xem `garden`, `bedtime`, `teeth` làm mẫu. Ngoài ra:
+mọi thứ bé chạm ≥ `var(--tap)` (72–140 px), Pointer Events +
 `touch-action: none`, chạy được cả dọc lẫn ngang, sai thì chỉ `boing` + trả về chỗ cũ, đứng im
 6 giây thì `ctx.hint` lắc vật cần chạm, xong vòng thì `ctx.celebrate()` rồi `ctx.addStar()`.
 

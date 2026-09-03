@@ -42,24 +42,24 @@ function q<T extends Element = HTMLElement>(ctx: FakeContext, sel: string): T {
 function all(ctx: FakeContext, sel: string): HTMLElement[] {
   return [...ctx.stage.querySelectorAll<HTMLElement>(sel)];
 }
-function phaseOf(ctx: FakeContext): string | undefined {
-  return q(ctx, '.birthday').dataset.phase;
-}
 function visibleButtons(ctx: FakeContext): string[] {
   return all(ctx, '.birthday-buttons .btn-round')
     .filter((b) => !b.hidden)
     .map((b) => b.textContent ?? '');
 }
 
-/** Decorate with `n` candles and press 🔥. */
-function addCandlesAndLight(ctx: FakeContext, n: number): void {
+const ticksDone = (ctx: FakeContext): string[] =>
+  all(ctx, '.birthday-tick.done').map((el) => el.dataset.job ?? '');
+
+/** Add `n` candles and light them all with 🔥. The song starts at once. */
+function addAndLight(ctx: FakeContext, n: number): void {
   for (let i = 0; i < n; i++) tap(q(ctx, '.birthday-add-candle'));
   tap(q(ctx, '.birthday-light'));
 }
 
-/** Light every candle and let the song finish. */
-async function lightAllAndSing(ctx: FakeContext): Promise<void> {
-  for (const c of all(ctx, '.birthday-candle')) c.dispatchEvent(ptr('pointerdown'));
+/** … and let "Happy Birthday" finish. */
+async function addLightAndSing(ctx: FakeContext, n: number): Promise<void> {
+  addAndLight(ctx, n);
   await vi.advanceTimersByTimeAsync(SONG_MS + 50);
 }
 
@@ -73,15 +73,17 @@ describe('birthday game', () => {
     vi.restoreAllMocks();
   });
 
-  it('mounts the cake, 8 toppings and 3 decorate buttons; cleanup leaves no timers', async () => {
+  it('mounts the cake, 8 toppings, the button row and three empty ticks', async () => {
     const ctx = fakeContext();
     game.start(ctx);
     expect(all(ctx, '.birthday-cake').length).toBe(1);
     expect(all(ctx, '.birthday-tier').length).toBe(2);
     expect(all(ctx, '.birthday-plate').length).toBe(1);
     expect(all(ctx, '.birthday-tray .birthday-topping').length).toBe(8);
-    expect(visibleButtons(ctx)).toEqual(['🎂', '🕯️', '🔥']);
-    expect(phaseOf(ctx)).toBe('decorate');
+    // 🔁 never goes away: a fresh cake is always one press off.
+    expect(visibleButtons(ctx)).toEqual(['\u{1F382}', '\u{1F56F}\uFE0F', '\u{1F525}', '\u{1F501}']);
+    expect(all(ctx, '.birthday-tick').length).toBe(3);
+    expect(ticksDone(ctx)).toEqual([]);
     expect(q(ctx, '.birthday-cake').dataset.flavor).toBe(FLAVORS[0]!.id);
     await vi.advanceTimersByTimeAsync(0);
     expect(q(ctx, '.birthday-topper').hidden).toBe(true);
@@ -99,11 +101,11 @@ describe('birthday game', () => {
     const boing = vi.spyOn(ctx.audio, 'boing');
     const tick = vi.spyOn(ctx.audio, 'tick');
     game.start(ctx);
-    const strawberry = q(ctx, '.birthday-tray .birthday-topping[data-emoji="🍓"]');
+    const strawberry = q(ctx, '.birthday-tray .birthday-topping[data-emoji="\u{1F353}"]');
 
     drop(strawberry);
     expect(all(ctx, '.birthday-decor .birthday-topping.placed').length).toBe(1);
-    expect(q(ctx, '.birthday-decor .birthday-topping.placed').textContent).toBe('🍓');
+    expect(q(ctx, '.birthday-decor .birthday-topping.placed').textContent).toBe('\u{1F353}');
     expect(pop).toHaveBeenCalledTimes(1);
     // The tray piece stays in the tray for the next strawberry.
     expect(all(ctx, '.birthday-tray .birthday-topping').length).toBe(8);
@@ -119,7 +121,7 @@ describe('birthday game', () => {
 
     // 🔥 with no candle: nudge towards 🕯️ instead.
     tap(q(ctx, '.birthday-light'));
-    expect(phaseOf(ctx)).toBe('decorate');
+    expect(all(ctx, '.birthday-flame').length).toBe(0);
     expect(boing).toHaveBeenCalledTimes(1);
     expect(q(ctx, '.birthday-add-candle').classList.contains('anim-wiggle')).toBe(true);
 
@@ -127,112 +129,136 @@ describe('birthday game', () => {
     tap(q(ctx, '.birthday-flavor'));
     expect(q(ctx, '.birthday-cake').dataset.flavor).toBe(FLAVORS[1]!.id);
     expect(tick).toHaveBeenCalledTimes(1);
-    expect(ctx.spoken).toContain(`Bánh ${FLAVORS[1]!.name}`);
+    expect(ctx.spoken).toContain(`B\u00e1nh ${FLAVORS[1]!.name}`);
 
     // 🕯️ ×3 → three candles, counted "một, hai, ba".
     for (let i = 0; i < 3; i++) tap(q(ctx, '.birthday-add-candle'));
     expect(all(ctx, '.birthday-candle').length).toBe(3);
-    expect(ctx.spoken.slice(-3)).toEqual(['một', 'hai', 'ba']);
+    expect(ctx.spoken.slice(-3)).toEqual(['m\u1ed9t', 'hai', 'ba']);
+    expect(ticksDone(ctx)).toEqual(['candles']);
     for (let i = 0; i < MAX_CANDLES; i++) tap(q(ctx, '.birthday-add-candle'));
     expect(all(ctx, '.birthday-candle').length).toBe(MAX_CANDLES);
 
-    // Idle hint with candles: 🔥 wiggles.
+    // Idle hint with unlit candles: 🔥 wiggles.
     vi.advanceTimersByTime(6000);
     expect(q(ctx, '.birthday-light').classList.contains('anim-wiggle')).toBe(true);
-
-    tap(q(ctx, '.birthday-light'));
-    expect(phaseOf(ctx)).toBe('light');
-    expect(ctx.spoken.at(-1)).toBe('Thắp nến nào!');
-    expect(visibleButtons(ctx)).toEqual([]);
-    expect(q(ctx, '.birthday-tray').classList.contains('birthday-inert')).toBe(true);
-    // Tray is inert now: a drop does nothing.
-    drop(strawberry);
-    expect(all(ctx, '.birthday-decor .birthday-topping.placed').length).toBe(2);
     ctx.cleanup();
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('lights candles, sings, blows them out by touch, celebrates, and starts a new cake', async () => {
+  it('keeps decorating live while the candles burn, and while the song plays', async () => {
     const ctx = fakeContext();
-    const note = vi.spyOn(ctx.audio, 'note');
-    const puff = vi.spyOn(ctx.audio, 'puff');
-    const pop = vi.spyOn(ctx.audio, 'pop');
     game.start(ctx);
-    addCandlesAndLight(ctx, 3);
-    const candles = all(ctx, '.birthday-candle');
+    const strawberry = q(ctx, '.birthday-tray .birthday-topping[data-emoji="\u{1F353}"]');
+    addAndLight(ctx, 2);
+    expect(all(ctx, '.birthday-flame').length).toBe(2);
+    expect(ticksDone(ctx)).toEqual(['candles', 'lit']);
+    // Every button is still there, and every one of them still works.
+    expect(visibleButtons(ctx)).toEqual(['\u{1F382}', '\u{1F56F}\uFE0F', '\u{1F525}', '\u{1F3A4}', '\u{1F501}']);
 
-    // Idle hint in the light phase: an unlit candle wiggles.
-    vi.advanceTimersByTime(6000);
-    expect(candles[0]!.classList.contains('anim-wiggle')).toBe(true);
+    drop(strawberry);
+    expect(all(ctx, '.birthday-decor .birthday-topping.placed').length).toBe(1);
+    tap(q(ctx, '.birthday-flavor'));
+    expect(q(ctx, '.birthday-cake').dataset.flavor).toBe(FLAVORS[1]!.id);
+
+    // A third candle joins a burning cake, unlit, and the ticks say so.
+    tap(q(ctx, '.birthday-add-candle'));
+    expect(all(ctx, '.birthday-candle').length).toBe(3);
+    expect(all(ctx, '.birthday-flame').length).toBe(2);
+    expect(ticksDone(ctx)).toEqual(['candles']);
+
+    // Blowing works during the song too: nothing is ever locked out.
+    all(ctx, '.birthday-candle')[0]!.dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.birthday-out').length).toBe(1);
+    await vi.advanceTimersByTimeAsync(SONG_MS + 50);
+    ctx.cleanup();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('a candle is a switch: tap to light, tap to blow out, tap to light again', async () => {
+    const ctx = fakeContext();
+    const pop = vi.spyOn(ctx.audio, 'pop');
+    const puff = vi.spyOn(ctx.audio, 'puff');
+    game.start(ctx);
+    for (let i = 0; i < 2; i++) tap(q(ctx, '.birthday-add-candle'));
+    const [first, second] = all(ctx, '.birthday-candle');
 
     pop.mockClear();
-    candles[0]!.dispatchEvent(ptr('pointerdown'));
-    expect(candles[0]!.classList.contains('birthday-lit')).toBe(true);
-    expect(all(ctx, '.birthday-flame').length).toBe(1);
+    first!.dispatchEvent(ptr('pointerdown'));
+    expect(first!.classList.contains('birthday-lit')).toBe(true);
     expect(pop).toHaveBeenCalledWith(1.5);
-    candles[0]!.dispatchEvent(ptr('pointerdown'));
+    // The same candle again puts it out rather than doing nothing at all.
+    first!.dispatchEvent(ptr('pointerdown'));
+    expect(first!.classList.contains('birthday-out')).toBe(true);
+    expect(puff).toHaveBeenCalledTimes(1);
+    // And once more lights it back up.
+    first!.dispatchEvent(ptr('pointerdown'));
+    expect(first!.classList.contains('birthday-lit')).toBe(true);
+    expect(first!.classList.contains('birthday-out')).toBe(false);
     expect(all(ctx, '.birthday-flame').length).toBe(1);
-    expect(note).not.toHaveBeenCalled();
 
-    // Tap the flame of the next candle (it bubbles to the candle) and the last one.
-    candles[1]!.dispatchEvent(ptr('pointerdown'));
-    candles[2]!.querySelector('.birthday-stick')!.dispatchEvent(ptr('pointerdown'));
-    expect(all(ctx, '.birthday-flame').length).toBe(3);
-    // All lit: the song starts at once, notes float, and the phase waits for it.
+    // Lighting the last one starts the song.
+    const note = vi.spyOn(ctx.audio, 'note');
+    second!.querySelector('.birthday-stick')!.dispatchEvent(ptr('pointerdown'));
+    expect(all(ctx, '.birthday-flame').length).toBe(2);
     expect(note).toHaveBeenCalledTimes(1);
     expect(note).toHaveBeenLastCalledWith(expect.closeTo(261.63, 1), expect.closeTo(0.3375, 3), 'piano');
     expect(all(ctx, '.birthday-note').length).toBe(1);
-    expect(ctx.spoken).toContain('Chúc mừng sinh nhật!');
-    expect(phaseOf(ctx)).toBe('light');
-    vi.advanceTimersByTime(SONG_MS / 2);
-    expect(note.mock.calls.length).toBeGreaterThan(5);
-    expect(ctx.spoken).not.toContain('Thổi nến nào!');
-    // Flames cannot be blown while the song plays.
-    candles[0]!.dispatchEvent(ptr('pointerdown'));
-    expect(all(ctx, '.birthday-out').length).toBe(0);
-    vi.advanceTimersByTime(SONG_MS / 2 + 50);
+    expect(ctx.spoken).toContain('Ch\u00fac m\u1eebng sinh nh\u1eadt!');
+    await vi.advanceTimersByTimeAsync(SONG_MS + 50);
     expect(note).toHaveBeenCalledTimes(HAPPY_BIRTHDAY.length);
-    expect(ctx.spoken.at(-1)).toBe('Thổi nến nào!');
-    expect(phaseOf(ctx)).toBe('blow');
-    expect(visibleButtons(ctx)).toEqual(['🎤']);
-    vi.advanceTimersByTime(2000);
-    expect(all(ctx, '.birthday-note').length).toBe(0);
+    expect(ctx.spoken.at(-1)).toBe('Th\u1ed5i n\u1ebfn n\u00e0o!');
+    ctx.cleanup();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 
-    // Idle hint in the blow phase: a lit candle wiggles.
+  it('blows the cake out for a star, and gives another one for a second round on the same cake', async () => {
+    const ctx = fakeContext();
+    const puff = vi.spyOn(ctx.audio, 'puff');
+    game.start(ctx);
+    await addLightAndSing(ctx, 3);
+    const candles = all(ctx, '.birthday-candle');
+
+    // Idle hint with everything alight: a lit candle and the 🎤 wiggle.
     vi.advanceTimersByTime(6000);
     expect(candles.some((c) => c.classList.contains('anim-wiggle') && c.classList.contains('birthday-lit'))).toBe(true);
 
-    // Tap each flame.
     candles[0]!.querySelector('.birthday-flame')!.dispatchEvent(ptr('pointerdown'));
     expect(candles[0]!.classList.contains('birthday-out')).toBe(true);
     expect(candles[0]!.querySelector('.birthday-flame')!.classList.contains('birthday-flame-out')).toBe(true);
     expect(candles[0]!.querySelector('.birthday-puff')).not.toBeNull();
-    expect(puff).toHaveBeenCalledTimes(1);
-    candles[0]!.dispatchEvent(ptr('pointerdown'));
     expect(puff).toHaveBeenCalledTimes(1);
     expect(ctx.celebrations).toBe(0);
     candles[1]!.dispatchEvent(ptr('pointerdown'));
     candles[2]!.dispatchEvent(ptr('pointerdown'));
     expect(all(ctx, '.birthday-out').length).toBe(3);
     expect(puff).toHaveBeenCalledTimes(3);
-    expect(phaseOf(ctx)).toBe('done');
-    expect(ctx.spoken.at(-1)).toBe('Chúc mừng sinh nhật bé!');
+    expect(ticksDone(ctx)).toEqual(['candles', 'out']);
+    expect(ctx.spoken.at(-1)).toBe('Ch\u00fac m\u1eebng sinh nh\u1eadt b\u00e9!');
     await vi.advanceTimersByTimeAsync(0);
     expect(ctx.celebrations).toBe(1);
     expect(ctx.stars).toBe(1);
-    expect(visibleButtons(ctx)).toEqual(['🔁']);
     vi.advanceTimersByTime(1000);
     expect(all(ctx, '.birthday-flame').length).toBe(0);
     expect(all(ctx, '.birthday-puff').length).toBe(0);
 
-    // 🔁: fresh cake with the next flavour.
+    // The same cake, lit and blown out again, is worth another star.
+    tap(q(ctx, '.birthday-light'));
+    expect(all(ctx, '.birthday-flame').length).toBe(3);
+    await vi.advanceTimersByTimeAsync(SONG_MS + 50);
+    for (const c of all(ctx, '.birthday-candle')) c.dispatchEvent(ptr('pointerdown'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ctx.stars).toBe(2);
+
+    // 🔁: fresh cake with the next flavour, and nothing to blow out.
     tap(q(ctx, '.birthday-again'));
-    expect(phaseOf(ctx)).toBe('decorate');
     expect(all(ctx, '.birthday-candle').length).toBe(0);
     expect(all(ctx, '.birthday-decor .birthday-topping').length).toBe(0);
     expect(q(ctx, '.birthday-cake').dataset.flavor).toBe(FLAVORS[1]!.id);
-    expect(visibleButtons(ctx)).toEqual(['🎂', '🕯️', '🔥']);
-    expect(q(ctx, '.birthday-tray').classList.contains('birthday-inert')).toBe(false);
+    expect(ticksDone(ctx)).toEqual([]);
+    expect(visibleButtons(ctx)).toEqual(['\u{1F382}', '\u{1F56F}\uFE0F', '\u{1F525}', '\u{1F501}']);
+    expect(ctx.stars).toBe(2);
+    vi.advanceTimersByTime(1000);
     ctx.cleanup();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -241,9 +267,7 @@ describe('birthday game', () => {
     const ctx = fakeContext();
     const puff = vi.spyOn(ctx.audio, 'puff');
     game.start(ctx);
-    addCandlesAndLight(ctx, 3);
-    await lightAllAndSing(ctx);
-    expect(phaseOf(ctx)).toBe('blow');
+    await addLightAndSing(ctx, 3);
     const cake = q(ctx, '.birthday-cake');
     // Every jsdom rect is at (0,0): each move finds the next still-lit candle.
     cake.dispatchEvent(ptr('pointerdown'));
@@ -266,8 +290,7 @@ describe('birthday game', () => {
   it('🎤 without getUserMedia hides itself and tells the child to touch the candles', async () => {
     const ctx = fakeContext();
     game.start(ctx);
-    addCandlesAndLight(ctx, 1);
-    await lightAllAndSing(ctx);
+    await addLightAndSing(ctx, 1);
     const mic = q(ctx, '.birthday-mic');
     expect(mic.hidden).toBe(false);
     tap(mic);
@@ -313,8 +336,7 @@ describe('birthday game', () => {
       const ctx = fakeContext();
       const puff = vi.spyOn(ctx.audio, 'puff');
       game.start(ctx);
-      addCandlesAndLight(ctx, 3);
-      await lightAllAndSing(ctx);
+      await addLightAndSing(ctx, 3);
       const mic = q(ctx, '.birthday-mic');
       tap(mic);
       await vi.advanceTimersByTimeAsync(0);
@@ -378,12 +400,11 @@ describe('birthday game', () => {
       const ctx = fakeContext();
       const note = vi.spyOn(ctx.audio, 'note');
       game.start(ctx);
-      addCandlesAndLight(ctx, 2);
-      for (const c of all(ctx, '.birthday-candle')) c.dispatchEvent(ptr('pointerdown'));
+      addAndLight(ctx, 2);
       vi.advanceTimersByTime(1000);
       const played = note.mock.calls.length;
       expect(played).toBeGreaterThan(1);
-      // Leaving mid-song: no more notes, no phase change.
+      // Leaving mid-song: no more notes, nothing said afterwards.
       ctx.cleanup();
       vi.advanceTimersByTime(SONG_MS);
       expect(note).toHaveBeenCalledTimes(played);
@@ -392,8 +413,7 @@ describe('birthday game', () => {
 
       const ctx2 = fakeContext();
       game.start(ctx2);
-      addCandlesAndLight(ctx2, 1);
-      await lightAllAndSing(ctx2);
+      await addLightAndSing(ctx2, 1);
       tap(q(ctx2, '.birthday-mic'));
       await vi.advanceTimersByTimeAsync(100);
       expect(vi.getTimerCount()).toBeGreaterThan(0);
@@ -417,7 +437,7 @@ describe('birthday game', () => {
     expect(topper.hidden).toBe(false);
     expect(topper.dataset.photo).toBe(p1!.id);
     const btn = q(ctx, '.birthday-photo');
-    expect(visibleButtons(ctx)).toEqual(['🎂', '🕯️', '🔥', '🖼️']);
+    expect(visibleButtons(ctx)).toEqual(['🎂', '🕯️', '🔥', '🖼️', '🔁']);
 
     btn.dispatchEvent(ptr('pointerdown'));
     const overlay = q(ctx, '.pp-overlay');
@@ -451,9 +471,9 @@ describe('birthday game', () => {
     expect(all(ctx, '.pp-overlay').length).toBe(0);
     expect(topper.hidden).toBe(true);
 
-    // Out of the decorate phase the button goes away; the picker closes on cleanup.
-    addCandlesAndLight(ctx, 1);
-    expect(btn.hidden).toBe(true);
+    // The 🖼️ button stays reachable with the candles alight; the picker closes on cleanup.
+    addAndLight(ctx, 1);
+    expect(btn.hidden).toBe(false);
     ctx.cleanup();
     expect(vi.getTimerCount()).toBe(0);
   });

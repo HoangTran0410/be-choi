@@ -26,10 +26,23 @@ function mount() {
   return { ctx, wrap };
 }
 
-/** Put every toy away and wait for the room to move on to the lamp. */
+const tap = (ctx: ReturnType<typeof fakeContext>, sel: string): void => {
+  ctx.stage.querySelector<HTMLElement>(sel)!.dispatchEvent(ptr());
+};
+
+const tick = (ctx: ReturnType<typeof fakeContext>, job: string): HTMLElement =>
+  ctx.stage.querySelector<HTMLElement>(`.bedtime-tick[data-job="${job}"]`)!;
+
+/** Put every toy away and wait for the basket to be ticked off. */
 function tidyUp(ctx: ReturnType<typeof fakeContext>): void {
   for (const toy of [...ctx.stage.querySelectorAll<HTMLElement>('.bedtime-toy')]) toy.dispatchEvent(ptr());
   vi.advanceTimersByTime(1600);
+}
+
+/** Sing the lullaby through to the end. */
+async function sing(ctx: ReturnType<typeof fakeContext>): Promise<void> {
+  tap(ctx, '.bedtime-moon');
+  await vi.advanceTimersByTimeAsync(SONG_MS);
 }
 
 describe('bedtime game', () => {
@@ -37,46 +50,65 @@ describe('bedtime game', () => {
     vi.useRealTimers();
   });
 
-  it('lays out a room, a friend and the first night of toys', () => {
-    const { ctx, wrap } = mount();
-    expect(wrap.dataset.phase).toBe('toys');
+  it('lays out a room, a friend, the first night of toys and four things to do', () => {
+    const { ctx } = mount();
     expect(ctx.stage.querySelectorAll('.bedtime-toy').length).toBe(toyCount(0));
+    expect(ctx.stage.querySelectorAll('.bedtime-tick').length).toBe(4);
+    expect(ctx.stage.querySelectorAll('.bedtime-tick.done').length).toBe(0);
     expect(ctx.stage.querySelector('.bedtime-friend')?.textContent?.length).toBeGreaterThan(0);
     expect(ctx.spoken[0]).toContain('Tới giờ ngủ');
     ctx.cleanup();
   });
 
-  it('will not turn the light off until the toys are away', () => {
+  it('lets the child start with any job at all', () => {
     const { ctx, wrap } = mount();
-    ctx.stage.querySelector<HTMLElement>('.bedtime-lamp')!.dispatchEvent(ptr());
-    expect(wrap.classList.contains('dark')).toBe(false);
-    expect(wrap.dataset.phase).toBe('toys');
 
-    tidyUp(ctx);
-    expect(wrap.dataset.phase).toBe('light');
-    expect(ctx.stage.querySelectorAll('.bedtime-toy').length).toBe(0);
+    tap(ctx, '.bedtime-lamp');
+    expect(wrap.classList.contains('dark')).toBe(true);
+    expect(tick(ctx, 'light').classList.contains('done')).toBe(true);
+
+    tap(ctx, '.bedtime-blanket');
+    expect(ctx.stage.querySelector('.bedtime-blanket')?.classList.contains('tucked')).toBe(true);
+    expect(tick(ctx, 'blanket').classList.contains('done')).toBe(true);
+
+    // The toys are still on the floor, so nobody is asleep yet.
+    expect(ctx.stage.querySelector('.bedtime-friend')?.classList.contains('asleep')).toBe(false);
+    expect(ctx.stars).toBe(0);
     ctx.cleanup();
   });
 
-  it('darkens the room, takes the blanket, then sings and puts the friend to sleep', async () => {
+  it('treats the lamp and the blanket as switches, not as steps', () => {
     const { ctx, wrap } = mount();
-    tidyUp(ctx);
 
-    ctx.stage.querySelector<HTMLElement>('.bedtime-lamp')!.dispatchEvent(ptr());
-    expect(wrap.classList.contains('dark')).toBe(true);
-    expect(wrap.dataset.phase).toBe('blanket');
+    tap(ctx, '.bedtime-lamp');
+    tap(ctx, '.bedtime-lamp');
+    expect(wrap.classList.contains('dark')).toBe(false);
+    expect(tick(ctx, 'light').classList.contains('done')).toBe(false);
 
-    const blanket = ctx.stage.querySelector<HTMLElement>('.bedtime-blanket')!;
-    blanket.dispatchEvent(ptr());
-    expect(blanket.classList.contains('tucked')).toBe(true);
-    expect(wrap.dataset.phase).toBe('lullaby');
+    tap(ctx, '.bedtime-blanket');
+    tap(ctx, '.bedtime-blanket');
+    expect(ctx.stage.querySelector('.bedtime-blanket')?.classList.contains('tucked')).toBe(false);
+    expect(tick(ctx, 'blanket').classList.contains('done')).toBe(false);
+    ctx.cleanup();
+  });
+
+  it('puts the friend to sleep once all four are done, in back-to-front order', async () => {
+    const { ctx } = mount();
+
+    await sing(ctx);
+    expect(tick(ctx, 'lullaby').classList.contains('done')).toBe(true);
+    expect(ctx.stage.querySelector('.bedtime-friend')?.classList.contains('asleep')).toBe(false);
+
+    tap(ctx, '.bedtime-blanket');
+    tap(ctx, '.bedtime-lamp');
+    expect(ctx.stars).toBe(0);
 
     const notes = vi.fn();
     ctx.audio.note = notes;
-    ctx.stage.querySelector<HTMLElement>('.bedtime-moon')!.dispatchEvent(ptr());
-    await vi.advanceTimersByTimeAsync(SONG_MS);
-    expect(notes.mock.calls.length).toBeGreaterThan(LULLABY_NOTES / 2);
-    expect(wrap.dataset.phase).toBe('done');
+    tidyUp(ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ctx.stage.querySelectorAll('.bedtime-tick.done').length).toBe(4);
     expect(ctx.stage.querySelector('.bedtime-friend')?.classList.contains('asleep')).toBe(true);
     expect(ctx.stage.querySelector('.bedtime-zzz')?.classList.contains('showing')).toBe(true);
     expect(ctx.spoken).toContain('Ngủ ngon nhé!');
@@ -85,16 +117,25 @@ describe('bedtime game', () => {
     ctx.cleanup();
   });
 
+  it('sings the lullaby on bells whenever the moon is asked', async () => {
+    const { ctx } = mount();
+    const notes = vi.fn();
+    ctx.audio.note = notes;
+    await sing(ctx);
+    expect(notes.mock.calls.length).toBeGreaterThan(LULLABY_NOTES / 2);
+    ctx.cleanup();
+  });
+
   it('starts another night, with more to tidy and somebody new', async () => {
-    const { ctx, wrap } = mount();
+    const { ctx } = mount();
     const first = ctx.stage.querySelector('.bedtime-friend')?.textContent;
     tidyUp(ctx);
-    ctx.stage.querySelector<HTMLElement>('.bedtime-lamp')!.dispatchEvent(ptr());
-    ctx.stage.querySelector<HTMLElement>('.bedtime-blanket')!.dispatchEvent(ptr());
-    ctx.stage.querySelector<HTMLElement>('.bedtime-moon')!.dispatchEvent(ptr());
-    await vi.advanceTimersByTimeAsync(SONG_MS + 4000);
-    expect(wrap.dataset.phase).toBe('toys');
-    expect(wrap.classList.contains('dark')).toBe(false);
+    tap(ctx, '.bedtime-lamp');
+    tap(ctx, '.bedtime-blanket');
+    await sing(ctx);
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(ctx.stage.querySelectorAll('.bedtime-tick.done').length).toBe(0);
+    expect(ctx.stage.querySelector('.bedtime')?.classList.contains('dark')).toBe(false);
     expect(ctx.stage.querySelectorAll('.bedtime-toy').length).toBe(toyCount(1));
     expect(ctx.stage.querySelector('.bedtime-friend')?.textContent).not.toBe(first);
     ctx.cleanup();
@@ -102,12 +143,9 @@ describe('bedtime game', () => {
 
   it('stops the song when the child leaves', async () => {
     const { ctx } = mount();
-    tidyUp(ctx);
-    ctx.stage.querySelector<HTMLElement>('.bedtime-lamp')!.dispatchEvent(ptr());
-    ctx.stage.querySelector<HTMLElement>('.bedtime-blanket')!.dispatchEvent(ptr());
     const notes = vi.fn();
     ctx.audio.note = notes;
-    ctx.stage.querySelector<HTMLElement>('.bedtime-moon')!.dispatchEvent(ptr());
+    tap(ctx, '.bedtime-moon');
     await vi.advanceTimersByTimeAsync(300);
     ctx.cleanup();
     const sung = notes.mock.calls.length;

@@ -1,30 +1,43 @@
 import { ANIMALS, type Item } from '../../core/content';
 import { pick, randInt } from '../../core/dom';
 
-/** The evening, one job at a time. */
-export type Phase = 'toys' | 'light' | 'blanket' | 'lullaby' | 'done';
-export type PhaseEvent = 'tidy' | 'dark' | 'tucked' | 'sung' | 'again';
+/**
+ * The four things that make a bedtime. They are deliberately independent: a
+ * two-year-old presses whatever catches their eye, so each one works at any
+ * moment and the night ends when all four are done, in whatever order they came.
+ */
+export type Job = 'toys' | 'light' | 'blanket' | 'lullaby';
 
-const TRANSITIONS: Record<Phase, Partial<Record<PhaseEvent, Phase>>> = {
-  toys: { tidy: 'light' },
-  light: { dark: 'blanket' },
-  blanket: { tucked: 'lullaby' },
-  lullaby: { sung: 'done' },
-  done: { again: 'toys' },
+export const JOBS: readonly Job[] = ['toys', 'light', 'blanket', 'lullaby'];
+
+/** The picture on each job's tick in the little row of things still to do. */
+export const JOB_ICON: Readonly<Record<Job, string>> = {
+  toys: '🧺',
+  light: '💡',
+  blanket: '🛏️',
+  lullaby: '🌙',
 };
 
-/** toys+tidy→light, light+dark→blanket, blanket+tucked→lullaby, lullaby+sung→done; anything else stays. */
-export function nextPhase(phase: Phase, event: PhaseEvent): Phase {
-  return TRANSITIONS[phase][event] ?? phase;
-}
-
-/** What is spoken when each job comes up. */
-export const PROMPTS: Readonly<Record<Phase, string>> = {
+/** Said when a job is still waiting and the child has gone quiet. */
+export const NUDGES: Readonly<Record<Job, string>> = {
   toys: 'Cất đồ chơi vào hộp nào!',
   light: 'Tắt đèn thôi!',
   blanket: 'Đắp chăn cho ấm nhé!',
   lullaby: 'Chạm vào mặt trăng để hát ru nào!',
-  done: 'Ngủ ngon nhé!',
+};
+
+/** Said the moment a job is finished, whichever one it happens to be. */
+export const CHEERS: Readonly<Record<Job, string>> = {
+  toys: 'Gọn gàng rồi!',
+  light: 'Tắt đèn rồi!',
+  blanket: 'Ấm quá!',
+  lullaby: 'Hát hay quá!',
+};
+
+/** Said when a job is undone again. Nothing is ever wrong here, it just goes back. */
+export const UNDOS: Readonly<Partial<Record<Job, string>>> = {
+  light: 'Sáng rồi!',
+  blanket: 'Mở chăn ra!',
 };
 
 export const TOYS: readonly string[] = ['🧸', '🚗', '🪀', '🧩', '⚽', '🦆', '🪁', '🎨', '🪘', '🚂'];

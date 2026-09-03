@@ -1,5 +1,6 @@
 // Plays every game for real in headless Chromium (touch + mouse pointer events) and
 // reports JS errors or games that do not react. Usage: npm run build && node scripts/e2e.mjs
+import { readdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 
@@ -243,22 +244,31 @@ for (let round = 0; round < 3; round++) {
 check('sounds: three found by ear earn a star', (await page.locator('canvas.confetti').count()) === 1);
 await page.waitForTimeout(1800);
 
-// ---- bedtime: tidy up, lights out, blanket on, lullaby ----
+// ---- bedtime: the four jobs, deliberately back to front ----
 await open('bedtime');
 check('bedtime: toys on the floor', (await page.locator('.bedtime-toy').count()) >= 2);
-for (const toy of await page.locator('.bedtime-toy').all()) await tap(toy);
-await page.waitForTimeout(1400);
-check('bedtime: the floor is clear', (await page.locator('.bedtime-toy').count()) === 0);
+check('bedtime: four things to do', (await page.locator('.bedtime-tick').count()) === 4);
+// The lamp is a switch, not a step: off, on, off again, all before anything else.
 await tap(page.locator('.bedtime-lamp'));
-check('bedtime: the light goes out', await page.locator('.bedtime').evaluate((el) => el.classList.contains('dark')));
+check('bedtime: the light goes out first', await page.locator('.bedtime').evaluate((el) => el.classList.contains('dark')));
+await tap(page.locator('.bedtime-lamp'));
+check('bedtime: and comes back on', !(await page.locator('.bedtime').evaluate((el) => el.classList.contains('dark'))));
+await tap(page.locator('.bedtime-lamp'));
 await tap(page.locator('.bedtime-blanket'));
-check('bedtime: tucked in', await page.locator('.bedtime-blanket').evaluate((el) => el.classList.contains('tucked')));
+check('bedtime: tucked in before tidying up', await page.locator('.bedtime-blanket').evaluate((el) => el.classList.contains('tucked')));
+// The lullaby, still with the toys all over the floor.
 await tap(page.locator('.bedtime-moon'));
+await page.waitForFunction(() => document.querySelectorAll('.bedtime-tick.done').length >= 3, null, { timeout: 20000 });
+check('bedtime: three jobs done, nobody asleep yet', !(await page.locator('.bedtime-friend').evaluate((el) => el.classList.contains('asleep'))));
+// Tidying up last is what finishes the night.
+for (const toy of await page.locator('.bedtime-toy').all()) await tap(toy);
+await page.waitForTimeout(1600);
+check('bedtime: the floor is clear', (await page.locator('.bedtime-toy').count()) === 0);
 const sung = await page
   .waitForSelector('canvas.confetti', { timeout: 20000 })
   .then(() => true)
   .catch(() => false);
-check('bedtime: the lullaby puts the friend to sleep', sung);
+check('bedtime: the last job puts the friend to sleep', sung);
 check('bedtime: friend asleep', await page.locator('.bedtime-friend').evaluate((el) => el.classList.contains('asleep')));
 await page.waitForTimeout(1800);
 
@@ -429,7 +439,7 @@ await drag(page.locator('.bricks-piece').first(), page.locator('.bricks-plate'))
 await page.waitForTimeout(300);
 check('bricks: brick placed', (await page.locator('.bricks-brick').count()) >= 1);
 
-// ---- birthday: candle, light, blow ----
+// ---- birthday: candles that light, go out and light again, in any order ----
 await open('birthday');
 const candleBtn = page.locator('.birthday-buttons button', { hasText: '🕯️' });
 await tap(candleBtn);
@@ -437,21 +447,45 @@ await tap(candleBtn);
 check('birthday: 2 candles', (await page.locator('[class*="birthday-candle"]:not(button)').count()) >= 2);
 await tap(page.locator('.birthday-buttons button', { hasText: '🔥' }));
 await page.waitForTimeout(300);
+check('birthday: 🔥 lights them all', (await page.locator('.birthday-flame').count()) >= 2);
 const candles = page.locator('[class*="birthday-candle"]:not(button)');
-const nC = await candles.count();
-for (let i = 0; i < nC; i++) await tap(candles.nth(i));
-await page.waitForTimeout(500);
+// A candle is a switch: the same tap blows it out, and the next one lights it again.
+await tap(candles.nth(0));
+await page.waitForTimeout(200);
+check('birthday: a tap blows one out', (await page.locator('.birthday-out').count()) === 1);
+await tap(candles.nth(0));
+await page.waitForTimeout(200);
+check('birthday: another tap lights it again', (await page.locator('.birthday-out').count()) === 0);
+// Decorating a burning cake still works: nothing is ever taken away.
+await tap(candleBtn);
+check('birthday: a third candle joins a lit cake', (await page.locator('[class*="birthday-candle"]:not(button)').count()) >= 3);
 check('birthday: flames lit', (await page.locator('.birthday-flame').count()) >= 1);
 
 // ---- cooking: tray and card ----
 await open('cooking');
 check('cooking: recipe card + tray', (await page.locator('.cooking-need').count()) >= 3 && (await page.locator('.cooking-item').count()) >= 5);
 
-// ---- teeth: paste ----
+// ---- teeth: rinse first, paste last, brushing whenever ----
 await open('teeth');
 check('teeth: 8 teeth', (await page.locator('.teeth-tooth').count()) === 8);
+check('teeth: three things to do', (await page.locator('.teeth-tick').count()) === 3);
+check('teeth: the cup is there from the start', await page.locator('.teeth-cup').isVisible());
+await tap(page.locator('.teeth-cup'));
+await page.waitForTimeout(200);
+check('teeth: rinsing first is allowed', (await page.locator('.teeth-tick[data-job="rinse"].done').count()) === 1);
+// Brushing with no paste on the brush at all.
+const dirty = page.locator('.teeth-tooth.teeth-dirty').first();
+const box = await dirty.boundingBox();
+if (box) {
+  await page.mouse.move(box.x + 4, box.y + box.height / 2);
+  await page.mouse.down();
+  for (let i = 0; i < 10; i++) await page.mouse.move(box.x + (i % 2 ? box.width - 4 : 4), box.y + box.height / 2);
+  await page.mouse.up();
+}
+check('teeth: the brush works before any paste', (await page.locator('.teeth-foam, .teeth-tooth.teeth-clean').count()) >= 1);
 await tap(page.locator('.teeth-tube'));
 check('teeth: paste on brush', (await page.locator('.teeth-paste').count()) === 1);
+check('teeth: paste ticked off last', (await page.locator('.teeth-tick[data-job="paste"].done').count()) === 1);
 
 // ---- jam: pads, kit switch, beat ----
 await open('jam');
@@ -466,11 +500,11 @@ await tap(page.locator('.jam-beat').nth(0));
 
 // ---- sing: pick a song, turn the microphone on, watch the words move ----
 await open('sing');
-check('sing: a card per song', (await page.locator('.sing-song').count()) >= 9);
+check('sing: only songs with words', (await page.locator('.sing-song').count()) >= 6 && (await page.locator('.sing-song[data-song="lamb"]').count()) === 0);
 await tap(page.locator('.sing-mic'));
 await page.waitForTimeout(1200);
 check('sing: microphone listening', await page.locator('.sing-mic').evaluate((el) => el.classList.contains('sing-on')));
-await tap(page.locator('.sing-song[data-song="lamb"]'));
+await tap(page.locator('.sing-song[data-song="chaulenba"]'));
 const firstLine = await page.locator('.sing-lyric-text').textContent();
 await page.waitForTimeout(1600);
 check('sing: counts in with numbers', ['3', '2', '1'].includes(((await page.locator('.sing-count').textContent()) ?? '').trim()));

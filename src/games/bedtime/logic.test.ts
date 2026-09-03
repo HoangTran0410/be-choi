@@ -1,43 +1,50 @@
 import { describe, it, expect } from 'vitest';
+import { createChecklist } from '../../core/chores';
 import { ANIMALS } from '../../core/content';
 import { mulberry32 } from '../../core/dom';
 import { SONGS } from '../../core/music';
 import {
+  CHEERS,
+  JOBS,
+  JOB_ICON,
   LULLABY_BPM,
   LULLABY_NOTES,
   MAX_TOYS,
   MIN_TOYS,
-  PROMPTS,
+  NUDGES,
   TOYS,
   TOY_ACROSS,
   TOY_DOWN,
   TOY_MAX_X,
+  UNDOS,
   makeNight,
-  nextPhase,
   toyCount,
-  type Phase,
+  type Job,
 } from './logic';
 
 describe('the evening', () => {
-  it('runs tidy, lights, blanket, song, and then round again', () => {
-    expect(nextPhase('toys', 'tidy')).toBe('light');
-    expect(nextPhase('light', 'dark')).toBe('blanket');
-    expect(nextPhase('blanket', 'tucked')).toBe('lullaby');
-    expect(nextPhase('lullaby', 'sung')).toBe('done');
-    expect(nextPhase('done', 'again')).toBe('toys');
+  it('has four jobs, none of which waits for another', () => {
+    expect([...JOBS].sort()).toEqual(['blanket', 'light', 'lullaby', 'toys']);
+    const chores = createChecklist(JOBS);
+    // Back to front, which is exactly what a two-year-old does.
+    for (const job of ['lullaby', 'blanket', 'light'] as Job[]) chores.set(job, true);
+    expect(chores.left()).toEqual(['toys']);
+    expect(chores.allDone()).toBe(false);
+    chores.set('toys', true);
+    expect(chores.allDone()).toBe(true);
   });
 
-  it('will not skip a job', () => {
-    expect(nextPhase('toys', 'dark')).toBe('toys');
-    expect(nextPhase('toys', 'tucked')).toBe('toys');
-    expect(nextPhase('light', 'sung')).toBe('light');
-    expect(nextPhase('blanket', 'tidy')).toBe('blanket');
-  });
-
-  it('has something to say at every step', () => {
-    for (const phase of ['toys', 'light', 'blanket', 'lullaby', 'done'] as Phase[]) {
-      expect(PROMPTS[phase].length).toBeGreaterThan(0);
+  it('has a picture, a nudge and a cheer for every job', () => {
+    for (const job of JOBS as Job[]) {
+      expect(JOB_ICON[job].length).toBeGreaterThan(0);
+      expect(NUDGES[job].length).toBeGreaterThan(0);
+      expect(CHEERS[job].length).toBeGreaterThan(0);
     }
+  });
+
+  it('has something to say when the switches go back the other way', () => {
+    expect(UNDOS.light?.length).toBeGreaterThan(0);
+    expect(UNDOS.blanket?.length).toBeGreaterThan(0);
   });
 
   it('sings a short piece of a song the app already knows', () => {

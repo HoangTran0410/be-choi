@@ -135,5 +135,21 @@ function animal(emoji: string): Item {
   return found;
 }
 
+/**
+ * What is said when something silly lands in the pot. A two-year-old drops a
+ * sock in on purpose, so the pot laughs and spits it back rather than telling
+ * them off. `%s` is the thing's name.
+ */
+export const SILLY_LINES: readonly string[] = [
+  'Ối, %s không ăn được đâu!',
+  '%s nhảy ra ngoài rồi!',
+  'Buồn cười quá, %s trong nồi kìa!',
+];
+
+export function sillyLine(item: Item, rng: () => number = Math.random): string {
+  const line = SILLY_LINES[Math.min(SILLY_LINES.length - 1, Math.floor(rng() * SILLY_LINES.length))];
+  return (line ?? '%s').replace('%s', item.name);
+}
+
 /** The hungry friends the finished dish is served to. */
 export const EATERS: readonly Item[] = [animal('🐶'), animal('🐱'), animal('🐻'), animal('🐷')];

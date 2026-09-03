@@ -11,7 +11,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "screenshot": "node scripts/screenshot.mjs",
-    "e2e": "node scripts/e2e.mjs"
+    "e2e": "node scripts/e2e.mjs",
+    "loudness": "node scripts/loudness.mjs",
+    "loudness:check": "node scripts/loudness.mjs --check",
+    "sfx": "node scripts/sfx.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
