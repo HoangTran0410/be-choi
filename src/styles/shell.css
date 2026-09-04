@@ -64,7 +64,7 @@
 }
 .panel {
   width: min(92vw, 460px);
-  max-height: 92dvh;
+  max-height: calc(var(--app-h, 100dvh) * 0.92);
   overflow-y: auto;
   background: var(--surface);
   color: var(--ink);

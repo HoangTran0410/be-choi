@@ -2,6 +2,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { createAudio } from './core/audio';
 import { createPhotoStore } from './core/photos';
 import { createSpeech } from './core/speech';
+import { watchViewport } from './core/viewport';
 import type { InstallState, UpdateState } from './app/deps';
 import { mountAlbum } from './app/album';
 import { mountHome } from './app/home';
@@ -14,6 +15,10 @@ import './styles/base.css';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('#app missing');
+
+// Before anything is mounted: an app restored from the background can otherwise
+// lay itself out for a screen taller than the one it is on. See core/viewport.ts.
+watchViewport();
 
 const audio = createAudio();
 const speech = createSpeech();

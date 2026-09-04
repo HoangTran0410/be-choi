@@ -73,7 +73,9 @@ body {
 }
 
 body {
-  height: 100dvh;
+  /* `--app-h` is the measured height (core/viewport.ts); `100dvh` is the fallback
+     for the first frame and for anywhere the script cannot run. */
+  height: var(--app-h, 100dvh);
   width: 100vw;
   user-select: none;
   -webkit-user-select: none;
