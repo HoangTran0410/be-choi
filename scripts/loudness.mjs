@@ -9,18 +9,35 @@
  *   node scripts/loudness.mjs           measure and rewrite the table
  *   node scripts/loudness.mjs --check   measure only, fail if anything is off level
  *
- * The measurement is momentary loudness (the loudest 300 ms window), which is
- * what an ear reports for a one-shot sound: a 20 ms click really is quieter than
- * a held note that peaks just as high. The compressor on the master bus makes the
- * chain non-linear, so the trims are found by measuring and correcting a few
- * times rather than by one division.
+ * The measurement is A-weighted momentary loudness (the loudest 300 ms window),
+ * which is roughly what an ear reports for a one-shot sound: a 20 ms click really
+ * is quieter than a held note that peaks just as high, and a 50 Hz thump really is
+ * quieter than a 3 kHz ting that meters the same. The weighting is the whole point
+ * of the exercise — levelled on a flat meter the drum kit ends up inaudible under
+ * the bells, which is what a phone speaker had been telling us all along. The
+ * compressor on the master bus makes the chain non-linear, so the trims are found
+ * by measuring and correcting a few times rather than by one division.
  */
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-/** House level, in dBFS momentary. Sits near the middle of the untrimmed set. */
+/** House level, in A-weighted dBFS momentary. Sits near the middle of the untrimmed set. */
 const TARGET_DB = -22;
+/**
+ * A-weighting as three biquads: a double pole at 20.6 Hz, single poles at 107.7 and
+ * 737.9 Hz (one biquad at their geometric mean, with the Q that puts the two real
+ * poles back where they belong), a double pole at 12194 Hz, and the four zeros at
+ * DC that the highpasses bring with them. `A_GAIN` is the standard +2.0 dB
+ * normalisation, which puts 1 kHz at unity so the numbers stay on the same scale as
+ * the flat ones they replace.
+ */
+const A_WEIGHT = [
+  ['highpass', 20.6, 0.5],
+  ['highpass', 281.9, 0.3334],
+  ['lowpass', 12194, 0.5],
+];
+const A_GAIN = 1.2589;
 /**
  * Sounds meant to sit off the house level. A UI click as loud as a lion is not
  * levelling, it is nagging; a reward no louder than a click is not a reward.
@@ -76,13 +93,30 @@ async function levelInPage(cfg) {
     return (await off.startRendering()).getChannelData(0);
   }
 
-  /** Peak, and the loudest 300 ms window, both in dBFS. */
-  function measure(data) {
-    let peak = 0;
-    for (let i = 0; i < data.length; i++) {
-      const v = Math.abs(data[i]);
-      if (v > peak) peak = v;
+  /** The same sound as an ear weights it. Loudness is read off this, headroom off the raw. */
+  async function weigh(data) {
+    const off = new OfflineAudioContext(1, data.length, SR);
+    const buf = off.createBuffer(1, data.length, SR);
+    buf.copyToChannel(data, 0);
+    const src = off.createBufferSource();
+    src.buffer = buf;
+    let head = src;
+    for (const [type, freq, q] of cfg.weighting) {
+      const f = off.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      head = head.connect(f);
     }
+    const g = off.createGain();
+    g.gain.value = cfg.weightGain;
+    head.connect(g).connect(off.destination);
+    src.start();
+    return (await off.startRendering()).getChannelData(0);
+  }
+
+  /** The loudest 300 ms window of `data`, as an amplitude. */
+  function momentary(data) {
     let sum = 0;
     for (let i = 0; i < Math.min(WINDOW, data.length); i++) sum += data[i] * data[i];
     let best = sum;
@@ -91,8 +125,20 @@ async function levelInPage(cfg) {
       for (let i = start + WINDOW - HOP; i < start + WINDOW; i++) sum += data[i] * data[i];
       if (sum > best) best = sum;
     }
-    const db = (x) => (x > 0 ? 20 * Math.log10(x) : -120);
-    return { peak, peakDb: db(peak), db: db(Math.sqrt(best / WINDOW)) };
+    return Math.sqrt(best / WINDOW);
+  }
+
+  const db = (x) => (x > 0 ? 20 * Math.log10(x) : -120);
+
+  /** Headroom off the signal as it really is; loudness off the weighted copy. */
+  async function score(play) {
+    const raw = await render(play);
+    let peak = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const v = Math.abs(raw[i]);
+      if (v > peak) peak = v;
+    }
+    return { peak, peakDb: db(peak), db: db(momentary(await weigh(raw))) };
   }
 
   const jobs = [
@@ -127,7 +173,7 @@ async function levelInPage(cfg) {
   async function sweep() {
     const rows = [];
     for (const [id, play] of jobs) {
-      rows.push({ id, goal: goalOf(id), trim: LOUDNESS[id] ?? 1, ...measure(await render(play)) });
+      rows.push({ id, goal: goalOf(id), trim: LOUDNESS[id] ?? 1, ...(await score(play)) });
     }
     return rows;
   }
@@ -176,6 +222,8 @@ try {
     trimMax: TRIM_MAX,
     peakCeiling: PEAK_CEILING,
     measureOnly: check,
+    weighting: A_WEIGHT,
+    weightGain: A_GAIN,
   });
 
   const worst = (rows) => Math.max(...rows.map((r) => Math.abs(r.db - r.goal)));
@@ -221,6 +269,10 @@ try {
  * volume that makes the cow bearable — and a parent spends the afternoon on the
  * volume rocker. A few sounds sit deliberately off the house level: see
  * \`INTENT_DB\` in the script.
+ *
+ * Loudness here is A-weighted, so a kick and a bell that meter the same on a flat
+ * meter do not get the same trim: the kick, which both an ear and a small speaker
+ * hear far less of, is given the room it needs.
  *
  * Generated by \`node scripts/loudness.mjs\`, which renders every sound offline
  * through the real master chain and measures it. Do not edit by hand: re-run the

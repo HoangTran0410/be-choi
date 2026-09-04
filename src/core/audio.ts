@@ -113,6 +113,41 @@ export interface AudioEngine {
 
 type Ctx = AudioContext;
 
+/**
+ * The bass exciter, which is what makes a kick or a distant boom exist at all on
+ * a phone. A speaker that small cannot move air much below 400 Hz, so the deep
+ * half of the sound never leaves the device and the child hears only the bells on
+ * top of it. Rather than turn the low end up — which just eats headroom and
+ * rattles the case — the low band is driven into a soft clipper and only the
+ * harmonics it invents are mixed back in. The ear hears 200-600 Hz and puts the
+ * missing fundamental back by itself; the untouched low end still goes out to the
+ * dry path, so a real speaker still thumps.
+ */
+/** Everything below this is what a small speaker cannot play. */
+const BASS_SPLIT_HZ = 160;
+/** How hard that band is driven into the clipper. Higher = richer, grittier. */
+const BASS_DRIVE = 6;
+/** Only harmonics above this come back: below it we would be adding mud, not pitch. */
+const BASS_HARMONICS_HZ = 200;
+/** How much of the invented signal is mixed in. */
+const BASS_MIX = 0.5;
+
+/**
+ * Asymmetric on purpose. A symmetric curve folds a sine into odd harmonics only
+ * (3f, 5f, 7f), and for a 45 Hz kick the first of those is 135 Hz — still under
+ * what a phone can play. Clipping harder on one side adds the even harmonics too,
+ * so the series climbs into the band where a small speaker is actually working.
+ * The DC offset that asymmetry leaves behind is removed by the highpass after it.
+ */
+function saturationCurve(n = 1024): Float32Array<ArrayBuffer> {
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    curve[i] = Math.tanh(x >= 0 ? x : x * 0.5);
+  }
+  return curve;
+}
+
 /** iPhone/iPad, including iPadOS reporting itself as a Mac. */
 function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -248,6 +283,27 @@ export function createAudio(): AudioEngine {
         /* no compressor: connect straight to the destination */
       }
       master.connect(sink);
+      try {
+        // The exciter runs beside the dry path, not in it: nothing is taken away,
+        // the harmonics are added on top. See BASS_SPLIT_HZ above.
+        const low = ctx.createBiquadFilter();
+        low.type = 'lowpass';
+        low.frequency.value = BASS_SPLIT_HZ;
+        low.Q.value = 0.7;
+        const drive = ctx.createGain();
+        drive.gain.value = BASS_DRIVE;
+        const shaper = ctx.createWaveShaper();
+        shaper.curve = saturationCurve();
+        const keep = ctx.createBiquadFilter();
+        keep.type = 'highpass';
+        keep.frequency.value = BASS_HARMONICS_HZ;
+        keep.Q.value = 0.7;
+        const mix = ctx.createGain();
+        mix.gain.value = BASS_MIX;
+        master.connect(low).connect(drive).connect(shaper).connect(keep).connect(mix).connect(sink);
+      } catch {
+        /* no wave shaper: the dry path alone, as before */
+      }
       void ctx.resume().catch(() => undefined);
       startKeepAlive();
       void loadTakes(ctx).catch(() => undefined);
@@ -493,8 +549,11 @@ export function createAudio(): AudioEngine {
   function playDrum(kind: DrumKind): void {
     switch (kind) {
       case 'kick':
-        tone('sine', 150, 0.4, { gain: 1.3, attack: 0.002, slideTo: 40 });
-        noise(0.03, { gain: 0.35, filter: { type: 'lowpass', freq: 600 } });
+        // The deep half of a kick is the half a phone throws away, so it does not
+        // get to eat all the headroom either: enough for a real speaker to thump
+        // with, and the rest spent on the beater, which every speaker can play.
+        tone('sine', 150, 0.4, { gain: 0.85, attack: 0.002, slideTo: 40 });
+        noise(0.03, { gain: 0.35, filter: { type: 'lowpass', freq: 700 } });
         return;
       case 'snare':
         noise(0.22, { gain: 1.0, filter: { type: 'bandpass', freq: 1800, q: 0.8 } });
@@ -504,7 +563,10 @@ export function createAudio(): AudioEngine {
         noise(0.07, { gain: 0.4, filter: { type: 'highpass', freq: 6000 } });
         return;
       case 'tom':
-        tone('sine', 220, 0.35, { gain: 1.2, attack: 0.002, slideTo: 90 });
+        tone('sine', 220, 0.35, { gain: 0.85, attack: 0.002, slideTo: 90 });
+        // The stick landing on the skin. Without it a tom is a bare low sine, which
+        // a small speaker turns into silence and a big one into a hum.
+        noise(0.025, { gain: 0.28, filter: { type: 'bandpass', freq: 700, q: 0.8 } });
         return;
       case 'clap':
         noise(0.03, { gain: 0.8, filter: { type: 'bandpass', freq: 1200, q: 1 } });
