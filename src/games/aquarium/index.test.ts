@@ -422,7 +422,7 @@ describe('aquarium game', () => {
     ctx.cleanup();
   });
 
-  it('feeds the fish and celebrates once every flake is gone', async () => {
+  it('earns a star once every flake is gone, without a party over the tank', async () => {
     vi.useFakeTimers();
     driveFrames();
     const g = fake2d();
@@ -435,9 +435,13 @@ describe('aquarium game', () => {
 
     ctx.stage.querySelector<HTMLElement>('.aquarium-feed')?.dispatchEvent(ptr('pointerdown'));
     expect(ctx.spoken).toContain('Cho cá ăn nào!');
+    const ding = vi.spyOn(ctx.audio, 'ding');
     // Flakes are eaten by the fish or land on the sand; either way the feed ends.
     await vi.advanceTimersByTimeAsync(20_000);
-    expect(ctx.celebrations).toBe(1);
+    // A quiet bell, not confetti: the tank is something to watch, and the child
+    // presses 🍤 again and again.
+    expect(ding).toHaveBeenCalled();
+    expect(ctx.celebrations).toBe(0);
     expect(ctx.stars).toBe(1);
     ctx.cleanup();
   });

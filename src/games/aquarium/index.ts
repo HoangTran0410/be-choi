@@ -69,7 +69,7 @@ const MAX_BUBBLES = 90;
  * The child can tap a fish to be told what it is, run a finger through the water
  * (curious fish come, shy ones bolt, bubbles trail behind) and press 🍤 to drop
  * food, which is the one thing here with a beginning and an end: every flake
- * eaten is confetti and a star.
+ * eaten is a star, marked by a bell rather than by confetti over the water.
  */
 function start(ctx: GameContext): void {
   const canvas = h('canvas', { class: 'aquarium-canvas' });
@@ -755,9 +755,11 @@ function start(ctx: GameContext): void {
     // many handfuls that took — so pressing more cannot earn it any faster.
     if (feeding && foods.length === 0) {
       feeding = false;
-      void ctx.celebrate().then(() => {
-        if (alive) ctx.addStar();
-      });
+      // A quiet bell rather than ctx.celebrate(): 🍤 gets pressed again and
+      // again, and confetti over the water every time turns a tank to watch
+      // into something that keeps interrupting itself.
+      ctx.audio.ding();
+      ctx.addStar();
     }
     for (let i = bubbles.length - 1; i >= 0; i--) {
       const b = bubbles[i]!;
