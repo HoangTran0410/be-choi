@@ -306,11 +306,14 @@ describe('firefly game', () => {
     const ctx = fakeContext();
     const fx = vi.spyOn(ctx.audio, 'fx');
     const drum = vi.spyOn(ctx.audio, 'drum');
+    const pop = vi.spyOn(ctx.audio, 'pop');
     game.start(ctx);
     size(q(ctx, '.fly'), 800, 600);
 
     q(ctx, '.fly-fw-btn').dispatchEvent(ptr('pointerdown'));
-    expect(fx).toHaveBeenCalledWith('whistle');
+    // Going up is a soft thump from the tube, not a whistle up at 2 kHz.
+    expect(pop).toHaveBeenCalledWith(0.5);
+    expect(fx).not.toHaveBeenCalledWith('whistle');
     expect(ctx.spoken).toContain('Pháo hoa!');
 
     // Climbing: drawn as a streak, and not yet opened.
@@ -318,10 +321,12 @@ describe('firefly game', () => {
     expect(c.stroke).toHaveBeenCalled();
     expect(drum).not.toHaveBeenCalled();
 
-    // It opens near the top of its climb, with a thump and a shower of sparks.
+    // It opens near the top of its climb with a low boom — no chime over it,
+    // this is a game to wind down to.
     vi.advanceTimersByTime(1000);
     expect(drum).toHaveBeenCalledWith('kick');
-    expect(fx).toHaveBeenCalledWith('sparkle');
+    expect(drum).toHaveBeenCalledWith('tom');
+    expect(fx).not.toHaveBeenCalledWith('sparkle');
     const strokes = c.stroke.mock.calls.length;
     expect(strokes).toBeGreaterThan(30);
 

@@ -636,8 +636,14 @@ export function createAudio(): AudioEngine {
         return;
       }
       case 'whistle':
-        tone('sine', 1500, 0.25, { gain: 0.4, attack: 0.02, slideTo: 2400 });
-        tone('sine', 2400, 0.35, { gain: 0.4, attack: 0.01, at: 0.25, slideTo: 1400 });
+        // Moved down a fifth, out of the 2–5 kHz band where an ear — a child's
+        // most of all — is at its most sensitive. The loudness pass can level a
+        // 2.4 kHz sine against a kick, but levelling is not the same as taking
+        // the edge off: a pure tone at the top of the ear's response stays sharp
+        // however far it is turned down. A person whistling lives around 1 kHz
+        // anyway, so this is the more honest whistle as well as the kinder one.
+        tone('sine', 1000, 0.25, { gain: 0.4, attack: 0.02, slideTo: 1600 });
+        tone('sine', 1600, 0.35, { gain: 0.4, attack: 0.01, at: 0.25, slideTo: 950 });
         return;
       case 'slide':
         tone('sine', 2200, 0.6, { gain: 0.4, attack: 0.02, sustain: true, release: 0.1, slideTo: 500 });
@@ -646,7 +652,14 @@ export function createAudio(): AudioEngine {
         tone('square', 90, 0.18, { gain: 0.35, attack: 0.002, slideTo: 900, filter: { type: 'lowpass', freq: 2500 } });
         return;
       case 'sparkle':
-        [1568, 1976, 2349, 3136].forEach((f, i) => tone('sine', f, 0.5, { gain: 0.3, attack: 0.005, at: i * 0.06 }));
+        // The same chord an octave down — G major and its octave, note for note,
+        // just no longer sitting on top of the ear. Four pure sines held half a
+        // second each, stacked, with the top one at 3.1 kHz, was the sharpest
+        // thing in the set: sparkle is triggered by a tap on a star, a butterfly,
+        // a pad, over and over, and the loudness pass can only make it sit at the
+        // house level, not stop it stinging there. Down here it reads as a music
+        // box rather than a smoke alarm, and it still climbs.
+        [784, 988, 1175, 1568].forEach((f, i) => tone('sine', f, 0.5, { gain: 0.3, attack: 0.005, at: i * 0.06 }));
         return;
       case 'kazoo':
         tone('sawtooth', 330, 0.5, {

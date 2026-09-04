@@ -363,7 +363,10 @@ function start(ctx: GameContext): void {
   function launch(shape?: Burst): void {
     const rocket = makeRocket();
     rockets.push(shape ? { ...rocket, shape } : rocket);
-    ctx.audio.fx('whistle');
+    // The thump of the tube, the way a firework actually leaves the ground. The
+    // whistle that used to be here climbed to 2 kHz, which is the one sound in
+    // this game a child sits close to and cannot look away from.
+    ctx.audio.pop(0.5);
   }
 
   function onFirework(e: Event): void {
@@ -374,7 +377,7 @@ function start(ctx: GameContext): void {
     happy();
   }
 
-  /** The rocket opens: a shape's worth of sparks, a thump, and a shower of sound. */
+  /** The rocket opens: a shape's worth of sparks and a boom heard from across a field. */
   function openRocket(r: Rocket): void {
     const made = makeBurst(r.shape, r.x, r.y, r.hue);
     // Oldest sparks go first when the sky is full, so a new firework always shows.
@@ -385,8 +388,10 @@ function start(ctx: GameContext): void {
     skyFlash.style.setProperty('--fly-fx-x', `${(r.x * 100).toFixed(1)}%`);
     skyFlash.style.setProperty('--fly-fx-y', `${(r.y * 100).toFixed(1)}%`);
     replay(skyFlash, 'fly-sky-lit');
+    // The thump and its body, with nothing bright on top. A chime up at 2 kHz
+    // read as a toy going off in the room; this is a sky to wind down under.
     ctx.audio.drum('kick');
-    ctx.audio.fx('sparkle');
+    ctx.audio.drum('tom');
     navigator.vibrate?.(18);
   }
 
