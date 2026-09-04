@@ -11,6 +11,12 @@ export interface Settings {
    * more of an interruption than a reward.
    */
   stickerPopup: boolean;
+  /**
+   * Throw confetti over the stage when a round is won. Separate from the
+   * sticker announcement above because it fires three times as often: the
+   * jingle and the praise still say "well done", this is only the paper.
+   */
+  confetti: boolean;
 }
 
 export interface Store {
@@ -32,7 +38,7 @@ interface State {
 }
 
 const KEY = 'be-choi:v1';
-const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true };
+const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true, confetti: true };
 
 /**
  * Stars per game and parent settings, persisted in localStorage. Every storage

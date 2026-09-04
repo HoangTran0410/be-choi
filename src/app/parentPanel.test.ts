@@ -59,6 +59,40 @@ describe('parent panel: the sticker announcement', () => {
     d.store.addSticker('🐣');
     expect(d.store.stickers()).toEqual(['🐣']);
   });
+
+  it('has its own switch for the confetti, which fires far more often', () => {
+    const d = deps();
+    openParentPanel(d);
+    expect(d.store.settings().confetti).toBe(true);
+
+    btn('Pháo hoa ăn mừng').dispatchEvent(new Event('pointerup'));
+
+    expect(d.store.settings().confetti).toBe(false);
+    // Two switches, two questions: turning the confetti off says nothing about stickers.
+    expect(d.store.settings().stickerPopup).toBe(true);
+  });
+});
+
+describe('parent panel: closing it', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    document.body.replaceChildren();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.replaceChildren();
+  });
+
+  it('closes from the ✕ in the corner, not only the button at the bottom', () => {
+    openParentPanel(deps());
+    expect(document.querySelector('.panel')).not.toBeNull();
+
+    btn('✕').click();
+
+    expect(document.querySelector('.panel')).toBeNull();
+  });
 });
 
 describe('parent panel: wiping stars', () => {

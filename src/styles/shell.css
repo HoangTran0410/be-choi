@@ -75,8 +75,27 @@
   gap: 3vmin;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .panel h2 {
   font-size: clamp(22px, 5vmin, 32px);
+}
+/* Big enough for a thumb, quiet enough not to compete with the switches. */
+.panel-x {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(127, 127, 127, 0.15);
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 .switch {
   display: flex;

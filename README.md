@@ -68,7 +68,8 @@ không có "thua", không giới hạn thời gian.
 | 🧽 Tắm sạch | chà ngón tay để lau sạch lớp bẩn | vận động tinh |
 
 Mỗi vòng xong có confetti + lời khen + 1 ⭐. Cứ **3 ⭐ mở 1 sticker** (48 sticker), xem lại trong
-🏆 Bộ sưu tập, dùng làm stamp trong Tô màu.
+🏆 Bộ sưu tập, dùng làm stamp trong Tô màu. Bé nào dễ mất tập trung thì tắt 🎉 *Pháo hoa ăn mừng*
+và 🎁 *Báo sticker mới* trong panel phụ huynh: sao và sticker vẫn được tính như thường.
 
 ## Ảnh của bé
 
@@ -117,7 +118,8 @@ BROWSER=webkit node scripts/screenshot.mjs          # engine WebKit (giống Saf
 3. **Android (Chrome):** giữ nút 👪 trong app 1,5 giây → *Cài lên màn hình chính*, hoặc menu ⋮ → *Cài đặt ứng dụng*.
 4. Mở từ icon: app chạy toàn màn hình, không cần mạng.
 
-Panel phụ huynh (giữ 👪 1,5 giây): bật/tắt âm thanh, bật/tắt giọng nói, giao diện Sáng/Tối/Tự động
+Panel phụ huynh (giữ 👪 1,5 giây; đóng bằng ✕ góc trên hoặc nút Đóng cuối panel): bật/tắt âm
+thanh, bật/tắt giọng nói, bật/tắt báo sticker mới, bật/tắt pháo hoa ăn mừng, giao diện Sáng/Tối/Tự động
 (tối theo hệ thống, nền game dịu 45 % để chơi buổi tối), ảnh của bé, cài app, xoá sao/sticker.
 Màn hình chính nhớ vị trí cuộn khi ra khỏi game.
 Giọng đọc tiếng Việt dùng voice có sẵn của hệ điều hành (iOS: cài trong Cài đặt → Trợ năng →

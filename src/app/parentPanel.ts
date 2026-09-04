@@ -225,7 +225,14 @@ export function openParentPanel(deps: AppDeps): void {
   const panel = h(
     'div',
     { class: 'panel', onClick: (e: Event) => e.stopPropagation() },
-    h('h2', null, '👪 Phụ huynh'),
+    h(
+      'div',
+      { class: 'panel-head' },
+      h('h2', null, '👪 Phụ huynh'),
+      // A parent who opened this by accident, or who is done after the first
+      // switch, should not have to scroll to the bottom to get out.
+      h('button', { class: 'panel-x', type: 'button', 'aria-label': 'Đóng', onClick: close }, '✕'),
+    ),
     toggle('🔊 Âm thanh', settings.sound, (v) => {
       store.setSettings({ sound: v });
       audio.setEnabled(v);
@@ -242,6 +249,10 @@ export function openParentPanel(deps: AppDeps): void {
     settings.stickerPopup
       ? null
       : h('p', { class: 'panel-note' }, 'Bé vẫn nhận sticker như thường, chỉ là không bị ngắt giữa lúc chơi. Xem trong Album nhé.'),
+    toggle('🎉 Pháo hoa ăn mừng', settings.confetti, (v) => {
+      store.setSettings({ confetti: v });
+    }),
+    settings.confetti ? null : h('p', { class: 'panel-note' }, 'Bé thắng vẫn có nhạc và lời khen, chỉ bỏ đám giấy màu bay đầy màn hình.'),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     installRow,
     themeRow,

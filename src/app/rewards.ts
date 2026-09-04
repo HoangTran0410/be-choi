@@ -103,6 +103,6 @@ export function showStickerReveal(sticker: Sticker, deps: AppDeps): void {
   overlay.addEventListener('pointerdown', close);
   document.body.append(overlay);
   deps.speech.speak(`Bé được sticker mới: ${sticker.name}!`);
-  void celebrate(overlay, deps.audio, () => undefined);
+  void celebrate(overlay, deps.audio, () => undefined, { confetti: deps.store.settings().confetti });
   setTimeout(close, 3200);
 }

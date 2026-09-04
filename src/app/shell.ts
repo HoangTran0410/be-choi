@@ -76,7 +76,7 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
     stage,
     audio,
     speak: (text) => speech.speak(text),
-    celebrate: () => celebrate(stage, audio, (t) => speech.speak(t)),
+    celebrate: () => celebrate(stage, audio, (t) => speech.speak(t), { confetti: store.settings().confetti }),
     hint,
     addStar: () => {
       store.addStar(entry.id);

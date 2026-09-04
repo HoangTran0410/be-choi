@@ -16,19 +16,28 @@ interface Particle {
   color: string;
 }
 
+export interface CelebrateOptions {
+  praises?: readonly string[];
+  /**
+   * Draw the paper. Off (the parent's switch) keeps the jingle and the praise
+   * and keeps the same length, so a game that waits on this before its next
+   * round is paced exactly as it was — the child just is not interrupted by a
+   * screenful of confetti every third minute.
+   */
+  confetti?: boolean;
+}
+
 /**
  * Confetti over the stage, a jingle, and a spoken praise. Resolves when the
  * confetti has finished so the game can move to the next round.
  */
-export function celebrate(
-  stage: HTMLElement,
-  audio: AudioEngine,
-  speak: (t: string) => void,
-  praises: readonly string[] = PRAISES,
-): Promise<void> {
+export function celebrate(stage: HTMLElement, audio: AudioEngine, speak: (t: string) => void, opts: CelebrateOptions = {}): Promise<void> {
+  const { praises = PRAISES, confetti = true } = opts;
   audio.jingle();
   const praise = praises[Math.floor(Math.random() * praises.length)];
   if (praise) speak(praise);
+
+  if (!confetti) return new Promise((resolve) => setTimeout(resolve, DURATION));
 
   const canvas = document.createElement('canvas');
   canvas.className = 'confetti';
