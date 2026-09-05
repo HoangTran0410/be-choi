@@ -358,47 +358,76 @@ function start(ctx: GameContext): void {
     g.fill();
   }
 
-  /** A hollow log: the best hiding place in the box, and the one with a doorway. */
+  /**
+   * A hollow log: the best hiding place in the box, and the one with a doorway.
+   *
+   * It stands against a wall of cork bark, which is the same brown a log is, so
+   * every part of it is drawn to fight that: a dark redder wood, a hard outline,
+   * a lit top edge, and an end with real growth rings round a black hole. Without
+   * all four it is a pale arc on a pale wall and nobody — child or parent — can
+   * tell what they are looking at.
+   */
   function drawLog(g: CanvasRenderingContext2D, d: Decor): void {
     const u = d.size * viv.unit;
-    const r = u * 0.36;
+    const r = u * 0.4;
     const left = d.x - u * 0.55;
     const right = d.x + u * 0.55;
+    const hue = 18 + d.hue * 10;
+    const top = d.y - r * 1.8;
     // A lying cylinder: a rounded top and bottom rather than a rectangle, or it
     // is a plank and no child believes anything lives inside a plank.
-    const barrel = g.createLinearGradient(0, d.y - r * 1.6, 0, d.y);
-    barrel.addColorStop(0, `hsl(${26 + d.hue * 12} 32% 44%)`);
-    barrel.addColorStop(0.55, `hsl(${24 + d.hue * 12} 33% 34%)`);
-    barrel.addColorStop(1, `hsl(${22 + d.hue * 12} 34% 24%)`);
+    const barrel = g.createLinearGradient(0, top, 0, d.y + r * 0.2);
+    barrel.addColorStop(0, `hsl(${hue} 40% 40%)`);
+    barrel.addColorStop(0.45, `hsl(${hue} 42% 27%)`);
+    barrel.addColorStop(1, `hsl(${hue} 44% 16%)`);
     g.fillStyle = barrel;
     g.beginPath();
-    g.moveTo(left, d.y - r * 0.8);
-    g.quadraticCurveTo(d.x, d.y - r * 1.9, right, d.y - r * 0.8);
-    g.quadraticCurveTo(d.x, d.y + r * 0.35, left, d.y - r * 0.8);
+    g.moveTo(left, d.y - r * 0.75);
+    g.quadraticCurveTo(d.x, top, right, d.y - r * 0.75);
+    g.quadraticCurveTo(d.x, d.y + r * 0.4, left, d.y - r * 0.75);
     g.closePath();
     g.fill();
+    g.strokeStyle = 'rgba(28,14,4,0.75)';
+    g.lineWidth = Math.max(1.5, u * 0.03);
+    g.stroke();
     // Bark, as grooves that follow the curve of the barrel.
-    g.strokeStyle = 'rgba(52,28,12,0.35)';
-    g.lineWidth = Math.max(1, u * 0.022);
+    g.strokeStyle = 'rgba(24,12,4,0.4)';
+    g.lineWidth = Math.max(1, u * 0.024);
     for (let i = 1; i <= 3; i++) {
       const t = i / 4;
       g.beginPath();
-      g.moveTo(left + u * 0.06, d.y - r * (0.8 + t * 0.95));
-      g.quadraticCurveTo(d.x, d.y - r * (0.8 + t * 1.5), right - u * 0.06, d.y - r * (0.8 + t * 0.95));
+      g.moveTo(left + u * 0.08, d.y - r * (0.75 + t * 0.9));
+      g.quadraticCurveTo(d.x, d.y - r * (0.75 + t * 1.4), right - u * 0.08, d.y - r * (0.75 + t * 0.9));
       g.stroke();
     }
-    // The open end, which is what makes it a hide rather than a log.
-    g.fillStyle = `hsl(${30 + d.hue * 12} 28% 48%)`;
+    // The lit top edge, which is what makes it round.
+    g.strokeStyle = 'rgba(255,226,180,0.3)';
+    g.lineWidth = Math.max(1.5, u * 0.035);
     g.beginPath();
-    g.ellipse(left, d.y - r * 0.8, r * 0.28, r * 0.85, 0, 0, Math.PI * 2);
+    g.moveTo(left + u * 0.12, d.y - r * 1.32);
+    g.quadraticCurveTo(d.x, top + r * 0.16, right - u * 0.12, d.y - r * 1.32);
+    g.stroke();
+
+    // The cut end: pale sapwood, growth rings, and a black hole through it.
+    const ex = left;
+    const ey = d.y - r * 0.75;
+    g.fillStyle = `hsl(${hue + 12} 34% 52%)`;
+    g.beginPath();
+    g.ellipse(ex, ey, r * 0.3, r * 0.88, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#2b1a0e';
+    g.strokeStyle = 'rgba(28,14,4,0.7)';
+    g.lineWidth = Math.max(1.2, u * 0.024);
+    g.stroke();
+    g.strokeStyle = 'rgba(60,32,12,0.4)';
+    g.lineWidth = Math.max(1, u * 0.014);
+    for (const ring of [0.78, 0.58]) {
+      g.beginPath();
+      g.ellipse(ex, ey, r * 0.3 * ring, r * 0.88 * ring, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.fillStyle = '#160c05';
     g.beginPath();
-    g.ellipse(left, d.y - r * 0.8, r * 0.17, r * 0.58, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = 'rgba(255,255,255,0.09)';
-    g.beginPath();
-    g.ellipse(d.x, d.y - r * 1.5, u * 0.32, r * 0.12, 0, 0, Math.PI * 2);
+    g.ellipse(ex, ey, r * 0.17, r * 0.55, 0, 0, Math.PI * 2);
     g.fill();
   }
 
@@ -613,7 +642,7 @@ function start(ctx: GameContext): void {
     dusk += ((night ? 1 : 0) - dusk) * Math.min(1, dt * 1.2);
     wet = Math.max(0, wet - dt / MIST_SECONDS);
     settleScenery(plants, decor, dt);
-    stepDrops(drops, dt);
+    stepDrops(drops, dt, viv);
     if (interest) {
       interest.life -= dt;
       if (interest.life <= 0) interest = null;
@@ -662,9 +691,10 @@ function start(ctx: GameContext): void {
       if (d.layer === 'mid') order.push({ y: d.y, k: 1, i });
     });
     creatures.forEach((cr, i) => {
-      if (cr.held) return;
-      // Anything up the glass has left the bank behind: draw it at the very back,
-      // against the side pane, rather than sorting it in among the planting.
+      // Anything on the cork wall is behind the whole bank and is drawn with it.
+      if (cr.held || cr.surface === 'back') return;
+      // Anything up a side pane has left the bank behind: draw it at the very
+      // back, against the glass, rather than sorting it in among the planting.
       const climbing = cr.surface === 'left' || cr.surface === 'right' || cr.surface === 'ceiling';
       order.push({ y: climbing ? viv.floor - viv.unit : cr.y, k: 2, i });
     });
@@ -680,15 +710,25 @@ function start(ctx: GameContext): void {
     // animals that is a few hundred throwaway objects a second.
     const view: Scene = { viv, clock };
     drawBack(g, viv);
+    // On the cork wall, before anything in the bank goes in front of it. A veil
+    // of the wall's own colour over the top pushes it back where it belongs:
+    // without it a gecko up there is as crisp as one at the child's feet, and the
+    // box stops having a far side.
+    const onWall = creatures.some((cr) => cr.surface === 'back' && !cr.held);
+    if (onWall) {
+      creatures.forEach((cr, i) => {
+        if (cr.surface === 'back' && !cr.held) drawCreature(g, cr, i, { viv, clock });
+      });
+      g.fillStyle = 'rgba(120,80,44,0.16)';
+      g.fillRect(0, 0, viv.w, viv.floor);
+    }
     drawSoil(g, viv, pebbles);
     // The back of the bank, behind everything else standing in it. Drawn after
     // the soil, not before: the soil is nearly half the screen here, so anything
-    // painted under it is simply painted out.
-    g.save();
-    // Distance haze, so the log does not look like it stands among the animals.
-    g.globalAlpha = 0.82;
+    // painted under it is simply painted out. At full strength, too — a haze over
+    // these was meant to read as distance and read as a smear instead, and a
+    // hollow log nobody can identify is not scenery, it is a stain on the glass.
     for (const d of decor) if (d.layer === 'far') drawDecor(g, d);
-    g.restore();
     sortBank();
     for (const item of order) {
       if (item.k === 0) {
@@ -1001,17 +1041,20 @@ function start(ctx: GameContext): void {
     if (!held && grabCandidate && grabFrom && Math.hypot(p.x - grabFrom.x, p.y - grabFrom.y) > GRAB_SLOP) {
       grab(grabCandidate, p);
     }
-    if (!held && !moving && movable && grabFrom && Math.abs(p.x - grabFrom.x) > GRAB_SLOP) {
+    if (!held && !moving && movable && grabFrom && Math.hypot(p.x - grabFrom.x, p.y - grabFrom.y) > GRAB_SLOP) {
       moving = movable;
       root.classList.add('terrarium-moving');
       ctx.audio.pop(0.7);
       navigator.vibrate?.(10);
     }
     if (moving) {
-      // Along the soil only: these things stand on it. Kept a body's width off the
-      // glass so nothing ends up half outside the box.
+      // Anywhere in the soil, back to front as well as side to side — but only in
+      // the soil: these things stand on it, and a log halfway up the back wall is
+      // a log hanging in the air. Kept a body's width off the side glass too, so
+      // nothing ends up half outside the box.
       const edge = viv.unit * 0.6;
       moving.x = Math.min(viv.w - edge, Math.max(edge, p.x));
+      moving.y = Math.min(viv.front, Math.max(viv.floor, p.y));
       shelters = sheltersFrom(viv, plants, decor);
       return;
     }

@@ -309,10 +309,23 @@ export function makeVivarium(w: number, h: number): Vivarium {
   };
 }
 
-/** Which pane of glass (or which side of the soil) an animal is standing on. */
-export type Surface = 'ground' | 'left' | 'right' | 'ceiling' | 'air';
+/**
+ * What an animal is standing on.
+ *
+ * All but one of these are seen from the side, and the animal is drawn as a
+ * silhouette with its feet pointing at whatever it is on. `back` is the cork wall
+ * at the back of the box, and it is the odd one out: it faces the child, so an
+ * animal on it is seen from *above*, back towards us, legs out to both sides.
+ * That is a different picture of the same animal, and the reason to have it is
+ * that from above you can watch the body itself bend through the walk.
+ */
+export type Surface = 'ground' | 'left' | 'right' | 'ceiling' | 'back' | 'air';
 
-/** Which way this animal's feet point, given what it is standing on. */
+/**
+ * Which way this animal's feet point on screen. On the back wall they point away
+ * from the child — straight into the screen — which is no direction at all here,
+ * so the body sits exactly where its feet are and the legs go out to both sides.
+ */
 export function footDir(surface: Surface): { x: number; y: number } {
   switch (surface) {
     case 'left':
@@ -321,9 +334,16 @@ export function footDir(surface: Surface): { x: number; y: number } {
       return { x: 1, y: 0 };
     case 'ceiling':
       return { x: 0, y: -1 };
+    case 'back':
+      return { x: 0, y: 0 };
     default:
       return { x: 0, y: 1 };
   }
+}
+
+/** Seen from above rather than from the side. */
+export function isTopDown(surface: Surface): boolean {
+  return surface === 'back';
 }
 
 /**
@@ -682,6 +702,8 @@ export class Creature {
   private hopFor = 0;
   /** Seconds of crouching before the next hop. */
   private crouch = 0;
+  /** Which way up the glass it fancies going: the back wall, or a side pane. */
+  private wall: 'back' | 'side' = 'back';
 
   constructor(
     readonly species: Species,
@@ -765,6 +787,15 @@ export class Creature {
    * curve in it is the one the animal is putting there itself.
    */
   private poseAt(px: number, py: number): void {
+    // On the back wall we are looking straight down on the animal, and there the
+    // tank's rule is the right one after all: let the vertebrae trail along the
+    // path the head actually took. From above, a body curling through a turn is
+    // exactly what a walking lizard does — it is only from the side that the same
+    // curl reads as a banana.
+    if (isTopDown(this.surface)) {
+      this.spine.follow(px, py, this.heading);
+      return;
+    }
     const { joints, angles } = this.spine;
     const spacing = this.spine.config.spacing;
     const amp = this.wave;
@@ -817,8 +848,19 @@ export class Creature {
     return viv.floor + (viv.front - viv.floor) * (0.12 + rng() * 0.82);
   }
 
+  /**
+   * Can it take the cork wall at the back — the one that faces the child?
+   * Only the ones with legs to watch: the point of that wall is seeing the body
+   * bend through the walk from above, and a snail has nothing to bend.
+   */
+  get scalesBackWall(): boolean {
+    return this.species.climbs && (this.species.kind === 'reptile' || this.species.kind === 'bug');
+  }
+
   /** Picked up. It stops walking and simply goes where the finger goes. */
   hold(px: number, py: number): void {
+    // In a child's hand it is seen from the side, whatever pane it came off.
+    this.surface = 'ground';
     this.held = true;
     this.hiding = false;
     this.den = null;
@@ -940,6 +982,7 @@ export class Creature {
     const pace = resting ? NIGHT_PACE : 1;
     if (this.species.kind === 'flyer') return this.flutter(step, viv, world, rng, pace);
     if (this.species.kind === 'hopper') return this.leap(step, viv, world, rng, pace);
+    if (this.surface === 'back') return this.roam(step, viv, world, rng, pace);
     if (this.surface !== 'ground') return this.climb(step, viv, world, pace, rng);
     return this.crawl(step, viv, world, rng, pace);
   }
@@ -1015,9 +1058,10 @@ export class Creature {
       if (away < NOTICE * viv.unit * 2.2) return { x: interest.x, y: interest.y };
     }
 
-    // Off to the glass. A climber that only found a wall by wandering into one
-    // hardly ever climbed; wanting to climb has to mean walking over there.
+    // Off to the wall. A climber that only found one by wandering into it hardly
+    // ever climbed; wanting to climb has to mean walking over there.
     if (this.wantsGlass()) {
+      if (this.wall === 'back') return { x: this.bodyX, y: viv.floor };
       return { x: this.bodyX < viv.w / 2 ? viv.wallL : viv.wallR, y: viv.floor + viv.unit * 0.05 };
     }
 
@@ -1037,36 +1081,44 @@ export class Creature {
     const cruise = this.cruise(viv) * pace;
 
     // A lizard does not stroll: it darts, then stops dead and looks about. That
-    // stop-start is most of what makes it read as a reptile rather than a toy.
-    const darts = this.species.kind === 'reptile' && this.fear === 0;
+    // stop-start is most of what makes it read as a reptile rather than a toy —
+    // but an animal that has decided to go up a wall walks there without dawdling,
+    // or a dozing gecko spends four minutes crossing the bank and never arrives.
+    const errand = this.wantsGlass();
+    const darts = this.species.kind === 'reptile' && this.fear === 0 && !errand;
     if (darts && this.still <= 0 && rng() < step * 0.5) this.still = 0.5 + rng() * 1.6;
     // A frightened turtle does not run anywhere; it stops and shuts the door.
-    const ease = this.tucked ? 0.03 : this.hiding ? 0.25 : this.still > 0 ? 0.06 : 1;
+    const ease = this.tucked ? 0.03 : this.hiding ? 0.25 : this.still > 0 && !errand ? 0.06 : 1;
 
     const toX = goal.x - this.bodyX;
     const toY = goal.y - this.bodyY;
     const far = Math.hypot(toX, toY) || 1;
     let wantX = (toX / far) * cruise * ease;
-    // The soil bank is shallow, so walking towards the glass is slower than
-    // walking along it — otherwise everybody crosses it in one stride.
-    let wantY = (toY / far) * cruise * 0.4 * ease;
+    // Crossing the bank is a little slower than walking along it — but only a
+    // little: the bank is half the screen deep, and at a fraction of the pace
+    // nobody ever reaches the back of it.
+    let wantY = (toY / far) * cruise * 0.7 * ease;
 
     const crowd = this.neighbours(viv, world.neighbours ?? []);
     wantX += crowd.x * cruise;
-    wantY += crowd.y * cruise * 0.4;
+    wantY += crowd.y * cruise * 0.7;
 
     this.vx += (wantX - this.vx) * Math.min(1, TURN * step);
     this.vy += (wantY - this.vy) * Math.min(1, TURN * step);
     this.x += this.vx * step;
     this.y += this.vy * step;
 
-    // Up the glass, if it fancies it and it is the kind that can. Only from the
-    // back of the soil bank: stepping onto a pane from right against the front
-    // glass would jump it half the bank's depth in one frame.
+    // Up a wall, if it fancies it and it is the kind that can. Only from the back
+    // of the soil bank: stepping onto a wall from right against the front glass
+    // would jump it half the bank's depth in one frame.
     if (this.wantsGlass() && this.y < viv.floor + (viv.front - viv.floor) * 0.55) {
-      const edge = this.groundMargin(viv) + viv.unit * 0.06;
-      if (this.x <= viv.wallL + edge) return this.takeWall('left', viv, world);
-      if (this.x >= viv.wallR - edge) return this.takeWall('right', viv, world);
+      if (this.wall === 'back') {
+        if (this.y <= viv.floor + viv.unit * 0.25) return this.takeBack(viv, rng);
+      } else {
+        const edge = this.groundMargin(viv) + viv.unit * 0.06;
+        if (this.x <= viv.wallL + edge) return this.takeWall('left', viv, world);
+        if (this.x >= viv.wallR - edge) return this.takeWall('right', viv, world);
+      }
     }
     this.keepIn(viv);
 
@@ -1106,9 +1158,22 @@ export class Creature {
     this.heading = (this.dir > 0 ? 0 : Math.PI) + this.dir * (this.lean + giddy);
   }
 
-  /** Does it want to be up the glass right now? */
+  /**
+   * Does it want to be up a wall right now?
+   *
+   * Deliberately not "and it is not hungry". Nothing in the box is fed unless the
+   * child presses the button, so every animal is hungry within a minute of a
+   * fresh start; hanging climbing on an empty stomach meant that after that first
+   * minute nobody ever went up anything again. What actually brings one down is
+   * food it can smell — see `smellsFood`.
+   */
   private wantsGlass(): boolean {
-    return this.species.climbs && this.climbFor > 0 && this.hunger < HUNGRY_AT;
+    return this.species.climbs && this.climbFor > 0;
+  }
+
+  /** Is there something down on the soil worth coming off the wall for? */
+  private smellsFood(viv: Vivarium, world: World): boolean {
+    return this.hunger >= HUNGRY_AT && this.nearestFood(world.foods, viv, world.smell ?? 1) !== null;
   }
 
   private tickClimbing(step: number, rng: () => number): void {
@@ -1121,7 +1186,101 @@ export class Creature {
     if (this.climbRest <= 0 && rng() < step * 0.35) {
       this.climbFor = 5 + rng() * 10;
       this.climbRest = 14 + rng() * 22;
+      // Mostly the cork at the back, where the child can watch it walk; the side
+      // panes are the other picture of the same animal and worth keeping.
+      this.wall = this.scalesBackWall && rng() < 0.65 ? 'back' : 'side';
     }
+  }
+
+  /** Lay the body out straight along its heading, for a frame that changes surface. */
+  private replant(): void {
+    this.spine.replant(this.bodyX, this.bodyY, this.heading);
+  }
+
+  /** Somewhere else on the cork wall to be. */
+  private wanderWall(viv: Vivarium, rng: () => number): void {
+    const edge = this.length * 0.6;
+    this.tx = viv.wallL + edge + rng() * Math.max(1, viv.wallR - viv.wallL - edge * 2);
+    this.ty = viv.top + edge + rng() * Math.max(1, viv.floor - viv.top - edge * 1.6);
+  }
+
+  /** Step off the soil and onto the cork wall at the back. */
+  private takeBack(viv: Vivarium, rng: () => number): boolean {
+    this.surface = 'back';
+    this.y = viv.floor - viv.unit * 0.05;
+    this.x = Math.min(viv.wallR - this.length * 0.5, Math.max(viv.wallL + this.length * 0.5, this.x));
+    this.heading = -Math.PI / 2;
+    this.vx = 0;
+    this.vy = -this.species.speed * this.unit;
+    this.lean = 0;
+    this.replant();
+    this.wanderWall(viv, rng);
+    return false;
+  }
+
+  /**
+   * Up the cork wall, seen from above. Two dimensions again, but this time both
+   * of them are the wall — and because nothing about this view is side-on, the
+   * body may point wherever it is going. That freedom is the whole animation:
+   * the spine trails the head round every turn.
+   */
+  private roam(step: number, viv: Vivarium, world: World, rng: () => number, pace: number): boolean {
+    this.climbFor -= step;
+    const wet = world.wet ?? 0;
+    const speed = this.species.speed * this.unit * pace * (1 - wet * 0.4) * (this.fear > 0 ? 2.2 : 1);
+    const wantsDown = this.climbFor <= 0 || this.smellsFood(viv, world);
+
+    // Down to the soil, or off across the cork.
+    if (wantsDown) this.ty = viv.floor + viv.unit;
+    else if (Math.hypot(this.tx - this.x, this.ty - this.y) < this.length * 0.7) this.wanderWall(viv, rng);
+
+    const toX = this.tx - this.x;
+    const toY = this.ty - this.y;
+    const far = Math.hypot(toX, toY) || 1;
+    const crowd = this.neighbours(viv, world.neighbours ?? []);
+    this.vx += ((toX / far) * speed + crowd.x * speed - this.vx) * Math.min(1, TURN * step);
+    this.vy += ((toY / far) * speed + crowd.y * speed - this.vy) * Math.min(1, TURN * step);
+    this.x += this.vx * step;
+    this.y += this.vy * step;
+
+    const edge = this.length * 0.45;
+    this.x = Math.min(viv.wallR - edge, Math.max(viv.wallL + edge, this.x));
+    if (this.y < viv.top + edge) {
+      this.y = viv.top + edge;
+      this.vy = Math.abs(this.vy);
+    }
+
+    if (Math.hypot(this.vx, this.vy) > 1) {
+      this.heading += angleDelta(this.heading, Math.atan2(this.vy, this.vx)) * Math.min(1, 5 * step);
+    }
+    this.stride(step, viv, pace);
+    this.pose();
+
+    // Back down onto the soil.
+    if (this.y >= viv.floor) {
+      this.surface = 'ground';
+      this.y = viv.floor + viv.unit * 0.1;
+      this.dir = Math.cos(this.heading) >= 0 ? 1 : -1;
+      this.heading = this.dir > 0 ? 0 : Math.PI;
+      this.lean = 0;
+      this.vy = 0;
+      this.climbRest = Math.max(this.climbRest, 8);
+      this.replant();
+      return false;
+    }
+    // …or simply lets go, which is the best thing in the box.
+    if (rng() < step * (0.05 + wet * 0.4)) {
+      this.falling = true;
+      this.surface = 'ground';
+      this.lift = Math.max(0, viv.floor - this.y);
+      this.y = viv.floor + (viv.front - viv.floor) * 0.35;
+      this.dir = Math.cos(this.heading) >= 0 ? 1 : -1;
+      this.heading = this.dir > 0 ? 0 : Math.PI;
+      this.lean = 0;
+      this.vy = 0;
+      this.replant();
+    }
+    return false;
   }
 
   /** Step off the soil and onto a pane of glass, heading up it. */
@@ -1152,7 +1311,7 @@ export class Creature {
     let speed = this.species.speed * viv.unit * pace * (1 - wet * 0.45) * (this.fear > 0 ? 2 : 1);
     if (this.still > 0) speed *= 0.1;
     // Hungry, or done climbing: head back down to the soil.
-    const wantsDown = this.climbFor <= 0 || this.hunger >= HUNGRY_AT;
+    const wantsDown = this.climbFor <= 0 || this.smellsFood(viv, world);
 
     if (this.surface === 'ceiling') {
       this.x += this.dir * speed * step;
@@ -1498,7 +1657,9 @@ export function makeDecor(viv: Vivarium, rng: () => number = Math.random): Decor
     // Foreground pieces frame the picture from the corners; in the middle they
     // would spend their time standing in front of whichever animal the child wants.
     const want = item.layer === 'near' ? viv.w * (corner++ % 2 === 0 ? 0.96 : 0.04) : slot * (i + 0.5) + (rng() - 0.5) * slot * 0.35;
-    const depth = item.layer === 'far' ? 0.1 : item.layer === 'mid' ? 0.45 : 0.9;
+    // Far pieces still stand on the soil, not against the back wall: right on the
+    // line the cork behind them is the same brown they are, and they vanish.
+    const depth = item.layer === 'far' ? 0.2 : item.layer === 'mid' ? 0.5 : 0.9;
     return {
       kind: item.kind,
       size,
@@ -1566,41 +1727,59 @@ export function settleScenery(plants: readonly Plant[], decor: readonly Decor[],
 
 // ---- misting ----
 
-/** A drop of water on the inside of the glass, running down and drying out. */
+/**
+ * A drop of water. Most of them are falling — they cross the box in well under a
+ * second and draw as a streak, which is the only thing that reads as rain; a
+ * handful catch on the glass instead and creep down it long after the shower has
+ * passed, which is the only thing that reads as glass.
+ */
 export interface Drop {
   x: number;
   y: number;
   r: number;
-  /** How fast it runs down, px per second. */
-  run: number;
+  /** How fast it goes down, px per second. */
+  fall: number;
+  /** How long a tail it draws behind it. 0 for a bead sitting on the glass. */
+  streak: number;
   /** Seconds of life left. */
   life: number;
 }
 
 /** How long the glass stays wet after one press of the spray. */
 export const MIST_SECONDS = 6;
-/** How many drops one press puts on the glass. */
-export const DROPS_PER_MIST = 26;
+/** How many drops one press puts in the air. */
+export const DROPS_PER_MIST = 44;
+/** About how many of them cling to the glass rather than falling through. */
+export const MIST_CLINGS = 0.3;
 
 export function makeDrops(viv: Vivarium, n = DROPS_PER_MIST, rng: () => number = Math.random): Drop[] {
-  return Array.from({ length: n }, () => ({
-    x: viv.w * rng(),
-    y: viv.h * rng() * 0.8,
-    r: viv.unit * (0.02 + rng() * 0.05),
-    run: viv.unit * (0.1 + rng() * 0.7),
-    life: MIST_SECONDS * (0.5 + rng() * 0.9),
-  }));
+  return Array.from({ length: n }, () => {
+    const clings = rng() < MIST_CLINGS;
+    // Fast enough to be rain and not beads sliding down a window — a drop crosses
+    // the box in about a second — but stacked up a long way above the lid so they
+    // arrive over the next second and a half. All at one height it is a curtain
+    // dropping past the camera, and gone before a child has looked up.
+    const fall = clings ? viv.unit * (0.15 + rng() * 0.5) : viv.unit * (6 + rng() * 3);
+    return {
+      x: viv.w * rng(),
+      y: clings ? viv.h * rng() * 0.85 : -viv.h * (0.05 + rng() * 1.6),
+      r: viv.unit * (clings ? 0.018 + rng() * 0.035 : 0.014 + rng() * 0.02),
+      fall,
+      streak: clings ? 0 : fall * (0.05 + rng() * 0.04),
+      life: clings ? MIST_SECONDS * (0.6 + rng() * 0.9) : MIST_SECONDS,
+    };
+  });
 }
 
-/** Run the drops down the glass by `dt`, and drop the ones that have dried. */
-export function stepDrops(drops: Drop[], dt: number): void {
+/** Bring the drops down by `dt`, and take away the ones that have gone. */
+export function stepDrops(drops: Drop[], dt: number, viv: Vivarium): void {
   for (let i = drops.length - 1; i >= 0; i--) {
     const drop = drops[i]!;
     drop.life -= dt;
-    // A big drop runs, a small one clings: that is the whole of why misted glass
-    // reads as glass and not as a scatter of dots.
-    drop.y += drop.run * dt * (drop.r > 0 ? 1 : 0);
-    if (drop.life <= 0) drops.splice(i, 1);
+    drop.y += drop.fall * dt;
+    // A falling drop is finished when it reaches the soil; a bead on the glass
+    // stays until it dries.
+    if (drop.life <= 0 || (drop.streak > 0 && drop.y > viv.front)) drops.splice(i, 1);
   }
 }
 
@@ -1622,11 +1801,30 @@ export interface VivSave {
   decor: number[];
   /** Fraction of the box width, one per plant, in `makePlants` order. */
   plants: number[];
+  /**
+   * How far down the soil bank each one stands, 0 at the back and 1 against the
+   * front glass. Written since the child could drag things back and forth as
+   * well as side to side; a save without them just keeps the depth it was
+   * generated with, so an older box still opens.
+   */
+  decorY?: number[];
+  plantsY?: number[];
   /** Lights out: the child left the box on its night setting. */
   night?: boolean;
 }
 
 const EMPTY_SAVE: VivSave = { v: 1, pets: [], decor: [], plants: [], night: false };
+
+/** Where in the soil bank `y` sits, 0 at the back and 1 against the front glass. */
+export function bankAt(y: number, viv: Vivarium): number {
+  const deep = viv.front - viv.floor;
+  return deep > 0 ? Math.min(1, Math.max(0, (y - viv.floor) / deep)) : 0;
+}
+
+/** The other way round: where in the box a bank fraction lands. */
+export function bankY(at: number, viv: Vivarium): number {
+  return viv.floor + (viv.front - viv.floor) * Math.min(1, Math.max(0, at));
+}
 
 /** Anything unreadable, from an older version or another app, is simply ignored. */
 export function readSave(raw: string | null): VivSave | null {
@@ -1646,6 +1844,8 @@ export function readSave(raw: string | null): VivSave | null {
       pets: trimStock(pets),
       decor: fractions(save.decor),
       plants: fractions(save.plants),
+      decorY: fractions(save.decorY),
+      plantsY: fractions(save.plantsY),
       night: save.night === true,
     };
   } catch {
@@ -1666,6 +1866,8 @@ export function makeSave(
     pets: trimStock(creatures, (cr) => cr.species.id).map((cr) => cr.species.id),
     decor: decor.map((d) => across(d.x)),
     plants: plants.map((plant) => across(plant.x)),
+    decorY: decor.map((d) => bankAt(d.y, viv)),
+    plantsY: plants.map((plant) => bankAt(plant.y, viv)),
     night,
   };
 }
@@ -1682,6 +1884,14 @@ export function applySave(save: VivSave, decor: Decor[], plants: Plant[], viv: V
   save.plants.forEach((fraction, i) => {
     const plant = plants[i];
     if (plant) plant.x = fraction * viv.w;
+  });
+  save.decorY?.forEach((at, i) => {
+    const d = decor[i];
+    if (d) d.y = bankY(at, viv);
+  });
+  save.plantsY?.forEach((at, i) => {
+    const plant = plants[i];
+    if (plant) plant.y = bankY(at, viv);
   });
 }
 

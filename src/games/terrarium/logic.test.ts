@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { angleDelta } from '../../core/creature';
 import { mulberry32 } from '../../core/dom';
 import {
   Creature,
@@ -14,6 +15,7 @@ import {
   crowdedOut,
   decorAt,
   footDir,
+  isTopDown,
   makeDecor,
   makeDrops,
   makeFood,
@@ -169,7 +171,7 @@ describe('a walking animal', () => {
     });
   });
 
-  it('takes a gecko up the glass and brings it back down again', () => {
+  it('takes a gecko up a wall and brings it back down again', () => {
     const cr = new Creature(species('gecko'), viv, mulberry32(2));
     const seen = new Set<string>();
     let changes = 0;
@@ -182,10 +184,59 @@ describe('a walking animal', () => {
       }
     });
     expect(seen.has('ground')).toBe(true);
+    expect(seen.has('back') || seen.has('left') || seen.has('right')).toBe(true);
+    // And it does not simply stick to the first wall it finds: off the ground and
+    // back onto it is two changes of surface, not one.
+    expect(changes).toBeGreaterThanOrEqual(2);
+    expect(cr.surface).toBe('ground');
+  });
+
+  it('uses both the cork at the back and the panes at the sides, over time', () => {
+    const seen = new Set<string>();
+    // Several geckos rather than one long run: which wall it fancies is a coin
+    // flip each time the urge comes, so one animal can miss a side for minutes.
+    for (let i = 0; i < 6; i++) {
+      const cr = new Creature(species('gecko'), viv, mulberry32(90 + i));
+      run(cr, 150, empty(), mulberry32(200 + i), () => seen.add(cr.surface));
+    }
+    expect(seen.has('back')).toBe(true);
     expect(seen.has('left') || seen.has('right')).toBe(true);
-    // And it does not simply stick to the first pane it finds: up, along and down
-    // again is several changes of surface, not one.
-    expect(changes).toBeGreaterThanOrEqual(3);
+  });
+
+  it('walks the cork wall from above, with a body that bends through its turns', () => {
+    const cr = new Creature(species('gecko'), viv, mulberry32(91));
+    let onWall = 0;
+    let bend = 0;
+    let backHome = false;
+    run(cr, 150, empty(), mulberry32(92), () => {
+      if (cr.surface === 'back') {
+        onWall++;
+        expect(isTopDown(cr.surface)).toBe(true);
+        // Inside the cork panel, never off the sides or through the lid.
+        expect(cr.x).toBeGreaterThan(viv.wallL - 1);
+        expect(cr.x).toBeLessThan(viv.wallR + 1);
+        expect(cr.y).toBeGreaterThan(viv.top - 1);
+        expect(cr.y).toBeLessThanOrEqual(viv.floor + 1);
+        // The whole reason for this view: the spine trails the path the head took.
+        const head = cr.spine.angles[0] ?? 0;
+        const tail = cr.spine.angles[cr.spine.angles.length - 1] ?? 0;
+        bend = Math.max(bend, Math.abs(angleDelta(head, tail)));
+      } else if (onWall > 0 && cr.surface === 'ground') {
+        backHome = true;
+      }
+    });
+    expect(onWall).toBeGreaterThan(120);
+    expect(bend).toBeGreaterThan(0.25);
+    expect(backHome).toBe(true);
+  });
+
+  it('keeps a snail off the cork: there is nothing to watch bend', () => {
+    const snail = new Creature(species('snail'), viv, mulberry32(93));
+    expect(snail.scalesBackWall).toBe(false);
+    expect(new Creature(species('gecko'), viv).scalesBackWall).toBe(true);
+    expect(new Creature(species('ant'), viv).scalesBackWall).toBe(true);
+    // …and off it in practice, however long it goes on climbing.
+    run(snail, 150, empty(), mulberry32(94), () => expect(snail.surface).not.toBe('back'));
   });
 
   it('gets a frog off the ground: it hops rather than walking', () => {
@@ -440,13 +491,28 @@ describe('scenery', () => {
     expect(plant.shake).toBe(0);
   });
 
-  it('runs the mist down the glass and lets it dry', () => {
-    const drops = makeDrops(viv, 12, mulberry32(48));
-    expect(drops.length).toBe(12);
+  it('rains: most of it falls fast and a little of it clings to the glass', () => {
+    const drops = makeDrops(viv, 60, mulberry32(48));
+    expect(drops.length).toBe(60);
+    const falling = drops.filter((d) => d.streak > 0);
+    const beads = drops.filter((d) => d.streak === 0);
+    expect(falling.length).toBeGreaterThan(beads.length);
+    expect(beads.length).toBeGreaterThan(0);
+    // Rain crosses the box in a second or so; a bead takes all afternoon.
+    for (const d of falling) {
+      expect(d.fall * 1.8).toBeGreaterThan(viv.h);
+      expect(d.streak).toBeGreaterThan(viv.unit * 0.2);
+    }
+    for (const d of beads) expect(d.fall).toBeLessThan(viv.unit);
+    // The shower arrives over a second or so rather than all in one frame.
+    const starts = falling.map((d) => d.y);
+    expect(Math.max(...starts) - Math.min(...starts)).toBeGreaterThan(viv.h);
+
     const top = drops[0]!.y;
-    stepDrops(drops, 0.5);
+    stepDrops(drops, 0.1, viv);
     expect(drops[0]!.y).toBeGreaterThan(top);
-    stepDrops(drops, 60);
+    // The shower passes and the glass dries.
+    stepDrops(drops, 60, viv);
     expect(drops.length).toBe(0);
   });
 });
@@ -471,6 +537,20 @@ describe('the box the child built', () => {
     applySave(back, moved, movedPlants, viv);
     expect(moved[0]!.x).toBeCloseTo(decor[0]!.x, 4);
     expect(movedPlants[0]!.x).toBeCloseTo(plants[0]!.x, 4);
+    // Back to front as well: the child can drag things across the bank now.
+    expect(moved[0]!.y).toBeCloseTo(decor[0]!.y, 4);
+    expect(movedPlants[0]!.y).toBeCloseTo(plants[0]!.y, 4);
+  });
+
+  it('opens an older box that only remembers left and right', () => {
+    const decor = makeDecor(viv, mulberry32(55));
+    const plants = makePlants(viv, mulberry32(56));
+    const wasY = decor.map((d) => d.y);
+    const old = readSave('{"v":1,"pets":["gecko"],"decor":[0.25],"plants":[0.75]}')!;
+    applySave(old, decor, plants, viv);
+    expect(decor[0]!.x).toBeCloseTo(viv.w * 0.25, 4);
+    // Nothing said how deep it stood, so it keeps the depth it was laid out at.
+    expect(decor.map((d) => d.y)).toEqual(wasY);
   });
 
   it('ignores a save it cannot read, and drops anything odd inside one it can', () => {

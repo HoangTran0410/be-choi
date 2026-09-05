@@ -1,5 +1,5 @@
 import { solveTwoBone, walkFoot, type Point } from '../../core/creature';
-import { footDir, type Creature, type Drop, type Food, type Pebble, type Plant, type Surface, type Vivarium } from './logic';
+import { footDir, isTopDown, type Creature, type Drop, type Food, type Pebble, type Plant, type Surface, type Vivarium } from './logic';
 
 /**
  * How the animals are drawn: bodies built from the spine, legs planted on
@@ -224,6 +224,23 @@ function stubOutline(cr: Creature, n: number): Point[] {
   for (const offset of [Math.PI * 0.72, Math.PI, Math.PI * 1.28]) ring.push(cr.spine.edge(last, offset));
   for (let i = last; i >= 0; i--) ring.push(cr.spine.edge(i, -Math.PI / 2));
   for (const offset of [-Math.PI / 3, 0, Math.PI / 3]) ring.push(cr.spine.edge(0, offset));
+  return ring;
+}
+
+/** The whole outline, every half-width multiplied by `widen`. */
+function broadOutline(cr: Creature, widen: number): Point[] {
+  const last = cr.spine.joints.length - 1;
+  const edge = (i: number, off: number): Point => {
+    const joint = cr.spine.joints[i] ?? { x: cr.x, y: cr.y };
+    const angle = (cr.spine.angles[i] ?? 0) + off;
+    const w = cr.spine.widthAt(i) * widen;
+    return { x: joint.x + Math.cos(angle) * w, y: joint.y + Math.sin(angle) * w };
+  };
+  const ring: Point[] = [];
+  for (let i = 0; i <= last; i++) ring.push(edge(i, Math.PI / 2));
+  ring.push(edge(last, Math.PI));
+  for (let i = last; i >= 0; i--) ring.push(edge(i, -Math.PI / 2));
+  for (const offset of [-Math.PI / 3, 0, Math.PI / 3]) ring.push(edge(0, offset));
   return ring;
 }
 
@@ -722,6 +739,120 @@ function drawFlyer(g: CanvasRenderingContext2D, cr: Creature, seed: number): voi
   g.restore();
 }
 
+/**
+ * The same animal, seen from above, walking up the cork wall at the back.
+ *
+ * Everything else in the box is a silhouette with its feet pointing at the thing
+ * it is standing on. Here the wall faces the child, so we are looking down on the
+ * animal's back: legs go out to both sides, both eyes show, and the body is free
+ * to bend through its turns — which it does, because on this surface the spine
+ * trails the path the head took instead of being laid out along the heading.
+ * Watching that bend is the whole point of the wall.
+ */
+function drawTopDown(g: CanvasRenderingContext2D, cr: Creature, seed: number, scene: Scene): void {
+  const L = cr.length;
+  const spine = cr.spine;
+  const still = cr.hiding;
+  const at = (i: number): Point => spine.joints[Math.min(i, spine.joints.length - 1)] ?? { x: cr.x, y: cr.y };
+  const angleAt = (i: number): number => spine.angles[Math.min(i, spine.angles.length - 1)] ?? cr.heading;
+
+  // Its shadow on the cork, a body's thickness below and behind it.
+  g.save();
+  g.globalAlpha = 0.22;
+  g.fillStyle = '#2c1a0c';
+  g.translate(L * 0.05, L * 0.06);
+  g.beginPath();
+  smoothPath(g, spine.outline());
+  g.fill();
+  g.restore();
+
+  // Four legs, out to both sides. The near pair is drawn over the body and the
+  // far pair under it, which from above is simply left and right of the spine.
+  const bone = L * 0.19;
+  const drawLegs = (which: 1 | -1): void => {
+    for (const [joint, offset, front] of [
+      [1, 0, 1],
+      [4, 0.5, -1],
+    ] as const) {
+      const j = at(joint);
+      const a = angleAt(joint);
+      const out = a + (Math.PI / 2) * which;
+      const px = Math.cos(out);
+      const py = Math.sin(out);
+      const w = spine.widthAt(joint) * 0.8;
+      const hip = { x: j.x + px * w, y: j.y + py * w };
+      const step = still ? { x: 0, y: 0 } : walkFoot(cr.phase + offset + (which > 0 ? 0.5 : 0), L * 0.2, L * 0.1);
+      // The lift is towards the child, which from here reads as the foot being
+      // picked up and tucked in rather than as it rising off the wall.
+      const tuck = 1 - (-step.y / (L * 0.1)) * 0.22;
+      const reach = (w + L * 0.3) * tuck;
+      const foot = { x: j.x + px * reach + Math.cos(a) * step.x, y: j.y + py * reach + Math.sin(a) * step.x };
+      // Elbows point back and knees point forward, which is what a lizard's
+      // sprawl looks like from directly above.
+      leg(g, hip, foot, bone, front > 0 ? which : -which, L * 0.05, cr.species.limb);
+      // Toes: from above they are the part you actually recognise.
+      g.strokeStyle = cr.species.limb;
+      g.lineWidth = L * 0.022;
+      g.beginPath();
+      for (const toe of [-0.6, -0.2, 0.2, 0.6]) {
+        const ta = out + toe;
+        g.moveTo(foot.x, foot.y);
+        g.lineTo(foot.x + Math.cos(ta) * L * 0.09, foot.y + Math.sin(ta) * L * 0.09);
+      }
+      g.stroke();
+    }
+  };
+  drawLegs(-1);
+  drawLegs(1);
+
+  // The back itself, half again as broad as the silhouette. Every profile in this
+  // game is a *side* profile — how deep the animal is, not how wide — and a lizard
+  // seen from above is much the wider of the two.
+  const ring = broadOutline(cr, 1.5);
+  g.beginPath();
+  smoothPath(g, ring);
+  g.fillStyle = cr.species.back;
+  g.fill();
+  g.strokeStyle = 'rgba(41,25,17,0.4)';
+  g.lineWidth = Math.max(1, L * 0.022);
+  g.stroke();
+  drawPattern(g, cr, seed, ring);
+  // A ridge of light down the spine: from above that line is what tells the eye
+  // this is a back and not a shadow.
+  g.save();
+  g.globalAlpha = 0.22;
+  g.strokeStyle = '#fff';
+  g.lineWidth = L * 0.05;
+  g.lineCap = 'round';
+  g.beginPath();
+  for (let i = 0; i <= 4; i++) {
+    const j = at(i);
+    if (i === 0) g.moveTo(j.x, j.y);
+    else g.lineTo(j.x, j.y);
+  }
+  g.stroke();
+  g.restore();
+
+  // Both eyes, because from up here you can see both.
+  const head = at(0);
+  const ha = angleAt(0);
+  const r = Math.max(2, L * 0.045);
+  for (const side of [-1, 1]) {
+    const ea = ha + (Math.PI / 2) * side;
+    const ex = head.x + Math.cos(ea) * L * 0.06 + Math.cos(ha) * L * 0.02;
+    const ey = head.y + Math.sin(ea) * L * 0.06 + Math.sin(ha) * L * 0.02;
+    g.fillStyle = '#fff';
+    g.beginPath();
+    g.arc(ex, ey, r, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#0f172a';
+    g.beginPath();
+    g.arc(ex + Math.cos(ha) * r * 0.3, ey + Math.sin(ha) * r * 0.3, r * 0.55, 0, Math.PI * 2);
+    g.fill();
+  }
+  if (cr.species.kind === 'reptile') drawTongue(g, cr, scene.clock, L * 0.2);
+}
+
 export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: number, scene: Scene): void {
   g.save();
   if (cr.joy > 0) {
@@ -739,6 +870,13 @@ export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: n
     g.translate(-cr.x, -cr.y);
     g.shadowColor = 'rgba(41,25,17,0.45)';
     g.shadowBlur = cr.length * 0.35;
+  }
+  if (isTopDown(cr.surface)) {
+    // Up the cork at the back, where the animal faces us and we look down on it.
+    drawTopDown(g, cr, index, scene);
+    g.restore();
+    if (scene.moods !== false) drawMood(g, cr, scene);
+    return;
   }
   switch (cr.species.kind) {
     case 'snake':
@@ -783,7 +921,9 @@ function drawMood(g: CanvasRenderingContext2D, cr: Creature, scene: Scene): void
     moodSize = size;
     moodFont = `${size}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
   }
-  const n = footDir(cr.surface);
+  // Above its head, wherever "above" is — and on the back wall, where the feet
+  // point into the screen, that is simply up the screen.
+  const n = isTopDown(cr.surface) ? { x: 0, y: 1 } : footDir(cr.surface);
   const bob = Math.sin(scene.clock * 3 + cr.x * 0.01) * size * 0.12;
   g.save();
   g.globalAlpha = mood === 'hungry' ? 0.55 + 0.35 * Math.sin(scene.clock * 2.2) : 0.9;
@@ -1028,10 +1168,26 @@ export function drawFoodItem(g: CanvasRenderingContext2D, food: Food, viv: Vivar
   g.restore();
 }
 
-/** Mist on the inside of the glass, running down and drying out. */
+/**
+ * The shower, and what it leaves behind. A falling drop is drawn as the streak it
+ * would leave on an eye rather than as a dot: at this speed a dot is a flicker,
+ * and a whole boxful of flickers reads as static, not as rain.
+ */
 export function drawDrops(g: CanvasRenderingContext2D, drops: readonly Drop[]): void {
+  g.save();
+  g.lineCap = 'round';
   for (const drop of drops) {
-    g.save();
+    if (drop.streak > 0) {
+      g.globalAlpha = Math.min(0.6, Math.max(0, drop.life * 0.35));
+      g.strokeStyle = 'rgba(226,246,255,0.75)';
+      g.lineWidth = drop.r * 1.6;
+      g.beginPath();
+      g.moveTo(drop.x, drop.y - drop.streak);
+      g.lineTo(drop.x, drop.y);
+      g.stroke();
+      continue;
+    }
+    // A bead on the glass: round, with a highlight, and going nowhere in a hurry.
     g.globalAlpha = Math.min(0.75, Math.max(0, drop.life * 0.25));
     g.fillStyle = 'rgba(226,246,255,0.5)';
     g.beginPath();
@@ -1040,8 +1196,8 @@ export function drawDrops(g: CanvasRenderingContext2D, drops: readonly Drop[]): 
     g.strokeStyle = 'rgba(255,255,255,0.7)';
     g.lineWidth = 1;
     g.stroke();
-    g.restore();
   }
+  g.restore();
 }
 
 /**
