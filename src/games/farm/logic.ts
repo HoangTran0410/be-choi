@@ -222,16 +222,10 @@ export function scaleAt(yard: Yard, y: number): number {
 }
 
 /**
- * One foot of a walking animal, as an offset from where it stands still.
- * The first half of the cycle the foot is planted and slides backwards, the second
- * half it lifts and swings forward — the whole walk comes out of this.
+ * The gait cycle lives in `core/creature` now that the terrarium walks on it too.
+ * Re-exported here so the yard's own code and tests still ask this file for it.
  */
-export function walkFoot(phase: number, stride: number, lift: number): { x: number; y: number } {
-  const t = ((phase % 1) + 1) % 1;
-  if (t < 0.5) return { x: stride * (0.5 - t * 2), y: 0 };
-  const swing = (t - 0.5) * 2;
-  return { x: stride * (swing - 0.5), y: -Math.sin(swing * Math.PI) * lift };
-}
+export { walkFoot } from '../../core/creature';
 
 export interface Animal {
   species: Species;

@@ -111,6 +111,18 @@ export class Spine {
 }
 
 /**
+ * One foot of a walking animal, as an offset from where it stands still.
+ * The first half of the cycle the foot is planted and slides backwards, the second
+ * half it lifts and swings forward — the whole walk comes out of this.
+ */
+export function walkFoot(phase: number, stride: number, lift: number): Point {
+  const t = ((phase % 1) + 1) % 1;
+  if (t < 0.5) return { x: stride * (0.5 - t * 2), y: 0 };
+  const swing = (t - 0.5) * 2;
+  return { x: stride * (swing - 0.5), y: -Math.sin(swing * Math.PI) * lift };
+}
+
+/**
  * Two-bone inverse kinematics: given where a leg starts and where its foot is,
  * where does the knee go. `bend` (1 or -1) picks which of the two mirror-image
  * knees to take. Every degenerate case returns a finite point, because a NaN
