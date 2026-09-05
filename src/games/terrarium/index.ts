@@ -15,6 +15,9 @@ import {
   STAR_EVERY_TAP,
   addFood,
   applySave,
+  bankAt,
+  bankOrder,
+  bankScale,
   crowdedOut,
   decorAt,
   makeDecor,
@@ -36,6 +39,7 @@ import {
   type Drop,
   type Food,
   type Interest,
+  type Layer,
   type Nudge,
   type Pebble,
   type Plant,
@@ -69,14 +73,6 @@ interface Bonk {
   x: number;
   y: number;
   life: number;
-}
-
-/** One thing to be drawn in the soil bank, and how far forward it stands. */
-interface Layer {
-  y: number;
-  /** 0 plant, 1 ornament, 2 animal, 3 food. */
-  k: 0 | 1 | 2 | 3;
-  i: number;
 }
 
 /**
@@ -355,7 +351,8 @@ function start(ctx: GameContext): void {
 
   function drawRock(g: CanvasRenderingContext2D, d: Decor): void {
     const r = d.size * viv.unit * 0.5;
-    const shade = (d.layer === 'near' ? 74 : 116) + d.hue * 38;
+    // Darker towards the front of the bank, where the lamp above reaches least.
+    const shade = 116 - bankAt(d.y, viv) * 42 + d.hue * 38;
     g.fillStyle = `rgb(${shade},${shade - 8},${shade - 20})`;
     g.beginPath();
     g.moveTo(d.x - r * 1.15, d.y);
@@ -372,74 +369,116 @@ function start(ctx: GameContext): void {
   /**
    * A hollow log: the best hiding place in the box, and the one with a doorway.
    *
-   * It stands against a wall of cork bark, which is the same brown a log is, so
-   * every part of it is drawn to fight that: a dark redder wood, a hard outline,
-   * a lit top edge, and an end with real growth rings round a black hole. Without
-   * all four it is a pale arc on a pale wall and nobody — child or parent — can
-   * tell what they are looking at.
+   * A log lying on its side is a cylinder, and a cylinder needs a *length* of
+   * barrel between two ends. Drawn as one bulging arc instead it comes out as a
+   * pointed leaf shape with a dark blot at the tip — which is what this was, and
+   * what nobody could name. So: straight top and bottom edges, the far end
+   * rounded off, and the near end cut clean through with rings round a hole big
+   * enough to believe something lives in it.
+   *
+   * It also stands against a wall of cork bark, the same brown a log is, so the
+   * wood is drawn darker and redder than the wall, with a hard outline and a lit
+   * top edge to lift it off.
    */
   function drawLog(g: CanvasRenderingContext2D, d: Decor): void {
     const u = d.size * viv.unit;
-    const r = u * 0.4;
-    const left = d.x - u * 0.55;
-    const right = d.x + u * 0.55;
+    const r = u * 0.42;
+    const half = u * 0.62;
+    const cy = d.y - r;
+    const cap = r * 0.3;
     const hue = 18 + d.hue * 10;
-    const top = d.y - r * 1.8;
-    // A lying cylinder: a rounded top and bottom rather than a rectangle, or it
-    // is a plank and no child believes anything lives inside a plank.
-    const barrel = g.createLinearGradient(0, top, 0, d.y + r * 0.2);
-    barrel.addColorStop(0, `hsl(${hue} 40% 40%)`);
-    barrel.addColorStop(0.45, `hsl(${hue} 42% 27%)`);
-    barrel.addColorStop(1, `hsl(${hue} 44% 16%)`);
+    const left = d.x - half;
+    const right = d.x + half;
+
+    // Its shadow on the soil, which is what says it is lying on the ground
+    // rather than hanging in front of the wall.
+    g.fillStyle = 'rgba(30,18,8,0.3)';
+    g.beginPath();
+    g.ellipse(d.x, d.y, half * 1.05, r * 0.2, 0, 0, Math.PI * 2);
+    g.fill();
+
+    // The barrel: parallel sides between the two ends, with the far one rounded.
+    const barrel = g.createLinearGradient(0, cy - r, 0, cy + r);
+    barrel.addColorStop(0, `hsl(${hue} 38% 41%)`);
+    barrel.addColorStop(0.42, `hsl(${hue} 42% 28%)`);
+    barrel.addColorStop(1, `hsl(${hue} 46% 15%)`);
     g.fillStyle = barrel;
     g.beginPath();
-    g.moveTo(left, d.y - r * 0.75);
-    g.quadraticCurveTo(d.x, top, right, d.y - r * 0.75);
-    g.quadraticCurveTo(d.x, d.y + r * 0.4, left, d.y - r * 0.75);
+    g.moveTo(left, cy - r);
+    g.lineTo(right, cy - r);
+    g.ellipse(right, cy, cap, r, 0, -Math.PI / 2, Math.PI / 2);
+    g.lineTo(left, cy + r);
     g.closePath();
     g.fill();
-    g.strokeStyle = 'rgba(28,14,4,0.75)';
-    g.lineWidth = Math.max(1.5, u * 0.03);
-    g.stroke();
-    // Bark, as grooves that follow the curve of the barrel.
-    g.strokeStyle = 'rgba(24,12,4,0.4)';
-    g.lineWidth = Math.max(1, u * 0.024);
-    for (let i = 1; i <= 3; i++) {
-      const t = i / 4;
+
+    // Bark: grooves down the length of it, and short splits across them.
+    g.save();
+    g.clip();
+    g.strokeStyle = 'rgba(22,11,3,0.38)';
+    g.lineWidth = Math.max(1, u * 0.022);
+    for (let i = 0; i < 4; i++) {
+      const t = (i + 0.7) / 5;
+      const y = cy - r + r * 2 * t;
       g.beginPath();
-      g.moveTo(left + u * 0.08, d.y - r * (0.75 + t * 0.9));
-      g.quadraticCurveTo(d.x, d.y - r * (0.75 + t * 1.4), right - u * 0.08, d.y - r * (0.75 + t * 0.9));
+      g.moveTo(left - cap, y);
+      g.quadraticCurveTo(d.x, y + r * 0.12 * (1 - t), right + cap, y);
       g.stroke();
     }
-    // The lit top edge, which is what makes it round.
-    g.strokeStyle = 'rgba(255,226,180,0.3)';
+    for (let i = 0; i < 5; i++) {
+      const x = left + (half * 2 * (i + 0.5)) / 5 + Math.sin(d.phase + i) * u * 0.05;
+      const y = cy - r * 0.5 + Math.cos(d.phase + i * 2) * r * 0.5;
+      g.beginPath();
+      g.moveTo(x, y - r * 0.22);
+      g.lineTo(x + u * 0.02, y + r * 0.22);
+      g.stroke();
+    }
+    g.restore();
+
+    g.strokeStyle = 'rgba(255,226,180,0.32)';
     g.lineWidth = Math.max(1.5, u * 0.035);
     g.beginPath();
-    g.moveTo(left + u * 0.12, d.y - r * 1.32);
-    g.quadraticCurveTo(d.x, top + r * 0.16, right - u * 0.12, d.y - r * 1.32);
+    g.moveTo(left, cy - r + u * 0.02);
+    g.lineTo(right - cap * 0.4, cy - r + u * 0.02);
+    g.stroke();
+    g.strokeStyle = 'rgba(26,13,4,0.8)';
+    g.lineWidth = Math.max(1.5, u * 0.03);
+    g.beginPath();
+    g.moveTo(left, cy - r);
+    g.lineTo(right, cy - r);
+    g.ellipse(right, cy, cap, r, 0, -Math.PI / 2, Math.PI / 2);
+    g.lineTo(left, cy + r);
     g.stroke();
 
-    // The cut end: pale sapwood, growth rings, and a black hole through it.
-    const ex = left;
-    const ey = d.y - r * 0.75;
-    g.fillStyle = `hsl(${hue + 12} 34% 52%)`;
+    // The near end, cut through: pale sapwood, growth rings, and a doorway. That
+    // hole is the whole ornament — it is why anything hides in here.
+    g.fillStyle = `hsl(${hue + 14} 32% 54%)`;
     g.beginPath();
-    g.ellipse(ex, ey, r * 0.3, r * 0.88, 0, 0, Math.PI * 2);
+    g.ellipse(left, cy, cap, r, 0, 0, Math.PI * 2);
     g.fill();
-    g.strokeStyle = 'rgba(28,14,4,0.7)';
+    g.strokeStyle = 'rgba(26,13,4,0.75)';
     g.lineWidth = Math.max(1.2, u * 0.024);
     g.stroke();
-    g.strokeStyle = 'rgba(60,32,12,0.4)';
+    g.strokeStyle = 'rgba(58,30,10,0.4)';
     g.lineWidth = Math.max(1, u * 0.014);
-    for (const ring of [0.78, 0.58]) {
+    for (const ring of [0.8, 0.6]) {
       g.beginPath();
-      g.ellipse(ex, ey, r * 0.3 * ring, r * 0.88 * ring, 0, 0, Math.PI * 2);
+      g.ellipse(left, cy, cap * ring, r * ring, 0, 0, Math.PI * 2);
       g.stroke();
     }
     g.fillStyle = '#160c05';
     g.beginPath();
-    g.ellipse(ex, ey, r * 0.17, r * 0.55, 0, 0, Math.PI * 2);
+    g.ellipse(left, cy, cap * 0.55, r * 0.62, 0, 0, Math.PI * 2);
     g.fill();
+
+    // A little moss along the top, because in a box that gets misted every day
+    // there always is.
+    for (let i = 0; i < 3; i++) {
+      const x = d.x + (i - 1) * u * 0.26 + Math.sin(d.phase + i * 2) * u * 0.06;
+      g.fillStyle = `hsl(${100 + i * 12} 42% ${28 + i * 4}%)`;
+      g.beginPath();
+      g.ellipse(x, cy - r, u * 0.1, u * 0.045, 0, Math.PI, Math.PI * 2);
+      g.fill();
+    }
   }
 
   /** A leaning branch, which is what a chameleon would pick if it were asked. */
@@ -592,18 +631,18 @@ function start(ctx: GameContext): void {
   }
 
   function drawDecor(g: CanvasRenderingContext2D, d: Decor): void {
-    // A poked ornament rocks on its base for a moment, so a tap always lands
-    // somewhere visible even on the things that cannot open or curl.
-    if (d.poke > 0) {
-      g.save();
-      g.translate(d.x, d.y);
-      g.rotate(Math.sin(d.poke * 30) * 0.05 * d.poke);
-      g.translate(-d.x, -d.y);
-      drawDecorBody(g, d);
-      g.restore();
-      return;
-    }
+    // Scaled and rocked about the point it stands on, so both leave it planted
+    // in the soil: a bigger ornament grows upwards, and a poked one leans rather
+    // than sliding. A tap always lands somewhere visible that way, even on the
+    // things that cannot open or curl.
+    const grown = bankScale(d.y, viv);
+    g.save();
+    g.translate(d.x, d.y);
+    if (d.poke > 0) g.rotate(Math.sin(d.poke * 30) * 0.05 * d.poke);
+    g.scale(grown, grown);
+    g.translate(-d.x, -d.y);
     drawDecorBody(g, d);
+    g.restore();
   }
 
   function drawDecorBody(g: CanvasRenderingContext2D, d: Decor): void {
@@ -726,34 +765,8 @@ function start(ctx: GameContext): void {
     if (dusk > 0.7 && Math.random() < dt * 0.1) ctx.audio.fx('cricket');
   }
 
-  /**
-   * Depth here is drawing order, not motion: the soil bank runs from the back
-   * wall to the front glass, and everything standing in it — plants, ornaments,
-   * animals, crickets — is drawn in the order it stands. Anything up the glass
-   * has left the bank behind and is drawn first, at the back.
-   */
+  /** Reused every frame: sorting the bank must not cost a few hundred objects a second. */
   const order: Layer[] = [];
-
-  function sortBank(): void {
-    order.length = 0;
-    plants.forEach((plant, i) => order.push({ y: plant.y, k: 0, i }));
-    decor.forEach((d, i) => {
-      if (d.layer === 'mid') order.push({ y: d.y, k: 1, i });
-    });
-    creatures.forEach((cr, i) => {
-      // Anything on the cork wall is behind the whole bank and is drawn with it;
-      // anything in the child's hand or in the air at them is drawn after it.
-      if (cr.held || cr.flight > 0 || cr.surface === 'back') return;
-      // Anything up a side pane has left the bank behind: draw it at the very
-      // back, against the glass, rather than sorting it in among the planting.
-      const climbing = cr.surface === 'left' || cr.surface === 'right' || cr.surface === 'ceiling';
-      order.push({ y: climbing ? viv.floor - viv.unit : cr.y, k: 2, i });
-    });
-    foods.forEach((food, i) => {
-      if (!food.eaten) order.push({ y: food.y, k: 3, i });
-    });
-    order.sort((a, b) => a.y - b.y);
-  }
 
   function draw(g: CanvasRenderingContext2D): void {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -774,13 +787,11 @@ function start(ctx: GameContext): void {
       g.fillRect(0, 0, viv.w, viv.floor);
     }
     drawSoil(g, viv, pebbles);
-    // The back of the bank, behind everything else standing in it. Drawn after
-    // the soil, not before: the soil is nearly half the screen here, so anything
-    // painted under it is simply painted out. At full strength, too — a haze over
-    // these was meant to read as distance and read as a smear instead, and a
-    // hollow log nobody can identify is not scenery, it is a stain on the glass.
-    for (const d of decor) if (d.layer === 'far') drawDecor(g, d);
-    sortBank();
+    // Everything standing in the soil, in the order it stands — planting,
+    // ornaments, animals and crickets in one list. Drawn after the soil, not
+    // before: the soil is nearly half the screen here, so anything painted under
+    // it is simply painted out.
+    bankOrder(order, viv, plants, decor, creatures, foods);
     for (const item of order) {
       if (item.k === 0) {
         const plant = plants[item.i];
@@ -796,7 +807,6 @@ function start(ctx: GameContext): void {
         if (food) drawFoodItem(g, food, viv);
       }
     }
-    for (const d of decor) if (d.layer === 'near') drawDecor(g, d);
     // The animal in the child's hand, and the one flying at their nose, are drawn
     // last — one must never be lost behind a leaf and the other is in front of
     // everything in the box by definition.

@@ -956,28 +956,25 @@ export function createAudio(): AudioEngine {
       at('boing', () => tone('triangle', 300, 0.25, { gain: 0.3, slideTo: 120 }));
     },
     chomp() {
-      // Eating is heard in the *grain*: teeth meeting three times in a quarter of
-      // a second, each meeting a crisp little snap of its own. The old bite was
-      // one smooth swept envelope, and one smooth envelope is a knock on a door
-      // or a puff of air whatever you filter it with — never a mouth.
+      // Soft mouthfuls, not crunching gravel.
       //
-      // So: three short bright grains for the crunch, a round low close under
-      // each one for the jaw, and a soft slide at the end for the swallow. Each
-      // bite is a little quieter and a little duller than the one before, which
-      // is what stops three of them sounding like a machine.
-      const v = 0.9 + Math.random() * 0.25;
+      // Eating is heard in the *grain* — a mouth closing more than once — but the
+      // grain has to stay low and round. The bright band this used to lead with
+      // sat at 3 kHz, which is where a phone speaker is sharpest and small ears
+      // are most tender, so however quietly it was mixed it arrived as a handful
+      // of static. Nothing here now reaches above a voice: two soft closes, each
+      // with a round pitch under it so the ear reads a mouth rather than a hiss,
+      // and a gentle slide down for the swallow.
+      const v = 0.9 + Math.random() * 0.2;
       at('chomp', () => {
-        for (let i = 0; i < 3; i++) {
-          const t = i * 0.075;
-          const fade = 1 - i * 0.24;
-          const dull = 1 - i * 0.12;
-          // The crunch: short enough that the ear hears an edge rather than a sweep.
-          noise(0.024, { at: t, gain: 0.39 * fade, filter: { type: 'bandpass', freq: 3100 * v * dull, to: 1500 * v, q: 1.7 } });
-          // The jaw closing behind it, round and low.
-          noise(0.055, { at: t + 0.007, gain: 0.27 * fade, filter: { type: 'lowpass', freq: 950 * v, to: 230 * v, q: 3 } });
+        for (let i = 0; i < 2; i++) {
+          const t = i * 0.095;
+          const fade = 1 - i * 0.32;
+          noise(0.05, { at: t, gain: 0.23 * fade, filter: { type: 'lowpass', freq: 760 * v, to: 190 * v, q: 1 } });
+          tone('sine', 248 * v, 0.075, { gain: 0.104 * fade, slideTo: 142 * v, attack: 0.014, at: t });
         }
         // …and the mouthful goes somewhere.
-        tone('triangle', 185 * v, 0.11, { gain: 0.092, slideTo: 82 * v, attack: 0.01, at: 0.17 });
+        tone('sine', 168 * v, 0.13, { gain: 0.085, slideTo: 94 * v, attack: 0.02, at: 0.2 });
       });
     },
     tick() {

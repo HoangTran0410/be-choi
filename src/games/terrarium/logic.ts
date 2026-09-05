@@ -382,12 +382,37 @@ export function isTopDown(surface: Surface): boolean {
 export const DEPTH_BACK = 0.86;
 export const DEPTH_FRONT = 1.14;
 
-export function depthAt(surface: Surface, y: number, viv: Vivarium): number {
-  // Anything on a wall is at the far end of the box, whichever wall it is.
-  if (surface === 'left' || surface === 'right' || surface === 'ceiling') return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * 0.3;
-  if (surface === 'back') return DEPTH_BACK;
-  if (surface === 'air') return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * 0.5;
-  return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * bankAt(y, viv);
+/** How far into the box a pane of glass or the lid counts as being. */
+export const WALL_BANK = 0.3;
+
+/**
+ * How deep in the box a thing is, 0 against the cork at the back and 1 against
+ * the front glass. This is the one depth coordinate in the game: how big a thing
+ * draws and who it is drawn in front of both come out of it, so the two can
+ * never disagree.
+ *
+ * Only something standing on the soil can be read off its `y` — for everything
+ * else, how high up the screen it is says nothing at all about how far back it
+ * is. A butterfly up by the lamp is still halfway into the box.
+ */
+export function bankOf(surface: Surface, y: number, viv: Vivarium, aloft = 0.5): number {
+  if (surface === 'left' || surface === 'right' || surface === 'ceiling') return WALL_BANK;
+  if (surface === 'back') return 0;
+  if (surface === 'air') return aloft;
+  return bankAt(y, viv);
+}
+
+export function depthAt(surface: Surface, y: number, viv: Vivarium, aloft = 0.5): number {
+  return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * bankOf(surface, y, viv, aloft);
+}
+
+/**
+ * The same rule for a piece of scenery: a fern at the front of the bank is a
+ * touch bigger than the same fern at the back. Scenery is never anywhere but the
+ * soil, so where it stands is all there is to ask.
+ */
+export function bankScale(y: number, viv: Vivarium): number {
+  return depthAt('ground', y, viv);
 }
 
 /**
@@ -622,14 +647,17 @@ export interface Shelter {
  * rather than stopping in the open.
  */
 export function sheltersFrom(viv: Vivarium, plants: readonly Plant[], decor: readonly Decor[]): Shelter[] {
+  // Cover is measured off the drawing, so a fern dragged to the front of the
+  // bank shelters as much as it now looks like it does.
   const out: Shelter[] = plants.map((plant) => ({
     x: plant.x,
-    y: plant.y - plant.h * 0.25,
-    r: Math.max(viv.unit * 0.5, plant.h * 0.4),
+    y: plant.y - plant.h * 0.25 * bankScale(plant.y, viv),
+    r: Math.max(viv.unit * 0.5, plant.h * 0.4) * bankScale(plant.y, viv),
   }));
   for (const d of decor) {
     if (d.kind === 'dish' || d.kind === 'flower') continue;
-    out.push({ x: d.x, y: d.y - d.size * viv.unit * 0.3, r: d.size * viv.unit * 0.55 });
+    const grown = bankScale(d.y, viv);
+    out.push({ x: d.x, y: d.y - d.size * viv.unit * 0.3 * grown, r: d.size * viv.unit * 0.55 * grown });
   }
   return out;
 }
@@ -760,6 +788,13 @@ export class Creature {
   /** Which way up the glass it fancies going: the back wall, or a side pane. */
   private wall: 'back' | 'side' = 'back';
   /**
+   * How deep in the box it is while airborne, 0 at the cork and 1 at the glass.
+   * Nothing on the ground uses it: where they stand already says it.
+   */
+  private aloft = 0.5;
+  /** Where that drift has got to. */
+  private aloftAt = 0;
+  /**
    * How big it draws right now: where it stands in the bank, and — for the one
    * that flies — how close to the child's nose it has got.
    */
@@ -800,6 +835,10 @@ export class Creature {
     this.vx = Math.cos(this.heading) * species.speed * viv.unit;
     this.pose();
     this.wander(viv, rng);
+    // Last, so that adding it did not shift every other draw in the sequence and
+    // rearrange a boxful of animals that were placed perfectly well before.
+    this.aloftAt = rng() * Math.PI * 2;
+    this.aloft = 0.5 + Math.sin(this.aloftAt) * 0.38;
   }
 
   /** The middle of the body, which its legs hold clear of whatever the feet are on. */
@@ -943,12 +982,38 @@ export class Creature {
     this.y = py;
   }
 
+  /**
+   * The wall a finger has just let go of it against, if there is one.
+   *
+   * A child putting the gecko on the glass is aiming at a wall, not at a line,
+   * so the panes and the lid get a generous reach — and everything else above
+   * the soil is the cork at the back, which is most of the picture. Only the
+   * climbers get any of this: a turtle held over the middle of the box has
+   * nothing to hold on to and has to come down.
+   */
+  private gripAt(viv: Vivarium): Surface | null {
+    if (!this.species.climbs || this.y >= viv.floor) return null;
+    const reach = viv.unit * 1.2;
+    const lid = this.y - viv.top;
+    const left = this.x - viv.wallL;
+    const right = viv.wallR - this.x;
+    const near = Math.min(lid, left, right);
+    if (near >= reach) return this.scalesBackWall ? 'back' : null;
+    if (near === lid) return 'ceiling';
+    return near === left ? 'left' : 'right';
+  }
+
   /** Put back down: a giddy moment, then off it goes. */
-  release(viv: Vivarium): void {
+  release(viv: Vivarium, rng: () => number = Math.random): void {
     if (!this.held) return;
     this.held = false;
     this.dizzy = 1.1;
     this.joy = JOY_SECONDS;
+    // Let go against a wall and it holds on there. Half of being allowed to pick
+    // an animal up is deciding where to put it down, and a gecko that slides off
+    // the glass every time says the glass is not really a place to put one.
+    const grip = this.gripAt(viv);
+    if (grip) return this.stick(grip, viv, rng);
     this.surface = this.species.kind === 'flyer' ? 'air' : 'ground';
     // Dropped in mid-air it falls to the soil rather than snapping down to it,
     // which would look like the game took it away and put it back.
@@ -958,6 +1023,40 @@ export class Creature {
       this.y = viv.floor;
       this.vy = 0;
     }
+  }
+
+  /** Take hold where it has been put, and stay there long enough to be watched. */
+  private stick(surface: Surface, viv: Vivarium, rng: () => number): void {
+    this.surface = surface;
+    this.falling = false;
+    this.lift = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.lean = 0;
+    // A longer stretch than it would ever give itself: the child chose this
+    // spot, so it must not turn round and walk straight back down off it.
+    this.climbFor = 9 + rng() * 9;
+    this.climbRest = 0;
+    this.wall = surface === 'back' ? 'back' : 'side';
+    const edge = this.length * 0.5;
+    if (surface === 'back') {
+      this.x = Math.min(viv.wallR - edge, Math.max(viv.wallL + edge, this.x));
+      this.y = Math.min(viv.floor - viv.unit * 0.05, Math.max(viv.top + edge, this.y));
+      this.heading = -Math.PI / 2;
+      this.wanderWall(viv, rng);
+    } else if (surface === 'ceiling') {
+      this.x = Math.min(viv.wallR, Math.max(viv.wallL, this.x));
+      this.y = viv.top;
+      // Set off towards the middle of the lid rather than straight at a corner.
+      this.dir = this.x < viv.w * 0.5 ? 1 : -1;
+      this.heading = this.dir > 0 ? 0 : Math.PI;
+    } else {
+      this.x = surface === 'left' ? viv.wallL : viv.wallR;
+      this.y = Math.min(viv.floor - viv.unit * 0.03, Math.max(viv.top, this.y));
+      this.dir = -1;
+      this.heading = -Math.PI / 2;
+    }
+    this.replant();
   }
 
   /** Fed. A full animal is a happy animal. */
@@ -1033,8 +1132,20 @@ export class Creature {
     const ate = this.advance(step, viv, world, rng);
     // Where it stands is how big it draws — including, for the one that flies,
     // how close to the child it has got.
-    this.depth = this.held ? DEPTH_FRONT : depthAt(this.surface, this.y, viv) + this.charge * (FLIGHT_ZOOM - 1) * DEPTH_FRONT;
+    this.depth = this.held ? DEPTH_FRONT : depthAt(this.surface, this.y, viv, this.aloft) + this.charge * (FLIGHT_ZOOM - 1) * DEPTH_FRONT;
     return ate;
+  }
+
+  /**
+   * Where in the bank it sorts, back to front.
+   *
+   * Not how high up the screen it is: a butterfly halfway up the box is halfway
+   * *into* the box too, and a gecko up a pane is at the far end of it. Both are
+   * drawn at the size that says so, so both have to be drawn in the order that
+   * says so as well.
+   */
+  sortY(viv: Vivarium): number {
+    return bankY(bankOf(this.surface, this.y, viv, this.aloft), viv);
   }
 
   private advance(step: number, viv: Vivarium, world: World, rng: () => number): boolean {
@@ -1597,6 +1708,11 @@ export class Creature {
     this.y += this.vy * step;
     this.x = Math.min(viv.wallR - this.length * 0.3, Math.max(viv.wallL + this.length * 0.3, this.x));
     this.y = Math.min(viv.front - this.length * 0.2, Math.max(viv.top + this.length * 0.3, this.y));
+    // And it drifts through the box as well as across it, so over half a minute
+    // it passes behind one fern and out in front of the next. A butterfly pinned
+    // to one depth is a sticker on the glass.
+    this.aloftAt += step * 0.35;
+    this.aloft = 0.5 + Math.sin(this.aloftAt) * 0.38;
     if (Math.abs(this.vx) > 1) {
       this.heading = this.vx >= 0 ? 0 : Math.PI;
       this.dir = this.vx >= 0 ? 1 : -1;
@@ -1779,8 +1895,6 @@ export interface Decor {
   y: number;
   /** Size in box units. */
   size: number;
-  /** Which parallax layer it belongs to. */
-  layer: 'far' | 'mid' | 'near';
   phase: number;
   hue: number;
   /** Seconds left of reacting to being poked: a wobble, a ripple, a puff of petals. */
@@ -1789,10 +1903,16 @@ export interface Decor {
   open: boolean;
 }
 
-/** Ornaments, laid out in slots across the soil so nothing lands on anything else. */
+/**
+ * Ornaments, laid out in slots across the soil so nothing lands on anything else.
+ *
+ * `layer` only says where a piece is *put*: back of the bank, middle, or right
+ * up against the glass. Nothing keeps it there — the child can drag any of them
+ * anywhere in the soil, and from then on how it draws comes from where it stands.
+ */
 export function makeDecor(viv: Vivarium, rng: () => number = Math.random): Decor[] {
   const roomy = viv.w > 640;
-  const plan: { kind: DecorKind; size: number; layer: Decor['layer'] }[] = [
+  const plan: { kind: DecorKind; size: number; layer: 'far' | 'mid' | 'near' }[] = [
     { kind: 'rock', size: 1.1, layer: 'far' },
     { kind: 'log', size: 2.2, layer: 'far' },
     { kind: 'branch', size: 2, layer: 'far' },
@@ -1824,7 +1944,6 @@ export function makeDecor(viv: Vivarium, rng: () => number = Math.random): Decor
     return {
       kind: item.kind,
       size,
-      layer: item.layer,
       x: item.layer === 'near' ? want : Math.max(half, Math.min(viv.w - half, want)),
       y: viv.floor + (viv.front - viv.floor) * depth,
       phase: rng() * Math.PI * 2,
@@ -1842,7 +1961,9 @@ export const SHAKE_SECONDS = 1.6;
 
 /** Radius, in px, within which a tap counts as touching this ornament. */
 export function decorReach(d: Decor, viv: Vivarium): number {
-  return Math.max(viv.unit * 0.6, d.size * viv.unit * 0.7);
+  // Scaled with the bank, like the drawing is: a finger has to land on what it
+  // can see, not on where the thing would have been at life size.
+  return Math.max(viv.unit * 0.6, d.size * viv.unit * 0.7) * bankScale(d.y, viv);
 }
 
 /** The ornament under `(x, y)`, if any. Nearest first, so overlapping pieces behave. */
@@ -1850,7 +1971,7 @@ export function decorAt(decor: readonly Decor[], x: number, y: number, viv: Viva
   let best: Decor | null = null;
   let bestAway = Infinity;
   for (const d of decor) {
-    const away = Math.hypot(d.x - x, d.y - d.size * viv.unit * 0.35 - y);
+    const away = Math.hypot(d.x - x, d.y - d.size * viv.unit * 0.35 * bankScale(d.y, viv) - y);
     if (away < decorReach(d, viv) && away < bestAway) {
       bestAway = away;
       best = d;
@@ -1864,9 +1985,10 @@ export function plantAt(plants: readonly Plant[], x: number, y: number, viv: Viv
   let best: Plant | null = null;
   let bestAway = Infinity;
   for (const plant of plants) {
-    if (y < plant.y - plant.h * 1.15) continue;
+    const grown = bankScale(plant.y, viv);
+    if (y < plant.y - plant.h * 1.15 * grown) continue;
     const away = Math.abs(plant.x - x);
-    if (away < Math.max(viv.unit * 0.45, plant.w * 3) && away < bestAway) {
+    if (away < Math.max(viv.unit * 0.45, plant.w * 3) * grown && away < bestAway) {
       bestAway = away;
       best = plant;
     }
@@ -1884,6 +2006,53 @@ export function pokeDecor(d: Decor): void {
 export function settleScenery(plants: readonly Plant[], decor: readonly Decor[], dt: number): void {
   for (const plant of plants) plant.shake = Math.max(0, plant.shake - dt);
   for (const d of decor) d.poke = Math.max(0, d.poke - dt);
+}
+
+/**
+ * One thing standing in the soil bank. `k` says which list `i` indexes:
+ * 0 a plant, 1 an ornament, 2 an animal, 3 a piece of food.
+ */
+export interface Layer {
+  y: number;
+  k: 0 | 1 | 2 | 3;
+  i: number;
+}
+
+/**
+ * Everything in the bank, back to front.
+ *
+ * Depth in this box is one number — how far down the bank a thing stands — and
+ * it settles both who is drawn over whom and how big they draw. There are no
+ * fixed foreground and background sets: the child can drag a fern from the back
+ * of the box to the front, and when they do it has to come out in front of the
+ * log it used to be behind, because that is the whole of what moving something
+ * forward means.
+ *
+ * Everything sorts by how deep in the box it is, which for anything not standing
+ * on the soil is not the same as how high up the screen it is — see `sortY`.
+ * Anything in a hand, on the cork, or in the air at the child is not in the box's
+ * depth at all, and the caller draws those either side of this list.
+ */
+export function bankOrder(
+  out: Layer[],
+  viv: Vivarium,
+  plants: readonly Plant[],
+  decor: readonly Decor[],
+  creatures: readonly Creature[],
+  foods: readonly Food[],
+): Layer[] {
+  out.length = 0;
+  plants.forEach((plant, i) => out.push({ y: plant.y, k: 0, i }));
+  decor.forEach((d, i) => out.push({ y: d.y, k: 1, i }));
+  creatures.forEach((cr, i) => {
+    if (cr.held || cr.flight > 0 || cr.surface === 'back') return;
+    out.push({ y: cr.sortY(viv), k: 2, i });
+  });
+  foods.forEach((food, i) => {
+    if (!food.eaten) out.push({ y: food.y, k: 3, i });
+  });
+  out.sort((a, b) => a.y - b.y);
+  return out;
 }
 
 // ---- misting ----

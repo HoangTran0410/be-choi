@@ -9,14 +9,19 @@ import {
   MAX_CREATURES,
   MAX_FOOD,
   SPECIES,
+  WALL_BANK,
   addFood,
   applySave,
+  bankOrder,
+  bankScale,
+  bankY,
   bellySide,
   DEPTH_BACK,
   DEPTH_FRONT,
   crowdedOut,
   depthAt,
   decorAt,
+  decorReach,
   footDir,
   isTopDown,
   makeDecor,
@@ -39,6 +44,7 @@ import {
   stocking,
   trimStock,
   type Creature as Animal,
+  type Layer,
   type Species,
   type World,
 } from './logic';
@@ -349,6 +355,73 @@ describe('depth', () => {
     expect(cr.footY).toBeLessThanOrEqual(viv.front + 1);
     expect(cr.footY).toBeGreaterThanOrEqual(viv.floor - 1);
   });
+
+  it('grows the scenery down the bank by the same rule as the animals', () => {
+    expect(bankScale(viv.floor, viv)).toBeCloseTo(DEPTH_BACK, 5);
+    expect(bankScale(viv.front, viv)).toBeCloseTo(DEPTH_FRONT, 5);
+    // …and the finger follows the drawing: a fern at the front is bigger to
+    // look at, so it has to be bigger to touch.
+    const decor = makeDecor(viv, mulberry32(82));
+    const one = decor[0]!;
+    one.y = viv.floor;
+    const behind = decorReach(one, viv);
+    one.y = viv.front;
+    expect(decorReach(one, viv)).toBeGreaterThan(behind);
+  });
+
+  it('sorts a dragged plant against the ornaments instead of keeping it in a fixed layer', () => {
+    const plants = makePlants(viv, mulberry32(83));
+    const decor = makeDecor(viv, mulberry32(84));
+    const plant = plants[0]!;
+    const order: Layer[] = [];
+    const place = (k: Layer['k'], i: number): number => order.findIndex((l) => l.k === k && l.i === i);
+    // Against every ornament in the box, from the one at the back wall to the one
+    // against the glass: drag the plant in front of it and it draws in front of
+    // it; drag it behind and it draws behind. Nothing is pinned to a layer.
+    for (let i = 0; i < decor.length; i++) {
+      const d = decor[i]!;
+      plant.y = d.y + 1;
+      bankOrder(order, viv, plants, decor, [], []);
+      expect(place(0, 0)).toBeGreaterThan(place(1, i));
+      plant.y = d.y - 1;
+      bankOrder(order, viv, plants, decor, [], []);
+      expect(place(0, 0)).toBeLessThan(place(1, i));
+    }
+  });
+
+  it('sorts what is off the ground by how deep in the box it is, not how high up the screen', () => {
+    // A butterfly near the lamp is nowhere near the back of the box, and used to
+    // be sorted as though it were: it went behind every leaf in the terrarium.
+    const fly = new Creature(species('butterfly'), viv, mulberry32(86));
+    run(fly, 2);
+    expect(fly.surface).toBe('air');
+    expect(fly.y).toBeLessThan(viv.floor);
+    expect(fly.sortY(viv)).toBeGreaterThan(viv.floor);
+    // Up a pane it is at the far end of the box, and the same number says so.
+    const wall = new Creature(species('gecko'), viv, mulberry32(87));
+    wall.hold(viv.wallL, 200);
+    wall.release(viv, mulberry32(88));
+    expect(wall.sortY(viv)).toBeCloseTo(bankY(WALL_BANK, viv), 5);
+    // And on the cork it is out of the box's depth altogether: not in the list.
+    const cork = new Creature(species('gecko'), viv, mulberry32(89));
+    cork.hold(viv.w * 0.5, 250);
+    cork.release(viv, mulberry32(90));
+    const order: Layer[] = [];
+    bankOrder(order, viv, [], [], [fly, wall, cork], []);
+    expect([...order.map((l) => l.i)].sort()).toEqual([0, 1]);
+    expect(order.map((l) => l.y)).toEqual([...order.map((l) => l.y)].sort((a, b) => a - b));
+  });
+
+  it('drifts the butterfly through the box so it is not pinned to one depth', () => {
+    const fly = new Creature(species('butterfly'), viv, mulberry32(91));
+    let low = Infinity;
+    let high = -Infinity;
+    run(fly, 40, empty(), mulberry32(92), (cr) => {
+      low = Math.min(low, cr.sortY(viv));
+      high = Math.max(high, cr.sortY(viv));
+    });
+    expect(high - low).toBeGreaterThan((viv.front - viv.floor) * 0.4);
+  });
 });
 
 describe('the one that flies', () => {
@@ -444,9 +517,10 @@ describe('how an animal feels', () => {
 
   it('goes where the finger goes while it is held, and is giddy when put down', () => {
     const cr = new Creature(species('snail'), viv, mulberry32(24));
-    cr.hold(120, 300);
+    // Out in the middle of the box, where a snail has nothing to take hold of.
+    cr.hold(viv.w * 0.5, 300);
     run(cr, 0.5);
-    expect(cr.x).toBe(120);
+    expect(cr.x).toBe(viv.w * 0.5);
     expect(cr.y).toBe(300);
     expect(cr.hunger).toBe(0);
     cr.release(viv);
@@ -459,8 +533,50 @@ describe('how an animal feels', () => {
     expect(cr.surface).toBe('ground');
   });
 
+  it('takes hold of whatever wall the child lets go of it against', () => {
+    const onto = (x: number, y: number): Animal => {
+      const cr = new Creature(species('gecko'), viv, mulberry32(24));
+      cr.hold(x, y);
+      cr.release(viv, mulberry32(5));
+      return cr;
+    };
+    // The panes, the lid, and — everywhere else above the soil — the cork at the
+    // back, which is most of the picture and the only wall a child can aim at.
+    expect(onto(viv.wallL + viv.unit * 0.3, 250).surface).toBe('left');
+    expect(onto(viv.wallR - viv.unit * 0.3, 250).surface).toBe('right');
+    expect(onto(viv.w * 0.5, viv.top + viv.unit * 0.4).surface).toBe('ceiling');
+    expect(onto(viv.w * 0.5, 250).surface).toBe('back');
+    for (const cr of [onto(viv.wallL + viv.unit * 0.3, 250), onto(viv.w * 0.5, 250)]) {
+      expect(cr.falling).toBe(false);
+      expect(cr.lift).toBe(0);
+    }
+    // Put down on the soil it simply stands there, wall or no wall.
+    expect(onto(viv.wallL + viv.unit * 0.3, viv.floor + viv.unit).surface).toBe('ground');
+  });
+
+  it('lets go of an animal that cannot climb, wall or no wall', () => {
+    const cr = new Creature(species('turtle'), viv, mulberry32(24));
+    cr.hold(viv.wallL, 250);
+    cr.release(viv, mulberry32(5));
+    expect(cr.surface).toBe('ground');
+    expect(cr.falling).toBe(true);
+  });
+
+  it('leaves an animal put on the wall up there rather than walking it straight back down', () => {
+    const cr = new Creature(species('gecko'), viv, mulberry32(24));
+    cr.hold(viv.w * 0.5, viv.floor - viv.unit * 1.6);
+    cr.release(viv, mulberry32(5));
+    expect(cr.surface).toBe('back');
+    // An rng that never rolls the "and then it simply lets go" chance: what is
+    // under test is that it does not *walk* back down, not that it never falls.
+    run(cr, 3, empty(), () => 0.5);
+    expect(cr.surface).toBe('back');
+    expect(cr.y).toBeLessThan(viv.floor);
+  });
+
   it('hangs the feet under a falling animal instead of leaving them on the floor', () => {
-    const cr = new Creature(species('gecko'), viv, mulberry32(26));
+    // A lizard: no climbing, so letting go up here really is letting go.
+    const cr = new Creature(species('lizard'), viv, mulberry32(26));
     cr.hold(viv.w * 0.5, viv.top + viv.unit);
     // Standing, the feet are on whatever it is standing on.
     expect(cr.footY).toBeCloseTo(cr.y, 6);

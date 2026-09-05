@@ -1,5 +1,16 @@
 import { solveTwoBone, walkFoot, type Point } from '../../core/creature';
-import { footDir, isTopDown, type Creature, type Drop, type Food, type Pebble, type Plant, type Surface, type Vivarium } from './logic';
+import {
+  bankScale,
+  footDir,
+  isTopDown,
+  type Creature,
+  type Drop,
+  type Food,
+  type Pebble,
+  type Plant,
+  type Surface,
+  type Vivarium,
+} from './logic';
 
 /**
  * How the animals are drawn: bodies built from the spine, legs planted on
@@ -1128,6 +1139,13 @@ export function drawPlant(g: CanvasRenderingContext2D, plant: Plant, scene: Scen
   const { viv, clock } = scene;
   const amp = viv.unit * 0.16 * (1 + stirred * 0.5);
   const rate = plant.sway * 2 * (1 + stirred * 0.5);
+  // Grown about the point it is planted at, so the base stays in the soil
+  // wherever in the bank the child has dragged it to.
+  const grown = bankScale(plant.y, viv);
+  g.save();
+  g.translate(plant.x, plant.y);
+  g.scale(grown, grown);
+  g.translate(-plant.x, -plant.y);
   for (let b = 0; b < plant.blades; b++) {
     const lean = (b - (plant.blades - 1) / 2) * 0.26;
     const base = plant.x + lean * plant.w * 3;
@@ -1148,6 +1166,7 @@ export function drawPlant(g: CanvasRenderingContext2D, plant: Plant, scene: Scen
     g.fillStyle = `hsl(${plant.hue} 52% ${26 + b * 6}%)`;
     g.fill();
   }
+  g.restore();
 }
 
 /** One piece of food on the soil: a cricket, a wriggling worm, or a still berry. */
@@ -1156,6 +1175,7 @@ export function drawFoodItem(g: CanvasRenderingContext2D, food: Food, viv: Vivar
   const u = viv.unit;
   g.save();
   g.translate(food.x, food.y);
+  g.scale(bankScale(food.y, viv), bankScale(food.y, viv));
   // The last second before it burrows away, it fades rather than blinking out.
   g.globalAlpha = Math.min(1, Math.max(0.15, food.life));
   if (food.kind === 'berry') {
