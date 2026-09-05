@@ -253,13 +253,28 @@ check('aquarium: and the day comes back', (await page.locator('.aquarium.aquariu
 
 check('aquarium: the tank is written down for next time', !!saved && saved.includes('"v":1'), String(saved).slice(0, 80));
 
+// The little worlds mark a finished round with a bell and a star rather than
+// confetti over the water — 🍤 and 🐛 get pressed again and again, and a party
+// each time interrupts the thing the child is there to watch. Nothing appears on
+// the page to wait for, so watch for the star itself being written down.
+const starred = (id) =>
+  page
+    .waitForFunction(
+      (game) => {
+        try {
+          return ((JSON.parse(localStorage.getItem('be-choi:v1') ?? '{}').stars ?? {})[game] ?? 0) > 0;
+        } catch {
+          return false;
+        }
+      },
+      id,
+      { timeout: 45000 },
+    )
+    .then(() => true)
+    .catch(() => false);
 await tap(page.locator('.aquarium-feed'));
-const fed = await page
-  .waitForSelector('canvas.confetti', { timeout: 25000 })
-  .then(() => true)
-  .catch(() => false);
-check('aquarium: every flake eaten ends in confetti', fed);
-await page.waitForTimeout(1800);
+check('aquarium: every flake eaten earns a star', await starred('aquarium'));
+await page.waitForTimeout(800);
 
 // ---- terrarium: the box runs by itself, and the animals walk on it ----
 await open('terrarium');
@@ -363,12 +378,8 @@ await page.waitForTimeout(700);
 check('terrarium: and the day comes back', (await page.locator('.terrarium.terrarium-night').count()) === 0);
 
 await tap(page.locator('.terrarium-feed'));
-const ate = await page
-  .waitForSelector('canvas.confetti', { timeout: 45000 })
-  .then(() => true)
-  .catch(() => false);
-check('terrarium: every cricket gone ends in confetti', ate);
-await page.waitForTimeout(1800);
+check('terrarium: every cricket gone earns a star', await starred('terrarium'));
+await page.waitForTimeout(800);
 
 // ---- garden: plant, water to ripe, pick — three times over for the star ----
 await open('garden');

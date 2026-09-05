@@ -389,10 +389,11 @@ describe('terrarium game', () => {
     set.mockRestore();
   });
 
-  it('drops more food whenever it is asked to, and celebrates once it is all gone', async () => {
+  it('drops more food whenever it is asked to, and earns a star once it is all gone', async () => {
     const { ctx } = mount();
     const feed = ctx.stage.querySelector<HTMLElement>('.terrarium-feed')!;
     const tick = vi.spyOn(ctx.audio, 'tick');
+    const ding = vi.spyOn(ctx.audio, 'ding');
 
     feed.dispatchEvent(ptr('pointerdown'));
     feed.dispatchEvent(ptr('pointerdown'));
@@ -409,7 +410,10 @@ describe('terrarium game', () => {
 
     // Eaten or burrowed away, the helping ends — and it is one star for the lot.
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(ctx.celebrations).toBe(1);
+    // A quiet bell, not confetti: the box is something to watch, and the child
+    // presses 🐛 again and again.
+    expect(ding).toHaveBeenCalled();
+    expect(ctx.celebrations).toBe(0);
     expect(ctx.stars).toBe(1);
     ctx.cleanup();
   });

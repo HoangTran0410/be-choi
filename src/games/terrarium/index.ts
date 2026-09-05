@@ -81,7 +81,8 @@ interface Layer {
  *
  * The child can tap an animal to be told what it is, run a finger over the soil
  * (curious ones come, shy ones bolt), press 🐛 to drop crickets that crawl about
- * until somebody eats them, and press 💦 to mist the glass.
+ * until somebody eats them — a star each time the soil is cleared, marked by a
+ * bell rather than by confetti over the box — and press 💦 to mist the glass.
  */
 function start(ctx: GameContext): void {
   const canvas = h('canvas', { class: 'terrarium-canvas' });
@@ -635,9 +636,11 @@ function start(ctx: GameContext): void {
     // helpings that took — so pressing more cannot earn it any faster.
     if (feeding && foods.length === 0) {
       feeding = false;
-      void ctx.celebrate().then(() => {
-        if (alive) ctx.addStar();
-      });
+      // A quiet bell rather than ctx.celebrate(): 🐛 gets pressed again and
+      // again, and confetti over the box every time turns a box to watch into
+      // something that keeps interrupting itself. Same call as the tank next door.
+      ctx.audio.ding();
+      ctx.addStar();
     }
     // After dark, one cricket somewhere in the room. It is the whole sound of a
     // terrarium at night, and it is the reason to press the lamp at all.
