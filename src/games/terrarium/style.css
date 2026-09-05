@@ -1,0 +1,152 @@
+.terrarium {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #4b2e1a;
+}
+.terrarium-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* Four round buttons, one per corner, so whichever way the tablet is held there
+   is one under each thumb and none of them is over the soil. */
+.terrarium-feed,
+.terrarium-add,
+.terrarium-mist,
+.terrarium-lamp {
+  position: absolute;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 4px 0 rgba(46, 26, 12, 0.4);
+  touch-action: none;
+  transition: transform 0.1s;
+}
+.terrarium-feed:active,
+.terrarium-add:active,
+.terrarium-mist:active,
+.terrarium-lamp:active {
+  transform: scale(0.92);
+}
+.terrarium-feed {
+  right: 2.5vmin;
+  bottom: 2.5vmin;
+}
+.terrarium-add {
+  left: 2.5vmin;
+  bottom: 2.5vmin;
+}
+.terrarium-mist {
+  left: 2.5vmin;
+  top: 2.5vmin;
+}
+.terrarium-lamp {
+  right: 2.5vmin;
+  top: 2.5vmin;
+}
+
+/* The picker borrows the shared overlay; only the animals inside it are ours. */
+.terrarium-chip-art {
+  width: 88%;
+  height: 88%;
+  pointer-events: none;
+}
+.terrarium-pick {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+/* ---- the jar ---- */
+/* Only there while an animal is in the child's fingers, so nothing can leave the
+   box by accident. */
+.terrarium-jar {
+  position: absolute;
+  right: 2.5vmin;
+  top: 2.5vmin;
+  width: calc(var(--tap) * 1.15);
+  height: calc(var(--tap) * 1.15);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.62);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 0 rgba(46, 26, 12, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.6) translateY(-1vmin);
+  transition:
+    opacity 0.18s,
+    transform 0.18s,
+    background 0.15s;
+}
+.terrarium-dragging .terrarium-jar {
+  opacity: 1;
+  transform: none;
+}
+.terrarium-jar-over {
+  background: #fca5a5;
+  transform: scale(1.14);
+}
+
+/* The jar takes this corner while an animal is in the fingers. */
+.terrarium-dragging .terrarium-lamp {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* An animal in the fingers should not be dragged onto a button, and neither
+   should a log being slid along the soil. */
+.terrarium-dragging .terrarium-add,
+.terrarium-dragging .terrarium-feed,
+.terrarium-dragging .terrarium-mist,
+.terrarium-moving .terrarium-add,
+.terrarium-moving .terrarium-feed,
+.terrarium-moving .terrarium-mist {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.terrarium-star {
+  position: absolute;
+  z-index: 2;
+  font-size: var(--emoji);
+  line-height: 1;
+  pointer-events: none;
+  animation: terrarium-star 0.9s ease-out forwards;
+}
+@keyframes terrarium-star {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(-50%, -110%) scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -200%) scale(1.1);
+    opacity: 0;
+  }
+}
+
+/* Lights out: white discs glare against a dark box, so the buttons go dark too. */
+.terrarium-night .terrarium-add,
+.terrarium-night .terrarium-feed,
+.terrarium-night .terrarium-mist,
+.terrarium-night .terrarium-lamp,
+.terrarium-night .terrarium-jar {
+  color: #fef3c7;
+  background: rgba(38, 28, 58, 0.88);
+  box-shadow: 0 4px 0 rgba(10, 6, 20, 0.55);
+}
+.terrarium-night .terrarium-pick {
+  background-color: rgba(38, 28, 58, 0.9);
+}

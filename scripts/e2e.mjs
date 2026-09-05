@@ -261,6 +261,115 @@ const fed = await page
 check('aquarium: every flake eaten ends in confetti', fed);
 await page.waitForTimeout(1800);
 
+// ---- terrarium: the box runs by itself, and the animals walk on it ----
+await open('terrarium');
+await page.waitForTimeout(700);
+const boxRect = await page.locator('.terrarium-canvas').boundingBox();
+check('terrarium: the box fills the stage', !!boxRect && boxRect.width > 0 && boxRect.height > 0);
+// Sample a couple of rows across the soil bank rather than the head of the data
+// URL: the top of this box is a back wall that never moves, so the first few
+// thousand characters are the same whatever the animals are doing.
+const bankRow = () =>
+  page.locator('.terrarium-canvas').evaluate((el) => {
+    const g = el.getContext('2d');
+    const d = g.getImageData(0, Math.round(el.height * 0.72), el.width, 2).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 7) sum = (sum * 31 + d[i]) >>> 0;
+    return sum;
+  });
+const vivA = await bankRow();
+await page.waitForTimeout(600);
+const vivB = await bankRow();
+check('terrarium: the animals are walking about', vivA !== vivB, `${vivA} vs ${vivB}`);
+
+// One button opens a picker of every species, each drawn as the animal it adds.
+await tap(page.locator('.terrarium-add'));
+const pets = page.locator('.terrarium-pick');
+check('terrarium: the picker offers every animal', (await pets.count()) >= 10);
+const petArt = await pets
+  .first()
+  .locator('canvas')
+  .evaluate((el) => el.toDataURL().length);
+check('terrarium: each tile shows the animal it adds', petArt > 1000);
+await tap(page.locator('.terrarium-pick[data-species="gecko"]'));
+await page.waitForTimeout(400);
+check('terrarium: choosing an animal closes the picker', (await page.locator('.terrarium-picker').count()) === 0);
+
+// Picking an animal up brings out the jar; putting it back down puts the jar away.
+async function liftAPet() {
+  if (!boxRect) return null;
+  for (let y = 0.55; y < 0.95; y += 0.05) {
+    for (let x = 0.1; x < 0.9; x += 0.07) {
+      const px = boxRect.x + boxRect.width * x;
+      const py = boxRect.y + boxRect.height * y;
+      await page.mouse.move(px, py);
+      await page.mouse.down();
+      await page.mouse.move(px + 30, py - 12, { steps: 3 });
+      if (await page.locator('.terrarium.terrarium-dragging').count()) return { x: px + 30, y: py - 12 };
+      await page.mouse.up();
+    }
+  }
+  return null;
+}
+const picked = await liftAPet();
+check('terrarium: an animal can be picked up and carried', picked !== null);
+if (picked) {
+  check('terrarium: the jar appears while one is held', await page.locator('.terrarium-jar').isVisible());
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  check('terrarium: the jar goes away again', (await page.locator('.terrarium.terrarium-dragging').count()) === 0);
+}
+
+// Poking the soil, the planting and the ornaments must never throw. Keep clear of
+// the round buttons in the corners: a click on those opens a panel that then
+// swallows everything after it.
+if (boxRect) {
+  for (let x = 0.25; x < 0.76; x += 0.1) {
+    await page.mouse.click(boxRect.x + boxRect.width * x, boxRect.y + boxRect.height * 0.82);
+  }
+}
+await page.waitForTimeout(400);
+check('terrarium: the box still runs after being prodded all over', (await page.locator('.terrarium-canvas').count()) === 1);
+
+// The furniture slides along the soil, and the box remembers where it was left.
+if (boxRect) {
+  for (let x = 0.2; x < 0.8; x += 0.08) {
+    const px = boxRect.x + boxRect.width * x;
+    const py = boxRect.y + boxRect.height * 0.78;
+    await page.mouse.move(px, py);
+    await page.mouse.down();
+    await page.mouse.move(px + 60, py, { steps: 4 });
+    const sliding = (await page.locator('.terrarium.terrarium-moving').count()) > 0;
+    await page.mouse.up();
+    if (sliding) break;
+  }
+}
+await page.waitForTimeout(300);
+const vivSaved = await page.evaluate(() => localStorage.getItem('be-choi:terrarium'));
+check('terrarium: the box is written down for next time', !!vivSaved && vivSaved.includes('"v":1'), String(vivSaved).slice(0, 80));
+
+// The spray wets the glass; the lamp turns the day into night and back.
+await tap(page.locator('.terrarium-mist'));
+await page.waitForTimeout(400);
+check('terrarium: the spray does not stop the box', (await page.locator('.terrarium-canvas').count()) === 1);
+await tap(page.locator('.terrarium-lamp'));
+await page.waitForTimeout(900);
+check('terrarium: the lights go out', (await page.locator('.terrarium.terrarium-night').count()) === 1);
+check('terrarium: the button offers the day back', (await page.locator('.terrarium-lamp').textContent()) === '☀️');
+const vivNight = await page.evaluate(() => localStorage.getItem('be-choi:terrarium'));
+check('terrarium: it remembers the lights are out', !!vivNight && vivNight.includes('"night":true'));
+await tap(page.locator('.terrarium-lamp'));
+await page.waitForTimeout(700);
+check('terrarium: and the day comes back', (await page.locator('.terrarium.terrarium-night').count()) === 0);
+
+await tap(page.locator('.terrarium-feed'));
+const ate = await page
+  .waitForSelector('canvas.confetti', { timeout: 45000 })
+  .then(() => true)
+  .catch(() => false);
+check('terrarium: every cricket gone ends in confetti', ate);
+await page.waitForTimeout(1800);
+
 // ---- garden: plant, water to ripe, pick — three times over for the star ----
 await open('garden');
 await page.waitForTimeout(500);

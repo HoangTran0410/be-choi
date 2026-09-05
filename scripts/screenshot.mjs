@@ -17,6 +17,7 @@ const only = process.argv.slice(2);
 const GAMES = [
   'bubbles',
   'aquarium',
+  'terrarium',
   'fishing',
   'garden',
   'farm',

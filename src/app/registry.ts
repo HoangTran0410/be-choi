@@ -1,6 +1,7 @@
 import type { GameMeta, GameModule } from '../core/types';
 import { meta as bubbles } from '../games/bubbles/meta';
 import { meta as aquarium } from '../games/aquarium/meta';
+import { meta as terrarium } from '../games/terrarium/meta';
 import { meta as fishing } from '../games/fishing/meta';
 import { meta as garden } from '../games/garden/meta';
 import { meta as farm } from '../games/farm/meta';
@@ -45,6 +46,7 @@ export interface GameEntry extends GameMeta {
 export const GAMES: readonly GameEntry[] = [
   { ...bubbles, load: () => import('../games/bubbles/index') },
   { ...aquarium, load: () => import('../games/aquarium/index') },
+  { ...terrarium, load: () => import('../games/terrarium/index') },
   { ...fishing, load: () => import('../games/fishing/index') },
   { ...garden, load: () => import('../games/garden/index') },
   { ...farm, load: () => import('../games/farm/index') },
