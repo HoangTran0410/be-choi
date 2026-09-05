@@ -495,6 +495,29 @@ function drawBug(g: CanvasRenderingContext2D, cr: Creature, seed: number): void 
   const still = cr.still > 0 || cr.hiding;
   drawShadow(g, cr);
 
+  // Wings, while it is in the air at the child: swept back off the thorax and
+  // beating. Drawn first, so the body and the legs sit over the roots of them —
+  // over the top they were a smear across the animal rather than a pair of wings.
+  if (cr.flight > 0) {
+    const mid = cr.spine.joints[2] ?? { x: cr.bodyX, y: cr.bodyY };
+    const beat = 0.35 + Math.abs(Math.sin(cr.phase)) * 0.65;
+    g.save();
+    g.globalAlpha = 0.55;
+    g.fillStyle = '#c8a97e';
+    g.strokeStyle = 'rgba(60,36,14,0.4)';
+    g.lineWidth = Math.max(1, L * 0.02);
+    for (const side of [-1, 1]) {
+      const sweep = cr.heading + Math.PI + side * (0.35 + beat * 0.45);
+      const cx = mid.x + Math.cos(sweep) * L * 0.3;
+      const cy = mid.y + Math.sin(sweep) * L * 0.3;
+      g.beginPath();
+      g.ellipse(cx, cy, L * 0.36, L * 0.13 * beat, sweep, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
+  }
+
   // Six legs, in two passes so three of them go behind the shell.
   for (const far of [true, false]) {
     g.globalAlpha = far ? 0.45 : 1;
@@ -855,6 +878,13 @@ function drawTopDown(g: CanvasRenderingContext2D, cr: Creature, seed: number, sc
 
 export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: number, scene: Scene): void {
   g.save();
+  // How big it is for where it stands. Scaled about its feet, not its middle, or
+  // an animal at the front of the bank grows down through the soil it stands on.
+  if (cr.depth !== 1) {
+    g.translate(cr.footX, cr.footY);
+    g.scale(cr.depth, cr.depth);
+    g.translate(-cr.footX, -cr.footY);
+  }
   if (cr.joy > 0) {
     // A little bob of delight, around the animal's own middle.
     g.translate(cr.bodyX, cr.bodyY);

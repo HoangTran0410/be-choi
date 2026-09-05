@@ -12,7 +12,10 @@ import {
   addFood,
   applySave,
   bellySide,
+  DEPTH_BACK,
+  DEPTH_FRONT,
   crowdedOut,
+  depthAt,
   decorAt,
   footDir,
   isTopDown,
@@ -174,21 +177,21 @@ describe('a walking animal', () => {
   it('takes a gecko up a wall and brings it back down again', () => {
     const cr = new Creature(species('gecko'), viv, mulberry32(2));
     const seen = new Set<string>();
-    let changes = 0;
     let last: string = cr.surface;
+    let climbed = false;
+    let returned = false;
     run(cr, 180, empty(), mulberry32(8), () => {
       seen.add(cr.surface);
-      if (cr.surface !== last) {
-        changes++;
-        last = cr.surface;
-      }
+      if (cr.surface === last) return;
+      if (cr.surface !== 'ground') climbed = true;
+      else if (climbed) returned = true;
+      last = cr.surface;
     });
     expect(seen.has('ground')).toBe(true);
     expect(seen.has('back') || seen.has('left') || seen.has('right')).toBe(true);
-    // And it does not simply stick to the first wall it finds: off the ground and
-    // back onto it is two changes of surface, not one.
-    expect(changes).toBeGreaterThanOrEqual(2);
-    expect(cr.surface).toBe('ground');
+    // And it does not simply stick to the first wall it finds — where it happens
+    // to be when the clock stops is nobody's business, but it did come down.
+    expect(returned).toBe(true);
   });
 
   it('uses both the cork at the back and the panes at the sides, over time', () => {
@@ -309,6 +312,92 @@ describe('facing', () => {
     cr.startle(from.x + cr.length * 0.5, from.y, true);
     run(cr, 0.5);
     expect(Math.hypot(cr.bodyX - from.x, cr.bodyY - from.y)).toBeGreaterThan(cr.length);
+  });
+});
+
+describe('depth', () => {
+  it('draws an animal at the front bigger than the same one at the back', () => {
+    const back = depthAt('ground', viv.floor, viv);
+    const front = depthAt('ground', viv.front, viv);
+    expect(back).toBeCloseTo(DEPTH_BACK, 5);
+    expect(front).toBeCloseTo(DEPTH_FRONT, 5);
+    expect(front).toBeGreaterThan(back);
+    // A hint of depth, not a different animal: a quarter either side of life size.
+    expect(front / back).toBeLessThan(1.4);
+    // Up a wall is the far end of the box, whichever wall it is.
+    expect(depthAt('back', viv.floor, viv)).toBeLessThanOrEqual(back);
+    expect(depthAt('left', viv.floor, viv)).toBeLessThan(front);
+  });
+
+  it('keeps the hit box on the animal at whatever size it is drawn', () => {
+    const cr = new Creature(species('turtle'), viv, mulberry32(80));
+    // Right at the front glass, where it draws biggest.
+    cr.y = viv.front;
+    run(cr, 0.5);
+    expect(cr.depth).toBeGreaterThan(1);
+    const head = cr.spine.joints[0]!;
+    // The head is drawn away from the feet by `depth` times what the spine says.
+    const drawn = { x: cr.footX + (head.x - cr.footX) * cr.depth, y: cr.footY + (head.y - cr.footY) * cr.depth };
+    expect(cr.hits(drawn.x, drawn.y)).toBe(true);
+    expect(cr.hits(drawn.x + cr.length * 4, drawn.y)).toBe(false);
+  });
+
+  it('grows an animal about its feet, so it never sinks into the soil', () => {
+    const cr = new Creature(species('gecko'), viv, mulberry32(81));
+    run(cr, 1);
+    // Scaling about the feet leaves the feet where they were, whatever `depth` is.
+    expect(cr.footY).toBeLessThanOrEqual(viv.front + 1);
+    expect(cr.footY).toBeGreaterThanOrEqual(viv.floor - 1);
+  });
+});
+
+describe('the one that flies', () => {
+  it('is the cockroach, and nobody else', () => {
+    expect(SPECIES.filter((s) => s.flies).map((s) => s.id)).toEqual(['roach']);
+    expect(species('roach').name).toBe('con gián');
+  });
+
+  it('takes off, grows all the way in, bonks the glass and drops off it', () => {
+    const cr = new Creature(species('roach'), viv, mulberry32(82));
+    let launched = false;
+    let bonked = false;
+    let biggest = 0;
+    let atGlass = 0;
+    run(cr, 200, empty(), mulberry32(83), () => {
+      if (cr.launched) launched = true;
+      if (cr.flight > 0) {
+        biggest = Math.max(biggest, cr.depth);
+        atGlass = Math.max(atGlass, cr.y);
+      }
+      if (cr.bonked) bonked = true;
+    });
+    expect(launched).toBe(true);
+    expect(bonked).toBe(true);
+    // It really does come at the child: half again as big as it ever is on the soil.
+    expect(biggest).toBeGreaterThan(DEPTH_FRONT * 1.5);
+    // …and it arrives at the front glass, not somewhere in the middle.
+    expect(atGlass).toBeGreaterThanOrEqual(viv.front - 1);
+    // Off the glass and back on the soil, thoroughly startled.
+    expect(cr.flight).toBe(0);
+    expect(cr.surface).toBe('ground');
+    expect(cr.y).toBeLessThanOrEqual(viv.front + 1);
+  });
+
+  it('never flies out of the box, however long it goes on', () => {
+    const cr = new Creature(species('roach'), viv, mulberry32(84));
+    run(cr, 300, empty(), mulberry32(85), () => {
+      expect(cr.x).toBeGreaterThan(viv.wallL - cr.length);
+      expect(cr.x).toBeLessThan(viv.wallR + cr.length);
+      expect(cr.y).toBeLessThanOrEqual(viv.front + 1);
+    });
+  });
+
+  it('leaves everybody else on the ground: one flier is plenty', () => {
+    for (const s of SPECIES) {
+      if (s.flies) continue;
+      const cr = new Creature(s, viv, mulberry32(86));
+      run(cr, 90, empty(), mulberry32(87), () => expect(cr.flight).toBe(0));
+    }
   });
 });
 

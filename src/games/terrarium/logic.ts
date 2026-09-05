@@ -43,6 +43,12 @@ export interface Species {
   curious: number;
   /** A recorded or synthesized voice, for the ones that have one. */
   voice?: FxKind;
+  /**
+   * It can fly, and once in a while it flies straight at the child — bigger and
+   * bigger until it hits the front glass with a bonk and drops off it. One animal
+   * in the box has this, and one is plenty.
+   */
+  flies?: boolean;
 }
 
 // Half-widths as a fraction of body length. A lizard is far longer than it is
@@ -219,6 +225,23 @@ export const SPECIES: readonly Species[] = [
     curious: -0.5,
   },
   {
+    id: 'roach',
+    name: 'con gián',
+    kind: 'bug',
+    back: '#7a4a22',
+    belly: '#3d2410',
+    limb: '#241407',
+    pattern: 'none',
+    patternColor: '#fff',
+    size: 0.55,
+    profile: BEETLE,
+    speed: 2.2,
+    climbs: true,
+    nocturnal: true,
+    curious: -1,
+    flies: true,
+  },
+  {
     id: 'snail',
     name: 'con ốc sên',
     kind: 'snail',
@@ -344,6 +367,27 @@ export function footDir(surface: Surface): { x: number; y: number } {
 /** Seen from above rather than from the side. */
 export function isTopDown(surface: Surface): boolean {
   return surface === 'back';
+}
+
+/**
+ * How big an animal draws for where it is standing: smaller against the back
+ * wall, bigger against the front glass.
+ *
+ * A quarter either side of life size and no more. The box is one shallow bank
+ * seen almost square on, so this is not perspective, it is the *hint* of it —
+ * enough that the eye reads the soil as having a front and a back, little enough
+ * that a gecko at the front is not a different animal from the same gecko at the
+ * back.
+ */
+export const DEPTH_BACK = 0.86;
+export const DEPTH_FRONT = 1.14;
+
+export function depthAt(surface: Surface, y: number, viv: Vivarium): number {
+  // Anything on a wall is at the far end of the box, whichever wall it is.
+  if (surface === 'left' || surface === 'right' || surface === 'ceiling') return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * 0.3;
+  if (surface === 'back') return DEPTH_BACK;
+  if (surface === 'air') return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * 0.5;
+  return DEPTH_BACK + (DEPTH_FRONT - DEPTH_BACK) * bankAt(y, viv);
 }
 
 /**
@@ -513,6 +557,13 @@ export const SHELTER_REACH = 5;
 export const MAX_CREATURES = 26;
 /** A poked plant or ornament is worth a look for this long. */
 export const INTEREST_SECONDS = 2.6;
+/** How long the flight at the glass takes, from take-off to the bonk. */
+export const FLIGHT_SECONDS = 1.3;
+/** How much bigger it is at the child's nose than on the soil. */
+export const FLIGHT_ZOOM = 1.9;
+/** Roughly how often the one that flies takes off, in seconds. */
+export const FLIGHT_MIN_REST = 26;
+export const FLIGHT_MAX_REST = 70;
 
 /**
  * Which one goes, when a full box has to make room. The commonest kind loses a
@@ -658,6 +709,10 @@ export class Creature {
   private lean = 0;
   /** How far its legs hold the body off the surface when it is simply standing. */
   readonly stand: number;
+  /** 0 … 1 through a flight at the glass; 1 is the moment it arrives. */
+  get charge(): number {
+    return this.flight > 0 ? Math.min(1, Math.max(0, 1 - this.flight / FLIGHT_SECONDS)) : 0;
+  }
   /** Extra height above standing: mid-hop, or falling. */
   lift = 0;
   /** Falling: nothing under it, and `lift` shrinking fast. */
@@ -704,6 +759,21 @@ export class Creature {
   private crouch = 0;
   /** Which way up the glass it fancies going: the back wall, or a side pane. */
   private wall: 'back' | 'side' = 'back';
+  /**
+   * How big it draws right now: where it stands in the bank, and — for the one
+   * that flies — how close to the child's nose it has got.
+   */
+  depth = 1;
+  /** Seconds left of a flight at the front glass. 0 when it is not flying. */
+  flight = 0;
+  /** It hit the glass on this frame. The caller makes the bonk. */
+  bonked = false;
+  /** It took off on this frame. The caller makes the buzz. */
+  launched = false;
+  /** Seconds until it might take off again. */
+  private flightRest = 0;
+  /** Where the flight started, so the charge can be flown as one smooth run. */
+  private flewFrom = { x: 0, y: 0 };
 
   constructor(
     readonly species: Species,
@@ -725,6 +795,8 @@ export class Creature {
     this.phase = rng() * Math.PI * 2;
     this.climbRest = rng() * 14;
     this.crouch = rng() * 1.5;
+    // Not the moment the child walks in: a surprise needs somewhere to come from.
+    this.flightRest = FLIGHT_MIN_REST * 0.4 + rng() * FLIGHT_MIN_REST;
     this.vx = Math.cos(this.heading) * species.speed * viv.unit;
     this.pose();
     this.wander(viv, rng);
@@ -904,10 +976,15 @@ export class Creature {
 
   /** A generous hit box: toddler fingers, not a mouse. */
   hits(px: number, py: number): boolean {
+    // The body is drawn scaled about its feet, so bring the finger back into the
+    // body's own size before asking the spine about it.
+    const d = this.depth || 1;
+    const qx = this.footX + (px - this.footX) / d;
+    const qy = this.footY + (py - this.footY) / d;
     for (let i = 0; i < this.spine.joints.length; i++) {
       const joint = this.spine.joints[i]!;
-      const reach = Math.max(this.spine.widthAt(i) * 2.2, 26);
-      if (Math.hypot(px - joint.x, py - joint.y) < reach) return true;
+      const reach = Math.max(this.spine.widthAt(i) * 2.2, 26 / d);
+      if (Math.hypot(qx - joint.x, qy - joint.y) < reach) return true;
     }
     return false;
   }
@@ -951,6 +1028,16 @@ export class Creature {
    */
   update(dt: number, viv: Vivarium, world: World, rng: () => number = Math.random): boolean {
     const step = Math.min(0.05, Math.max(0, dt));
+    this.bonked = false;
+    this.launched = false;
+    const ate = this.advance(step, viv, world, rng);
+    // Where it stands is how big it draws — including, for the one that flies,
+    // how close to the child it has got.
+    this.depth = this.held ? DEPTH_FRONT : depthAt(this.surface, this.y, viv) + this.charge * (FLIGHT_ZOOM - 1) * DEPTH_FRONT;
+    return ate;
+  }
+
+  private advance(step: number, viv: Vivarium, world: World, rng: () => number): boolean {
     this.fear = Math.max(0, this.fear - step);
     this.joy = Math.max(0, this.joy - step);
     this.dizzy = Math.max(0, this.dizzy - step);
@@ -974,6 +1061,15 @@ export class Creature {
       return false;
     }
 
+    if (this.flight > 0) {
+      this.chargeGlass(step, viv, rng);
+      return false;
+    }
+    if (this.mightFly(step, rng)) {
+      this.takeOff(rng);
+      return false;
+    }
+
     if (this.falling) {
       this.fall(step, viv);
       return false;
@@ -985,6 +1081,71 @@ export class Creature {
     if (this.surface === 'back') return this.roam(step, viv, world, rng, pace);
     if (this.surface !== 'ground') return this.climb(step, viv, world, pace, rng);
     return this.crawl(step, viv, world, rng, pace);
+  }
+
+  /**
+   * Would it take off right now? Only from the soil, only when nothing else is
+   * going on, and only once in a while — the whole joke is that it is a surprise.
+   */
+  private mightFly(step: number, rng: () => number): boolean {
+    if (!this.species.flies || this.held || this.falling || this.flight > 0) return false;
+    if (this.fear > 0 || this.hiding) return false;
+    this.flightRest -= step;
+    return this.flightRest <= 0 && rng() < step * 0.5;
+  }
+
+  /**
+   * Off whatever it was on and straight at the child, growing all the way.
+   *
+   * From anywhere, not only from the soil. This one climbs as well as it flies,
+   * so it spends much of its life up a wall; asking it to be standing on the
+   * ground before it could take off meant it almost never did — and one that
+   * peels off the cork straight at the child is the better surprise anyway.
+   */
+  private takeOff(rng: () => number): void {
+    this.flight = FLIGHT_SECONDS;
+    this.launched = true;
+    this.flewFrom = { x: this.x, y: this.y };
+    // It is in the air now, and the air belongs to the ground plane: that is
+    // where the charge ends and where it lands afterwards.
+    this.surface = 'ground';
+    this.climbFor = 0;
+    this.lift = 0;
+    this.flightRest = FLIGHT_MIN_REST + rng() * (FLIGHT_MAX_REST - FLIGHT_MIN_REST);
+  }
+
+  /**
+   * The flight itself: out of the soil, at the glass, bigger every frame, and
+   * then a bonk on the pane an inch from the child's nose. It cannot get out —
+   * that is the point, and it is why this is funny rather than horrid.
+   */
+  private chargeGlass(step: number, viv: Vivarium, rng: () => number): void {
+    this.flight -= step;
+    const t = this.charge;
+    // Fast out of the soil and slowing into the glass, so the arrival lands.
+    const ease = 1 - (1 - t) * (1 - t);
+    this.y = this.flewFrom.y + (viv.front - this.flewFrom.y) * ease;
+    // A wobble across, the way anything with wings that small flies.
+    this.x = this.flewFrom.x + Math.sin(t * 9) * viv.unit * 0.5 * (1 - t);
+    this.x = Math.min(viv.wallR - this.length, Math.max(viv.wallL + this.length, this.x));
+    this.lift = Math.sin(ease * Math.PI) * this.length * 0.6;
+    this.heading = this.dir > 0 ? 0 : Math.PI;
+    // Wings, far faster than any walk.
+    this.phase += step * 46;
+    this.pose();
+    if (this.flight <= 0) {
+      this.flight = 0;
+      this.bonked = true;
+      // Off the glass and down, thoroughly startled by its own idea.
+      this.falling = true;
+      this.lift = Math.max(this.lift, this.length * 0.5);
+      this.y = viv.front;
+      this.fear = FEAR_SECONDS;
+      this.frightX = this.x;
+      this.frightY = this.y - this.length;
+      this.dir = rng() < 0.5 ? -1 : 1;
+      this.heading = this.dir > 0 ? 0 : Math.PI;
+    }
   }
 
   /** Nothing underneath: down it comes, and it is quite pleased about landing. */

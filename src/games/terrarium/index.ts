@@ -61,6 +61,16 @@ const MAX_DROPS = 90;
 /** How far a finger must travel before a tap on an animal becomes a lift. */
 const GRAB_SLOP = 14;
 
+/** How long the ring where something hit the front glass takes to fade. */
+const BONK_SECONDS = 0.75;
+
+/** A mark on the front glass where something flew into it. */
+interface Bonk {
+  x: number;
+  y: number;
+  life: number;
+}
+
 /** One thing to be drawn in the soil bank, and how far forward it stands. */
 interface Layer {
   y: number;
@@ -110,6 +120,7 @@ function start(ctx: GameContext): void {
   let pebbles: Pebble[] = [];
   let foods: Food[] = [];
   let drops: Drop[] = [];
+  const bonks: Bonk[] = [];
   let nudge: Nudge | null = null;
   let shelters: Shelter[] = [];
   /** Something that was just poked, and is worth a look. */
@@ -616,6 +627,29 @@ function start(ctx: GameContext): void {
     }
   }
 
+  /**
+   * Where something flew into the front glass: a ring spreading out from the
+   * spot, and a smear of it. It is what says the pane is there and the child is
+   * on the safe side of it.
+   */
+  function drawBonks(g: CanvasRenderingContext2D): void {
+    for (const bonk of bonks) {
+      const t = 1 - bonk.life / BONK_SECONDS;
+      g.save();
+      g.globalAlpha = (1 - t) * 0.75;
+      g.strokeStyle = '#f8fafc';
+      g.lineWidth = Math.max(1.5, viv.unit * 0.06 * (1 - t));
+      g.beginPath();
+      g.arc(bonk.x, bonk.y, viv.unit * (0.12 + t * 0.75), 0, Math.PI * 2);
+      g.stroke();
+      g.globalAlpha = (1 - t) * 0.3;
+      g.beginPath();
+      g.arc(bonk.x, bonk.y, viv.unit * (0.05 + t * 0.3), 0, Math.PI * 2);
+      g.stroke();
+      g.restore();
+    }
+  }
+
   /** The heat lamp on the lid, and the warm pool it throws on the soil by day. */
   function drawLamp(g: CanvasRenderingContext2D): void {
     const x = viv.w * 0.5;
@@ -641,6 +675,11 @@ function start(ctx: GameContext): void {
     // A box does not go dark in one frame; give the eye a couple of seconds.
     dusk += ((night ? 1 : 0) - dusk) * Math.min(1, dt * 1.2);
     wet = Math.max(0, wet - dt / MIST_SECONDS);
+    for (let i = bonks.length - 1; i >= 0; i--) {
+      const bonk = bonks[i]!;
+      bonk.life -= dt;
+      if (bonk.life <= 0) bonks.splice(i, 1);
+    }
     settleScenery(plants, decor, dt);
     stepDrops(drops, dt, viv);
     if (interest) {
@@ -651,6 +690,17 @@ function start(ctx: GameContext): void {
     const world = { foods, nudge, shelters, interest, neighbours: creatures, night: dusk > 0.5, wet };
     for (const cr of creatures) {
       if (cr.update(dt, viv, world)) ctx.audio.chomp();
+      // Off it goes at the child, and a moment later, bonk.
+      if (cr.launched) ctx.audio.fx('kazoo');
+      if (cr.bonked) {
+        ctx.audio.drum('wood');
+        navigator.vibrate?.(28);
+        bonks.push({ x: cr.x, y: cr.y - cr.length * 0.5, life: BONK_SECONDS });
+        // Everybody nearby jumps out of their skin, which is half the fun of it.
+        for (const other of creatures) {
+          if (other !== cr && Math.hypot(other.bodyX - cr.x, other.bodyY - cr.y) < viv.unit * 3) other.startle(cr.x, cr.y, true);
+        }
+      }
       // An animal brushing past a tuft sets it waving, which is what makes the
       // planting feel like part of the box rather than wallpaper.
       if (cr.surface === 'ground') {
@@ -691,8 +741,9 @@ function start(ctx: GameContext): void {
       if (d.layer === 'mid') order.push({ y: d.y, k: 1, i });
     });
     creatures.forEach((cr, i) => {
-      // Anything on the cork wall is behind the whole bank and is drawn with it.
-      if (cr.held || cr.surface === 'back') return;
+      // Anything on the cork wall is behind the whole bank and is drawn with it;
+      // anything in the child's hand or in the air at them is drawn after it.
+      if (cr.held || cr.flight > 0 || cr.surface === 'back') return;
       // Anything up a side pane has left the bank behind: draw it at the very
       // back, against the glass, rather than sorting it in among the planting.
       const climbing = cr.surface === 'left' || cr.surface === 'right' || cr.surface === 'ceiling';
@@ -746,11 +797,13 @@ function start(ctx: GameContext): void {
       }
     }
     for (const d of decor) if (d.layer === 'near') drawDecor(g, d);
-    // The animal in the child's hand is drawn last, so it is never lost behind
-    // a leaf.
+    // The animal in the child's hand, and the one flying at their nose, are drawn
+    // last — one must never be lost behind a leaf and the other is in front of
+    // everything in the box by definition.
     creatures.forEach((cr, i) => {
-      if (cr.held) drawCreature(g, cr, i, view);
+      if (cr.held || cr.flight > 0) drawCreature(g, cr, i, view);
     });
+    drawBonks(g);
     // By day the lamp throws a warm pool down the middle of the bank. It is what
     // a basking spot looks like, and it is where the sleepy ones end up.
     if (dusk < 0.98) {
