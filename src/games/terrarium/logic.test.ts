@@ -205,6 +205,62 @@ describe('a walking animal', () => {
   });
 });
 
+describe('facing', () => {
+  /**
+   * The bug this pins down: the heading used to be eased towards the direction of
+   * travel and then clamped to within a lean of level. An angle that may not
+   * leave that band can never reach the other side of it, so an animal kept the
+   * facing it was born with for ever and moonwalked whenever its goal was behind
+   * it.
+   */
+  it('can face either way, not just the way it was born facing', () => {
+    for (const id of ['gecko', 'lizard', 'turtle', 'snail']) {
+      const cr = new Creature(species(id), viv, mulberry32(71));
+      let right = false;
+      let left = false;
+      run(cr, 90, empty(), mulberry32(72), () => {
+        if (Math.cos(cr.heading) > 0.5) right = true;
+        if (Math.cos(cr.heading) < -0.5) left = true;
+      });
+      expect(right, `${id} never faced right`).toBe(true);
+      expect(left, `${id} never faced left`).toBe(true);
+    }
+  });
+
+  it('walks the way it is facing', () => {
+    const cr = new Creature(species('gecko'), viv, mulberry32(73));
+    let frames = 0;
+    let backwards = 0;
+    run(cr, 120, empty(), mulberry32(74), () => {
+      // Only while it is really going somewhere along the ground: an animal
+      // standing still or drifting a hair's pace may face where it likes.
+      if (cr.surface !== 'ground' || Math.abs(cr.vx) < cr.length * 0.3) return;
+      frames++;
+      if (Math.sign(cr.vx) !== Math.sign(Math.cos(cr.heading))) backwards++;
+    });
+    expect(frames).toBeGreaterThan(200);
+    // A beat of turning round is fine; a habit of moonwalking is not.
+    expect(backwards / frames).toBeLessThan(0.08);
+  });
+
+  it('keeps a body on the ground within a lean of level', () => {
+    const cr = new Creature(species('chameleon'), viv, mulberry32(75));
+    run(cr, 90, empty(), mulberry32(76), () => {
+      if (cr.surface !== 'ground' || cr.falling) return;
+      // Never standing on its tail: the nose stays near the horizontal.
+      expect(Math.abs(Math.sin(cr.heading))).toBeLessThan(0.45);
+    });
+  });
+
+  it('really bolts when it is frightened, in pixels and not in body units', () => {
+    const cr = new Creature(species('lizard'), viv, mulberry32(77));
+    const from = { x: cr.bodyX, y: cr.bodyY };
+    cr.startle(from.x + cr.length * 0.5, from.y, true);
+    run(cr, 0.5);
+    expect(Math.hypot(cr.bodyX - from.x, cr.bodyY - from.y)).toBeGreaterThan(cr.length);
+  });
+});
+
 describe('how an animal feels', () => {
   it('bolts away from a finger and calms down again', () => {
     const cr = new Creature(species('lizard'), viv, mulberry32(21));
@@ -261,6 +317,26 @@ describe('how an animal feels', () => {
     run(cr, 4);
     expect(cr.falling).toBe(false);
     expect(cr.surface).toBe('ground');
+  });
+
+  it('hangs the feet under a falling animal instead of leaving them on the floor', () => {
+    const cr = new Creature(species('gecko'), viv, mulberry32(26));
+    cr.hold(viv.w * 0.5, viv.top + viv.unit);
+    // Standing, the feet are on whatever it is standing on.
+    expect(cr.footY).toBeCloseTo(cr.y, 6);
+    cr.release(viv);
+    expect(cr.falling).toBe(true);
+
+    cr.update(1 / 60, viv, empty());
+    expect(cr.lift).toBeGreaterThan(0);
+    // In mid-air the feet travel with the body, a leg's length under it — not
+    // stretched all the way down to a floor that is still a long way below.
+    expect(cr.footY).toBeCloseTo(cr.bodyY + cr.stand, 6);
+    expect(cr.footY).toBeLessThan(viv.floor);
+
+    run(cr, 4);
+    expect(cr.falling).toBe(false);
+    expect(cr.footY).toBeCloseTo(cr.y, 6);
   });
 
   it('has a hit box a toddler can actually land on', () => {

@@ -606,12 +606,6 @@ const TURN = 4.5;
 /** How fast a dropped or falling animal accelerates, in box units per second squared. */
 const GRAVITY = 12;
 
-/** `heading`, brought back to within `lean` of pointing along the ground. */
-export function level(heading: number, lean: number): number {
-  const flat = Math.cos(heading) >= 0 ? 0 : Math.PI;
-  return flat + Math.max(-lean, Math.min(lean, angleDelta(flat, heading)));
-}
-
 /**
  * How far each kind holds its body clear of whatever it is standing on, as a
  * fraction of its length. A beetle is up on six legs; a snake is lying on the
@@ -640,6 +634,8 @@ export class Creature {
   heading = 0;
   /** Gait cycle, in strides. */
   phase = 0;
+  /** How far the nose is tipped off level, towards the front glass or away. */
+  private lean = 0;
   /** How far its legs hold the body off the surface when it is simply standing. */
   readonly stand: number;
   /** Extra height above standing: mid-hop, or falling. */
@@ -665,6 +661,8 @@ export class Creature {
   frightY = 0;
   /** Body length in px. */
   readonly length: number;
+  /** One box unit in px, kept so a fright can be measured without the box to hand. */
+  private readonly unit: number;
   /** Which way along the surface it is travelling: +1 or -1 of the surface's axis. */
   private dir = 1;
   /** Seconds left of wanting to be up the glass; below zero it wants to come down. */
@@ -692,6 +690,7 @@ export class Creature {
     spawn?: { x: number; y: number },
   ) {
     this.length = species.size * viv.unit;
+    this.unit = viv.unit;
     this.stand = this.length * STAND[species.kind];
     const widths = species.profile.map((p) => p * this.length);
     const bend = species.kind === 'snake' ? SNAKE_BEND : BEND;
@@ -721,6 +720,20 @@ export class Creature {
   /** Which side of the body the legs hang off, on screen. */
   get belly(): number {
     return bellySide(this.surface, this.heading);
+  }
+
+  /**
+   * Where the feet go. Standing, that is the surface itself. In the air — mid-hop,
+   * or dropped by the child, or letting go of the lid — there is nothing to stand
+   * on, so they hang under the body instead of stretching down to a floor that is
+   * still a long way below and leaving the animal on stilts all the way down.
+   */
+  get footX(): number {
+    return this.x - footDir(this.surface).x * this.lift;
+  }
+
+  get footY(): number {
+    return this.y - footDir(this.surface).y * this.lift;
   }
 
   /**
@@ -871,8 +884,12 @@ export class Creature {
     const ux = away > 0.001 ? dx / away : Math.cos(this.heading);
     const uy = away > 0.001 ? dy / away : Math.sin(this.heading);
     this.dir = this.surface === 'left' || this.surface === 'right' ? (uy > 0 ? 1 : -1) : ux > 0 ? 1 : -1;
-    this.vx = ux * this.species.speed * 2.4;
-    this.vy = uy * this.species.speed * 2.4;
+    // In pixels a second, like every other velocity here. Left in body units it
+    // came out around a hundredth of the intended bolt, and a startled animal
+    // strolled away from the thing that frightened it.
+    const bolt = this.species.speed * this.unit * 2.4;
+    this.vx = ux * bolt;
+    this.vy = uy * bolt;
     this.frightX = px;
     this.frightY = py;
     this.fear = hard ? FEAR_SECONDS : FEAR_SECONDS * 0.35;
@@ -929,8 +946,8 @@ export class Creature {
 
   /** Nothing underneath: down it comes, and it is quite pleased about landing. */
   private fall(step: number, viv: Vivarium): void {
-    // A dropped animal turns itself feet-down on the way, the way they do.
-    this.heading = level(this.heading, 0.2);
+    // A dropped animal turns itself feet-down and level on the way, the way they do.
+    this.heading = this.dir > 0 ? 0 : Math.PI;
     this.vy += GRAVITY * viv.unit * step;
     this.lift -= this.vy * step;
     if (this.lift <= 0) {
@@ -1053,20 +1070,40 @@ export class Creature {
     }
     this.keepIn(viv);
 
-    if (Math.hypot(this.vx, this.vy) > 1) {
-      this.heading += angleDelta(this.heading, Math.atan2(this.vy * 0.35, this.vx)) * Math.min(1, 7 * step);
-    }
-    // Just put down: one giddy stagger before it remembers which way is forward.
-    if (this.dizzy > 0) this.heading += step * 5 * this.dizzy;
-    // Seen from the side, an animal walking towards the front glass is walking
-    // *at* us, not standing on its tail; one that has just stepped off a pane of
-    // glass is still pointing straight up. Whatever the frame decided, a body on
-    // the ground finishes it within a lean of level.
-    this.heading = level(this.heading, 0.35);
-    this.dir = Math.cos(this.heading) >= 0 ? 1 : -1;
+    this.face(step, cruise);
     this.stride(step, viv, pace);
     this.pose();
     return this.bite(world.foods, viv);
+  }
+
+  /**
+   * Point the body where it is going.
+   *
+   * Seen from the side there is no such thing as turning round: an animal faces
+   * left or it faces right, and the change is a flip on the spot with a beat of
+   * standing still around it. The only thing that eases is the lean — nose down
+   * towards the front glass, nose up towards the back wall — which is the whole
+   * of how a flat body says it is crossing the bank.
+   *
+   * Easing the heading itself, the way a fish turns, cannot work here: the body
+   * has to stay within a lean of level or it stands on its tail, and an angle
+   * that may not leave that band can never reach the other side of it. An animal
+   * whose goal was behind it simply walked backwards to get there, for ever.
+   */
+  private face(step: number, cruise: number): void {
+    if (Math.abs(this.vx) > cruise * 0.1) {
+      const want = this.vx > 0 ? 1 : -1;
+      if (want !== this.dir) {
+        this.dir = want;
+        // A beat to turn round in, so the flip lands on a stationary animal.
+        this.still = Math.max(this.still, 0.14);
+      }
+    }
+    const wantLean = Math.max(-0.3, Math.min(0.3, (this.vy / Math.max(1, cruise)) * 0.5));
+    this.lean += (wantLean - this.lean) * Math.min(1, 6 * step);
+    // Just put down: a giddy wobble before it remembers which way is forward.
+    const giddy = this.dizzy > 0 ? Math.sin(this.dizzy * 22) * 0.3 * this.dizzy : 0;
+    this.heading = (this.dir > 0 ? 0 : Math.PI) + this.dir * (this.lean + giddy);
   }
 
   /** Does it want to be up the glass right now? */

@@ -956,17 +956,28 @@ export function createAudio(): AudioEngine {
       at('boing', () => tone('triangle', 300, 0.25, { gain: 0.3, slideTo: 120 }));
     },
     chomp() {
-      // A bite is three things at once: teeth meeting (a crisp band of noise), the
-      // soft wet close around the food (a resonant filter sweeping shut) and a round
-      // low body so it reads as a mouth rather than a knock on the table. The small
-      // random shift keeps a run of bites from sounding like one sample on repeat.
+      // Eating is heard in the *grain*: teeth meeting three times in a quarter of
+      // a second, each meeting a crisp little snap of its own. The old bite was
+      // one smooth swept envelope, and one smooth envelope is a knock on a door
+      // or a puff of air whatever you filter it with — never a mouth.
+      //
+      // So: three short bright grains for the crunch, a round low close under
+      // each one for the jaw, and a soft slide at the end for the swallow. Each
+      // bite is a little quieter and a little duller than the one before, which
+      // is what stops three of them sounding like a machine.
       const v = 0.9 + Math.random() * 0.25;
       at('chomp', () => {
-        noise(0.05, { gain: 0.26, filter: { type: 'bandpass', freq: 1900 * v, to: 700 * v, q: 1.1 } });
-        noise(0.13, { gain: 0.5, filter: { type: 'lowpass', freq: 1100 * v, to: 190 * v, q: 6 } });
-        tone('triangle', 210 * v, 0.09, { gain: 0.14, slideTo: 95 * v, attack: 0.006 });
-        // The jaw meeting a second time, quiet enough to still read as a single bite.
-        noise(0.06, { at: 0.075, gain: 0.18, filter: { type: 'lowpass', freq: 700 * v, to: 200 * v, q: 5 } });
+        for (let i = 0; i < 3; i++) {
+          const t = i * 0.075;
+          const fade = 1 - i * 0.24;
+          const dull = 1 - i * 0.12;
+          // The crunch: short enough that the ear hears an edge rather than a sweep.
+          noise(0.024, { at: t, gain: 0.39 * fade, filter: { type: 'bandpass', freq: 3100 * v * dull, to: 1500 * v, q: 1.7 } });
+          // The jaw closing behind it, round and low.
+          noise(0.055, { at: t + 0.007, gain: 0.27 * fade, filter: { type: 'lowpass', freq: 950 * v, to: 230 * v, q: 3 } });
+        }
+        // …and the mouthful goes somewhere.
+        tone('triangle', 185 * v, 0.11, { gain: 0.092, slideTo: 82 * v, attack: 0.01, at: 0.17 });
       });
     },
     tick() {

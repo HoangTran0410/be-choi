@@ -47,12 +47,16 @@ export function tangentOf(surface: Surface): Point {
   return surface === 'left' || surface === 'right' ? { x: 0, y: 1 } : { x: 1, y: 0 };
 }
 
-/** Where `hip` puts its foot: `along` the surface, `lift` clear of it. */
+/**
+ * Where `hip` puts its foot: `along` the surface, `lift` clear of it. Off the
+ * ground the surface travels with the animal (`footX`/`footY`), so a dropped
+ * gecko's legs hang under it instead of trailing all the way down to the soil.
+ */
 function footPoint(cr: Creature, hip: Point, along: number, lift: number): Point {
   const t = tangentOf(cr.surface);
   const n = footDir(cr.surface);
-  const x = n.x !== 0 ? cr.x : hip.x;
-  const y = n.x !== 0 ? hip.y : cr.y;
+  const x = n.x !== 0 ? cr.footX : hip.x;
+  const y = n.x !== 0 ? hip.y : cr.footY;
   return { x: x + t.x * along - n.x * lift, y: y + t.y * along - n.y * lift };
 }
 
@@ -121,12 +125,34 @@ function flanks(cr: Creature, index: number): void {
   fB.y = joint.y - dy;
 }
 
+/**
+ * Which way round the body is at vertebra `index`: +1 when the flank `flanks`
+ * writes to `fA` is the one on the foot side, -1 when it is `fB`.
+ *
+ * It asks the vertebra's own angle, never the distance from the feet. Comparing
+ * against the feet is wrong for every animal whose body is narrower than its legs
+ * are long: both flanks then lie on the same side of the ground line, the sign
+ * falls to whichever flank `flanks` happened to write first, and a lizard walking
+ * one way is drawn belly-up while the same lizard walking the other way is fine.
+ */
+export function bellySign(cr: Creature, index: number): number {
+  const angle = (cr.spine.angles[index] ?? 0) + Math.PI / 2;
+  const n = footDir(cr.surface);
+  return Math.cos(angle) * n.x + Math.sin(angle) * n.y > 0 ? 1 : -1;
+}
+
+/** The point on the body's outline at vertebra `index` that is on the foot side. */
+export function bellyEdge(cr: Creature, index: number): Point {
+  const joint = cr.spine.joints[index] ?? { x: cr.x, y: cr.y };
+  const angle = (cr.spine.angles[index] ?? 0) + Math.PI / 2;
+  const w = cr.spine.widthAt(index) * bellySign(cr, index);
+  return { x: joint.x + Math.cos(angle) * w, y: joint.y + Math.sin(angle) * w };
+}
+
 /** Back on the far side from the feet, belly on the near side. */
 function bodyGradient(g: CanvasRenderingContext2D, cr: Creature): CanvasGradient {
   flanks(cr, 2);
-  const n = footDir(cr.surface);
-  // Whichever flank lies towards the feet is the belly.
-  const towards = (fA.x - cr.x) * n.x + (fA.y - cr.y) * n.y;
+  const towards = bellySign(cr, 2);
   const belly = towards > 0 ? fA : fB;
   const back = towards > 0 ? fB : fA;
   const grad = g.createLinearGradient(back.x, back.y, belly.x, belly.y);
@@ -221,10 +247,9 @@ function drawTrunk(g: CanvasRenderingContext2D, cr: Creature, seed: number, join
  */
 function drawEye(g: CanvasRenderingContext2D, cr: Creature, out = 0.45, size = 0.05): void {
   const head = cr.spine.joints[0]!;
-  const n = footDir(cr.surface);
+  // The flank away from the feet: the eye goes on the animal's back, not under it.
   flanks(cr, 0);
-  const towards = (fA.x - cr.x) * n.x + (fA.y - cr.y) * n.y;
-  const top = towards > 0 ? fB : fA;
+  const top = bellySign(cr, 0) > 0 ? fB : fA;
   const ex = head.x + (top.x - head.x) * out + Math.cos(cr.heading) * cr.length * 0.05;
   const ey = head.y + (top.y - head.y) * out + Math.sin(cr.heading) * cr.length * 0.05;
   const r = Math.max(2, cr.length * size);
