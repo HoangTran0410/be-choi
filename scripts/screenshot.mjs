@@ -24,6 +24,7 @@ const GAMES = [
   'drive',
   'shapes',
   'colors',
+  'tubes',
   'sizes',
   'shadows',
   'sounds',

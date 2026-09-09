@@ -109,6 +109,37 @@ check(
 );
 check('colors: confetti shown', (await page.locator('canvas.confetti').count()) === 1);
 
+// ---- tubes: lift a ball out of one tube and drop it in another until every tube is one colour ----
+await open('tubes');
+{
+  const tube = (i) => page.locator('.tubes-tube').nth(i);
+  const top = (i) => tube(i).locator('.tubes-ball').last();
+  const count = (i) => tube(i).locator('.tubes-ball').count();
+  const lifted = () => page.locator('.tubes-ball.up').count();
+  await tap(tube(0));
+  check('tubes: a tap lifts the top ball out', (await lifted()) === 1);
+  await tap(tube(0));
+  check('tubes: tapping again puts it back', (await lifted()) === 0);
+  // The first level is two colours of three balls, with two empty tubes: one spare each.
+  const home = new Map();
+  for (let src = 0; src < 2; src++) {
+    for (let i = 0; i < 3; i++) {
+      const color = await top(src).getAttribute('data-color');
+      if (!home.has(color)) home.set(color, home.size + 2);
+      await tap(tube(src));
+      await tap(tube(home.get(color)));
+    }
+  }
+  check('tubes: every colour in a tube of its own', (await page.locator('.tubes-tube.done').count()) === 2);
+  check('tubes: confetti shown', (await page.locator('canvas.confetti').count()) === 1);
+  await page.waitForTimeout(2200);
+  await dismissSticker();
+  check('tubes: the next level is bigger', (await page.locator('.tubes-tube').count()) === 5);
+  // Dragging a ball across works as well as tapping.
+  await drag(top(0), tube(4));
+  check('tubes: a ball can be dragged across', (await count(4)) === 1 && (await count(0)) === 2);
+}
+
 // ---- sizes ----
 await open('sizes');
 for (let i = 0; i < 4; i++) {

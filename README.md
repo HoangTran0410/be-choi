@@ -4,7 +4,7 @@ Web game cho bé 2–4 tuổi, lấy cảm hứng từ Bimi Boo Kids / Sago Mini
 chính điện thoại/tablet (PWA) và **chơi hoàn toàn offline**. Không quảng cáo, không cần đọc chữ,
 không có "thua", không giới hạn thời gian.
 
-## 37 trò chơi
+## 38 trò chơi
 
 **🎵 Âm nhạc**
 
@@ -31,6 +31,7 @@ không có "thua", không giới hạn thời gian.
 | 🔴 Quy luật | dãy 🍎🍌🍎🍌? chọn hình tiếp theo (AB → AAB → ABC) | logic |
 | 🔷 Ghép hình | kéo hình màu vào lỗ cùng hình | nhận biết hình |
 | 🎨 Màu sắc | kéo bóng vào giỏ cùng màu | phân loại màu |
+| 🧪 Xếp bi màu | nhấc viên bi trên cùng của một ống rồi thả sang ống khác — kéo bằng tay, hoặc bấm ống này cho bi nhô lên rồi bấm ống kia cho bi bay sang. Ống nào còn chỗ cũng nhận, nên không bao giờ bí. Xong khi mỗi ống chỉ còn một màu; qua màn thì thêm bi, thêm ống, thêm màu (2 màu × 3 bi → 6 màu × 5 bi) | phân loại, tính trước |
 | 🐘 To nhỏ | đồ to vào hộp to, đồ nhỏ vào hộp nhỏ | so sánh kích thước |
 | 🐾 Tìm bóng | kéo con vật lên đúng bóng của nó | tri giác thị giác |
 | 🔢 Đếm số | chạm từng quả, đọc "một, hai, ba…" | số đếm 1–5 |

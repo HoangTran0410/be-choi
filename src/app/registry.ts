@@ -8,6 +8,7 @@ import { meta as farm } from '../games/farm/meta';
 import { meta as drive } from '../games/drive/meta';
 import { meta as shapes } from '../games/shapes/meta';
 import { meta as colors } from '../games/colors/meta';
+import { meta as tubes } from '../games/tubes/meta';
 import { meta as sizes } from '../games/sizes/meta';
 import { meta as shadows } from '../games/shadows/meta';
 import { meta as sounds } from '../games/sounds/meta';
@@ -53,6 +54,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...drive, load: () => import('../games/drive/index') },
   { ...shapes, load: () => import('../games/shapes/index') },
   { ...colors, load: () => import('../games/colors/index') },
+  { ...tubes, load: () => import('../games/tubes/index') },
   { ...sizes, load: () => import('../games/sizes/index') },
   { ...shadows, load: () => import('../games/shadows/index') },
   { ...sounds, load: () => import('../games/sounds/index') },

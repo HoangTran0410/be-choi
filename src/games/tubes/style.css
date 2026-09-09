@@ -1,0 +1,137 @@
+/*
+ * Glass tubes of balls. `--tubes-ball` (the ball diameter) and `--tubes-cols`
+ * are measured by JS so a board of 4 tubes and one of 8 both fill the screen;
+ * the values here are the fallback for a stage that was never measured.
+ */
+.tubes {
+  --tubes-ball: clamp(30px, 8vmin, 76px);
+  --tubes-cols: 4;
+  --tubes-rows: 4;
+  --tubes-wall: max(2px, calc(var(--tubes-ball) * 0.055));
+  --tubes-tube-w: calc(var(--tubes-ball) * 1.16 + var(--tubes-wall) * 2);
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.tubes-area {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 2vmin;
+}
+.tubes-board {
+  /* Exactly `--tubes-cols` tubes wide, so the row breaks there and a short last
+     row (five tubes over two rows) stays centred under the one above it. */
+  width: calc(var(--tubes-cols) * var(--tubes-tube-w) + (var(--tubes-cols) - 1) * var(--tubes-ball) * 0.3);
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: calc(var(--tubes-ball) * 0.35) calc(var(--tubes-ball) * 0.3);
+  /* A strip of floor under the bottom row: the glass reads as centred, not dropped. */
+  padding-bottom: calc(var(--tubes-ball) * 0.55);
+}
+
+/* The tube is the tap target: the glass plus the headroom a lifted ball floats in. */
+.tubes-tube {
+  position: relative;
+  flex: none;
+  width: var(--tubes-tube-w);
+  height: calc(var(--tubes-ball) * (var(--tubes-rows) + 1.15));
+  display: flex;
+  align-items: flex-end;
+  touch-action: none;
+}
+.tubes-glass {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--tubes-ball) * var(--tubes-rows) + var(--tubes-wall) * 2 + var(--tubes-ball) * 0.06);
+  border: var(--tubes-wall) solid rgba(255, 255, 255, 0.7);
+  border-top: 0;
+  border-radius: calc(var(--tubes-ball) * 0.1) calc(var(--tubes-ball) * 0.1) calc(var(--tubes-ball) * 0.6) calc(var(--tubes-ball) * 0.6);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.5) 0 10%,
+    rgba(255, 255, 255, 0.12) 20% 58%,
+    rgba(255, 255, 255, 0.42) 72% 84%,
+    rgba(255, 255, 255, 0.14) 96%
+  );
+  box-shadow:
+    inset 0 calc(var(--tubes-ball) * -0.08) calc(var(--tubes-ball) * 0.12) rgba(0, 0, 0, 0.07),
+    0 3px 8px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  transition:
+    box-shadow 0.25s,
+    border-color 0.25s;
+}
+/* The rim, seen slightly from above. */
+.tubes-glass::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tubes-wall) * -1);
+  right: calc(var(--tubes-wall) * -1);
+  top: calc(var(--tubes-ball) * -0.09);
+  height: calc(var(--tubes-ball) * 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.08);
+}
+/* A tube that is full of one colour: it glows in that colour and stops being work. */
+.tubes-tube.done .tubes-glass {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 max(2px, calc(var(--tubes-ball) * 0.05)) color-mix(in srgb, var(--tubes-c, #fff) 55%, transparent),
+    0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.tubes-stack {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 0 var(--tubes-wall) calc(var(--tubes-wall) + var(--tubes-ball) * 0.04);
+  display: flex;
+  /* First child is the ball on the floor of the tube, later ones stack on top of it. */
+  flex-direction: column-reverse;
+  align-items: center;
+}
+.tubes-ball {
+  position: relative;
+  flex: none;
+  width: var(--tubes-ball);
+  height: var(--tubes-ball);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 42%),
+    radial-gradient(circle at 68% 80%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 56%), var(--tubes-c, #ef4444);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  touch-action: none;
+  will-change: transform;
+}
+/* Lifted out of the tube and waiting: `top`, not `transform`, so a drag can still move it. */
+.tubes-ball.up {
+  z-index: 5;
+  top: calc(var(--tubes-ball) * -0.98);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.25));
+  animation: tubes-float 1.6s ease-in-out infinite;
+}
+.tubes-ball.up.dragging {
+  top: calc(var(--tubes-ball) * -0.98);
+  animation: none;
+}
+.tubes-ball.flying {
+  transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+@keyframes tubes-float {
+  0%,
+  100% {
+    top: calc(var(--tubes-ball) * -0.94);
+  }
+  50% {
+    top: calc(var(--tubes-ball) * -1.1);
+  }
+}
