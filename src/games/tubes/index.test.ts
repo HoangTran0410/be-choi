@@ -20,8 +20,18 @@ const ptr = (type: string, x = 0, y = 0) =>
 const tubes = (stage: HTMLElement) => [...stage.querySelectorAll<HTMLElement>('.tubes-tube')];
 const ballsIn = (tube: HTMLElement) => [...tube.querySelectorAll<HTMLElement>('.tubes-ball')];
 const colorOf = (ball: HTMLElement) => ball.dataset.color ?? '';
-/** A tap on the glass: enough for the game to lift, drop or put back a ball. */
-const tap = (el: HTMLElement) => el.dispatchEvent(ptr('pointerdown'));
+const upBalls = (stage: HTMLElement) => [...stage.querySelectorAll<HTMLElement>('.tubes-ball.up')];
+/** A tap: down and up in the same spot, anywhere on the tube. */
+const tap = (el: HTMLElement) => {
+  el.dispatchEvent(ptr('pointerdown'));
+  el.dispatchEvent(ptr('pointerup'));
+};
+/** A drag from `el` to a point, in the pointer events the tube listens for. */
+const dragTo = (el: HTMLElement, from: [number, number], to: [number, number]) => {
+  el.dispatchEvent(ptr('pointerdown', from[0], from[1]));
+  el.dispatchEvent(ptr('pointermove', to[0], to[1]));
+  el.dispatchEvent(ptr('pointerup', to[0], to[1]));
+};
 const flush = async () => {
   await Promise.resolve();
   await Promise.resolve();
@@ -36,34 +46,45 @@ function stubRects(stage: HTMLElement): void {
 }
 
 describe('tubes game', () => {
-  it('deals the first level: two full tubes, two empty, and only the top ball can be picked up', () => {
+  it('deals the first level: two full tubes and two empty ones', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const all = tubes(ctx.stage);
     expect(all.length).toBe(4);
-    expect(all.slice(0, 2).map((t) => ballsIn(t).length)).toEqual([3, 3]);
-    expect(all.slice(2).map((t) => ballsIn(t).length)).toEqual([0, 0]);
-    for (const t of all.slice(0, 2)) {
-      const balls = ballsIn(t);
-      expect(balls.map((b) => b.classList.contains('placed'))).toEqual([true, true, false]);
-    }
+    expect(all.map((t) => ballsIn(t).length)).toEqual([3, 3, 0, 0]);
     ctx.cleanup();
     expect(document.body.contains(ctx.stage)).toBe(false);
   });
 
-  it('a tap lifts the top ball out, another tap puts it back', () => {
+  it('a press anywhere on the tube — even on a buried ball — takes the top ball out', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const tube = tubes(ctx.stage)[0]!;
-    const top = ballsIn(tube).at(-1)!;
+    const balls = ballsIn(tube);
+    // The finger lands on the ball at the bottom of the pile.
+    balls[0]!.dispatchEvent(ptr('pointerdown'));
+    balls[0]!.dispatchEvent(ptr('pointerup'));
+    expect(upBalls(ctx.stage)).toEqual([balls.at(-1)]);
     tap(tube);
-    expect(top.classList.contains('up')).toBe(true);
-    tap(tube);
-    expect(top.classList.contains('up')).toBe(false);
+    expect(upBalls(ctx.stage)).toEqual([]);
     ctx.cleanup();
   });
 
-  it('tapping another tube sends the lifted ball over', () => {
+  it('lifts the ball clear of the rim however deep in the tube it sat', () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    const [a, , spare] = tubes(ctx.stage);
+    tap(a!);
+    // A full tube of three: the top ball is at the rim already.
+    expect(upBalls(ctx.stage)[0]!.style.getPropertyValue('--tubes-lift')).toBe('0.98');
+    tap(spare!);
+    tap(a!);
+    // Two balls left, so the next one has an empty slot to climb past as well.
+    expect(upBalls(ctx.stage)[0]!.style.getPropertyValue('--tubes-lift')).toBe('1.98');
+    ctx.cleanup();
+  });
+
+  it('tapping another tube sends the waiting ball over', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const [from, , spare] = tubes(ctx.stage);
@@ -73,8 +94,6 @@ describe('tubes game', () => {
     expect(ballsIn(spare!)).toEqual([top]);
     expect(ballsIn(from!).length).toBe(2);
     expect(top.classList.contains('up')).toBe(false);
-    // The ball that was underneath can now be picked up.
-    expect(ballsIn(from!).at(-1)!.classList.contains('placed')).toBe(false);
     ctx.cleanup();
   });
 
@@ -94,19 +113,32 @@ describe('tubes game', () => {
     ctx.cleanup();
   });
 
-  it('dragging a ball across drops it into the tube it was let go over', async () => {
+  it('dragging a ball across drops it into the tube it was let go over', () => {
     const ctx = fakeContext();
     game.start(ctx);
     stubRects(ctx.stage);
     const [from, , spare] = tubes(ctx.stage);
     const top = ballsIn(from!).at(-1)!;
-    top.dispatchEvent(ptr('pointerdown', 30, 150));
-    top.dispatchEvent(ptr('pointermove', 230, 150));
-    top.dispatchEvent(ptr('pointerup', 230, 150));
-    await flush();
+    dragTo(from!, [30, 150], [230, 150]);
     expect(ballsIn(spare!)).toEqual([top]);
     expect(top.style.transform).toBe('');
-    expect(top.dataset.dx).toBeUndefined();
+    ctx.cleanup();
+  });
+
+  it('dragging from another tube drops the waiting ball and picks that one up instead', () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    stubRects(ctx.stage);
+    const all = tubes(ctx.stage);
+    const waiting = ballsIn(all[0]!).at(-1)!;
+    tap(all[0]!);
+    expect(waiting.classList.contains('up')).toBe(true);
+    // The child ignores the ball in hand and drags tube 1 over to the empty tube 3.
+    const other = ballsIn(all[1]!).at(-1)!;
+    dragTo(all[1]!, [130, 150], [330, 150]);
+    expect(waiting.classList.contains('up')).toBe(false);
+    expect(ballsIn(all[0]!).length).toBe(3);
+    expect(ballsIn(all[3]!)).toEqual([other]);
     ctx.cleanup();
   });
 

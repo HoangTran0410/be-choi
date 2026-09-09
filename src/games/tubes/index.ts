@@ -1,6 +1,6 @@
 import type { ColorDef } from '../../core/content';
 import { h, replay } from '../../core/dom';
-import { makeDraggable, type Pt } from '../../core/drag';
+import type { Pt } from '../../core/drag';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { bestLayout, canMove, dealLevel, isSolved, isTubeDone, suggestMove, tubeAt, type Board } from './logic';
@@ -10,6 +10,8 @@ import './style.css';
 const TAP_SLOP = 10;
 /** How far outside a tube a ball may be let go and still fall in, in tube widths. */
 const DROP_SLACK = 0.6;
+/** How far clear of the rim a ball in hand floats, in ball heights. */
+const LIFT = 0.98;
 
 interface Tube {
   el: HTMLElement;
@@ -18,12 +20,31 @@ interface Tube {
   balls: HTMLElement[];
 }
 
+/** The finger that is down right now, and what it started on. */
+interface Press {
+  id: number;
+  /** Tube the finger landed on. */
+  tube: number;
+  x: number;
+  y: number;
+  /** What letting go without moving would mean. */
+  mode: 'grab' | 'lower' | 'move';
+  /** The press has travelled far enough to be a drag. */
+  far: boolean;
+  /** Ball this press is holding still, so that a drag can measure where it rests. */
+  ball: HTMLElement | null;
+  /** Screen centre that ball rests at, once it is being carried. */
+  cx: number;
+  cy: number;
+}
+
 /**
- * Ball sort. Every tube holds one colour at the end; a tap lifts the top ball out
- * of its tube and a tap on another tube sends it over, or the child simply drags
- * it across. Any tube with room accepts any ball (see `logic.ts`), so the board
- * can never be locked up — the only way through is to keep sorting. Finishing a
- * board bumps the level: more balls, more tubes, more colours.
+ * Ball sort. Every tube holds one colour at the end. Pressing a tube anywhere —
+ * the glass, a buried ball — takes its top ball out and puts it in the child's
+ * hand: let go without moving and it waits above the rim for a tube to be tapped,
+ * or drag it straight across. Any tube with room accepts any ball (see `logic.ts`),
+ * so the board can never be locked up. Finishing one bumps the level: more balls,
+ * more tubes, more colours.
  */
 function start(ctx: GameContext): void {
   let level = 0;
@@ -32,12 +53,9 @@ function start(ctx: GameContext): void {
   let board: Board = [];
   let palette: readonly ColorDef[] = [];
   let tubes: Tube[] = [];
-  /** Tube whose top ball is lifted out, waiting for somewhere to go. */
+  /** Tube whose top ball is out, waiting for somewhere to go. */
   let selected: number | null = null;
-  /** The lifted ball was already up when this press began: a tap puts it back down. */
-  let wasUp = false;
-  /** Where the press started, to tell a tap from a drag. */
-  let down: Pt = { x: 0, y: 0 };
+  let press: Press | null = null;
   /** True while a won board is being celebrated: the tubes stop answering. */
   let busy = false;
   let alive = true;
@@ -64,10 +82,7 @@ function start(ctx: GameContext): void {
   }
 
   function makeBall(colorId: string): HTMLElement {
-    const el = h('div', { class: 'tubes-ball', 'data-color': colorId, style: `--tubes-c:${colorOf(colorId)?.hex ?? '#ef4444'}` });
-    el.addEventListener('transitionend', () => el.classList.remove('flying'));
-    disposers.push(makeDraggable(el, { onDrop: (ball, p) => drop(ball, p) }));
-    return el;
+    return h('div', { class: 'tubes-ball', 'data-color': colorId, style: `--tubes-c:${colorOf(colorId)?.hex ?? '#ef4444'}` });
   }
 
   /**
@@ -76,37 +91,48 @@ function start(ctx: GameContext): void {
    */
   function fly(ball: HTMLElement, stack: HTMLElement): void {
     const from = ball.getBoundingClientRect();
-    ball.classList.remove('up', 'flying', 'spring-back');
+    ball.classList.remove('up', 'held', 'dragging');
     ball.style.transition = 'none';
     ball.style.transform = '';
-    delete ball.dataset.dx;
-    delete ball.dataset.dy;
     stack.append(ball);
     const to = ball.getBoundingClientRect();
     const dx = from.left - to.left;
     const dy = from.top - to.top;
-    ball.style.transition = '';
-    if (!dx && !dy) return;
+    if (!dx && !dy) {
+      ball.style.transition = '';
+      return;
+    }
     ball.style.transform = `translate(${dx}px, ${dy}px)`;
-    // Commit that starting frame, then let the class transition it back to zero.
+    // Commit that starting frame with no transition, then hand it back so the
+    // ball travels home instead of appearing there.
     void ball.offsetWidth;
-    ball.classList.add('flying');
+    ball.style.transition = '';
     ball.style.transform = '';
   }
 
+  /** Take the top ball of tube `i` out and hold it clear of the rim. */
   function lift(i: number): void {
-    const ball = tubes[i]?.balls.at(-1);
-    if (!ball) return;
+    const t = tubes[i];
+    const ball = t?.balls.at(-1);
+    if (!t || !ball) return;
     selected = i;
+    // Right out of the tube, not one slot up: how far depends on how deep it sat.
+    ball.style.setProperty('--tubes-lift', String(height - t.balls.length + LIFT));
+    ball.style.transform = '';
     ball.classList.add('up');
     ctx.audio.pop(1.4);
   }
 
-  function lower(): void {
+  /** Drop the waiting ball back where it came from. */
+  function lower(quiet = false): void {
     if (selected === null) return;
-    tubes[selected]?.balls.at(-1)?.classList.remove('up');
+    const ball = tubes[selected]?.balls.at(-1);
+    if (ball) {
+      ball.classList.remove('up', 'held', 'dragging');
+      ball.style.transform = '';
+    }
     selected = null;
-    ctx.audio.tick();
+    if (!quiet) ctx.audio.tick();
   }
 
   function move(from: number, to: number): void {
@@ -130,11 +156,9 @@ function start(ctx: GameContext): void {
     check();
   }
 
-  /** Only a top ball can be picked up, and a full one-colour tube shines. */
+  /** A full one-colour tube shines and says its colour. */
   function refresh(announce = true): void {
     tubes.forEach((t, i) => {
-      const top = t.balls.length - 1;
-      t.balls.forEach((b, j) => b.classList.toggle('placed', j !== top));
       const done = isTubeDone(board[i]!, height);
       if (!done) {
         t.el.classList.remove('done');
@@ -165,68 +189,110 @@ function start(ctx: GameContext): void {
     });
   }
 
-  /** Pointer down on a tube. Runs before the ball's own drag handler (capture phase). */
-  function press(e: PointerEvent, i: number): void {
-    if (!alive || busy) {
-      e.stopPropagation();
-      return;
+  /** Freeze a ball's float, so a drag can measure exactly where it is resting. */
+  function hold(ball: HTMLElement | null): void {
+    if (!press) return;
+    press.ball = ball;
+    ball?.classList.add('held');
+  }
+
+  function onDown(e: PointerEvent, i: number): void {
+    if (!alive || busy || press || e.isPrimary === false || e.button > 0) return;
+    const t = tubes[i];
+    if (!t) return;
+    e.preventDefault();
+    const mode = selected === null ? 'grab' : selected === i ? 'lower' : 'move';
+    press = { id: e.pointerId, tube: i, x: e.clientX, y: e.clientY, mode, far: false, ball: null, cx: 0, cy: 0 };
+    try {
+      t.el.setPointerCapture(e.pointerId);
+    } catch {
+      /* jsdom, or a browser that will not capture: the handlers still fire */
     }
-    down = { x: e.clientX, y: e.clientY };
-    if (selected === null) {
-      wasUp = false;
-      if (!tubes[i]?.balls.length) {
+    if (mode === 'grab') {
+      if (!t.balls.length) {
         ctx.audio.tick();
         return;
       }
-      // Lift the top ball out and let go of the event: the same press may become a drag.
+      // Wherever on the tube the finger landed, the top ball comes out.
       lift(i);
-      return;
     }
-    if (selected === i) {
-      wasUp = true;
-      // The press landed on the glass or on a buried ball, so no drag can start
-      // from it: this is the tap that puts the lifted ball back down.
-      if (e.target !== tubes[i]?.balls.at(-1)) lower();
-      return;
-    }
-    // A ball is already in hand and another tube was tapped: send it over, and
-    // keep the press away from that tube's own top ball.
-    e.stopPropagation();
-    e.preventDefault();
-    move(selected, i);
+    hold(selected === null ? null : (tubes[selected]?.balls.at(-1) ?? null));
   }
 
-  /** Pointer up after dragging a ball (or after a tap that never moved). */
-  function drop(ball: HTMLElement, p: Pt): boolean {
-    if (!alive || busy) return false;
-    const from = tubes.findIndex((t) => t.balls.at(-1) === ball);
-    if (from < 0) return false;
-    if (!(Math.hypot(p.x - down.x, p.y - down.y) > TAP_SLOP)) {
-      // A tap: the first one lifted the ball (in `press`), a second one puts it back.
-      if (wasUp) lower();
-      return false;
+  /** The press has become a drag: work out which ball ends up under the finger. */
+  function carry(): void {
+    if (!press) return;
+    const i = press.tube;
+    // A ball was waiting and the finger set off from a different tube: the child
+    // changed their mind. Put that one back and hand them this tube's ball.
+    if (press.mode === 'move' && tubes[i]?.balls.length) {
+      press.ball?.classList.remove('held');
+      lower(true);
+      lift(i);
+      hold(tubes[i]?.balls.at(-1) ?? null);
     }
+    const ball = press.ball;
+    if (!ball) return;
+    ball.classList.add('dragging');
+    const r = ball.getBoundingClientRect();
+    press.cx = r.left + r.width / 2;
+    press.cy = r.top + r.height / 2;
+  }
+
+  function onMove(e: PointerEvent): void {
+    if (!press || e.pointerId !== press.id) return;
+    const p: Pt = { x: e.clientX, y: e.clientY };
+    if (!press.far) {
+      if (!(Math.hypot(p.x - press.x, p.y - press.y) > TAP_SLOP)) return;
+      press.far = true;
+      carry();
+    }
+    // The ball sits in the child's hand: centred on the finger, wherever it goes.
+    if (press.ball) press.ball.style.transform = `translate(${p.x - press.cx}px, ${p.y - press.cy}px)`;
+  }
+
+  function onUp(e: PointerEvent): void {
+    if (!press || e.pointerId !== press.id) return;
+    const { far, mode, tube: i, ball } = press;
+    const from = selected;
+    press = null;
+    ball?.classList.remove('held', 'dragging');
+    if (!far) {
+      // A tap. Picking a ball up already happened on the way down.
+      if (mode === 'lower') lower();
+      else if (mode === 'move' && from !== null) move(from, i);
+      return;
+    }
+    if (!ball || from === null) return;
     const rects = tubes.map((t) => t.el.getBoundingClientRect());
-    const to = tubeAt(p, rects, (rects[0]?.width ?? 0) * DROP_SLACK);
-    // Let go over nothing and the ball stays up in the child's hand.
-    if (to < 0 || to === from) return false;
-    if (!canMove(board, from, to, height)) {
+    const to = tubeAt({ x: e.clientX, y: e.clientY }, rects, (rects[0]?.width ?? 0) * DROP_SLACK);
+    if (to >= 0 && to !== from) {
+      if (canMove(board, from, to, height)) {
+        move(from, to);
+        return;
+      }
       ctx.audio.boing();
       replay(tubes[to]!.el, 'anim-shake');
-      return false;
     }
-    // The drag machinery is still holding this element: move it once it has let go.
-    queueMicrotask(() => {
-      if (alive) move(from, to);
-    });
-    return true;
+    // Let go over nothing (or over a full tube): the ball floats back over its
+    // own tube and keeps waiting there.
+    ball.style.transform = '';
+  }
+
+  function onCancel(e: PointerEvent): void {
+    if (!press || e.pointerId !== press.id) return;
+    const ball = press.ball;
+    press = null;
+    if (!ball) return;
+    ball.classList.remove('held', 'dragging');
+    ball.style.transform = '';
   }
 
   function deal(): void {
     for (const d of disposers) d();
     disposers = [];
     selected = null;
-    wasUp = false;
+    press = null;
     const d = dealLevel(level);
     board = d.tubes;
     palette = d.palette;
@@ -236,9 +302,20 @@ function start(ctx: GameContext): void {
       const el = h('div', { class: 'tubes-tube', 'data-tube': String(i) }, h('div', { class: 'tubes-glass' }), stack);
       const balls = colors.map((c) => makeBall(c));
       stack.append(...balls);
-      const onDown = (e: Event) => press(e as PointerEvent, i);
-      el.addEventListener('pointerdown', onDown, { capture: true });
-      disposers.push(() => el.removeEventListener('pointerdown', onDown, { capture: true }));
+      const down = (e: Event) => onDown(e as PointerEvent, i);
+      const moved = (e: Event) => onMove(e as PointerEvent);
+      const up = (e: Event) => onUp(e as PointerEvent);
+      const cancel = (e: Event) => onCancel(e as PointerEvent);
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointermove', moved);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', cancel);
+      disposers.push(() => {
+        el.removeEventListener('pointerdown', down);
+        el.removeEventListener('pointermove', moved);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', cancel);
+      });
       return { el, stack, balls };
     });
     boardEl.replaceChildren(...tubes.map((t) => t.el));

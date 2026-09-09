@@ -138,6 +138,15 @@ await open('tubes');
   // Dragging a ball across works as well as tapping.
   await drag(top(0), tube(4));
   check('tubes: a ball can be dragged across', (await count(4)) === 1 && (await count(0)) === 2);
+  // A ball is waiting, but the finger sets off from another tube: the child
+  // changed their mind, so that one goes back and this tube's ball comes up.
+  await tap(tube(0));
+  await drag(top(1), tube(3));
+  check(
+    'tubes: dragging elsewhere puts the waiting ball back',
+    (await count(0)) === 2 && (await count(1)) === 2 && (await count(3)) === 1,
+    `${await count(0)}/${await count(1)}/${await count(3)}`,
+  );
 }
 
 // ---- sizes ----
