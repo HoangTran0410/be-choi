@@ -8,6 +8,10 @@ import {
   commandMessage,
   listeningMessage,
   readPlayerMessage,
+  clampTime,
+  formatTime,
+  seekMessage,
+  PLAYER_SANDBOX,
   shieldStrips,
   SHIELD_HOLE,
   allVideos,
@@ -223,5 +227,42 @@ describe('shieldStrips', () => {
     expect(right!.left + right!.width).toBe(100);
     expect(left!.top).toBe(top!.height);
     expect(left!.top + left!.height).toBe(bottom!.top);
+  });
+});
+
+describe('time', () => {
+  it('reads like a video player', () => {
+    expect(formatTime(0)).toBe('0:00');
+    expect(formatTime(5.9)).toBe('0:05');
+    expect(formatTime(65)).toBe('1:05');
+    expect(formatTime(600)).toBe('10:00');
+    expect(formatTime(3725)).toBe('1:02:05');
+    expect(formatTime(-3)).toBe('0:00');
+    expect(formatTime(NaN)).toBe('0:00');
+  });
+
+  it('keeps a seek inside the video', () => {
+    expect(clampTime(-5, 100)).toBe(0);
+    expect(clampTime(50, 100)).toBe(50);
+    expect(clampTime(130, 100)).toBe(100);
+    expect(clampTime(NaN, 100)).toBe(0);
+    expect(JSON.parse(seekMessage(42))).toEqual({ event: 'command', func: 'seekTo', args: [42, true] });
+  });
+
+  it('reads position, length and liveness from the player', () => {
+    expect(readPlayerMessage({ event: 'infoDelivery', info: { currentTime: 12.5, duration: 300, videoData: { isLive: false } } })).toEqual({
+      currentTime: 12.5,
+      duration: 300,
+      live: false,
+    });
+    expect(readPlayerMessage({ event: 'infoDelivery', info: { videoData: { isLive: true } } })).toEqual({ live: true });
+    expect(readPlayerMessage({ event: 'infoDelivery', info: { currentTime: 'x', duration: Infinity, videoData: null } })).toEqual({});
+  });
+});
+
+describe('the sandbox', () => {
+  it('lets the player run but never open a window or leave the page', () => {
+    const tokens = PLAYER_SANDBOX.split(' ');
+    expect(tokens.sort()).toEqual(['allow-presentation', 'allow-same-origin', 'allow-scripts']);
   });
 });

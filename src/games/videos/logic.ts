@@ -54,12 +54,15 @@ export const SHELVES: readonly Shelf[] = [
     ],
   },
   // The rest are iFocus's Scene > Video backgrounds, sorted by what is on screen.
+  // Lofi Girl's 24/7 stream restarts under a new id now and then: iFocus's
+  // jfKfPfyJRdk died ("live stream recording not available", embedded or not)
+  // and rFZHOHl-L8A is the stream that replaced it.
   {
     id: 'lofi',
     icon: '🎧',
     name: 'Lofi',
     videos: [
-      { id: 'jfKfPfyJRdk', emoji: '📚', title: 'Cô bé Lofi' },
+      { id: 'rFZHOHl-L8A', emoji: '📚', title: 'Cô bé lofi' },
       { id: 'q8nPaqfRm_c', emoji: '🚆', title: 'Tàu Nhật Bản' },
       { id: '-Xh4BNbxpI8', emoji: '🌆', title: 'Thành phố đêm' },
       { id: '4UOOcSfkbQQ', emoji: '🚗', title: 'Lái xe lúc hoàng hôn' },
@@ -264,10 +267,30 @@ export function shieldStrips(hole = SHIELD_HOLE): Strip[] {
 
 // ---- talking to the player (the IFrame API's postMessage protocol, without its script) ----
 
-export type PlayerCommand = 'playVideo' | 'pauseVideo' | 'mute' | 'unMute';
+export type PlayerCommand = 'playVideo' | 'pauseVideo' | 'mute' | 'unMute' | 'seekTo';
 
-export function commandMessage(func: PlayerCommand): string {
-  return JSON.stringify({ event: 'command', func, args: [] });
+export function commandMessage(func: PlayerCommand, args: unknown[] = []): string {
+  return JSON.stringify({ event: 'command', func, args });
+}
+
+/** Jump to `seconds`; `true` lets the player fetch ahead of what it has buffered. */
+export function seekMessage(seconds: number): string {
+  return commandMessage('seekTo', [seconds, true]);
+}
+
+/** A seek target kept inside the video. */
+export function clampTime(seconds: number, duration: number): number {
+  if (!Number.isFinite(seconds)) return 0;
+  return Math.min(Math.max(0, seconds), Math.max(0, duration));
+}
+
+/** `65` → `1:05`, `3725` → `1:02:05`: the way a video player shows time. */
+export function formatTime(seconds: number): string {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
 
 /** Sent until the player starts talking back: after it, the player reports its state on its own. */
@@ -281,6 +304,11 @@ const PLAYING_STATES = new Set([1, 3]);
 export interface PlayerNews {
   playing?: boolean;
   muted?: boolean;
+  /** Seconds. */
+  currentTime?: number;
+  duration?: number;
+  /** A live stream: no end, so nothing to seek along. */
+  live?: boolean;
 }
 
 /**
@@ -303,9 +331,13 @@ export function readPlayerMessage(data: unknown): PlayerNews | null {
   if (event === 'onStateChange' && typeof info === 'number') {
     news.playing = PLAYING_STATES.has(info);
   } else if ((event === 'infoDelivery' || event === 'initialDelivery') && info && typeof info === 'object') {
-    const { playerState, muted } = info as { playerState?: unknown; muted?: unknown };
+    const { playerState, muted, currentTime, duration, videoData } = info as Record<string, unknown>;
     if (typeof playerState === 'number') news.playing = PLAYING_STATES.has(playerState);
     if (typeof muted === 'boolean') news.muted = muted;
+    if (typeof currentTime === 'number' && Number.isFinite(currentTime)) news.currentTime = Math.max(0, currentTime);
+    if (typeof duration === 'number' && Number.isFinite(duration)) news.duration = Math.max(0, duration);
+    const isLive = (videoData as { isLive?: unknown } | null | undefined)?.isLive;
+    if (typeof isLive === 'boolean') news.live = isLive;
   } else if (typeof event !== 'string') {
     return null;
   }
@@ -315,6 +347,22 @@ export function readPlayerMessage(data: unknown): PlayerNews | null {
 export function thumbUrl(video: string): string {
   return `https://i.ytimg.com/vi/${video}/mqdefault.jpg`;
 }
+
+/** The bigger picture, for covering a paused player. */
+export function posterUrl(video: string): string {
+  return `https://i.ytimg.com/vi/${video}/hqdefault.jpg`;
+}
+
+/**
+ * What the player's frame may do: run its scripts, reach its own cookies and
+ * storage (without them it will not play), and show media. Deliberately not
+ * `allow-popups` or `allow-top-navigation`: every link in the player — title,
+ * channel, logo, "Watch on YouTube", suggestions — is then refused by the
+ * browser instead of opening a tab or the YouTube app. Checked in Chromium:
+ * all but one of the videos here play under it, and the one that does not is
+ * dead everywhere.
+ */
+export const PLAYER_SANDBOX = 'allow-scripts allow-same-origin allow-presentation';
 
 export function oembedUrl(ref: YouTubeRef): string {
   return `https://www.youtube.com/oembed?url=${encodeURIComponent(watchUrl(ref))}&format=json`;

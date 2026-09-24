@@ -11,6 +11,11 @@ import {
   embedUrl,
   listeningMessage,
   oembedUrl,
+  PLAYER_SANDBOX,
+  clampTime,
+  formatTime,
+  posterUrl,
+  seekMessage,
   readPlayerMessage,
   shieldStrips,
   parseSaved,
@@ -86,14 +91,33 @@ function start(ctx: GameContext): void {
   let playing: {
     frame: HTMLElement;
     ref: YouTubeRef;
+    emoji: string;
     /** Names this player in the listening handshake. */
     id: string;
     playBtn: HTMLElement;
     soundBtn: HTMLElement;
+    /** Our poster over a paused player, and the plug that closes the shield's hole. */
+    poster: HTMLElement;
+    plug: HTMLElement;
     isPlaying: boolean;
     muted: boolean;
     /** The player has spoken at least once, so the handshake can stop. */
     heard: boolean;
+    /** The player has said it is playing at least once: from then on it can be resumed from here. */
+    played: boolean;
+    /** The poster is up, and stays up until the player says it is playing again. */
+    posterUp: boolean;
+    /** Seconds, as last reported (or last sought to). 0 duration: not known yet. */
+    currentTime: number;
+    duration: number;
+    live: boolean;
+    /** A finger is on the seek bar: the bar follows it, not the player. */
+    dragging: boolean;
+    seek: HTMLElement;
+    fill: HTMLElement;
+    knob: HTMLElement;
+    time: HTMLElement;
+    jumps: HTMLElement[];
     hello: ReturnType<typeof setInterval> | null;
   } | null = null;
   let sessions = 0;
@@ -162,7 +186,7 @@ function start(ctx: GameContext): void {
       if (settling()) return;
       ctx.hint.touch();
       replay(btn, 'vd-press');
-      openPlayer(ref);
+      openPlayer(ref, emoji);
     });
     const item = h('div', { class: 'vd-item' }, btn);
     if (removable) {
@@ -200,6 +224,8 @@ function start(ctx: GameContext): void {
   /** Stop pestering a player that never answers (blocked, or not YouTube's any more) after this many tries. */
   const HELLO_TRIES = 20;
   const HELLO_MS = 500;
+  /** What ⏪ and ⏩ skip, in seconds. */
+  const JUMP_S = 10;
 
   function closePlayer(): void {
     // Taking the iframe out of the page is what stops the sound.
@@ -216,6 +242,87 @@ function start(ctx: GameContext): void {
     playing.playBtn.setAttribute('aria-label', playing.isPlaying ? 'Dừng' : 'Phát');
     playing.soundBtn.hidden = !playing.muted || !playing.frame.querySelector('iframe');
     playing.playBtn.hidden = !playing.frame.querySelector('iframe');
+    playing.poster.hidden = !playing.posterUp;
+    playing.plug.hidden = !playing.played;
+    // Nothing to seek along until the length is known, nor ever on a live stream.
+    const seekable = canSeek();
+    playing.seek.hidden = !seekable;
+    for (const b of playing.jumps) b.hidden = !seekable;
+    if (seekable && !playing.dragging) showTime(playing.currentTime);
+  }
+
+  function canSeek(): boolean {
+    return !!playing && !playing.live && playing.duration > 0 && !!playing.frame.querySelector('iframe');
+  }
+
+  /** Put the bar's fill and knob at `t` seconds, and say it in numbers. */
+  function showTime(t: number): void {
+    if (!playing) return;
+    const pct = playing.duration > 0 ? (clampTime(t, playing.duration) / playing.duration) * 100 : 0;
+    playing.fill.style.width = `${pct}%`;
+    playing.knob.style.left = `${pct}%`;
+    const total = formatTime(playing.duration);
+    playing.time.textContent = `${formatTime(t)} / ${total}`;
+    // As wide as it will ever get, so the bar beside it does not twitch as the seconds tick.
+    playing.time.style.minWidth = `${total.length * 2 + 3}ch`;
+  }
+
+  function seekTo(t: number): void {
+    if (!playing || !canSeek()) return;
+    const to = clampTime(t, playing.duration);
+    playing.frame.querySelector('iframe')?.contentWindow?.postMessage(seekMessage(to), PLAYER_ORIGIN);
+    // Move at once; the player's next report confirms it.
+    playing.currentTime = to;
+    syncButtons();
+  }
+
+  /**
+   * The seek bar: tap anywhere to jump there, or drag the knob and let go. The
+   * pointer is captured, so a finger sliding off the bar keeps scrubbing, and
+   * the jump happens once, on release, instead of dozens of seeks mid-drag.
+   */
+  function seekBar(): { seek: HTMLElement; fill: HTMLElement; knob: HTMLElement; time: HTMLElement } {
+    const fill = h('span', { class: 'vd-fill' });
+    const knob = h('span', { class: 'vd-knob' });
+    const track = h('div', { class: 'vd-track', role: 'slider', 'aria-label': 'Tua video' }, h('span', { class: 'vd-rail' }, fill), knob);
+    const time = h('span', { class: 'vd-time' });
+    const seek = h('div', { class: 'vd-seek', hidden: true }, track, time);
+    /** Measured once per touch: the time label may change width mid-drag and move the bar under the finger. */
+    let rect: DOMRect | null = null;
+    const at = (e: PointerEvent) => {
+      const r = rect ?? track.getBoundingClientRect();
+      const f = r.width > 0 ? Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) : 0;
+      return f * (playing?.duration ?? 0);
+    };
+    track.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (!playing || !canSeek()) return;
+      playing.dragging = true;
+      rect = track.getBoundingClientRect();
+      try {
+        track.setPointerCapture(e.pointerId);
+      } catch {
+        /* a synthetic pointer (tests, old browsers): dragging still works while it stays on the bar */
+      }
+      showTime(at(e));
+    });
+    track.addEventListener('pointermove', (e) => {
+      if (playing?.dragging) showTime(at(e));
+    });
+    track.addEventListener('pointerup', (e) => {
+      if (!playing?.dragging) return;
+      playing.dragging = false;
+      const t = at(e);
+      rect = null;
+      seekTo(t);
+    });
+    track.addEventListener('pointercancel', () => {
+      if (!playing?.dragging) return;
+      playing.dragging = false;
+      rect = null;
+      syncButtons();
+    });
+    return { seek, fill, knob, time };
   }
 
   function send(func: PlayerCommand): void {
@@ -227,8 +334,13 @@ function start(ctx: GameContext): void {
    * YouTube's controls off, the embed still carries its title, channel, logo and
    * "Watch on YouTube" links, and one tap on any of them leaves the game for
    * the YouTube app and its endless next video. Under the strips none of that
-   * can be reached. The middle stays open (`SHIELD_HOLE`): a real tap there is
-   * what iOS needs to start the video with sound, and there is nothing else there.
+   * can be reached. The middle stays open (`SHIELD_HOLE`) until the video has
+   * played once: a real tap there is what iOS needs to start it with sound, and
+   * there is nothing else there. After that the plug closes the hole, since the
+   * game's own buttons can resume it from then on.
+   *
+   * The iframe's sandbox is the second lock: should anything still be pressed,
+   * the browser will not open a new tab or take the app away to YouTube.
    */
   function shield(): HTMLElement[] {
     return shieldStrips().map((s) => {
@@ -241,6 +353,41 @@ function start(ctx: GameContext): void {
       swallow(el);
       return el;
     });
+  }
+
+  function plug(): HTMLElement {
+    const el = h('div', { class: 'vd-shield vd-plug', 'aria-hidden': 'true', 'data-side': 'centre', hidden: true });
+    swallow(el);
+    return el;
+  }
+
+  /**
+   * A paused YouTube player fills with "more videos" — a strip of other
+   * thumbnails the child did not choose. Once the video has played, a pause
+   * brings up our own cover instead: the video's picture and one big ▶.
+   */
+  function poster(ref: YouTubeRef, emoji: string): HTMLElement {
+    const el = h(
+      'button',
+      { class: 'vd-poster', type: 'button', 'aria-label': 'Phát', hidden: true },
+      h('span', { class: 'vd-emoji' }, emoji),
+    );
+    if (ref.video) {
+      const img = h('img', { src: posterUrl(ref.video), alt: '', decoding: 'async', draggable: 'false' });
+      img.addEventListener('error', () => img.remove());
+      el.append(img);
+    }
+    el.append(h('span', { class: 'vd-poster-play' }, '▶'));
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!playing) return;
+      // The poster stays until the player says it is playing, so the strip under it never shows.
+      send('playVideo');
+      playing.isPlaying = true;
+      syncButtons();
+    });
+    return el;
   }
 
   function swallow(el: HTMLElement): void {
@@ -273,6 +420,7 @@ function start(ctx: GameContext): void {
       src: embedUrl(ref, location.origin),
       title: 'Video',
       allow: 'autoplay; encrypted-media; picture-in-picture',
+      sandbox: PLAYER_SANDBOX,
       // YouTube refuses to play embeds that arrive with no referrer at all.
       referrerpolicy: 'strict-origin-when-cross-origin',
       tabindex: '-1',
@@ -295,16 +443,26 @@ function start(ctx: GameContext): void {
       session.hello = setInterval(hello, HELLO_MS);
       hello();
     });
-    frame.replaceChildren(iframe, ...shield());
-    if (playing) {
-      playing.isPlaying = true;
+    const session = playing;
+    if (session) {
+      session.plug = plug();
+      session.poster = poster(ref, session.emoji);
+    }
+    frame.replaceChildren(iframe, ...shield(), ...(session ? [session.plug, session.poster] : []));
+    if (session) {
+      session.isPlaying = true;
+      session.played = false;
+      session.posterUp = false;
+      session.currentTime = 0;
+      session.duration = 0;
+      session.live = false;
       // Only the player knows whether the browser let it keep its sound; 🔊 waits for it to say it did not.
-      playing.muted = false;
+      session.muted = false;
     }
     syncButtons();
   }
 
-  function openPlayer(ref: YouTubeRef): void {
+  function openPlayer(ref: YouTubeRef, emoji: string): void {
     closePlayer();
     const frame = h('div', { class: 'vd-frame', 'data-key': refKey(ref) });
     const close = h('button', { class: 'btn-round vd-close', type: 'button', 'aria-label': 'Đóng' }, '✕');
@@ -321,6 +479,7 @@ function start(ctx: GameContext): void {
       // Change the button at once; the player's own report, when it comes, has the last word.
       playing.isPlaying = !playing.isPlaying;
       send(playing.isPlaying ? 'playVideo' : 'pauseVideo');
+      if (!playing.isPlaying && playing.played) playing.posterUp = true;
       syncButtons();
     });
     const soundBtn = h('button', { class: 'btn-round vd-sound', type: 'button', 'aria-label': 'Bật tiếng' }, '🔊');
@@ -333,8 +492,46 @@ function start(ctx: GameContext): void {
       playing.isPlaying = true;
       syncButtons();
     });
-    player = h('div', { class: 'vd-player' }, frame, close, h('div', { class: 'vd-controls' }, soundBtn, playBtn));
-    playing = { frame, ref, id: `vd-${++sessions}`, playBtn, soundBtn, isPlaying: true, muted: false, heard: false, hello: null };
+    const jump = (by: number, label: string, face: string) => {
+      const b = h('button', { class: 'btn-round vd-jump', type: 'button', 'aria-label': label, hidden: true }, face);
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (playing) seekTo(playing.currentTime + by);
+      });
+      return b;
+    };
+    const back = jump(-JUMP_S, 'Lùi 10 giây', '⏪');
+    const fwd = jump(JUMP_S, 'Tới 10 giây', '⏩');
+    const bar = seekBar();
+    player = h(
+      'div',
+      { class: 'vd-player' },
+      h('div', { class: 'vd-screen' }, frame),
+      close,
+      h('div', { class: 'vd-controls' }, bar.seek, h('div', { class: 'vd-buttons' }, back, playBtn, fwd, soundBtn)),
+    );
+    playing = {
+      frame,
+      ref,
+      emoji,
+      id: `vd-${++sessions}`,
+      playBtn,
+      soundBtn,
+      poster: h('div'),
+      plug: h('div'),
+      isPlaying: true,
+      muted: false,
+      heard: false,
+      played: false,
+      posterUp: false,
+      currentTime: 0,
+      duration: 0,
+      live: false,
+      dragging: false,
+      ...bar,
+      jumps: [back, fwd],
+      hello: null,
+    };
     root.append(player);
     fillPlayer(frame, ref);
   }
@@ -347,8 +544,19 @@ function start(ctx: GameContext): void {
     const news = readPlayerMessage(e.data);
     if (!news) return;
     playing.heard = true;
-    if (news.playing !== undefined) playing.isPlaying = news.playing;
+    if (news.playing !== undefined) {
+      playing.isPlaying = news.playing;
+      if (news.playing) {
+        playing.played = true;
+        playing.posterUp = false;
+      } else if (playing.played) {
+        playing.posterUp = true;
+      }
+    }
     if (news.muted !== undefined) playing.muted = news.muted;
+    if (news.currentTime !== undefined) playing.currentTime = news.currentTime;
+    if (news.duration !== undefined) playing.duration = news.duration;
+    if (news.live !== undefined) playing.live = news.live;
     syncButtons();
   };
   window.addEventListener('message', onMessage);

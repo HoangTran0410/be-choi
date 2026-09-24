@@ -90,7 +90,7 @@ describe('videos game', () => {
     const ctx = mount();
     cards(ctx)[0]!.click();
     const frame = ctx.stage.querySelector<HTMLElement>('.vd-frame')!;
-    const strips = [...frame.querySelectorAll<HTMLElement>('.vd-shield')];
+    const strips = [...frame.querySelectorAll<HTMLElement>('.vd-shield:not(.vd-plug)')];
     expect(strips.map((s) => s.dataset.side)).toEqual(['top', 'bottom', 'left', 'right']);
     // Laid after the iframe, in the same box: they are on top.
     expect(frame.firstElementChild).toBe(iframe(ctx));
@@ -231,6 +231,135 @@ describe('videos game', () => {
     say('garbage');
     expect(toggle.textContent).toBe('⏸️');
     ctx.cleanup();
+  });
+
+  it('sandboxes the player: its links can neither open a tab nor take the app away', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const frame = iframe(ctx)!;
+    const tokens = frame.getAttribute('sandbox')!.split(/\s+/).sort();
+    expect(tokens).toEqual(['allow-presentation', 'allow-same-origin', 'allow-scripts']);
+    for (const t of tokens) expect(t).not.toMatch(/popups|top-navigation|forms/);
+    expect(frame.getAttribute('referrerpolicy')).toBe('strict-origin-when-cross-origin');
+    ctx.cleanup();
+  });
+
+  describe('once it is playing', () => {
+    function open() {
+      const ctx = mount();
+      cards(ctx)[0]!.click();
+      const frame = iframe(ctx)!;
+      const win = frame.contentWindow!;
+      const post = vi.spyOn(win, 'postMessage').mockImplementation(() => undefined);
+      const say = (info: unknown, event = 'infoDelivery') =>
+        window.dispatchEvent(new MessageEvent('message', { origin: PLAYER, source: win, data: JSON.stringify({ event, info }) }));
+      const sent = () => post.mock.calls.map(([msg]) => JSON.parse(String(msg)) as { func: string; args: unknown[] });
+      const q = <T extends HTMLElement>(sel: string) => ctx.stage.querySelector<T>(sel)!;
+      return { ctx, say, sent, post, q };
+    }
+
+    it('keeps the middle open until the first play, then closes it', () => {
+      const { ctx, say, q } = open();
+      expect(q('.vd-plug').hidden).toBe(true);
+      say({ playerState: 2 });
+      expect(q('.vd-plug').hidden).toBe(true);
+      say({ playerState: 1 });
+      expect(q('.vd-plug').hidden).toBe(false);
+      ctx.cleanup();
+    });
+
+    it('covers a paused player with its own poster, but not before it has played', () => {
+      const { ctx, say, sent, post, q } = open();
+      const poster = q('.vd-poster');
+      say({ playerState: -1 });
+      say({ playerState: 2 });
+      expect(poster.hidden).toBe(true);
+      say({ playerState: 1 });
+      expect(poster.hidden).toBe(true);
+      say({ playerState: 2 });
+      expect(poster.hidden).toBe(false);
+      expect(poster.querySelector('img')!.getAttribute('src')).toBe(`https://i.ytimg.com/vi/${SHELVES[0]!.videos[0]!.id}/hqdefault.jpg`);
+
+      post.mockClear();
+      poster.dispatchEvent(ptr());
+      expect(sent().map((m) => m.func)).toEqual(['playVideo']);
+      // Up until the player says it is playing, so its "more videos" never peeks out.
+      expect(poster.hidden).toBe(false);
+      say(1, 'onStateChange');
+      expect(poster.hidden).toBe(true);
+
+      // Our own ⏯ pausing shows it too.
+      q('.vd-toggle').dispatchEvent(ptr());
+      expect(sent().at(-1)!.func).toBe('pauseVideo');
+      expect(poster.hidden).toBe(false);
+      ctx.cleanup();
+    });
+
+    it('shows the time and seeks 10 s either way, never past either end', () => {
+      const { ctx, say, sent, q } = open();
+      const [back, fwd] = [...ctx.stage.querySelectorAll<HTMLElement>('.vd-jump')];
+      expect(q('.vd-seek').hidden).toBe(true);
+      expect(back!.hidden).toBe(true);
+
+      say({ playerState: 1, currentTime: 5, duration: 100, videoData: { isLive: false } });
+      expect(q('.vd-seek').hidden).toBe(false);
+      expect(back!.hidden).toBe(false);
+      expect(q('.vd-time').textContent).toBe('0:05 / 1:40');
+
+      back!.dispatchEvent(ptr());
+      expect(sent().at(-1)).toEqual({ event: 'command', func: 'seekTo', args: [0, true] });
+      fwd!.dispatchEvent(ptr());
+      expect(sent().at(-1)!.args).toEqual([10, true]);
+      say({ currentTime: 95 });
+      fwd!.dispatchEvent(ptr());
+      expect(sent().at(-1)!.args).toEqual([100, true]);
+      expect(q('.vd-time').textContent).toBe('1:40 / 1:40');
+      ctx.cleanup();
+    });
+
+    it('jumps to where the bar is tapped, and follows a drag before seeking once', () => {
+      const { ctx, say, sent, post, q } = open();
+      say({ playerState: 1, currentTime: 0, duration: 200 });
+      const track = q('.vd-track');
+      track.getBoundingClientRect = () => ({
+        left: 100,
+        width: 400,
+        top: 0,
+        height: 48,
+        right: 500,
+        bottom: 48,
+        x: 100,
+        y: 0,
+        toJSON: () => ({}),
+      });
+      const at = (type: string, x: number) => track.dispatchEvent(new PointerEvent(type, { pointerId: 1, bubbles: true, clientX: x }));
+
+      post.mockClear();
+      at('pointerdown', 300);
+      at('pointerup', 300);
+      expect(sent()).toEqual([{ event: 'command', func: 'seekTo', args: [100, true] }]);
+
+      post.mockClear();
+      at('pointerdown', 150);
+      at('pointermove', 400);
+      expect(q('.vd-knob').style.left).toBe('75%');
+      // Reports from the player do not yank the knob from under the finger.
+      say({ currentTime: 101 });
+      expect(q('.vd-knob').style.left).toBe('75%');
+      expect(sent()).toEqual([]);
+      at('pointerup', 900);
+      expect(sent()).toEqual([{ event: 'command', func: 'seekTo', args: [200, true] }]);
+      ctx.cleanup();
+    });
+
+    it('has nothing to seek along on a live stream', () => {
+      const { ctx, say, q } = open();
+      say({ playerState: 1, currentTime: 3111310, duration: 3114908, videoData: { isLive: true } });
+      expect(q('.vd-seek').hidden).toBe(true);
+      for (const b of ctx.stage.querySelectorAll<HTMLElement>('.vd-jump')) expect(b.hidden).toBe(true);
+      expect(q('.vd-toggle').hidden).toBe(false);
+      ctx.cleanup();
+    });
   });
 
   it('switches shelves from the tabs and remembers the shelf for next time', () => {

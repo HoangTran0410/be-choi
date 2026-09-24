@@ -166,30 +166,47 @@
 }
 
 /* ---- the player ---- */
+/*
+ * The picture on top, our controls under it. Upright: a seek bar across,
+ * buttons below. Sideways: one row, buttons then the bar. The ✕ keeps its
+ * corner; the picture is padded clear of it.
+ */
 .vd-player {
   position: absolute;
   inset: 0;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2vmin;
+  padding: 2vmin 3vmin max(2vmin, env(safe-area-inset-bottom));
+  background: #1e1b2e;
+  --corner: calc(var(--tap) + 3vmin);
+}
+.vd-player [hidden] {
+  display: none !important;
+}
+.vd-screen {
+  flex: 1;
+  min-height: 0;
   display: grid;
   place-items: center;
-  background: #1e1b2e;
   container-type: size;
-  /* Room for the ✕ in the corner, clear of the picture. */
-  --gap: calc(var(--tap) + 4vmin);
+  padding-top: var(--corner);
+}
+@media (orientation: landscape) {
+  .vd-screen {
+    padding-top: 0;
+    padding-inline: var(--corner);
+  }
 }
 .vd-frame {
   position: relative;
   aspect-ratio: 16 / 9;
-  /* As big as fits: under the ✕ when upright, beside it when sideways. */
-  width: min(100cqw, (100cqh - var(--gap) * 2) * 16 / 9);
+  /* As big as fits the space above the controls. */
+  width: min(100cqw, 100cqh * 16 / 9);
   border-radius: min(2vmin, 16px);
   overflow: hidden;
   background: #000;
-}
-@media (orientation: landscape) {
-  .vd-frame {
-    width: min(100cqw - var(--gap) * 2, 100cqh * 16 / 9);
-  }
 }
 .vd-frame iframe {
   position: absolute;
@@ -206,6 +223,48 @@
   touch-action: none;
   background: transparent;
   -webkit-tap-highlight-color: transparent;
+}
+/* Closes the middle once the video has played: from then on our buttons do everything. */
+.vd-plug {
+  inset: 0;
+}
+/* Our cover over a paused player, hiding YouTube's "more videos". */
+.vd-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #c4b5fd, #f9a8d4);
+  container-type: size;
+  -webkit-tap-highlight-color: transparent;
+}
+.vd-poster > .vd-emoji {
+  grid-area: 1 / 1;
+}
+/* Cover, which also crops away the black bands YouTube bakes into its 4:3 hqdefault pictures. */
+.vd-poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.vd-poster-play {
+  grid-area: 1 / 1;
+  z-index: 1;
+  width: max(var(--tap), 30cqh);
+  height: max(var(--tap), 30cqh);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding-left: 0.12em;
+  font-size: max(calc(var(--tap) * 0.45), 13cqh);
+  line-height: 1;
+  color: #fff;
+  background: rgba(124, 58, 237, 0.88);
+  box-shadow: 0 6px 0 rgba(15, 23, 42, 0.3);
 }
 .vd-frame[data-offline] {
   display: grid;
@@ -231,36 +290,102 @@
   position: absolute;
   top: 2vmin;
   left: 2vmin;
+  z-index: 3;
 }
-/* Our own controls, in the space the picture leaves: below it upright, beside it sideways. */
+
+/* ---- our controls ---- */
 .vd-controls {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 2vmin;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.5vmin;
+}
+.vd-buttons {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 4vmin;
-  z-index: 2;
+  gap: min(3vmin, 3vw);
 }
 @media (orientation: landscape) {
   .vd-controls {
-    left: auto;
-    top: 0;
-    right: 2vmin;
-    bottom: 0;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    gap: 3vmin;
+  }
+  .vd-buttons {
+    order: -1;
+  }
+  .vd-seek {
+    flex: 1;
   }
 }
-.vd-toggle[hidden],
-.vd-sound[hidden] {
-  display: none;
+/* Four round buttons must fit across the narrowest phone. */
+.vd-buttons .btn-round {
+  width: min(var(--tap), 21vw);
+  height: min(var(--tap), 21vw);
+  font-size: calc(min(var(--tap), 21vw) * 0.5);
+  flex: 0 0 auto;
 }
-/* The one thing worth pressing first: the video starts silent, as phones insist. */
+/* Only there when the player says it is muted. */
 .vd-sound {
   background: #fde047;
   animation: vd-call 1.4s ease-in-out infinite;
+}
+
+.vd-seek {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2vmin;
+}
+/* The touch area is tall; the rail inside it is a thick line, the knob a big dot. */
+.stage .vd-track {
+  touch-action: none;
+}
+.vd-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: max(48px, calc(var(--tap) * 0.6));
+  display: flex;
+  align-items: center;
+  margin: 0 12px;
+  cursor: pointer;
+}
+.vd-rail {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.25);
+}
+.vd-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: #f472b6;
+}
+.vd-knob {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.vd-time {
+  flex: 0 0 auto;
+  font-size: clamp(14px, 2.4vmin, 20px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  white-space: nowrap;
 }
 
 /* ---- adding a link ---- */
