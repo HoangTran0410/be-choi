@@ -106,13 +106,15 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
   };
   const render = () => {
     const tileOf = (g: GameEntry) => tile(g, deps, render);
-    // Favourites come first, in the order they were picked, and leave their usual
-    // section: "at the top" means the child does not have to scroll for them.
+    // Favourites come first, in the order they were picked — and stay in their usual
+    // section too. Taking a game out of its place would shuffle every tile after it,
+    // and the one the child was looking at would jump away: to a two-year-old the
+    // game has simply vanished.
     const favorites = deps.store
       .favorites()
       .map((id) => GAMES.find((g) => g.id === id))
       .filter((g): g is GameEntry => g !== undefined);
-    const placed = new Set<string>(favorites.map((g) => g.id));
+    const placed = new Set<string>();
     const blocks: Array<HTMLElement | null> = [h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile()))];
     if (favorites.length)
       blocks.push(
@@ -130,7 +132,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
         if (games.length === 0) return null;
         return h(
           'section',
-          { class: 'section' },
+          { class: 'section section-regular' },
           h('h2', { class: 'section-title' }, section.title),
           h('div', { class: 'grid' }, ...games.map(tileOf)),
         );
@@ -138,7 +140,13 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
     );
     const rest = GAMES.filter((g) => !placed.has(g.id));
     if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map(tileOf))));
+    // The favourites row growing or shrinking above pushes everything below it: move
+    // the scroll by the same amount, so the tile under the child's finger stays put.
+    const anchor = grid.querySelector('.section-regular');
+    const before = anchor?.getBoundingClientRect().top;
     grid.replaceChildren(...blocks.filter((b): b is HTMLElement => b !== null));
+    const after = grid.querySelector('.section-regular')?.getBoundingClientRect().top;
+    if (before !== undefined && after !== undefined && after !== before) grid.scrollTop += after - before;
   };
   render();
   window.addEventListener(STARS_CHANGED, render);

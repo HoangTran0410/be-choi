@@ -39,7 +39,7 @@ describe('home favourites', () => {
     unmount();
   });
 
-  it('moves a liked game to the top, without opening it, and back again', () => {
+  it('shows a liked game at the top as well as in its own place, without opening it', () => {
     const d = deps();
     const unmount = mountHome(root, d);
     const [a, b] = [GAMES[5]!, GAMES[2]!];
@@ -47,9 +47,10 @@ describe('home favourites', () => {
     heartOf(root, b.title).click();
     expect(location.hash).toBe('');
     expect(favorites(root)).toEqual([a.title, b.title]);
-    // Only once on the page: it leaves its usual section.
-    expect(root.querySelectorAll(`.tile[aria-label="${a.title}"]`).length).toBe(1);
-    heartOf(root, a.title).click();
+    // Still in its usual section: nothing below it moves.
+    expect(root.querySelectorAll(`.section-regular .tile[aria-label="${a.title}"]`).length).toBe(1);
+    expect(root.querySelectorAll(`.tile[aria-label="${a.title}"]`).length).toBe(2);
+    root.querySelector<HTMLElement>(`.section-favorites .tile[aria-label="${a.title}"] .tile-heart`)!.click();
     expect(favorites(root)).toEqual([b.title]);
     expect(root.querySelectorAll(`.tile[aria-label="${a.title}"]`).length).toBe(1);
     unmount();
