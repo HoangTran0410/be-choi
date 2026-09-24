@@ -8,6 +8,7 @@ import { createStore } from './storage';
 
 // The panel prints the app version, which vite normally replaces at build time.
 (globalThis as { __APP_VERSION__?: string }).__APP_VERSION__ = '0.0.0-test';
+(globalThis as { __BUILD_TIME__?: string }).__BUILD_TIME__ = new Date(2026, 8, 24, 14, 5).toISOString();
 
 function fakeSpeech(): Speech {
   const noop = () => undefined;
@@ -229,7 +230,7 @@ describe('parent panel: fetching a new version', () => {
       },
     };
     openParentPanel(d);
-    expect(document.querySelector('.panel-version')?.textContent).toBe('Bé Chơi v0.0.0-test');
+    expect(document.querySelector('.panel-version')?.textContent).toBe('Bản dựng 14:05 · 24/09/2026 · Bé Chơi v0.0.0-test');
 
     btn('Tải bản mới nhất').click();
     await settle();

@@ -11,7 +11,9 @@ import { hrefFor, startRouter } from './app/router';
 import { mountShell } from './app/shell';
 import { createStore } from './app/storage';
 import { applyTheme, watchSystemTheme } from './app/theme';
+import { UPDATING_FLAG, watchUpdateProgress } from './app/updateProgress';
 import './styles/base.css';
+import './styles/update.css';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('#app missing');
@@ -61,6 +63,12 @@ const install: InstallState = {
 const update: UpdateState = {
   force: async () => {
     if (!navigator.onLine) return false;
+    // The reloaded page shows the download as "bản mới", not as a first-time save.
+    try {
+      sessionStorage.setItem(UPDATING_FLAG, '1');
+    } catch {
+      /* only changes the wording */
+    }
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map((r) => r.unregister()));
@@ -139,7 +147,9 @@ document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('dragstart', (e) => e.preventDefault());
 document.addEventListener('selectstart', (e) => e.preventDefault());
 
-registerSW({ immediate: true });
+// The download itself is the slow part (every recorded sound comes with it), so the
+// page shows how far it has got. See app/updateProgress.ts.
+registerSW({ immediate: true, onRegisteredSW: (_url, registration) => watchUpdateProgress(registration) });
 
 // ---- Routing ----
 let unmount: (() => void) | null = null;

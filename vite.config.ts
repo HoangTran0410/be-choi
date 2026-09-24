@@ -6,7 +6,11 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 
 export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    // The version in package.json hardly ever changes; the build time says which build this is.
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   build: { target: 'es2022' },
   plugins: [
     VitePWA({
@@ -30,6 +34,23 @@ export default defineConfig({
       workbox: {
         // m4a: the recorded animal voices in public/sfx, so they play offline too.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest,m4a}'],
+        // …except the background loops of Bé tạo cảnh: seven megabytes nobody has
+        // asked for yet. Each is kept the first time it plays, so the ones a child
+        // actually uses work offline from then on.
+        globIgnores: ['**/ambience/**'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/ambience\/[\w-]+\.m4a$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'ambience', expiration: { maxEntries: 60 } },
+          },
+          {
+            // The photographs it can play over: same deal, kept once seen.
+            urlPattern: /\/backdrops\/[\w-]+\.jpg$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'backdrops', expiration: { maxEntries: 60 } },
+          },
+        ],
         navigateFallback: 'index.html',
       },
     }),
