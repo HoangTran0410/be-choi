@@ -2,8 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   CUSTOM_MAX,
   DEFAULT_TITLE,
+  PLAYER_ORIGIN,
   SHELVES,
   addCustom,
+  commandMessage,
+  listeningMessage,
+  readPlayerMessage,
+  shieldStrips,
+  SHIELD_HOLE,
   allVideos,
   embedUrl,
   oembedUrl,
@@ -84,18 +90,31 @@ describe('parseYouTube', () => {
 });
 
 describe('links out', () => {
-  it('embeds a single video looping on the no-cookie host, so it never reaches the end screen', () => {
-    const url = new URL(embedUrl({ video: ID }));
-    expect(url.origin).toBe('https://www.youtube-nocookie.com');
+  it('embeds a single video looping on the no-cookie host, with nothing of YouTube left to press', () => {
+    const url = new URL(embedUrl({ video: ID }, 'https://be-choi.test'));
+    expect(url.origin).toBe(PLAYER_ORIGIN);
     expect(url.pathname).toBe(`/embed/${ID}`);
-    expect(Object.fromEntries(url.searchParams)).toMatchObject({ autoplay: '1', rel: '0', playsinline: '1', loop: '1', playlist: ID });
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      autoplay: '1',
+      controls: '0',
+      disablekb: '1',
+      fs: '0',
+      iv_load_policy: '3',
+      rel: '0',
+      modestbranding: '1',
+      playsinline: '1',
+      enablejsapi: '1',
+      origin: 'https://be-choi.test',
+      playlist: ID,
+      loop: '1',
+    });
   });
 
   it('embeds a playlist, with or without a video to start on', () => {
     const both = new URL(embedUrl({ video: ID, list: LIST }));
     expect(both.pathname).toBe(`/embed/${ID}`);
     expect(both.searchParams.get('list')).toBe(LIST);
-    expect(both.searchParams.has('loop')).toBe(false);
+    expect(both.searchParams.has('playlist')).toBe(false);
     const only = new URL(embedUrl({ list: LIST }));
     expect(only.pathname).toBe('/embed/videoseries');
     expect(only.searchParams.get('list')).toBe(LIST);
@@ -162,5 +181,47 @@ describe('the parent’s own list', () => {
     expect(parseSaved(JSON.stringify([null, 7, { video: 'bad' }, { video: a.video }, { video: a.video, title: 'dup' }]))).toEqual([
       { video: a.video, title: 'dup' },
     ]);
+  });
+});
+
+describe('talking to the player', () => {
+  it('speaks the IFrame API protocol', () => {
+    expect(JSON.parse(commandMessage('unMute'))).toEqual({ event: 'command', func: 'unMute', args: [] });
+    expect(JSON.parse(listeningMessage('vd-1'))).toMatchObject({ event: 'listening', id: 'vd-1' });
+  });
+
+  it('reads playing and muted out of what the player reports', () => {
+    expect(readPlayerMessage('{"event":"onStateChange","info":1}')).toEqual({ playing: true });
+    expect(readPlayerMessage({ event: 'onStateChange', info: 2 })).toEqual({ playing: false });
+    expect(readPlayerMessage('{"event":"onStateChange","info":3}')).toEqual({ playing: true });
+    expect(readPlayerMessage('{"event":"infoDelivery","info":{"playerState":0,"muted":false,"volume":100}}')).toEqual({
+      playing: false,
+      muted: false,
+    });
+    expect(readPlayerMessage('{"event":"initialDelivery","info":{"muted":true}}')).toEqual({ muted: true });
+    expect(readPlayerMessage('{"event":"onReady","info":null}')).toEqual({});
+  });
+
+  it('shrugs at anything else', () => {
+    expect(readPlayerMessage('not json')).toBeNull();
+    expect(readPlayerMessage(null)).toBeNull();
+    expect(readPlayerMessage(42)).toBeNull();
+    expect(readPlayerMessage({ hello: 'world' })).toBeNull();
+    expect(readPlayerMessage('{"event":"infoDelivery","info":{"playerState":"1","muted":"no"}}')).toEqual({});
+  });
+});
+
+describe('shieldStrips', () => {
+  it('covers exactly the player minus a centred hole', () => {
+    const strips = shieldStrips();
+    const area = strips.reduce((sum, s) => sum + s.width * s.height, 0);
+    expect(area).toBeCloseTo(100 * 100 * (1 - SHIELD_HOLE.width * SHIELD_HOLE.height));
+    const [top, bottom, left, right] = strips;
+    expect(top!.height).toBe(bottom!.height);
+    expect(left!.width).toBe(right!.width);
+    expect(bottom!.top + bottom!.height).toBe(100);
+    expect(right!.left + right!.width).toBe(100);
+    expect(left!.top).toBe(top!.height);
+    expect(left!.top + left!.height).toBe(bottom!.top);
   });
 });

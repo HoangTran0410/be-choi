@@ -198,6 +198,15 @@
   height: 100%;
   border: 0;
 }
+/* See-through strips round the player's edges, taking every touch so no YouTube link can be reached. Placed inline, in percent. */
+.vd-shield {
+  position: absolute;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: none;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
 .vd-frame[data-offline] {
   display: grid;
   place-items: center;
@@ -222,6 +231,36 @@
   position: absolute;
   top: 2vmin;
   left: 2vmin;
+}
+/* Our own controls, in the space the picture leaves: below it upright, beside it sideways. */
+.vd-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2vmin;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4vmin;
+  z-index: 2;
+}
+@media (orientation: landscape) {
+  .vd-controls {
+    left: auto;
+    top: 0;
+    right: 2vmin;
+    bottom: 0;
+    flex-direction: column;
+  }
+}
+.vd-toggle[hidden],
+.vd-sound[hidden] {
+  display: none;
+}
+/* The one thing worth pressing first: the video starts silent, as phones insist. */
+.vd-sound {
+  background: #fde047;
+  animation: vd-call 1.4s ease-in-out infinite;
 }
 
 /* ---- adding a link ---- */
@@ -311,7 +350,22 @@
   }
 }
 
+@keyframes vd-call {
+  0%,
+  100% {
+    box-shadow:
+      0 4px 0 var(--btn-shadow),
+      0 0 0 0 rgba(253, 224, 71, 0.7);
+  }
+  50% {
+    box-shadow:
+      0 4px 0 var(--btn-shadow),
+      0 0 0 2.4vmin rgba(253, 224, 71, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .vd-sound,
   .vd-press {
     animation: none;
   }

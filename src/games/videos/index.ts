@@ -6,8 +6,13 @@ import {
   DEFAULT_TITLE,
   SHELVES,
   addCustom,
+  PLAYER_ORIGIN,
+  commandMessage,
   embedUrl,
+  listeningMessage,
   oembedUrl,
+  readPlayerMessage,
+  shieldStrips,
   parseSaved,
   parseYouTube,
   refKey,
@@ -16,6 +21,7 @@ import {
   thumbUrl,
   titleFromOembed,
   type CustomVideo,
+  type PlayerCommand,
   type YouTubeRef,
 } from './logic';
 import './style.css';
@@ -77,7 +83,20 @@ function start(ctx: GameContext): void {
   let shelf = saved === MINE ? (custom.length ? MINE : SHELVES[0]!.id) : (SHELVES.find((s) => s.id === saved)?.id ?? SHELVES[0]!.id);
   let player: HTMLElement | null = null;
   /** What the open player is showing, so it can start over when the internet comes back. */
-  let playing: { frame: HTMLElement; ref: YouTubeRef } | null = null;
+  let playing: {
+    frame: HTMLElement;
+    ref: YouTubeRef;
+    /** Names this player in the listening handshake. */
+    id: string;
+    playBtn: HTMLElement;
+    soundBtn: HTMLElement;
+    isPlaying: boolean;
+    muted: boolean;
+    /** The player has spoken at least once, so the handshake can stop. */
+    heard: boolean;
+    hello: ReturnType<typeof setInterval> | null;
+  } | null = null;
+  let sessions = 0;
   let adder: HTMLElement | null = null;
   /** The ✕ buttons' hold listeners, dropped whenever the list is redrawn. */
   let holds: Array<() => void> = [];
@@ -178,14 +197,67 @@ function start(ctx: GameContext): void {
 
   // ---- the player ----
 
+  /** Stop pestering a player that never answers (blocked, or not YouTube's any more) after this many tries. */
+  const HELLO_TRIES = 20;
+  const HELLO_MS = 500;
+
   function closePlayer(): void {
     // Taking the iframe out of the page is what stops the sound.
+    if (playing?.hello) clearInterval(playing.hello);
     player?.remove();
     player = null;
     playing = null;
   }
 
+  /** Our own buttons show what we last heard from the player (or last asked it for, if it never says). */
+  function syncButtons(): void {
+    if (!playing) return;
+    playing.playBtn.textContent = playing.isPlaying ? '⏸️' : '▶️';
+    playing.playBtn.setAttribute('aria-label', playing.isPlaying ? 'Dừng' : 'Phát');
+    playing.soundBtn.hidden = !playing.muted || !playing.frame.querySelector('iframe');
+    playing.playBtn.hidden = !playing.frame.querySelector('iframe');
+  }
+
+  function send(func: PlayerCommand): void {
+    playing?.frame.querySelector('iframe')?.contentWindow?.postMessage(commandMessage(func), PLAYER_ORIGIN);
+  }
+
+  /**
+   * See-through strips over the player's edges that take every touch. Even with
+   * YouTube's controls off, the embed still carries its title, channel, logo and
+   * "Watch on YouTube" links, and one tap on any of them leaves the game for
+   * the YouTube app and its endless next video. Under the strips none of that
+   * can be reached. The middle stays open (`SHIELD_HOLE`): a real tap there is
+   * what iOS needs to start the video with sound, and there is nothing else there.
+   */
+  function shield(): HTMLElement[] {
+    return shieldStrips().map((s) => {
+      const el = h('div', {
+        class: 'vd-shield',
+        'aria-hidden': 'true',
+        'data-side': s.side,
+        style: `top:${s.top}%;left:${s.left}%;width:${s.width}%;height:${s.height}%`,
+      });
+      swallow(el);
+      return el;
+    });
+  }
+
+  function swallow(el: HTMLElement): void {
+    for (const type of ['pointerdown', 'pointerup', 'click', 'dblclick', 'touchstart', 'touchend', 'contextmenu', 'wheel']) {
+      el.addEventListener(
+        type,
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        },
+        { passive: false },
+      );
+    }
+  }
+
   function fillPlayer(frame: HTMLElement, ref: YouTubeRef): void {
+    if (playing?.hello) clearInterval(playing.hello);
     // An iframe to YouTube offline shows the browser's own error page, and its
     // load/error events say nothing across origins, so ask before building it.
     if (navigator.onLine === false) {
@@ -193,25 +265,48 @@ function start(ctx: GameContext): void {
       frame.replaceChildren(
         h('p', { class: 'vd-offline' }, h('span', { class: 'vd-offline-icon' }, '📡'), 'Cần có mạng để xem video. Nhờ bố mẹ bật mạng nhé!'),
       );
+      syncButtons();
       return;
     }
     delete frame.dataset.offline;
-    frame.replaceChildren(
-      h('iframe', {
-        src: embedUrl(ref),
-        title: 'Video',
-        allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
-        allowfullscreen: true,
-        // YouTube refuses to play embeds that arrive with no referrer at all.
-        referrerpolicy: 'strict-origin-when-cross-origin',
-      }),
-    );
+    const iframe = h('iframe', {
+      src: embedUrl(ref, location.origin),
+      title: 'Video',
+      allow: 'autoplay; encrypted-media; picture-in-picture',
+      // YouTube refuses to play embeds that arrive with no referrer at all.
+      referrerpolicy: 'strict-origin-when-cross-origin',
+      tabindex: '-1',
+    });
+    // The player only reports its state to a page that has said it is listening,
+    // and a hello sent before its script runs is lost, so keep saying it until it answers.
+    iframe.addEventListener('load', () => {
+      const session = playing;
+      if (!session || session.frame !== frame) return;
+      let tries = 0;
+      const hello = () => {
+        if (session.heard || ++tries > HELLO_TRIES) {
+          if (session.hello) clearInterval(session.hello);
+          session.hello = null;
+          return;
+        }
+        iframe.contentWindow?.postMessage(listeningMessage(session.id), PLAYER_ORIGIN);
+      };
+      if (session.hello) clearInterval(session.hello);
+      session.hello = setInterval(hello, HELLO_MS);
+      hello();
+    });
+    frame.replaceChildren(iframe, ...shield());
+    if (playing) {
+      playing.isPlaying = true;
+      // Only the player knows whether the browser let it keep its sound; 🔊 waits for it to say it did not.
+      playing.muted = false;
+    }
+    syncButtons();
   }
 
   function openPlayer(ref: YouTubeRef): void {
     closePlayer();
     const frame = h('div', { class: 'vd-frame', 'data-key': refKey(ref) });
-    playing = { frame, ref };
     const close = h('button', { class: 'btn-round vd-close', type: 'button', 'aria-label': 'Đóng' }, '✕');
     close.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -219,10 +314,44 @@ function start(ctx: GameContext): void {
       closePlayer();
       ctx.audio.tick();
     });
-    player = h('div', { class: 'vd-player' }, frame, close);
-    fillPlayer(frame, ref);
+    const playBtn = h('button', { class: 'btn-round vd-toggle', type: 'button' });
+    playBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (!playing) return;
+      // Change the button at once; the player's own report, when it comes, has the last word.
+      playing.isPlaying = !playing.isPlaying;
+      send(playing.isPlaying ? 'playVideo' : 'pauseVideo');
+      syncButtons();
+    });
+    const soundBtn = h('button', { class: 'btn-round vd-sound', type: 'button', 'aria-label': 'Bật tiếng' }, '🔊');
+    soundBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (!playing) return;
+      send('unMute');
+      send('playVideo');
+      playing.muted = false;
+      playing.isPlaying = true;
+      syncButtons();
+    });
+    player = h('div', { class: 'vd-player' }, frame, close, h('div', { class: 'vd-controls' }, soundBtn, playBtn));
+    playing = { frame, ref, id: `vd-${++sessions}`, playBtn, soundBtn, isPlaying: true, muted: false, heard: false, hello: null };
     root.append(player);
+    fillPlayer(frame, ref);
   }
+
+  /** News from the player: only from YouTube's origin and only from our own iframe. */
+  const onMessage = (e: MessageEvent) => {
+    if (e.origin !== PLAYER_ORIGIN || !playing) return;
+    const iframe = playing.frame.querySelector('iframe');
+    if (!iframe || e.source !== iframe.contentWindow) return;
+    const news = readPlayerMessage(e.data);
+    if (!news) return;
+    playing.heard = true;
+    if (news.playing !== undefined) playing.isPlaying = news.playing;
+    if (news.muted !== undefined) playing.muted = news.muted;
+    syncButtons();
+  };
+  window.addEventListener('message', onMessage);
 
   /** The Wi-Fi came back while the "needs internet" note was up: play after all. */
   const onOnline = () => {
@@ -321,6 +450,7 @@ function start(ctx: GameContext): void {
     for (const ac of fetches) ac.abort();
     fetches.clear();
     window.removeEventListener('online', onOnline);
+    window.removeEventListener('message', onMessage);
   });
 }
 

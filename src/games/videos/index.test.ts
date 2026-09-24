@@ -16,6 +16,7 @@ if (!('PointerEvent' in globalThis)) {
 const ptr = (type = 'pointerdown'): PointerEvent => new PointerEvent(type, { pointerId: 1, bubbles: true });
 const ID = 'dQw4w9WgXcQ';
 const CUSTOM_KEY = 'be-choi:videos-custom';
+const PLAYER = 'https://www.youtube-nocookie.com';
 
 function mount() {
   vi.useFakeTimers();
@@ -82,6 +83,153 @@ describe('videos game', () => {
     ctx.stage.querySelector<HTMLElement>('.vd-close')!.dispatchEvent(ptr());
     expect(iframe(ctx)).toBeNull();
     expect(ctx.stage.querySelector('.vd-player')).toBeNull();
+    ctx.cleanup();
+  });
+
+  it('covers the player’s edges with strips that swallow every touch, and leaves the middle open', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const frame = ctx.stage.querySelector<HTMLElement>('.vd-frame')!;
+    const strips = [...frame.querySelectorAll<HTMLElement>('.vd-shield')];
+    expect(strips.map((s) => s.dataset.side)).toEqual(['top', 'bottom', 'left', 'right']);
+    // Laid after the iframe, in the same box: they are on top.
+    expect(frame.firstElementChild).toBe(iframe(ctx));
+    // Placed in percent, so the hole moves with the player when it is resized.
+    const box = (el: HTMLElement) => ['top', 'left', 'width', 'height'].map((k) => parseFloat(el.style.getPropertyValue(k)));
+    for (const s of strips) for (const k of ['top', 'left', 'width', 'height']) expect(s.style.getPropertyValue(k)).toMatch(/%$/);
+    const covered = (x: number, y: number) =>
+      strips.some((s) => {
+        const [t, l, w, hgt] = box(s) as [number, number, number, number];
+        return x >= l && x < l + w && y >= t && y < t + hgt;
+      });
+    // The middle (YouTube's big play button) is open; the edges, where its links are, are not.
+    for (const [x, y] of [
+      [50, 50],
+      [30, 30],
+      [70, 70],
+    ] as const)
+      expect(covered(x, y), `${x},${y}`).toBe(false);
+    for (const [x, y] of [
+      [5, 5],
+      [50, 3],
+      [95, 95],
+      [3, 50],
+      [97, 50],
+      [50, 97],
+      [20, 50],
+      [50, 80],
+    ] as const)
+      expect(covered(x, y), `${x},${y}`).toBe(true);
+
+    const reached: string[] = [];
+    iframe(ctx)!.addEventListener('pointerdown', () => reached.push('iframe'));
+    ctx.stage.addEventListener('click', () => reached.push('stage'));
+    for (const strip of strips) {
+      for (const e of [
+        new PointerEvent('pointerdown', { bubbles: true, cancelable: true }),
+        new MouseEvent('click', { bubbles: true, cancelable: true }),
+      ]) {
+        strip.dispatchEvent(e);
+        expect(e.defaultPrevented).toBe(true);
+      }
+    }
+    expect(reached).toEqual([]);
+    ctx.cleanup();
+  });
+
+  it('asks YouTube for a player with nothing of its own to press', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const url = new URL(iframe(ctx)!.getAttribute('src')!);
+    expect(url.origin).toBe(PLAYER);
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      autoplay: '1',
+      controls: '0',
+      disablekb: '1',
+      fs: '0',
+      iv_load_policy: '3',
+      rel: '0',
+      modestbranding: '1',
+      playsinline: '1',
+      loop: '1',
+      playlist: SHELVES[0]!.videos[0]!.id,
+      enablejsapi: '1',
+      origin: location.origin,
+    });
+    // Not muted: where the browser lets the card's tap carry over, it starts with sound.
+    expect(url.searchParams.has('mute')).toBe(false);
+    expect(iframe(ctx)!.getAttribute('allow')).toContain('autoplay');
+    ctx.cleanup();
+  });
+
+  it('drives the player with its own big buttons', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const win = iframe(ctx)!.contentWindow!;
+    const post = vi.spyOn(win, 'postMessage').mockImplementation(() => undefined);
+    const sent = () => post.mock.calls.map(([msg, origin]) => ({ ...JSON.parse(String(msg)), origin }));
+    const toggle = ctx.stage.querySelector<HTMLElement>('.vd-toggle')!;
+    const sound = ctx.stage.querySelector<HTMLElement>('.vd-sound')!;
+
+    // It starts with sound, so no 🔊 until the player says it was muted.
+    expect(sound.hidden).toBe(true);
+    expect(toggle.textContent).toBe('⏸️');
+
+    toggle.dispatchEvent(ptr());
+    expect(sent().at(-1)).toEqual({ event: 'command', func: 'pauseVideo', args: [], origin: PLAYER });
+    expect(toggle.textContent).toBe('▶️');
+    toggle.dispatchEvent(ptr());
+    expect(sent().at(-1)).toMatchObject({ func: 'playVideo' });
+
+    post.mockClear();
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: PLAYER, source: win, data: '{"event":"infoDelivery","info":{"muted":true}}' }),
+    );
+    expect(sound.hidden).toBe(false);
+    sound.dispatchEvent(ptr());
+    expect(sent().map((m) => m.func)).toEqual(['unMute', 'playVideo']);
+    expect(sound.hidden).toBe(true);
+    ctx.cleanup();
+  });
+
+  it('says hello once the player has loaded, until the player answers', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const frame = iframe(ctx)!;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage').mockImplementation(() => undefined);
+    frame.dispatchEvent(new Event('load'));
+    expect(JSON.parse(String(post.mock.calls[0]![0]))).toMatchObject({ event: 'listening' });
+    vi.advanceTimersByTime(1000);
+    const before = post.mock.calls.length;
+    expect(before).toBeGreaterThan(1);
+    window.dispatchEvent(new MessageEvent('message', { origin: PLAYER, source: frame.contentWindow, data: '{"event":"onReady"}' }));
+    vi.advanceTimersByTime(2000);
+    expect(post.mock.calls.length).toBe(before);
+    ctx.cleanup();
+  });
+
+  it('keeps ⏯ and 🔊 in step with what the player reports, and believes no one else', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const frame = iframe(ctx)!;
+    const toggle = ctx.stage.querySelector<HTMLElement>('.vd-toggle')!;
+    const sound = ctx.stage.querySelector<HTMLElement>('.vd-sound')!;
+    const say = (data: unknown, origin = PLAYER, source: Window | null = frame.contentWindow) =>
+      window.dispatchEvent(new MessageEvent('message', { origin, source, data }));
+
+    say('{"event":"onStateChange","info":2}', 'https://evil.example');
+    say('{"event":"onStateChange","info":2}', PLAYER, window);
+    expect(toggle.textContent).toBe('⏸️');
+
+    say('{"event":"onStateChange","info":2}');
+    expect(toggle.textContent).toBe('▶️');
+    say({ event: 'infoDelivery', info: { playerState: 1, muted: false } });
+    expect(toggle.textContent).toBe('⏸️');
+    expect(sound.hidden).toBe(true);
+    say('{"event":"infoDelivery","info":{"muted":true}}');
+    expect(sound.hidden).toBe(false);
+    say('garbage');
+    expect(toggle.textContent).toBe('⏸️');
     ctx.cleanup();
   });
 

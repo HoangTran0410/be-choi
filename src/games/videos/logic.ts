@@ -184,25 +184,132 @@ export function watchUrl(ref: YouTubeRef): string {
   return `https://www.youtube.com/watch?v=${ref.video}${ref.list ? `&list=${ref.list}` : ''}`;
 }
 
+/** Where the player lives; the only origin its messages are believed from, and the only one ours go to. */
+export const PLAYER_ORIGIN = 'https://www.youtube-nocookie.com';
+
 /**
- * The player page. The no-cookie host so a toddler's viewing does not end up
- * shaping anyone's recommendations; `rel=0` so the suggestions that do appear
- * are from the same channel; and a single video loops (the `playlist=<itself>`
- * trick iFocus uses) so it never reaches the end screen, whose wall of other
- * thumbnails is exactly what a small finger would press next.
+ * The player page, stripped of everything that leads somewhere else.
+ *
+ * - The no-cookie host, so a toddler's viewing does not shape anyone's recommendations.
+ * - `controls=0`, `disablekb=1`, `fs=0`, `iv_load_policy=3`: no YouTube buttons, keys,
+ *   fullscreen or annotations. The game draws its own ⏯ instead, and a shield over
+ *   the player's edges takes every touch, so the links YouTube still shows there
+ *   can't be pressed (see `SHIELD_HOLE`).
+ * - A single video loops (the `playlist=<itself>` trick iFocus uses) so it never
+ *   reaches the end screen, whose wall of other thumbnails is exactly what a small
+ *   finger would press next; `rel=0` keeps what little it would suggest to one channel.
+ * - Not muted: the tap on the card lends the player the right to start with sound
+ *   (`allow="autoplay"`) where the browser shares it, as Chrome does. Where it does
+ *   not (iOS Safari), the video waits behind YouTube's big play button instead, in
+ *   the hole left in the shield for exactly that.
+ * - `enablejsapi=1` and `origin` let the page drive the player with postMessage.
  */
-export function embedUrl(ref: YouTubeRef): string {
-  const q = new URLSearchParams({ autoplay: '1', rel: '0', modestbranding: '1', playsinline: '1' });
+export function embedUrl(ref: YouTubeRef, origin?: string): string {
+  const q = new URLSearchParams({
+    autoplay: '1',
+    controls: '0',
+    disablekb: '1',
+    fs: '0',
+    iv_load_policy: '3',
+    rel: '0',
+    modestbranding: '1',
+    playsinline: '1',
+    enablejsapi: '1',
+  });
+  if (origin) q.set('origin', origin);
   if (!ref.video) {
     q.set('list', ref.list ?? '');
-    return `https://www.youtube-nocookie.com/embed/videoseries?${q}`;
+    q.set('loop', '1');
+    return `${PLAYER_ORIGIN}/embed/videoseries?${q}`;
   }
   if (ref.list) q.set('list', ref.list);
-  else {
-    q.set('loop', '1');
-    q.set('playlist', ref.video);
+  else q.set('playlist', ref.video);
+  q.set('loop', '1');
+  return `${PLAYER_ORIGIN}/embed/${ref.video}?${q}`;
+}
+
+// ---- the shield ----
+
+/**
+ * The part of the player left open to a real finger, as fractions of its width
+ * and height, centred. iOS only starts a video with sound on a tap *inside* the
+ * player, so the shield can't cover all of it. With `controls=0` the middle of
+ * the player holds only YouTube's big start button and play/pause; its links
+ * all live at the edges — title and channel along the top, the logo bottom
+ * right, "more videos" along the bottom when paused — and stay covered.
+ */
+export const SHIELD_HOLE = { width: 0.5, height: 0.5 };
+
+export interface Strip {
+  side: 'top' | 'bottom' | 'left' | 'right';
+  /** Percentages of the player, so the hole stays put however it is sized. */
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+/** Four strips that cover the player all round the hole and nowhere in it. */
+export function shieldStrips(hole = SHIELD_HOLE): Strip[] {
+  const x = ((1 - hole.width) / 2) * 100;
+  const y = ((1 - hole.height) / 2) * 100;
+  const mid = hole.height * 100;
+  return [
+    { side: 'top', top: 0, left: 0, width: 100, height: y },
+    { side: 'bottom', top: 100 - y, left: 0, width: 100, height: y },
+    { side: 'left', top: y, left: 0, width: x, height: mid },
+    { side: 'right', top: y, left: 100 - x, width: x, height: mid },
+  ];
+}
+
+// ---- talking to the player (the IFrame API's postMessage protocol, without its script) ----
+
+export type PlayerCommand = 'playVideo' | 'pauseVideo' | 'mute' | 'unMute';
+
+export function commandMessage(func: PlayerCommand): string {
+  return JSON.stringify({ event: 'command', func, args: [] });
+}
+
+/** Sent until the player starts talking back: after it, the player reports its state on its own. */
+export function listeningMessage(id: string): string {
+  return JSON.stringify({ event: 'listening', id, channel: 'widget' });
+}
+
+/** YouTube's player states. Buffering counts as playing: the child asked for it to play. */
+const PLAYING_STATES = new Set([1, 3]);
+
+export interface PlayerNews {
+  playing?: boolean;
+  muted?: boolean;
+}
+
+/**
+ * What a message from the player says about playing and sound, or null when it
+ * is not one of the player's messages at all. The data arrives as a JSON string
+ * (sometimes an object), from a page we do not control: every field is checked.
+ */
+export function readPlayerMessage(data: unknown): PlayerNews | null {
+  let msg: unknown = data;
+  if (typeof data === 'string') {
+    try {
+      msg = JSON.parse(data);
+    } catch {
+      return null;
+    }
   }
-  return `https://www.youtube-nocookie.com/embed/${ref.video}?${q}`;
+  if (!msg || typeof msg !== 'object') return null;
+  const { event, info } = msg as { event?: unknown; info?: unknown };
+  const news: PlayerNews = {};
+  if (event === 'onStateChange' && typeof info === 'number') {
+    news.playing = PLAYING_STATES.has(info);
+  } else if ((event === 'infoDelivery' || event === 'initialDelivery') && info && typeof info === 'object') {
+    const { playerState, muted } = info as { playerState?: unknown; muted?: unknown };
+    if (typeof playerState === 'number') news.playing = PLAYING_STATES.has(playerState);
+    if (typeof muted === 'boolean') news.muted = muted;
+  } else if (typeof event !== 'string') {
+    return null;
+  }
+  return news;
 }
 
 export function thumbUrl(video: string): string {
