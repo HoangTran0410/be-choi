@@ -1,3 +1,11 @@
+/**
+ * When the running build was made, from the `<meta name="build-time">` the build writes
+ * into index.html. Kept out of the JavaScript on purpose: see vite.config.ts.
+ */
+export function currentBuild(doc: Document = document): string | undefined {
+  return doc.querySelector<HTMLMetaElement>('meta[name="build-time"]')?.content || undefined;
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /**

@@ -1,6 +1,6 @@
 import { h } from '../core/dom';
 import { MAX_PHOTOS } from '../core/photos';
-import { formatBuildTime } from './buildTime';
+import { currentBuild, formatBuildTime } from './buildTime';
 import type { AppDeps } from './deps';
 import type { Theme } from './storage';
 import { applyTheme } from './theme';
@@ -219,7 +219,7 @@ export function openParentPanel(deps: AppDeps): void {
     h('h3', null, '🔄 Phiên bản'),
     // The build time is what tells a parent whether this device has the latest; the
     // semver rarely moves. The download's progress shows at the top of the screen.
-    h('p', { class: 'panel-version' }, [formatBuildTime(__BUILD_TIME__), `Bé Chơi v${__APP_VERSION__}`].filter(Boolean).join(' · ')),
+    h('p', { class: 'panel-version' }, [formatBuildTime(currentBuild()), `Bé Chơi v${__APP_VERSION__}`].filter(Boolean).join(' · ')),
     h('p', { class: 'panel-note' }, 'Máy vẫn còn bản cũ? Bấm để xoá bản đã lưu và tải lại từ mạng. App sẽ mở lại ngay sau đó.'),
     updateBtn,
     updateStatus,

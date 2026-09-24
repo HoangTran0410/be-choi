@@ -163,7 +163,7 @@ function followInstall(worker: ServiceWorker, isUpdate: boolean): void {
 
 /**
  * Hook the bar up to a registration: the worker installing right now (the first visit,
- * or the reload after "Tải bản mới nhất") and any found later by autoUpdate's checks.
+ * or the reload after "Tải bản mới nhất") and any found later by the checks in app/updateCheck.ts.
  */
 export function watchUpdateProgress(registration: ServiceWorkerRegistration | undefined): void {
   if (!registration || typeof caches === 'undefined') return;

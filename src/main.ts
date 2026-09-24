@@ -11,6 +11,8 @@ import { hrefFor, startRouter } from './app/router';
 import { mountShell } from './app/shell';
 import { createStore } from './app/storage';
 import { applyTheme, watchSystemTheme } from './app/theme';
+import { currentBuild } from './app/buildTime';
+import { announceIfJustUpdated, watchForUpdates } from './app/updateCheck';
 import { UPDATING_FLAG, watchUpdateProgress } from './app/updateProgress';
 import './styles/base.css';
 import './styles/update.css';
@@ -54,10 +56,10 @@ const install: InstallState = {
 
 // ---- "give me the new version now", from the parent panel ----
 /**
- * `registerType: 'autoUpdate'` already swaps a new build in, but only once the browser
- * gets round to re-fetching the service worker. A tablet that never really closes the app
- * can sit on an old build for days. This is the parent asking for it now: drop the saved
- * build and the worker serving it, then come back through the network. The cache-busting
+ * The app looks for new builds by itself and offers them (app/updateCheck.ts), but only
+ * through the service worker, and a worker in a bad way can keep missing them. This is
+ * the parent's hammer: drop the worker serving the old build and come back through the
+ * network. The cache-busting
  * search param is for iOS, where a plain reload can still be answered from the HTTP cache.
  */
 const update: UpdateState = {
@@ -69,13 +71,12 @@ const update: UpdateState = {
     } catch {
       /* only changes the wording */
     }
+    // Only the worker goes, not the caches. Workbox keys every file by its revision and
+    // skips any it already holds, so the fresh worker fetches just what changed; a stale
+    // copy can never be served for a new revision. Wiping them meant every sound again.
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map((r) => r.unregister()));
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
     }
     const fresh = new URL(location.href);
     fresh.searchParams.set('v', Date.now().toString(36));
@@ -149,7 +150,29 @@ document.addEventListener('selectstart', (e) => e.preventDefault());
 
 // The download itself is the slow part (every recorded sound comes with it), so the
 // page shows how far it has got. See app/updateProgress.ts.
-registerSW({ immediate: true, onRegisteredSW: (_url, registration) => watchUpdateProgress(registration) });
+// New builds are looked for on opening and on coming back to the app, and offered on
+// the home screen rather than swapped in mid-game. See app/updateCheck.ts.
+let registration: ServiceWorkerRegistration | undefined;
+const updates = watchForUpdates({
+  current: currentBuild() ?? '',
+  base: import.meta.env.BASE_URL,
+  refreshWorker: 'serviceWorker' in navigator ? async () => registration?.update() : undefined,
+  apply: () => {
+    // With a waiting worker this lets it in and reloads; without one, just reload.
+    if (registration?.waiting) void updateSW(true);
+    else location.reload();
+  },
+});
+const updateSW = registerSW({
+  immediate: true,
+  onRegisteredSW: (_url, reg) => {
+    registration = reg;
+    watchUpdateProgress(reg);
+    void updates.check(true);
+  },
+  onNeedRefresh: () => updates.ready(),
+});
+announceIfJustUpdated(currentBuild() ?? '');
 
 // ---- Routing ----
 let unmount: (() => void) | null = null;

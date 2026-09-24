@@ -6,9 +6,13 @@ import type { AppDeps } from './deps';
 import { openParentPanel, STARS_CHANGED } from './parentPanel';
 import { createStore } from './storage';
 
-// The panel prints the app version, which vite normally replaces at build time.
+// The panel prints the app version, which vite normally replaces at build time…
 (globalThis as { __APP_VERSION__?: string }).__APP_VERSION__ = '0.0.0-test';
-(globalThis as { __BUILD_TIME__?: string }).__BUILD_TIME__ = new Date(2026, 8, 24, 14, 5).toISOString();
+// …and the build time, which the build writes into index.html.
+const buildMeta = document.createElement('meta');
+buildMeta.name = 'build-time';
+buildMeta.content = new Date(2026, 8, 24, 14, 5).toISOString();
+document.head.append(buildMeta);
 
 function fakeSpeech(): Speech {
   const noop = () => undefined;
