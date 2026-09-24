@@ -87,6 +87,19 @@
   background: rgba(255, 255, 255, 0.95);
   touch-action: pan-y;
 }
+/*
+ * `.stage *` turns touch actions off; the list and everything a finger can land on
+ * inside it opt back in to vertical scrolling (the browser takes the strictest rule
+ * between what was touched and what scrolls).
+ */
+.stage .amb-picks,
+.stage .amb-picks * {
+  touch-action: pan-y;
+}
+.amb-picks {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .amb-pick {
   aspect-ratio: 1;
   border-radius: 20%;
@@ -112,7 +125,8 @@
 
 /* ---- the tray: shelves, then the switches on the chosen shelf ---- */
 .amb-tray {
-  --tab: min(calc(var(--tap) * 0.72), 15vw);
+  /* Seven shelves must fit across the narrowest phone standing up. */
+  --tab: min(calc(var(--tap) * 0.72), 12vw);
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -132,6 +146,16 @@
   display: flex;
   gap: 1.2vmin;
   justify-content: center;
+}
+/* Sideways the shelves stack two rows deep, so the switches beside them keep their size. */
+@media (orientation: landscape) {
+  .amb-tray {
+    --tab: min(calc(var(--tap) * 0.62), 11vh);
+  }
+  .amb-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, var(--tab));
+  }
 }
 .amb-tab {
   --size: var(--tab);
@@ -173,8 +197,8 @@
   justify-content: center;
 }
 .amb-tile {
-  /* Beside the five shelf buttons, seven switches still fit on a phone on its side. */
-  --size: min(var(--tap), calc((100vw - 5 * var(--tab) - 24vmin) / 7));
+  /* Beside the shelf buttons (two rows of four, sideways), seven switches still fit on a phone on its side. */
+  --size: min(var(--tap), calc((100vw - 4 * var(--tab) - 28vmin) / 7));
   position: relative;
   flex: 0 1 var(--size);
   width: var(--size);

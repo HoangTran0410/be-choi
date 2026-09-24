@@ -57,6 +57,14 @@ const SKIES: Record<Sky | 'day', [RGB, RGB]> = {
     [14, 116, 144],
     [8, 51, 68],
   ],
+  space: [
+    [6, 4, 20],
+    [46, 16, 101],
+  ],
+  winter: [
+    [148, 163, 184],
+    [226, 232, 240],
+  ],
 };
 
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -76,8 +84,8 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   /** Target (0/1) and eased level of every effect, and of every sky. */
   const want = new Map<string, number>();
   const level = new Map<string, number>();
-  let skyWant: Record<Sky, number> = { night: 0, storm: 0, dawn: 0, deep: 0 };
-  const sky: Record<Sky, number> = { night: 0, storm: 0, dawn: 0, deep: 0 };
+  let skyWant: Record<Sky, number> = { night: 0, storm: 0, dawn: 0, deep: 0, space: 0, winter: 0 };
+  const sky: Record<Sky, number> = { night: 0, storm: 0, dawn: 0, deep: 0, space: 0, winter: 0 };
   const L = (id: string) => level.get(id) ?? 0;
 
   // ---- emoji, drawn once per size and reused ----
@@ -87,14 +95,16 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     const key = `${ch}@${s}`;
     let c = sprites.get(key);
     if (!c) {
+      // Drawn at the canvas's own resolution, so it is not stretched blurry onto it.
+      const px = Math.max(8, Math.round(s * dpr));
       c = document.createElement('canvas');
-      c.width = c.height = Math.ceil(s * 1.3);
+      c.width = c.height = Math.ceil(px * 1.3);
       const cg = c.getContext('2d');
       if (!cg) return null;
-      cg.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      cg.font = `${px}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
       cg.textAlign = 'center';
       cg.textBaseline = 'middle';
-      cg.fillText(ch, c.width / 2, c.height / 2 + s * 0.05);
+      cg.fillText(ch, c.width / 2, c.height / 2 + px * 0.05);
       sprites.set(key, c);
     }
     return c;
@@ -113,8 +123,33 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     g.translate(x, y);
     if (opts.rot) g.rotate(opts.rot);
     g.scale(opts.flip ? -1 : 1, opts.sy ?? 1);
-    g.drawImage(c, -c.width / 2, -c.height / 2, c.width, c.height);
+    const w = c.width / dpr;
+    g.drawImage(c, -w / 2, -w / 2, w, w);
     g.restore();
+  }
+
+  /**
+   * A soft round glow, drawn once per colour and stamped wherever it is needed. A
+   * radial gradient made fresh for every firefly on every frame was the single
+   * most expensive thing in the picture.
+   */
+  const glows = new Map<string, HTMLCanvasElement>();
+  function glow(color: string): HTMLCanvasElement | null {
+    let c = glows.get(color);
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const cg = c.getContext('2d');
+      if (!cg) return null;
+      const grad = cg.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, `rgba(${color},1)`);
+      grad.addColorStop(0.35, `rgba(${color},0.45)`);
+      grad.addColorStop(1, `rgba(${color},0)`);
+      cg.fillStyle = grad;
+      cg.fillRect(0, 0, 64, 64);
+      glows.set(color, c);
+    }
+    return c;
   }
 
   // ---- particles, one pool per effect ----
@@ -189,14 +224,22 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     return t;
   }
 
+  /**
+   * Pixels per CSS pixel. Soft shapes and glows gain nothing from a full retina
+   * canvas, and every extra pixel is filled again each frame, so it starts at 1.5
+   * at most — and steps down on its own when the device cannot keep up (see
+   * `frame`), because a smooth picture reads better than a sharp stuttering one.
+   */
+  let dpr = Math.min(1.5, window.devicePixelRatio || 1);
+  const MIN_DPR = 0.75;
   function resize(): void {
     const r = canvas.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
     W = Math.max(1, r.width);
     H = Math.max(1, r.height);
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     g?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sprites.clear();
   }
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
   ro?.observe(canvas);
@@ -226,7 +269,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     if (!g) return;
     let top = SKIES.day[0];
     let bot = SKIES.day[1];
-    for (const k of ['dawn', 'storm', 'night', 'deep'] as const) {
+    for (const k of ['dawn', 'winter', 'storm', 'night', 'space', 'deep'] as const) {
       top = mix(top, SKIES[k][0], sky[k]);
       bot = mix(bot, SKIES[k][1], sky[k]);
     }
@@ -256,6 +299,8 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
       ['storm', '51,65,85', 0.45],
       ['night', '11,16,38', 0.6],
       ['deep', '14,116,144', 0.5],
+      ['space', '10,6,30', 0.65],
+      ['winter', '203,213,225', 0.3],
     ] as const) {
       if (sky[s] < 0.01) continue;
       g.fillStyle = `rgba(${color},${sky[s] * a})`;
@@ -265,8 +310,8 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
 
   function drawHeavens(): void {
     if (!g) return;
-    const dark = Math.max(sky.night, L('sleep'));
-    const day = (1 - sky.night) * (1 - sky.storm) * (1 - sky.deep);
+    const dark = Math.max(sky.night, L('sleep'), sky.space);
+    const day = (1 - sky.night) * (1 - sky.storm) * (1 - sky.deep) * (1 - sky.space) * (1 - sky.winter * 0.6);
     // Stars twinkle in
     if (dark > 0.01) {
       for (const s of stars) {
@@ -280,13 +325,18 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
       const mx = W * 0.82;
       const my = H * 0.16;
       const mr = U() * 0.07;
-      g.fillStyle = `rgba(254,249,195,${dark * (1 - sky.deep)})`;
-      g.shadowColor = 'rgba(254,249,195,0.8)';
-      g.shadowBlur = 30 * dark;
+      const moon = dark * (1 - sky.deep) * (1 - sky.space);
+      const halo = glow('254,249,195');
+      if (halo && moon > 0.01) {
+        // The halo a shadowBlur used to make, at a fraction of the cost.
+        g.globalAlpha = moon * 0.5;
+        g.drawImage(halo, mx - mr * 2.2, my - mr * 2.2, mr * 4.4, mr * 4.4);
+        g.globalAlpha = 1;
+      }
+      g.fillStyle = `rgba(254,249,195,${moon})`;
       g.beginPath();
       g.arc(mx, my, mr, 0, Math.PI * 2);
       g.fill();
-      g.shadowBlur = 0;
     }
     // Sun: high at noon, low and huge with rays at dawn. A photograph has its own light.
     if (day > 0.01 && !photo) {
@@ -327,7 +377,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     const shown = 3 + Math.round(rainy * 4);
     const dark = mix([255, 255, 255], [100, 116, 139], Math.max(sky.storm, rainy * 0.5));
     // Over a photograph clouds only come with the rain; its own sky is sky enough.
-    const alpha = (1 - sky.deep) * (0.85 - sky.night * 0.5) * (photo ? rainy : 1);
+    const alpha = (1 - sky.deep) * (1 - sky.space) * (0.85 - sky.night * 0.5) * (photo ? rainy : 1);
     clouds.forEach((c, i) => {
       c.x += (c.v + wind() * 0.05) * dt;
       if (c.x > 1.25) c.x = -0.25;
@@ -354,8 +404,17 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     const gy = groundY();
     const night = Math.max(sky.night, L('sleep') * 0.6);
     const lush = L('countryside');
-    const far = mix(mix([134, 239, 172], [74, 222, 128], lush), [20, 83, 45], night * 0.8);
-    const near = mix(mix([74, 222, 128], [34, 197, 94], lush), [22, 101, 52], night * 0.8);
+    // Snow settles white on the hills; in space the ground is the grey of the moon.
+    const far = mix(
+      mix(mix(mix([134, 239, 172], [74, 222, 128], lush), [20, 83, 45], night * 0.8), [241, 245, 249], L('snow') * 0.85),
+      [100, 96, 120],
+      sky.space,
+    );
+    const near = mix(
+      mix(mix(mix([74, 222, 128], [34, 197, 94], lush), [22, 101, 52], night * 0.8), [226, 232, 240], L('snow') * 0.85),
+      [130, 124, 150],
+      sky.space,
+    );
     g.fillStyle = rgb(far);
     g.beginPath();
     g.moveTo(0, gy);
@@ -729,19 +788,22 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
       // that starts near white turns into one white blob.
       const light = 48 + (1 - t) * 14;
       // Trail: segments fading and thinning towards the tail.
+      // In four pieces, each a little brighter and wider than the one behind it:
+      // as good as a stroke per segment to the eye, and a tenth of the draw calls.
       const pts = s.trail;
       const count = pts.length / 2;
-      for (let j = 0; j < count; j++) {
-        const x0 = pts[j * 2]!;
-        const y0 = pts[j * 2 + 1]!;
-        const x1 = j + 1 < count ? pts[j * 2 + 2]! : s.x;
-        const y1 = j + 1 < count ? pts[j * 2 + 3]! : s.y;
-        const w = (j + 1) / count;
+      const PIECES = 4;
+      for (let q = 0; q < PIECES; q++) {
+        const from = Math.floor((q * count) / PIECES);
+        const to = q === PIECES - 1 ? count : Math.floor(((q + 1) * count) / PIECES) + 1;
+        if (to - from < 1) continue;
+        const w = (q + 1) / PIECES;
         g.strokeStyle = `hsla(${s.hue},${s.sat}%,${light}%,${a * w * w * 0.85})`;
         g.lineWidth = 0.5 + w * 2.2;
         g.beginPath();
-        g.moveTo(x0, y0);
-        g.lineTo(x1, y1);
+        g.moveTo(pts[from * 2]!, pts[from * 2 + 1]!);
+        for (let j = from + 1; j < to && j < count; j++) g.lineTo(pts[j * 2]!, pts[j * 2 + 1]!);
+        if (q === PIECES - 1) g.lineTo(s.x, s.y);
         g.stroke();
       }
       // The star itself, white-hot at the head.
@@ -895,7 +957,10 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     }));
     const ps = pool('bub');
     step(ps, dt);
-    g.lineWidth = 1.5;
+    // All the bubbles in one path, then all the shines in another: three draw calls
+    // for the lot rather than three for every bubble.
+    const body = new Path2D();
+    const shine = new Path2D();
     for (let i = ps.length - 1; i >= 0; i--) {
       const p = ps[i] as P;
       if (p.y < H * 0.05) {
@@ -903,17 +968,20 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
         continue;
       }
       const x = p.x + Math.sin(p.life * 2 + (p.hue ?? 0)) * 10;
-      g.strokeStyle = 'rgba(255,255,255,0.8)';
-      g.fillStyle = 'rgba(186,230,253,0.25)';
-      g.beginPath();
-      g.arc(x, p.y, p.size, 0, Math.PI * 2);
-      g.fill();
-      g.stroke();
-      g.fillStyle = 'rgba(255,255,255,0.9)';
-      g.beginPath();
-      g.arc(x - p.size * 0.35, p.y - p.size * 0.35, p.size * 0.22, 0, Math.PI * 2);
-      g.fill();
+      body.moveTo(x + p.size, p.y);
+      body.arc(x, p.y, p.size, 0, Math.PI * 2);
+      const sx = x - p.size * 0.35;
+      const sy = p.y - p.size * 0.35;
+      shine.moveTo(sx + p.size * 0.22, sy);
+      shine.arc(sx, sy, p.size * 0.22, 0, Math.PI * 2);
     }
+    g.lineWidth = 1.5;
+    g.fillStyle = 'rgba(186,230,253,0.25)';
+    g.fill(body);
+    g.strokeStyle = 'rgba(255,255,255,0.8)';
+    g.stroke(body);
+    g.fillStyle = 'rgba(255,255,255,0.9)';
+    g.fill(shine);
   }
 
   function drawWhale(dt: number): void {
@@ -1024,14 +1092,14 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     step(ps, dt);
     g.globalCompositeOperation = 'lighter';
     for (const p of ps) {
-      const glow = Math.max(0, Math.sin(time * 3 + (p.hue ?? 0))) * Math.sin((p.life / p.max) * Math.PI);
+      const lit = Math.max(0, Math.sin(time * 3 + (p.hue ?? 0))) * Math.sin((p.life / p.max) * Math.PI);
+      const spot = glow('217,249,157');
+      if (!spot || lit < 0.02) continue;
       const r = p.size * 4;
-      const grad = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-      grad.addColorStop(0, `rgba(217,249,157,${glow})`);
-      grad.addColorStop(1, 'rgba(217,249,157,0)');
-      g.fillStyle = grad;
-      g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+      g.globalAlpha = lit;
+      g.drawImage(spot, p.x - r, p.y - r, r * 2, r * 2);
     }
+    g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
     // The cricket itself, chirping with a shiver.
     const c = L('cricket');
@@ -1454,11 +1522,646 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     g.globalAlpha = 1;
   }
 
+  // =================== the newer ones ===================
+
+  /** Snow: flakes drifting down and swaying, a snowman on the white hill. */
+  function drawSnow(dt: number): void {
+    if (!g) return;
+    const k = L('snow');
+    spawn('snow', 45, dt, () => ({
+      x: rand(-0.1, 1.1) * W,
+      y: -10,
+      vx: rand(-10, 10),
+      vy: rand(25, 60),
+      life: 0,
+      max: 20,
+      size: rand(1.5, 4.5),
+      hue: Math.random() * 6,
+    }));
+    const ps = pool('snow');
+    step(ps, dt);
+    // Every flake in one path, filled once.
+    g.fillStyle = `rgba(255,255,255,${0.9 * Math.min(1, k * 1.5)})`;
+    g.beginPath();
+    for (let i = ps.length - 1; i >= 0; i--) {
+      const p = ps[i] as P;
+      if (p.y > H) {
+        ps.splice(i, 1);
+        continue;
+      }
+      const x = p.x + Math.sin(p.life * 1.5 + (p.hue ?? 0)) * 12 + wind() * p.life * 30;
+      g.moveTo(x + p.size, p.y);
+      g.arc(x, p.y, p.size, 0, Math.PI * 2);
+    }
+    g.fill();
+    if (k > 0.01) drawEmoji('⛄', W * 0.3, groundY() + H * 0.08, U() * 0.14, { alpha: k, rot: Math.sin(time * 0.8) * 0.04 });
+  }
+
+  /** Seagulls wheeling over the water, and a lighthouse whose beam sweeps at night. */
+  function drawSeagulls(): void {
+    if (!g) return;
+    const k = L('seagull');
+    if (k < 0.01) return;
+    g.globalAlpha = k;
+    // The lighthouse, standing on the right.
+    const lx = W * 0.93;
+    const base = groundY() + H * 0.04;
+    const lh = H * 0.3;
+    const lw = U() * 0.05;
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = i % 2 ? '#ef4444' : '#f8fafc';
+      const y0 = base - (lh * i) / 4;
+      const w0 = lw * (1 - (0.25 * i) / 4);
+      g.fillRect(lx - w0 / 2, y0 - lh / 4, w0, lh / 4 + 1);
+    }
+    g.fillStyle = '#334155';
+    g.fillRect(lx - lw * 0.45, base - lh - lw * 0.7, lw * 0.9, lw * 0.7);
+    const lampY = base - lh - lw * 0.35;
+    const night = Math.max(sky.night, sky.storm * 0.6);
+    g.fillStyle = `rgba(253,224,71,${0.6 + 0.4 * night})`;
+    g.beginPath();
+    g.arc(lx, lampY, lw * 0.25, 0, Math.PI * 2);
+    g.fill();
+    if (night > 0.05) {
+      const a = Math.sin(time * 0.9) * 0.9 + Math.PI;
+      const beam = g.createLinearGradient(lx, lampY, lx + Math.cos(a) * W * 0.6, lampY + Math.sin(a) * W * 0.1);
+      beam.addColorStop(0, `rgba(254,240,138,${0.45 * night * k})`);
+      beam.addColorStop(1, 'rgba(254,240,138,0)');
+      g.fillStyle = beam;
+      g.beginPath();
+      g.moveTo(lx, lampY);
+      g.lineTo(lx + Math.cos(a - 0.08) * W * 0.7, lampY + Math.sin(a - 0.08) * W * 0.7);
+      g.lineTo(lx + Math.cos(a + 0.08) * W * 0.7, lampY + Math.sin(a + 0.08) * W * 0.7);
+      g.fill();
+    }
+    // Gulls: a pair of arcs each, flapping, gliding in circles.
+    g.strokeStyle = sky.night > 0.5 ? '#e2e8f0' : '#475569';
+    g.lineWidth = 2.5;
+    g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const t = time * (0.25 + i * 0.05) + i * 1.7;
+      const x = W * (0.25 + i * 0.16) + Math.cos(t) * W * 0.12;
+      const y = H * (0.18 + (i % 2) * 0.1) + Math.sin(t * 1.3) * H * 0.05;
+      const s = U() * (0.035 - i * 0.004);
+      const flap = Math.sin(time * 6 + i) * 0.5 + 0.5;
+      g.beginPath();
+      g.moveTo(x - s, y - s * 0.2 - flap * s * 0.4);
+      g.quadraticCurveTo(x - s * 0.5, y - s * 0.6 * flap, x, y);
+      g.quadraticCurveTo(x + s * 0.5, y - s * 0.6 * flap, x + s, y - s * 0.2 - flap * s * 0.4);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+
+  /** A waterfall off a rocky cliff, streaming into a pool with spray. */
+  function drawWaterfall(dt: number): void {
+    if (!g) return;
+    const k = L('waterfall');
+    if (k < 0.01) return;
+    const x0 = W * 0.62;
+    const w = W * 0.1;
+    const top = H * 0.3;
+    const bottom = groundY() + H * 0.12;
+    g.globalAlpha = k;
+    g.fillStyle = '#78716c';
+    g.beginPath();
+    g.moveTo(x0 - w * 0.6, bottom);
+    g.lineTo(x0 - w * 0.5, top - H * 0.04);
+    g.lineTo(x0 + w * 0.5, top - H * 0.06);
+    g.lineTo(x0 + w * 1.6, top);
+    g.lineTo(x0 + w * 1.7, bottom);
+    g.fill();
+    g.fillStyle = '#38bdf8';
+    g.fillRect(x0, top - H * 0.02, w, bottom - top);
+    // Streaks running down.
+    g.strokeStyle = 'rgba(255,255,255,0.7)';
+    g.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+      const x = x0 + ((i + 0.5) / 7) * w;
+      g.setLineDash([18, 22]);
+      g.lineDashOffset = -time * 220 - i * 13;
+      g.beginPath();
+      g.moveTo(x, top);
+      g.lineTo(x + Math.sin(i) * 2, bottom);
+      g.stroke();
+    }
+    g.setLineDash([]);
+    g.fillStyle = '#0ea5e9';
+    g.beginPath();
+    g.ellipse(x0 + w / 2, bottom, w * 1.4, H * 0.035, 0, 0, Math.PI * 2);
+    g.fill();
+    g.globalAlpha = 1;
+    spawn('mist', 18, dt, () => ({
+      x: x0 + rand(0, w),
+      y: bottom,
+      vx: rand(-40, 40),
+      vy: -rand(20, 60),
+      life: 0,
+      max: 1.2,
+      size: rand(4, 9),
+    }));
+    const ps = pool('mist');
+    step(ps, dt);
+    for (const p of ps) {
+      g.fillStyle = `rgba(255,255,255,${(1 - p.life / p.max) * 0.5 * k})`;
+      g.beginPath();
+      g.arc(p.x, p.y, p.size * (1 + p.life), 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  /** Flowers along the ground, and bees zigzagging from one to the next. */
+  const blooms = ['🌼', '🌸', '🌻', '🌷', '🌼', '🌺'];
+  function drawBees(): void {
+    if (!g) return;
+    const k = L('bees');
+    if (k < 0.01) return;
+    g.globalAlpha = k;
+    const y = H * 0.86;
+    blooms.forEach((f, i) => {
+      const x = W * (0.28 + i * 0.09);
+      drawEmoji(f, x, y + (i % 2) * H * 0.03, U() * 0.07, { rot: Math.sin(time * 1.5 + i) * 0.1 });
+    });
+    for (let i = 0; i < 3; i++) {
+      const t = time * (0.6 + i * 0.15) + i * 2;
+      const x = W * (0.28 + ((Math.sin(t * 0.7) + 1) / 2) * 0.45);
+      const yy = y - H * 0.08 - Math.abs(Math.sin(t * 2.3)) * H * 0.12 + Math.sin(time * 25 + i) * 2;
+      drawEmoji('🐝', x, yy, U() * 0.05, { flip: Math.cos(t * 0.7) > 0 });
+    }
+    g.globalAlpha = 1;
+  }
+
+  /** A cat curled up asleep, breathing slowly, its purr drifting up. */
+  function drawCat(dt: number): void {
+    if (!g) return;
+    const k = L('cat');
+    if (k < 0.01) return;
+    const x = W * 0.8;
+    const y = H * 0.9;
+    const breathe = 1 + Math.sin(time * 1.6) * 0.04;
+    g.globalAlpha = k;
+    g.fillStyle = 'rgba(244,114,182,0.35)';
+    g.beginPath();
+    g.ellipse(x, y + U() * 0.03, U() * 0.1, U() * 0.025, 0, 0, Math.PI * 2);
+    g.fill();
+    drawEmoji('🐈', x, y, U() * 0.12, { sy: breathe });
+    g.globalAlpha = 1;
+    notes('cat', x + U() * 0.03, y - U() * 0.06, dt, 1.2, ['r', 'rr', 'ừ']);
+  }
+
+  /** A red barn on the horizon and the animals grazing in front of it. */
+  function drawFarm(dt: number): void {
+    if (!g) return;
+    const k = L('farm');
+    if (k < 0.01) return;
+    const bx = W * 0.72;
+    const gy = groundY();
+    const bw = U() * 0.16;
+    const bh = U() * 0.12;
+    g.globalAlpha = k;
+    g.fillStyle = '#b91c1c';
+    g.fillRect(bx - bw / 2, gy - bh, bw, bh);
+    g.beginPath();
+    g.moveTo(bx - bw * 0.6, gy - bh);
+    g.lineTo(bx, gy - bh * 1.7);
+    g.lineTo(bx + bw * 0.6, gy - bh);
+    g.fill();
+    g.fillStyle = '#f8fafc';
+    g.fillRect(bx - bw * 0.15, gy - bh * 0.6, bw * 0.3, bh * 0.6);
+    g.strokeStyle = '#f8fafc';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(bx - bw * 0.15, gy - bh * 0.6);
+    g.lineTo(bx + bw * 0.15, gy);
+    g.moveTo(bx + bw * 0.15, gy - bh * 0.6);
+    g.lineTo(bx - bw * 0.15, gy);
+    g.stroke();
+    for (const [id, emoji, v, y] of [
+      ['farm-cow', '🐄', 0.012, 0.08],
+      ['farm-sheep', '🐑', 0.018, 0.12],
+      ['farm-pig', '🐖', 0.015, 0.16],
+    ] as const) {
+      level.set(id, k);
+      const a = traveller(id, dt, v, gy + H * y);
+      const graze = Math.sin(time * 2 + v * 400) > 0.6 ? 0.2 : 0;
+      drawEmoji(emoji, a.x, a.y, U() * 0.09, { flip: a.dir > 0, rot: graze * a.dir });
+    }
+    g.globalAlpha = 1;
+  }
+
+  /** Rainforest: big leaves framing the picture, parrots flying, a monkey swinging on a vine. */
+  function drawRainforest(dt: number): void {
+    if (!g) return;
+    const k = L('rainforest');
+    if (k < 0.01) return;
+    g.globalAlpha = k;
+    const sway = Math.sin(time * 0.9) * 0.08;
+    for (const [x, y, s, r, f] of [
+      [0.02, 0.05, 0.3, 0.5, false],
+      [0.98, 0.05, 0.3, -0.5, true],
+      [0.0, 0.6, 0.26, 0.2, false],
+      [1.0, 0.6, 0.26, -0.2, true],
+    ] as const) {
+      drawEmoji('🌿', x * W, y * H, U() * s, { rot: r + sway, flip: f });
+    }
+    // The monkey on a vine, swinging like a pendulum from the top.
+    const px = W * 0.4;
+    const len = H * 0.32;
+    const a = Math.sin(time * 1.6) * 0.6;
+    g.strokeStyle = '#15803d';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(px, 0);
+    g.lineTo(px + Math.sin(a) * len, Math.cos(a) * len);
+    g.stroke();
+    drawEmoji('🐒', px + Math.sin(a) * len, Math.cos(a) * len + U() * 0.03, U() * 0.1, { rot: -a });
+    const p = traveller('rainforest-parrot', dt, 0.08, H * 0.22);
+    drawEmoji('🦜', p.x, p.y + Math.sin(time * 3) * 10, U() * 0.08, { flip: p.dir > 0, sy: 0.85 + 0.15 * Math.abs(Math.sin(time * 9)) });
+    g.globalAlpha = 1;
+  }
+
+  /** A carousel music box turning, its notes spiralling up. */
+  function drawMusicBox(dt: number): void {
+    if (!g) return;
+    const k = L('musicbox');
+    if (k < 0.01) return;
+    const x = W * 0.55;
+    const y = H * 0.66;
+    g.globalAlpha = k;
+    drawEmoji('🎠', x, y + Math.sin(time * 2) * 4, U() * 0.16, { flip: Math.sin(time * 0.8) < 0 });
+    g.globalAlpha = 1;
+    notes('musicbox', x + Math.sin(time * 3) * U() * 0.06, y - U() * 0.08, dt, 2.2, ['♪', '♫', '♬']);
+  }
+
+  /** A heart beating in time — lub-dub — with rings going out on every beat. */
+  let lastBeat = -1;
+  function drawHeartbeat(dt: number): void {
+    if (!g) return;
+    const k = L('heartbeat');
+    if (k < 0.01) return;
+    const x = W * 0.5;
+    const y = H * 0.36;
+    const period = 60 / 70;
+    const t = (time % period) / period;
+    // Two quick thumps, then rest.
+    const pulse = Math.exp(-(((t - 0.05) / 0.05) ** 2)) + 0.6 * Math.exp(-(((t - 0.22) / 0.05) ** 2));
+    const beat = Math.floor(time / period);
+    if (beat !== lastBeat) {
+      lastBeat = beat;
+      pool('heart-ring').push({ x, y, vx: 0, vy: 0, life: 0, max: 1.4, size: U() * 0.08 });
+    }
+    const rings = pool('heart-ring');
+    step(rings, dt);
+    g.lineWidth = 3;
+    for (const r of rings) {
+      const p = r.life / r.max;
+      g.strokeStyle = `rgba(244,63,94,${(1 - p) * 0.6 * k})`;
+      g.beginPath();
+      g.arc(r.x, r.y, r.size * (1 + p * 2.5), 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.globalAlpha = k;
+    drawEmoji('❤️', x, y, U() * 0.16 * (1 + pulse * 0.18));
+    g.globalAlpha = 1;
+  }
+
+  /**
+   * Crayon drawing: a squiggle draws itself across the sky, stays a moment and
+   * fades, then another in another colour — the picture a child would scribble.
+   */
+  interface Scribble {
+    pts: [number, number][];
+    hue: number;
+    life: number;
+  }
+  const scribbles: Scribble[] = [];
+  function drawDrawing(dt: number): void {
+    if (!g) return;
+    const k = L('drawing');
+    if (every('drawing', dt, 1.2, 2.2) && scribbles.length < 4) {
+      const pts: [number, number][] = [];
+      let x = rand(0.1, 0.6) * W;
+      let y = rand(0.15, 0.55) * H;
+      let a = rand(0, Math.PI * 2);
+      const kind = Math.random();
+      for (let i = 0; i < 60; i++) {
+        // Loops, zigzags or a big spiral: what a crayon does.
+        if (kind < 0.33) a += 0.35;
+        else if (kind < 0.66) a += i % 8 < 4 ? 0.5 : -0.5;
+        else a += 0.2 + i * 0.004;
+        x += Math.cos(a) * U() * 0.02;
+        y += Math.sin(a) * U() * 0.02;
+        pts.push([x, y]);
+      }
+      scribbles.push({ pts, hue: rand(0, 360), life: 0 });
+    }
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    for (let i = scribbles.length - 1; i >= 0; i--) {
+      const sc = scribbles[i]!;
+      sc.life += dt;
+      const shown = Math.min(sc.pts.length, Math.floor((sc.life / 1.5) * sc.pts.length));
+      const fade = sc.life < 4 ? 1 : 1 - (sc.life - 4) / 1;
+      if (fade <= 0) {
+        scribbles.splice(i, 1);
+        continue;
+      }
+      g.strokeStyle = `hsla(${sc.hue},85%,55%,${fade * Math.max(k, 0.2)})`;
+      g.lineWidth = U() * 0.012;
+      g.beginPath();
+      sc.pts.slice(0, shown).forEach(([px, py], j) => (j ? g.lineTo(px, py) : g.moveTo(px, py)));
+      g.stroke();
+      const tip = sc.pts[Math.max(0, shown - 1)];
+      if (tip && shown < sc.pts.length) drawEmoji('🖍️', tip[0] + U() * 0.02, tip[1] - U() * 0.02, U() * 0.06, { alpha: k });
+    }
+  }
+
+  /** A bathtub full of foam, with a rubber duck bobbing on it. */
+  function drawBath(dt: number): void {
+    if (!g) return;
+    const k = L('bath');
+    if (k < 0.01) return;
+    const x = W * 0.2;
+    const y = H * 0.88;
+    g.globalAlpha = k;
+    drawEmoji('🛁', x, y, U() * 0.18);
+    drawEmoji('🦆', x + U() * 0.02 + Math.sin(time) * U() * 0.02, y - U() * 0.06 + Math.sin(time * 2.2) * 3, U() * 0.06, {
+      rot: Math.sin(time * 2.2) * 0.15,
+    });
+    g.globalAlpha = 1;
+    spawn('foam', 5, dt, () => ({
+      x: x + rand(-0.06, 0.06) * U(),
+      y: y - U() * 0.05,
+      vx: rand(-8, 8),
+      vy: -rand(20, 40),
+      life: 0,
+      max: 3,
+      size: rand(0.006, 0.018) * U(),
+      hue: Math.random() * 6,
+    }));
+    const ps = pool('foam');
+    step(ps, dt);
+    g.lineWidth = 1.5;
+    for (const p of ps) {
+      const bx = p.x + Math.sin(p.life * 3 + (p.hue ?? 0)) * 6;
+      g.strokeStyle = `rgba(255,255,255,${(1 - p.life / p.max) * k})`;
+      g.fillStyle = `rgba(224,242,254,${(1 - p.life / p.max) * 0.35 * k})`;
+      g.beginPath();
+      g.arc(bx, p.y, p.size, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+  }
+
+  /** A keyboard, and the letters it types flying up in colours. */
+  function drawTyping(dt: number): void {
+    if (!g) return;
+    const k = L('typing');
+    if (k < 0.01) return;
+    const x = W * 0.45;
+    const y = H * 0.9;
+    g.globalAlpha = k;
+    drawEmoji('⌨️', x, y + (Math.sin(time * 20) > 0.5 ? 1.5 : 0), U() * 0.14);
+    g.globalAlpha = 1;
+    spawn('typing-letter', 5, dt, () => ({
+      x: x + rand(-0.05, 0.05) * U(),
+      y: y - U() * 0.05,
+      vx: rand(-40, 40),
+      vy: -rand(50, 90),
+      life: 0,
+      max: 2,
+      size: U() * rand(0.04, 0.06),
+      hue: rand(0, 360),
+      emoji: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+    }));
+    const ps = pool('typing-letter');
+    step(ps, dt);
+    g.textAlign = 'center';
+    for (const p of ps) {
+      g.fillStyle = `hsla(${p.hue},85%,55%,${(1 - p.life / p.max) * k})`;
+      g.font = `900 ${p.size}px ui-rounded, system-ui, sans-serif`;
+      g.fillText(p.emoji ?? 'A', p.x, p.y);
+    }
+    g.textAlign = 'start';
+  }
+
+  /** The playground: a slide, a ball bouncing across, a kite on the wind. */
+  function drawPlayground(dt: number): void {
+    if (!g) return;
+    const k = L('playground');
+    if (k < 0.01) return;
+    const gy = groundY();
+    g.globalAlpha = k;
+    drawEmoji('🛝', W * 0.36, gy + H * 0.06, U() * 0.16);
+    const ball = traveller('playground-ball', dt, 0.1, gy + H * 0.2);
+    const bounce = Math.abs(Math.sin(time * 4)) * H * 0.1;
+    drawEmoji('⚽', ball.x, ball.y - bounce, U() * 0.06, { rot: ball.x / (U() * 0.03) });
+    // The kite, tugging on its string.
+    const kx = W * 0.62 + Math.sin(time * 0.7) * W * 0.05 + wind() * W * 0.08;
+    const ky = H * 0.2 + Math.sin(time * 1.1) * H * 0.04;
+    g.strokeStyle = 'rgba(71,85,105,0.7)';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(W * 0.45, gy + H * 0.1);
+    g.quadraticCurveTo(W * 0.52, H * 0.5, kx, ky + U() * 0.03);
+    g.stroke();
+    drawEmoji('🪁', kx, ky, U() * 0.09, { rot: Math.sin(time * 1.3) * 0.25 });
+    g.globalAlpha = 1;
+  }
+
+  /** The fair: a Ferris wheel turning, strings of lights, balloons floating off. */
+  function drawCarnival(dt: number): void {
+    if (!g) return;
+    const k = L('carnival');
+    if (k < 0.01) return;
+    const cx = W * 0.78;
+    const cy = groundY() - U() * 0.14;
+    const r = U() * 0.17;
+    g.globalAlpha = k;
+    g.strokeStyle = '#7c3aed';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(cx - r * 0.5, groundY() + H * 0.04);
+    g.lineTo(cx, cy);
+    g.lineTo(cx + r * 0.5, groundY() + H * 0.04);
+    g.stroke();
+    g.beginPath();
+    g.arc(cx, cy, r, 0, Math.PI * 2);
+    g.stroke();
+    const n = 8;
+    const turn = time * 0.35;
+    for (let i = 0; i < n; i++) {
+      const a = turn + (i / n) * Math.PI * 2;
+      g.strokeStyle = 'rgba(124,58,237,0.6)';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      g.stroke();
+      g.fillStyle = `hsl(${(i * 360) / n},85%,60%)`;
+      g.fillRect(cx + Math.cos(a) * r - r * 0.09, cy + Math.sin(a) * r, r * 0.18, r * 0.16);
+    }
+    // Lights strung across the top, blinking in a chase.
+    for (let i = 0; i < 14; i++) {
+      const t = i / 13;
+      const lx = t * W;
+      const ly = H * 0.04 + Math.sin(t * Math.PI) * H * 0.06;
+      const on = (Math.floor(time * 4) + i) % 3 === 0;
+      g.fillStyle = on ? `hsl(${i * 40},95%,70%)` : `hsla(${i * 40},60%,50%,0.5)`;
+      g.beginPath();
+      g.arc(lx, ly, on ? 5 : 3.5, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    spawn('balloon', 0.6, dt, () => ({
+      x: rand(0.1, 0.9) * W,
+      y: H + 20,
+      vx: rand(-10, 10),
+      vy: -rand(30, 55),
+      life: 0,
+      max: 14,
+      size: U() * 0.07,
+      emoji: '🎈',
+    }));
+    level.set('balloon', k);
+    const ps = pool('balloon');
+    step(ps, dt);
+    for (const p of ps) drawEmoji('🎈', p.x + Math.sin(p.life) * 10, p.y, p.size, { alpha: k, rot: Math.sin(p.life * 1.3) * 0.15 });
+  }
+
+  /** Space: planets drifting, a rocket, a flying saucer, shooting stars. */
+  function drawSpace(dt: number): void {
+    if (!g) return;
+    const k = Math.max(L('space'), 0);
+    if (k < 0.01) return;
+    g.globalAlpha = k;
+    drawEmoji('🪐', W * 0.2 + Math.sin(time * 0.1) * W * 0.03, H * 0.22, U() * 0.18, { rot: 0.2 });
+    drawEmoji('🌍', W * 0.82, H * 0.2 + Math.sin(time * 0.2) * 6, U() * 0.12, { rot: time * 0.05 });
+    const r = traveller('space-rocket', dt, 0.05, H * 0.45);
+    drawEmoji('🚀', r.x, r.y + Math.sin(time * 1.5) * 12, U() * 0.1, { rot: r.dir > 0 ? Math.PI / 4 : -Math.PI / 4 - Math.PI / 2 });
+    const u = traveller('space-ufo', dt, 0.03, H * 0.32, -1);
+    drawEmoji('🛸', u.x, u.y + Math.sin(time * 2.5) * 8, U() * 0.08, { rot: Math.sin(time * 2) * 0.1 });
+    g.globalAlpha = 1;
+    if (every('space', dt, 1.5, 3.5)) {
+      pool('comet').push({ x: rand(0.3, 1.1) * W, y: rand(0, 0.3) * H, vx: -U() * 1.2, vy: U() * 0.5, life: 0, max: 0.9, size: 2.5 });
+    }
+    const ps = pool('comet');
+    step(ps, dt);
+    g.lineCap = 'round';
+    for (const p of ps) {
+      const a = (1 - p.life / p.max) * k;
+      const grad = g.createLinearGradient(p.x, p.y, p.x - p.vx * 0.25, p.y - p.vy * 0.25);
+      grad.addColorStop(0, `rgba(255,255,255,${a})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.strokeStyle = grad;
+      g.lineWidth = p.size;
+      g.beginPath();
+      g.moveTo(p.x, p.y);
+      g.lineTo(p.x - p.vx * 0.25, p.y - p.vy * 0.25);
+      g.stroke();
+    }
+  }
+
+  /** A café table: a steaming cup and a croissant. */
+  function drawCoffee(dt: number): void {
+    if (!g) return;
+    const k = L('coffee');
+    if (k < 0.01) return;
+    const x = W * 0.62;
+    const y = H * 0.9;
+    g.globalAlpha = k;
+    drawEmoji('☕', x, y, U() * 0.1);
+    drawEmoji('🥐', x + U() * 0.09, y + U() * 0.01, U() * 0.07);
+    g.globalAlpha = 1;
+    spawn('coffee-steam', 4, dt, () => ({
+      x: x + rand(-6, 6),
+      y: y - U() * 0.04,
+      vx: rand(-4, 4),
+      vy: -rand(20, 35),
+      life: 0,
+      max: 2.2,
+      size: U() * 0.015,
+    }));
+    const ps = pool('coffee-steam');
+    step(ps, dt);
+    for (const p of ps) {
+      const t = p.life / p.max;
+      g.fillStyle = `rgba(255,255,255,${(1 - t) * 0.5 * k})`;
+      g.beginPath();
+      g.arc(p.x + Math.sin(p.life * 3) * 8, p.y, p.size * (1 + t * 1.5), 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  /** A temple on the hill, bells swinging under the eaves, incense curling up. */
+  function drawTemple(dt: number): void {
+    if (!g) return;
+    const k = L('temple');
+    if (k < 0.01) return;
+    const x = W * 0.12;
+    const gy = groundY();
+    g.globalAlpha = k;
+    drawEmoji('🛕', x, gy - U() * 0.05, U() * 0.2);
+    for (let i = 0; i < 3; i++) {
+      const bx = W * (0.3 + i * 0.12);
+      const sw = Math.sin(time * 1.4 + i * 1.1) * 0.35;
+      g.strokeStyle = 'rgba(120,53,15,0.7)';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(bx, 0);
+      g.lineTo(bx + Math.sin(sw) * H * 0.08, Math.cos(sw) * H * 0.08);
+      g.stroke();
+      drawEmoji('🔔', bx + Math.sin(sw) * H * 0.11, Math.cos(sw) * H * 0.11, U() * 0.06, { rot: -sw });
+    }
+    g.globalAlpha = 1;
+    spawn('incense', 3, dt, () => ({
+      x: x + U() * 0.08,
+      y: gy + H * 0.02,
+      vx: rand(-3, 3),
+      vy: -rand(12, 22),
+      life: 0,
+      max: 4,
+      size: U() * 0.01,
+      hue: Math.random() * 6,
+    }));
+    const ps = pool('incense');
+    step(ps, dt);
+    for (const p of ps) {
+      const t = p.life / p.max;
+      g.fillStyle = `rgba(226,232,240,${(1 - t) * 0.45 * k})`;
+      g.beginPath();
+      g.arc(p.x + Math.sin(p.life * 1.5 + (p.hue ?? 0)) * 12, p.y, p.size * (1 + t * 2), 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  /**
+   * Keep it smooth: if frames have been running slow for a couple of seconds,
+   * draw at a lower resolution. Only ever downwards within a visit — flipping
+   * back up would just find the same limit again.
+   */
+  let slowAvg = 1 / 60;
+  let sinceCheck = 0;
+  function adapt(raw: number): void {
+    // A long gap is the tab having been away, not the picture being slow.
+    if (raw > 0.25) return;
+    slowAvg += (raw - slowAvg) * 0.05;
+    sinceCheck += raw;
+    if (sinceCheck < 2) return;
+    sinceCheck = 0;
+    if (slowAvg > 1 / 42 && dpr > MIN_DPR) {
+      dpr = Math.max(MIN_DPR, dpr * 0.8);
+      resize();
+    }
+  }
+
   function frame(now: number): void {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const raw = (now - last) / 1000;
+    const dt = Math.min(0.05, raw);
     last = now;
+    adapt(raw);
     time += dt;
     // Ease every effect and sky towards what is wanted: in over ~1 s, out over ~1.5 s.
     for (const [id, w] of want) {
@@ -1476,29 +2179,48 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     drawHeavens();
     drawFirework(dt);
     if (!photo || Math.max(L('rain'), L('heavy-rain'), L('thunder')) > 0.01) drawClouds(dt);
+    drawSpace(dt);
     drawTown();
     // Under the sea the land sinks away.
     if (!photo && sky.deep < 0.99) {
       g.globalAlpha = 1 - sky.deep;
       drawHills();
-      drawTree();
+      // No tree grows on the moon.
+      g.globalAlpha = (1 - sky.deep) * (1 - sky.space);
+      if (sky.space < 0.99) drawTree();
       g.globalAlpha = 1;
     }
+    drawFarm(dt);
+    drawCarnival(dt);
+    drawSeagulls();
+    drawWaterfall(dt);
     drawStreet(dt);
     drawRiver();
+    drawTemple(dt);
+    drawPlayground(dt);
+    drawRainforest(dt);
     drawBirds(dt);
     drawNightCritters(dt);
     drawCampfire(dt);
     drawFrog(dt);
     drawChickens(dt);
+    drawBees();
+    drawCat(dt);
     drawHome(dt);
+    drawMusicBox(dt);
+    drawHeartbeat(dt);
+    drawBath(dt);
+    drawTyping(dt);
+    drawCoffee(dt);
     drawUnderwater(dt);
     drawWhale(dt);
     drawOcean();
     drawBubbles(dt);
     drawWind(dt);
     drawRain(dt);
+    drawSnow(dt);
     drawThunder(dt);
+    drawDrawing(dt);
     if (flash > 0) {
       g.fillStyle = `rgba(255,255,255,${flash * 0.7})`;
       g.fillRect(0, 0, W, H);

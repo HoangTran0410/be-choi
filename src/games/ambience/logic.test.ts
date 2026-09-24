@@ -16,7 +16,11 @@ describe('the shelves', () => {
 
   it('are all known to the build script', () => {
     const script = readFileSync('scripts/ambience.mjs', 'utf8');
-    for (const a of allAmbients()) expect(script).toContain(`${a.id.includes('-') ? `'${a.id}'` : a.id}: { file:`);
+    for (const a of allAmbients()) {
+      const key = a.id.includes('-') ? `'${a.id}'` : a.id;
+      // An iFocus file or a Freesound search, either way under its own id.
+      expect(script, `${a.id} is not in scripts/ambience.mjs`).toMatch(new RegExp(`${key}: \\{\\s*(file|freesound):`));
+    }
   });
 });
 
@@ -51,7 +55,13 @@ describe('skyOf', () => {
   });
 
   it('lets the sea replace every other sky', () => {
-    expect(skyOf(['owl', 'thunder', 'underwater'])).toEqual({ night: 0, storm: 0, dawn: 0, deep: 1 });
+    expect(skyOf(['owl', 'thunder', 'underwater'])).toEqual({ night: 0, storm: 0, dawn: 0, deep: 1, space: 0, winter: 0 });
+  });
+
+  it('makes space dark with no weather, and snow wintry unless it storms', () => {
+    expect(skyOf(['space', 'rain', 'owl'])).toMatchObject({ space: 1, night: 0, storm: 0 });
+    expect(skyOf(['snow']).winter).toBe(1);
+    expect(skyOf(['snow', 'thunder']).winter).toBe(0);
   });
 
   it('has no dawn in a storm', () => {

@@ -125,4 +125,25 @@ describe('ambience game', () => {
     expect(ctx.stars).toBe(1);
     ctx.cleanup();
   });
+
+  it('lets the picture list scroll: a touch that lands on a picture does not choose it, a tap does', () => {
+    const { ctx } = mount();
+    ctx.stage.querySelector<HTMLElement>('.amb-pictures')!.dispatchEvent(ptr());
+    const picker = ctx.stage.querySelector<HTMLElement>('.amb-picker')!;
+    expect(picker.hidden).toBe(false);
+    const card = ctx.stage.querySelector<HTMLElement>('.amb-pick[data-backdrop="sunset"]')!;
+    card.dispatchEvent(ptr());
+    expect(picker.hidden).toBe(false);
+    // Its touches never reach the shell, which would cancel the scroll.
+    let reached = false;
+    const spy = () => (reached = true);
+    document.addEventListener('touchmove', spy);
+    card.dispatchEvent(new Event('touchmove', { bubbles: true }));
+    document.removeEventListener('touchmove', spy);
+    expect(reached).toBe(false);
+    card.click();
+    expect(picker.hidden).toBe(true);
+    expect(JSON.parse(localStorage.getItem('be-choi:ambience')!).backdrop).toBe('sunset');
+    ctx.cleanup();
+  });
 });

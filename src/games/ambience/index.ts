@@ -224,28 +224,30 @@ function start(ctx: GameContext): void {
         { class: `amb-pick${id === backdrop ? ' amb-pick-on' : ''}`, type: 'button', 'aria-label': label, 'data-backdrop': id },
         face,
       );
-      b.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
+      // `click`, not pointerdown: a finger that lands on a picture to scroll the list
+      // must not choose it. The browser sends no click when the touch became a scroll.
+      b.addEventListener('click', () => {
         ctx.audio.tick();
         useBackdrop(id);
         picker.hidden = true;
       });
       return b;
     };
-    picker.replaceChildren(
-      h(
-        'div',
-        { class: 'amb-picks' },
-        card('', h('span', { class: 'amb-pick-draw' }, '🎨'), 'tranh vẽ'),
-        ...BACKDROPS.map((b) =>
-          card(
-            b.id,
-            h('img', { src: `${import.meta.env.BASE_URL}${backdropThumb(b.id)}`, alt: '', loading: 'lazy', draggable: 'false' }),
-            b.name,
-          ),
+    const list = h('div', { class: 'amb-picks' });
+    // The shell cancels every touch on the stage so nothing pans or zooms mid-game;
+    // this list has to scroll, so its touches stop here, before they reach it.
+    for (const type of ['touchstart', 'touchmove']) list.addEventListener(type, (e) => e.stopPropagation());
+    list.append(
+      card('', h('span', { class: 'amb-pick-draw' }, '🎨'), 'tranh vẽ'),
+      ...BACKDROPS.map((b) =>
+        card(
+          b.id,
+          h('img', { src: `${import.meta.env.BASE_URL}${backdropThumb(b.id)}`, alt: '', loading: 'lazy', draggable: 'false' }),
+          b.name,
         ),
       ),
     );
+    picker.replaceChildren(list);
     picker.hidden = false;
   }
 

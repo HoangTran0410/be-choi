@@ -4,7 +4,7 @@
  */
 
 /** What a background does to the sky. The strongest one on wins, blended. */
-export type Sky = 'night' | 'storm' | 'dawn' | 'deep';
+export type Sky = 'night' | 'storm' | 'dawn' | 'deep' | 'space' | 'winter';
 
 export interface Ambient {
   /** Loop id: `public/ambience/<id>.m4a`, and the key of its effect in scene.ts. */
@@ -34,6 +34,7 @@ export const SHELVES: readonly Shelf[] = [
       { id: 'heavy-rain', emoji: '🌧️', name: 'Mưa to', sky: 'storm', gain: 0.8 },
       { id: 'thunder', emoji: '⛈️', name: 'Sấm chớp', sky: 'storm' },
       { id: 'wind', emoji: '🌬️', name: 'Gió thổi' },
+      { id: 'snow', emoji: '❄️', name: 'Tuyết rơi', sky: 'winter' },
       { id: 'campfire', emoji: '🔥', name: 'Lửa trại' },
       { id: 'firework', emoji: '🎆', name: 'Pháo hoa', sky: 'night', gain: 0.7 },
     ],
@@ -44,7 +45,9 @@ export const SHELVES: readonly Shelf[] = [
     name: 'Sông nước',
     items: [
       { id: 'ocean', emoji: '🌊', name: 'Sóng biển' },
+      { id: 'seagull', emoji: '🕊️', name: 'Hải âu' },
       { id: 'river', emoji: '🏞️', name: 'Suối chảy' },
+      { id: 'waterfall', emoji: '💦', name: 'Thác nước' },
       { id: 'underwater', emoji: '🤿', name: 'Dưới đáy biển', sky: 'deep' },
       { id: 'bubble', emoji: '🫧', name: 'Bong bóng' },
       { id: 'whale', emoji: '🐋', name: 'Cá voi hát' },
@@ -65,6 +68,18 @@ export const SHELVES: readonly Shelf[] = [
     ],
   },
   {
+    id: 'garden',
+    icon: '🌻',
+    name: 'Vườn & trại',
+    items: [
+      { id: 'bees', emoji: '🐝', name: 'Vườn ong' },
+      { id: 'cat', emoji: '🐈', name: 'Mèo rừ rừ' },
+      { id: 'farm', emoji: '🐄', name: 'Nông trại' },
+      { id: 'rainforest', emoji: '🦜', name: 'Rừng mưa' },
+      { id: 'countryside', emoji: '🌾', name: 'Đồng quê' },
+    ],
+  },
+  {
     id: 'home',
     icon: '🏠',
     name: 'Trong nhà',
@@ -74,7 +89,22 @@ export const SHELVES: readonly Shelf[] = [
       { id: 'fan', emoji: '🌀', name: 'Quạt mát' },
       { id: 'book', emoji: '📖', name: 'Lật sách' },
       { id: 'kitchen', emoji: '🍳', name: 'Nhà bếp' },
+      { id: 'musicbox', emoji: '🎠', name: 'Hộp nhạc' },
       { id: 'sleep', emoji: '😴', name: 'Ru ngủ', sky: 'night', gain: 0.6 },
+    ],
+  },
+  {
+    id: 'play',
+    icon: '🧸',
+    name: 'Bé chơi',
+    items: [
+      { id: 'drawing', emoji: '🖍️', name: 'Bé vẽ tranh' },
+      { id: 'bath', emoji: '🛁', name: 'Tắm bồn' },
+      { id: 'typing', emoji: '⌨️', name: 'Gõ phím' },
+      { id: 'heartbeat', emoji: '❤️', name: 'Nhịp tim' },
+      { id: 'playground', emoji: '🛝', name: 'Sân chơi' },
+      { id: 'carnival', emoji: '🎡', name: 'Hội chợ' },
+      { id: 'space', emoji: '🚀', name: 'Vũ trụ', sky: 'space' },
     ],
   },
   {
@@ -87,7 +117,8 @@ export const SHELVES: readonly Shelf[] = [
       { id: 'airplane', emoji: '✈️', name: 'Máy bay' },
       { id: 'tractor', emoji: '🚜', name: 'Máy cày' },
       { id: 'restaurant', emoji: '🍜', name: 'Quán ăn' },
-      { id: 'countryside', emoji: '🌾', name: 'Đồng quê' },
+      { id: 'coffee', emoji: '☕', name: 'Quán cà phê' },
+      { id: 'temple', emoji: '🛕', name: 'Chùa' },
     ],
   },
 ];
@@ -128,15 +159,18 @@ export function mixLevel(amb: Ambient, count: number): number {
 
 /** How much of each sky the scene should show for what is on (0…1 each). */
 export function skyOf(on: readonly string[]): Record<Sky, number> {
-  const out: Record<Sky, number> = { night: 0, storm: 0, dawn: 0, deep: 0 };
+  const out: Record<Sky, number> = { night: 0, storm: 0, dawn: 0, deep: 0, space: 0, winter: 0 };
   for (const id of on) {
     const sky = findAmbient(id)?.sky;
     if (sky) out[sky] = 1;
   }
   // Under the sea there is no weather and no night: the water is the sky.
-  if (out.deep) out.night = out.storm = out.dawn = 0;
-  // A storm at dawn is a storm; a dawn at night is a night.
+  if (out.deep) out.night = out.storm = out.dawn = out.space = out.winter = 0;
+  // Out in space there is no weather either, and it is always night.
+  if (out.space) out.night = out.storm = out.dawn = out.winter = 0;
+  // A storm at dawn is a storm; a dawn at night is a night; a winter storm is a storm.
   if (out.storm || out.night) out.dawn = 0;
+  if (out.storm) out.winter = 0;
   return out;
 }
 
