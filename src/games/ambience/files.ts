@@ -34,6 +34,23 @@ export const LOOP_IDS: ReadonlySet<string> = new Set([
   'tractor',
   'restaurant',
   'countryside',
+  'waterfall',
+  'drawing',
+  'typing',
+  'coffee',
+  'temple',
+  'snow',
+  'seagull',
+  'bees',
+  'cat',
+  'farm',
+  'rainforest',
+  'musicbox',
+  'heartbeat',
+  'bath',
+  'playground',
+  'carnival',
+  'space',
 ]);
 
 /** Where one loop lives, relative to the app root. */
