@@ -1749,7 +1749,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     g.globalAlpha = 1;
   }
 
-  /** Rainforest: big leaves framing the picture, parrots flying, a monkey swinging on a vine. */
+  /** Rainforest: big leaves framing the picture, a parrot flying, a monkey bounding from perch to perch. */
   function drawRainforest(dt: number): void {
     if (!g) return;
     const k = L('rainforest');
@@ -1764,17 +1764,27 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     ] as const) {
       drawEmoji('🌿', x * W, y * H, U() * s, { rot: r + sway, flip: f });
     }
-    // The monkey on a vine, swinging like a pendulum from the top.
-    const px = W * 0.4;
-    const len = H * 0.32;
-    const a = Math.sin(time * 1.6) * 0.6;
-    g.strokeStyle = '#15803d';
-    g.lineWidth = 3;
-    g.beginPath();
-    g.moveTo(px, 0);
-    g.lineTo(px + Math.sin(a) * len, Math.cos(a) * len);
-    g.stroke();
-    drawEmoji('🐒', px + Math.sin(a) * len, Math.cos(a) * len + U() * 0.03, U() * 0.1, { rot: -a });
+    // A monkey bounding from one leafy perch to the next: an arc through the air
+    // with a little tumble, a squash on landing, a moment's rest. (It used to swing
+    // on a vine hanging from the top edge, which looked like something else entirely.)
+    const perches = [0.3, 0.5, 0.7, 0.5];
+    const hopS = 1.6;
+    const n = Math.floor(time / hopS);
+    const t = (time % hopS) / hopS;
+    const from = perches[n % perches.length]!;
+    const to = perches[(n + 1) % perches.length]!;
+    const perchY = H * 0.52;
+    const air = Math.min(1, t / 0.55);
+    const mx = W * (from + (to - from) * air);
+    const my = perchY - Math.sin(air * Math.PI) * H * 0.2;
+    const landed = t >= 0.55;
+    const squash = landed && t < 0.68 ? 0.8 : 1;
+    for (const px of [0.3, 0.5, 0.7]) drawEmoji('🌿', W * px, perchY + U() * 0.06, U() * 0.12, { rot: sway });
+    drawEmoji('🐒', mx, my - (1 - squash) * U() * 0.02, U() * 0.1, {
+      flip: to > from,
+      rot: landed ? 0 : Math.sin(air * Math.PI) * 0.6 * (to > from ? 1 : -1),
+      sy: squash,
+    });
     const p = traveller('rainforest-parrot', dt, 0.08, H * 0.22);
     drawEmoji('🦜', p.x, p.y + Math.sin(time * 3) * 10, U() * 0.08, { flip: p.dir > 0, sy: 0.85 + 0.15 * Math.abs(Math.sin(time * 9)) });
     g.globalAlpha = 1;
