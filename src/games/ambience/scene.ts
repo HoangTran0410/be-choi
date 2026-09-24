@@ -7,6 +7,7 @@
  * One canvas, one frame loop. Everything is placed in fractions of the canvas
  * so it holds up from a phone on its side to a tablet standing up.
  */
+import { doodle, type Pt } from './doodles';
 import { skyOf, type Sky } from './logic';
 
 export interface Scene {
@@ -1836,53 +1837,105 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   }
 
   /**
-   * Crayon drawing: a squiggle draws itself across the sky, stays a moment and
-   * fades, then another in another colour — the picture a child would scribble.
+   * Crayon drawing: a child's picture draws itself — a sun, a house, a fish, a
+   * stick figure, a scribble (doodles.ts) — a stroke at a time with the crayon at
+   * the tip, the line wobbling as a small hand's does. It stays a moment, fades,
+   * and another picture in another colour starts somewhere else.
    */
-  interface Scribble {
-    pts: [number, number][];
-    hue: number;
+  interface Drawn {
+    strokes: { pts: Pt[]; hue: number }[];
+    /** Points in all strokes together: how far the crayon has to go. */
+    total: number;
+    /** Seconds the drawing takes. */
+    draw: number;
     life: number;
+    width: number;
+    cx: number;
+    cy: number;
   }
-  const scribbles: Scribble[] = [];
+  const drawings: Drawn[] = [];
+  let lastDoodle: string | undefined;
+
+  function place(): Drawn {
+    const d = doodle(Math.random, lastDoodle);
+    lastDoodle = d.name;
+    const size = U() * rand(0.1, 0.18);
+    // Somewhere clear: of a handful of spots, the one furthest from the pictures
+    // already up, so a new one is not drawn over the last.
+    let cx = 0;
+    let cy = 0;
+    let best = -1;
+    for (let i = 0; i < 8; i++) {
+      const x = rand(0.18, 0.82) * W;
+      const y = rand(0.22, 0.62) * H;
+      const room = Math.min(Infinity, ...drawings.map((o) => Math.hypot(o.cx - x, o.cy - y)));
+      if (room > best) [best, cx, cy] = [room, x, y];
+    }
+    const tilt = rand(-0.3, 0.3);
+    const cos = Math.cos(tilt);
+    const sin = Math.sin(tilt);
+    const hue = rand(0, 360);
+    const seed = rand(0, 100);
+    let total = 0;
+    const strokes = d.strokes.map((st, si) => {
+      // Fill long straight segments with points, so the line can be drawn out bit by
+      // bit and wobble along its length instead of only at its corners.
+      const pts: Pt[] = [];
+      for (let i = 0; i < st.pts.length; i++) {
+        const [x1, y1] = st.pts[i]!;
+        const prev = st.pts[i - 1];
+        const steps = prev ? Math.max(1, Math.ceil(Math.hypot(x1 - prev[0], y1 - prev[1]) / 0.08)) : 1;
+        for (let j = prev ? 1 : 0; j <= steps; j++) {
+          const t = prev ? j / steps : 1;
+          const x = prev ? prev[0] + (x1 - prev[0]) * t : x1;
+          const y = prev ? prev[1] + (y1 - prev[1]) * t : y1;
+          const n = pts.length + si * 31 + seed;
+          const wx = x + Math.sin(n * 0.9) * 0.025 + Math.sin(n * 2.3) * 0.012;
+          const wy = y + Math.cos(n * 1.1) * 0.025;
+          pts.push([cx + (wx * cos - wy * sin) * size, cy + (wx * sin + wy * cos) * size]);
+          if (!prev) break;
+        }
+      }
+      total += pts.length;
+      return { pts, hue: (hue + st.hueShift) % 360 };
+    });
+    return { strokes, total, draw: Math.min(3, 0.9 + total * 0.018), life: 0, width: Math.max(2.5, size * 0.07), cx, cy };
+  }
+
   function drawDrawing(dt: number): void {
     if (!g) return;
     const k = L('drawing');
-    if (every('drawing', dt, 1.2, 2.2) && scribbles.length < 4) {
-      const pts: [number, number][] = [];
-      let x = rand(0.1, 0.6) * W;
-      let y = rand(0.15, 0.55) * H;
-      let a = rand(0, Math.PI * 2);
-      const kind = Math.random();
-      for (let i = 0; i < 60; i++) {
-        // Loops, zigzags or a big spiral: what a crayon does.
-        if (kind < 0.33) a += 0.35;
-        else if (kind < 0.66) a += i % 8 < 4 ? 0.5 : -0.5;
-        else a += 0.2 + i * 0.004;
-        x += Math.cos(a) * U() * 0.02;
-        y += Math.sin(a) * U() * 0.02;
-        pts.push([x, y]);
-      }
-      scribbles.push({ pts, hue: rand(0, 360), life: 0 });
-    }
+    if (every('drawing', dt, 1.6, 2.8) && drawings.length < 3) drawings.push(place());
     g.lineCap = 'round';
     g.lineJoin = 'round';
-    for (let i = scribbles.length - 1; i >= 0; i--) {
-      const sc = scribbles[i]!;
-      sc.life += dt;
-      const shown = Math.min(sc.pts.length, Math.floor((sc.life / 1.5) * sc.pts.length));
-      const fade = sc.life < 4 ? 1 : 1 - (sc.life - 4) / 1;
+    for (let i = drawings.length - 1; i >= 0; i--) {
+      const d = drawings[i]!;
+      d.life += dt;
+      const fade = d.life < d.draw + 3.5 ? 1 : 1 - (d.life - d.draw - 3.5);
       if (fade <= 0) {
-        scribbles.splice(i, 1);
+        drawings.splice(i, 1);
         continue;
       }
-      g.strokeStyle = `hsla(${sc.hue},85%,55%,${fade * Math.max(k, 0.2)})`;
-      g.lineWidth = U() * 0.012;
-      g.beginPath();
-      sc.pts.slice(0, shown).forEach(([px, py], j) => (j ? g.lineTo(px, py) : g.moveTo(px, py)));
-      g.stroke();
-      const tip = sc.pts[Math.max(0, shown - 1)];
-      if (tip && shown < sc.pts.length) drawEmoji('🖍️', tip[0] + U() * 0.02, tip[1] - U() * 0.02, U() * 0.06, { alpha: k });
+      let left = Math.floor(Math.min(1, d.life / d.draw) * d.total);
+      let tip: Pt | null = null;
+      g.lineWidth = d.width;
+      for (const st of d.strokes) {
+        if (left <= 0) break;
+        const n = Math.min(left, st.pts.length);
+        left -= n;
+        g.strokeStyle = `hsla(${st.hue},85%,52%,${fade * Math.max(k, 0.2)})`;
+        g.beginPath();
+        for (let j = 0; j < n; j++) {
+          const [px, py] = st.pts[j]!;
+          if (j) g.lineTo(px, py);
+          else g.moveTo(px, py);
+        }
+        // A one-point stroke (a dot for an eye) still needs to show.
+        if (n === 1) g.lineTo(st.pts[0]![0] + 0.1, st.pts[0]![1]);
+        g.stroke();
+        tip = st.pts[n - 1] ?? tip;
+      }
+      if (tip && d.life < d.draw) drawEmoji('🖍️', tip[0] + U() * 0.02, tip[1] - U() * 0.02, U() * 0.06, { alpha: k });
     }
   }
 
