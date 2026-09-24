@@ -32,6 +32,8 @@ import {
 import './style.css';
 
 const TAB_KEY = 'be-choi:videos-tab';
+/** Sideways, the controls fade after this long without a touch while a video plays. */
+const IDLE_MS = 3000;
 const CUSTOM_KEY = 'be-choi:videos-custom';
 /** The shelf of the parent's own videos. Only shown once there is something on it. */
 const MINE = 'mine';
@@ -227,7 +229,25 @@ function start(ctx: GameContext): void {
   /** What ⏪ and ⏩ skip, in seconds. */
   const JUMP_S = 10;
 
+  /**
+   * Sideways, the controls lie over the bottom of the picture (style.css); while a
+   * video plays untouched they fade away after a moment so the picture has the whole
+   * screen, and any touch on the player brings them back. Paused, or mid-drag on the
+   * seek bar, they stay.
+   */
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  function wake(): void {
+    player?.classList.remove('vd-idle');
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      idleTimer = null;
+      if (playing?.isPlaying && !playing.posterUp && !playing.dragging) player?.classList.add('vd-idle');
+    }, IDLE_MS);
+  }
+
   function closePlayer(): void {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = null;
     // Taking the iframe out of the page is what stops the sound.
     if (playing?.hello) clearInterval(playing.hello);
     player?.remove();
@@ -249,6 +269,14 @@ function start(ctx: GameContext): void {
     playing.seek.hidden = !seekable;
     for (const b of playing.jumps) b.hidden = !seekable;
     if (seekable && !playing.dragging) showTime(playing.currentTime);
+    // Stopped: nothing should hide. Playing again: start counting down to hiding.
+    if (!playing.isPlaying || playing.posterUp) {
+      player?.classList.remove('vd-idle');
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = null;
+    } else if (!idleTimer && !player?.classList.contains('vd-idle')) {
+      wake();
+    }
   }
 
   function canSeek(): boolean {
@@ -532,6 +560,8 @@ function start(ctx: GameContext): void {
       jumps: [back, fwd],
       hello: null,
     };
+    // Capture: the shield swallows its touches, but this sees them first.
+    player.addEventListener('pointerdown', wake, { capture: true });
     root.append(player);
     fillPlayer(frame, ref);
   }

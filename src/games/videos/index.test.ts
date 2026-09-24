@@ -233,6 +233,28 @@ describe('videos game', () => {
     ctx.cleanup();
   });
 
+  it('lets the controls fade while a video plays untouched, and brings them back on a touch or a pause', () => {
+    const ctx = mount();
+    cards(ctx)[0]!.click();
+    const frame = iframe(ctx)!;
+    const player = ctx.stage.querySelector<HTMLElement>('.vd-player')!;
+    const say = (data: string) => window.dispatchEvent(new MessageEvent('message', { origin: PLAYER, source: frame.contentWindow, data }));
+    say('{"event":"onStateChange","info":1}');
+    vi.advanceTimersByTime(3100);
+    expect(player.classList.contains('vd-idle')).toBe(true);
+    // A touch anywhere, even on the shield that swallows it, wakes them.
+    ctx.stage.querySelector<HTMLElement>('.vd-shield')!.dispatchEvent(ptr());
+    expect(player.classList.contains('vd-idle')).toBe(false);
+    vi.advanceTimersByTime(3100);
+    expect(player.classList.contains('vd-idle')).toBe(true);
+    // Paused: they come back and stay.
+    say('{"event":"onStateChange","info":2}');
+    expect(player.classList.contains('vd-idle')).toBe(false);
+    vi.advanceTimersByTime(10_000);
+    expect(player.classList.contains('vd-idle')).toBe(false);
+    ctx.cleanup();
+  });
+
   it('sandboxes the player: its links can neither open a tab nor take the app away', () => {
     const ctx = mount();
     cards(ctx)[0]!.click();
