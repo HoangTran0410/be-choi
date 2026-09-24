@@ -580,39 +580,174 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     g.globalAlpha = 1;
   }
 
+  /**
+   * Fireworks the way they go up: a rocket climbs on a trail of sparks, slows, and
+   * bursts at the top. Every star of the burst remembers where it has just been and
+   * is drawn as a streak fading back along that path, so the burst reads as lines
+   * of light arcing out and drooping, not as a ring of dots. Three kinds take turns:
+   * a many-coloured peony, a golden willow whose long trails hang and fall, and a
+   * ring.
+   */
+  type Shell = 'peony' | 'willow' | 'ring';
+  interface Rocket {
+    x: number;
+    y: number;
+    vy: number;
+    top: number;
+    hue: number;
+    shell: Shell;
+  }
+  interface Star {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    life: number;
+    max: number;
+    hue: number;
+    sat: number;
+    /** Where it has been, newest last: the trail. */
+    trail: number[];
+    trailLen: number;
+    drag: number;
+  }
+  const rockets: Rocket[] = [];
+  const burstStars: Star[] = [];
+  const flashes: { x: number; y: number; life: number; hue: number }[] = [];
+  const SHELLS: readonly Shell[] = ['peony', 'peony', 'willow', 'ring'];
+
+  function burst(r: Rocket): void {
+    const willow = r.shell === 'willow';
+    const n = r.shell === 'ring' ? 36 : willow ? 46 : 60;
+    const speed = U() * (willow ? 0.42 : 0.55);
+    for (let i = 0; i < n; i++) {
+      const a = r.shell === 'ring' ? (i / n) * Math.PI * 2 : Math.random() * Math.PI * 2;
+      // A peony fills a sphere, so its burstStars fly at every speed; a ring all at one.
+      const v = speed * (r.shell === 'ring' ? 1 : Math.sqrt(Math.random()) * rand(0.85, 1.1));
+      burstStars.push({
+        x: r.x,
+        y: r.y,
+        vx: Math.cos(a) * v,
+        vy: Math.sin(a) * v,
+        life: 0,
+        max: willow ? rand(2.2, 2.9) : rand(1.2, 1.7),
+        hue: willow ? rand(38, 48) : r.shell === 'peony' && Math.random() < 0.3 ? r.hue + 150 : r.hue + rand(-15, 15),
+        sat: willow ? 85 : 100,
+        trail: [],
+        trailLen: willow ? 55 : 24,
+        drag: willow ? 1.9 : 1.3,
+      });
+    }
+    flashes.push({ x: r.x, y: r.y, life: 0, hue: r.hue });
+  }
+
   function drawFirework(dt: number): void {
     if (!g) return;
     const k = L('firework');
-    if (every('firework', dt, 0.7, 1.6)) {
-      const x = rand(0.15, 0.85) * W;
-      const y = rand(0.12, 0.4) * H;
-      const hue = rand(0, 360);
-      const n = 40;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        const v = rand(0.8, 1) * U() * 0.35;
-        pool('firework').push({
-          x,
-          y,
-          vx: Math.cos(a) * v,
-          vy: Math.sin(a) * v,
-          life: 0,
-          max: rand(1.1, 1.6),
-          size: 2.5,
-          hue: hue + rand(-20, 20),
-        });
+    if (every('firework', dt, 0.6, 1.4) && rockets.length < 3) {
+      rockets.push({
+        x: rand(0.15, 0.85) * W,
+        y: groundY(),
+        vy: -H * rand(0.95, 1.2),
+        top: rand(0.12, 0.38) * H,
+        hue: rand(0, 360),
+        shell: pick(SHELLS),
+      });
+    }
+    g.globalCompositeOperation = 'lighter';
+    g.lineCap = 'round';
+
+    // The rockets going up, each dropping sparks behind it.
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i] as Rocket;
+      r.y += r.vy * dt;
+      r.vy *= 1 - dt * 0.9;
+      pool('rocket-spark').push({
+        x: r.x + rand(-1.5, 1.5),
+        y: r.y,
+        vx: rand(-12, 12),
+        vy: rand(10, 40),
+        life: 0,
+        max: rand(0.35, 0.6),
+        size: rand(1, 2),
+      });
+      g.fillStyle = `hsla(40,100%,85%,${k})`;
+      g.beginPath();
+      g.arc(r.x, r.y, 2.4, 0, Math.PI * 2);
+      g.fill();
+      if (r.y <= r.top || r.vy > -H * 0.12) {
+        burst(r);
+        rockets.splice(i, 1);
       }
     }
-    const ps = pool('firework');
-    step(ps, dt, U() * 0.25);
-    g.globalCompositeOperation = 'lighter';
-    for (const p of ps) {
-      p.vx *= 0.97;
-      p.vy *= 0.97;
-      const t = p.life / p.max;
-      g.fillStyle = `hsla(${p.hue},95%,65%,${(1 - t) * Math.max(k, 0.3)})`;
+    const sparks = pool('rocket-spark');
+    step(sparks, dt, U() * 0.3);
+    for (const p of sparks) {
+      g.fillStyle = `hsla(35,100%,70%,${(1 - p.life / p.max) * k})`;
+      g.fillRect(p.x, p.y, p.size, p.size);
+    }
+
+    // The moment of the burst: a soft flash of its colour.
+    for (let i = flashes.length - 1; i >= 0; i--) {
+      const f = flashes[i]!;
+      f.life += dt;
+      const t = f.life / 0.35;
+      if (t >= 1) {
+        flashes.splice(i, 1);
+        continue;
+      }
+      const r = U() * (0.08 + t * 0.12);
+      const glow = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+      glow.addColorStop(0, `hsla(${f.hue},100%,90%,${(1 - t) * 0.8 * k})`);
+      glow.addColorStop(1, `hsla(${f.hue},100%,60%,0)`);
+      g.fillStyle = glow;
+      g.fillRect(f.x - r, f.y - r, r * 2, r * 2);
+    }
+
+    // The burstStars: each a streak along the path it has just flown.
+    const gravity = U() * 0.28;
+    for (let i = burstStars.length - 1; i >= 0; i--) {
+      const s = burstStars[i]!;
+      s.life += dt;
+      if (s.life >= s.max) {
+        burstStars.splice(i, 1);
+        continue;
+      }
+      const drag = Math.exp(-s.drag * dt);
+      s.vx *= drag;
+      s.vy = s.vy * drag + gravity * dt;
+      s.trail.push(s.x, s.y);
+      if (s.trail.length > s.trailLen * 2) s.trail.splice(0, 2);
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      const t = s.life / s.max;
+      // Bright to the end, then gone quickly — with a flicker as it burns out.
+      const fade = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+      const flicker = t > 0.6 && Math.random() < 0.35 ? 0.3 : 1;
+      const a = fade * flicker * Math.max(k, 0.3);
+      // Kept well below white: under 'lighter' overlapping stars add up, and a burst
+      // that starts near white turns into one white blob.
+      const light = 48 + (1 - t) * 14;
+      // Trail: segments fading and thinning towards the tail.
+      const pts = s.trail;
+      const count = pts.length / 2;
+      for (let j = 0; j < count; j++) {
+        const x0 = pts[j * 2]!;
+        const y0 = pts[j * 2 + 1]!;
+        const x1 = j + 1 < count ? pts[j * 2 + 2]! : s.x;
+        const y1 = j + 1 < count ? pts[j * 2 + 3]! : s.y;
+        const w = (j + 1) / count;
+        g.strokeStyle = `hsla(${s.hue},${s.sat}%,${light}%,${a * w * w * 0.85})`;
+        g.lineWidth = 0.5 + w * 2.2;
+        g.beginPath();
+        g.moveTo(x0, y0);
+        g.lineTo(x1, y1);
+        g.stroke();
+      }
+      // The star itself, white-hot at the head.
+      g.fillStyle = `hsla(${s.hue},100%,${light + 22}%,${a})`;
       g.beginPath();
-      g.arc(p.x, p.y, p.size * (1.4 - t), 0, Math.PI * 2);
+      g.arc(s.x, s.y, 1.8 + (1 - t) * 1.2, 0, Math.PI * 2);
       g.fill();
     }
     g.globalCompositeOperation = 'source-over';
