@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**39 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**41 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -10,14 +10,16 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | | |
 |---|---|
 | 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
-| 👂 **Nghe** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? |
+| 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
-| 🎈 **Chơi vui** | 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch |
+| 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch |
 
 Vài trò nổi bật:
 
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
+- **🌦️ Bé tạo cảnh** — bật mưa, sóng biển, tiếng chim, tàu hoả… trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, sóng vỗ, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
+- **📺 Xem nhạc** — chọn video nhạc êm, lofi, thiên nhiên (danh sách của iFocus); bố mẹ dán thêm link YouTube được. Cần có mạng.
 - **🐠 Bể cá / 🦎 Bể cạn** — bể của riêng bé, tự sống, nhớ giữa các lần chơi. Bắt, thả, cho ăn, bật đèn đêm.
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
@@ -51,6 +53,7 @@ npm run e2e                            # chơi thật các game trong Chromium h
 npm run loudness:check                 # kiểm tra âm lượng các âm thanh đều nhau
 node scripts/sfx.mjs [kind…]           # tìm lại tiếng con vật/xe dùng chung (cần ffmpeg + uv)
 node scripts/soundbook.mjs [id…]       # tìm lại âm thanh cho Bấm nghe tiếng
+node scripts/ambience.mjs [id…]        # cắt lại âm thanh nền của Bé tạo cảnh từ iFocus
 ```
 
 </details>
@@ -77,5 +80,6 @@ Ba nguyên tắc cho bé 2 tuổi:
 
 Hình là emoji + SVG, nhạc cụ tự tổng hợp bằng Web Audio, nên app rất nhẹ và không phụ thuộc thư viện
 nào. Tiếng con vật và tiếng trong *Bấm nghe tiếng* là bản thu thật, giấy phép tự do — nguồn ghi trong
-`public/sfx/CREDITS.md` và `public/sounds/CREDITS.md`. Repo chỉ mô phỏng *thể loại* game của
+`public/sfx/CREDITS.md` và `public/sounds/CREDITS.md`. Âm thanh nền và ảnh phông của *Bé tạo cảnh*
+lấy từ [iFocus](https://github.com/HoangTran0410/ifocus) (ảnh của Unsplash), chỉ tải khi bé bật lần đầu. Repo chỉ mô phỏng *thể loại* game của
 Bimi Boo / Sago Mini, không dùng asset của họ.

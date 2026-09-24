@@ -26,6 +26,7 @@ export function fakeAudio(): AudioEngine {
     ready: () => Promise.resolve(),
     clip: () => Promise.resolve(null),
     preload: noop,
+    loop: () => Promise.resolve(null),
   };
 }
 

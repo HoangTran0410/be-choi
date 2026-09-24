@@ -1,0 +1,277 @@
+.amb {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0f172a;
+}
+.amb-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.amb-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* Switch everything off at once. Only there when something is on. */
+.amb-hush {
+  position: absolute;
+  top: 2vmin;
+  right: 2vmin;
+  width: calc(var(--tap) * 0.8);
+  height: calc(var(--tap) * 0.8);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.45);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.25);
+  touch-action: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.6);
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+.amb-hush-shown {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+/* ---- choosing a photograph to play over ---- */
+.amb-pictures {
+  position: absolute;
+  top: 2vmin;
+  left: 2vmin;
+  width: calc(var(--tap) * 0.8);
+  height: calc(var(--tap) * 0.8);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.42);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.25);
+  touch-action: none;
+}
+.amb-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 3vmin;
+  background: rgba(15, 23, 42, 0.55);
+}
+.amb-picker[hidden] {
+  display: none;
+}
+.amb-picks {
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--tap) * 1.1), 1fr));
+  gap: 2vmin;
+  width: min(100%, 900px);
+  padding: 2vmin;
+  border-radius: 3vmin;
+  background: rgba(255, 255, 255, 0.95);
+  touch-action: pan-y;
+}
+.amb-pick {
+  aspect-ratio: 1;
+  border-radius: 20%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #e0f2fe;
+  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.18);
+}
+.amb-pick img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.amb-pick-draw {
+  font-size: calc(var(--tap) * 0.6);
+  line-height: 1;
+}
+.amb-pick-on {
+  box-shadow: 0 0 0 0.8vmin #f59e0b;
+}
+
+/* ---- the tray: shelves, then the switches on the chosen shelf ---- */
+.amb-tray {
+  --tab: min(calc(var(--tap) * 0.72), 15vw);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2vmin;
+  padding: 1.6vmin 2vmin calc(1.6vmin + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.18);
+}
+@media (orientation: portrait) {
+  .amb-tray {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.amb-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1.2vmin;
+  justify-content: center;
+}
+.amb-tab {
+  --size: var(--tab);
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--size) * 0.55);
+  line-height: 1;
+  background: #e2e8f0;
+  touch-action: none;
+  transition: transform 0.15s;
+}
+.amb-tab-on {
+  background: #fde68a;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 0.6vmin #f59e0b;
+}
+/* A dot on a shelf that has something playing on it. */
+.amb-tab-lit::after {
+  content: '';
+  position: absolute;
+  top: 4%;
+  right: 4%;
+  width: 22%;
+  height: 22%;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.amb-tiles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 1.6vmin;
+  justify-content: center;
+}
+.amb-tile {
+  /* Beside the five shelf buttons, seven switches still fit on a phone on its side. */
+  --size: min(var(--tap), calc((100vw - 5 * var(--tab) - 24vmin) / 7));
+  position: relative;
+  flex: 0 1 var(--size);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 26%;
+  display: grid;
+  place-items: center;
+  background: #f1f5f9;
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.15);
+  touch-action: none;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+@media (orientation: portrait) {
+  .amb-tile {
+    --size: min(var(--tap), calc((100vw - 14vmin) / 4));
+  }
+  .amb-tiles {
+    flex-wrap: wrap;
+  }
+}
+.amb-face {
+  font-size: calc(var(--size) * 0.56);
+  line-height: 1;
+  transition: transform 0.2s;
+}
+.amb-on {
+  background: linear-gradient(160deg, #fde68a, #fbbf24);
+  box-shadow:
+    0 4px 0 #b45309,
+    0 0 0 0.6vmin rgba(251, 191, 36, 0.4);
+}
+.amb-on .amb-face {
+  transform: scale(1.08) translateY(-6%);
+}
+
+/* Three little bars dancing on a switch that is playing. */
+.amb-eq {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: 3px;
+  height: 14%;
+  align-items: flex-end;
+  opacity: 0;
+}
+.amb-eq i {
+  display: block;
+  width: 4px;
+  height: 100%;
+  border-radius: 2px;
+  background: #b45309;
+  animation: amb-eq 0.9s ease-in-out infinite;
+  transform-origin: bottom;
+}
+.amb-eq i:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.amb-eq i:nth-child(3) {
+  animation-delay: -0.6s;
+}
+.amb-on:not(.amb-loading) .amb-eq {
+  opacity: 1;
+}
+
+/* A ring spinning round a switch whose sound is still downloading. */
+.amb-spin {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  border: 0.8vmin solid rgba(180, 83, 9, 0.2);
+  border-top-color: #b45309;
+  opacity: 0;
+  pointer-events: none;
+}
+.amb-loading .amb-spin {
+  opacity: 1;
+  animation: amb-spin 0.8s linear infinite;
+}
+.amb-loading .amb-face {
+  opacity: 0.55;
+}
+
+@keyframes amb-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes amb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

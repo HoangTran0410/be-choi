@@ -29,6 +29,8 @@ const GAMES = [
   'shadows',
   'sounds',
   'soundbook',
+  'ambience',
+  'videos',
   'piano',
   'paint',
   'peekaboo',

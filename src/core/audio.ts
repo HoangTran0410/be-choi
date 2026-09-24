@@ -137,6 +137,19 @@ export interface AudioEngine {
   clip(url: string): Promise<Clip | null>;
   /** Fetch and decode recordings in the background so the first tap is instant. */
   preload(urls: readonly string[]): void;
+  /**
+   * Play a recording round and round until stopped, fading in — a background
+   * (rain, birds, the sea) under everything else. Null when sound is off or the
+   * file cannot play.
+   */
+  loop(url: string, volume?: number): Promise<Loop | null>;
+}
+
+export interface Loop {
+  /** Glide to a new level (0…1) over a moment, so the mix never jumps. */
+  setVolume(v: number): void;
+  /** Fade out and let go. */
+  stop(): void;
 }
 
 export interface Clip {
@@ -993,6 +1006,72 @@ export function createAudio(): AudioEngine {
     return job;
   }
 
+  /**
+   * Decoded loops, most recently used last. A 30 s loop is several megabytes once
+   * decoded, so only a handful are kept: a phone with every background ever
+   * toggled held in memory is a phone that reloads the page.
+   */
+  const loops = new Map<string, Promise<AudioBuffer | null>>();
+  const LOOPS_KEPT = 8;
+
+  function loadLoop(c: Ctx, url: string): Promise<AudioBuffer | null> {
+    let job = loops.get(url);
+    if (job) loops.delete(url);
+    else
+      job = fetch(`${import.meta.env.BASE_URL}${url}`)
+        .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+        .then((raw) => c.decodeAudioData(raw))
+        .catch(() => null);
+    loops.set(url, job);
+    while (loops.size > LOOPS_KEPT) loops.delete(loops.keys().next().value as string);
+    return job;
+  }
+
+  async function loop(url: string, volume = 1): Promise<Loop | null> {
+    const first = getCtx();
+    if (!first) return null;
+    const buf = await loadLoop(first, url);
+    const c = getCtx();
+    if (!buf || !c || !master) return null;
+    try {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const g = c.createGain();
+      const level = (v: number) => Math.max(0, v) * LOUDNESS.sample;
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime(level(volume), c.currentTime + 0.8);
+      src.connect(g).connect(master);
+      // Start somewhere in the middle, so two visits do not open on the same bird.
+      src.start(c.currentTime, Math.random() * buf.duration);
+      let stopped = false;
+      return {
+        setVolume(v) {
+          if (stopped) return;
+          const now = c.currentTime;
+          g.gain.cancelScheduledValues(now);
+          g.gain.setValueAtTime(g.gain.value, now);
+          g.gain.linearRampToValueAtTime(level(v), now + 0.4);
+        },
+        stop() {
+          if (stopped) return;
+          stopped = true;
+          try {
+            const now = c.currentTime;
+            g.gain.cancelScheduledValues(now);
+            g.gain.setValueAtTime(g.gain.value, now);
+            g.gain.linearRampToValueAtTime(0, now + 0.6);
+            src.stop(now + 0.65);
+          } catch {
+            /* already stopped */
+          }
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async function clip(url: string): Promise<Clip | null> {
     if (!getCtx()) return null;
     const buf = await loadClip(url);
@@ -1104,6 +1183,7 @@ export function createAudio(): AudioEngine {
       return loaded ?? Promise.resolve();
     },
     clip,
+    loop,
     preload(urls) {
       for (const url of urls) void loadClip(url);
     },

@@ -1,0 +1,318 @@
+.vd {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #f5d0fe, #e0e7ff);
+}
+
+/* ---- the shelf picker, one round button per shelf ---- */
+.vd-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: min(1.6vmin, 2vw);
+  padding: 2.2vmin 2vmin 1.2vmin;
+  z-index: 2;
+}
+.vd-tab {
+  --size: min(calc(var(--tap) * 0.82), 11.5vw);
+  width: var(--size);
+  height: var(--size);
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--size) * 0.56);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.18);
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+.vd-tab-on {
+  background: #fff;
+  transform: scale(1.14);
+  box-shadow:
+    0 4px 0 rgba(15, 23, 42, 0.22),
+    0 0 0 0.8vmin #fde047;
+}
+.vd-tab:active {
+  transform: scale(0.92);
+}
+/* For grown-ups: small, faint, off to the side, so it is not the most pressable thing on screen. */
+.vd-plus {
+  --size: min(calc(var(--tap) * 0.56), 9vw);
+  width: var(--size);
+  height: var(--size);
+  flex: 0 0 auto;
+  margin-left: min(2vmin, 2vw);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--size) * 0.6);
+  font-weight: 800;
+  line-height: 1;
+  color: #6b21a8;
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px dashed rgba(107, 33, 168, 0.35);
+}
+
+/* ---- the list ---- */
+/*
+ * `.stage *` turns touch actions off; the list and everything a finger can land
+ * on inside it opt back in to vertical scrolling (the browser takes the
+ * strictest rule between what was touched and what scrolls).
+ */
+.stage .vd-list,
+.stage .vd-list * {
+  touch-action: pan-y;
+}
+.vd-list {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  /* Two big cards across a phone, three or four on a tablet or sideways. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--tap) * 2, 38vmin)), 1fr));
+  align-content: start;
+  gap: 3vmin;
+  padding: 1.5vmin 3vmin 4vmin;
+}
+@media (orientation: landscape) {
+  .vd-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--tap) * 2, 30vw)), 1fr));
+  }
+}
+@media (orientation: landscape) and (min-width: 900px) {
+  .vd-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--tap) * 2, 22vw)), 1fr));
+  }
+}
+
+.vd-item {
+  position: relative;
+  min-width: 0;
+}
+.vd-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.16);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s;
+}
+.vd-card:active {
+  transform: scale(0.96);
+}
+.vd-press {
+  animation: vd-press 0.3s ease-out;
+}
+.vd-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #c4b5fd, #f9a8d4);
+  container-type: size;
+}
+/* Always there, under the picture: offline, it is the picture. */
+.vd-emoji {
+  font-size: 58cqh;
+  line-height: 1;
+}
+.vd-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.vd-name {
+  padding: 1.2vmin 1.8vmin 1.4vmin;
+  font-size: clamp(14px, 2.6vmin, 22px);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #3b0764;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vd-del {
+  position: absolute;
+  top: -1vmin;
+  right: -1vmin;
+  width: calc(var(--tap) * 0.6);
+  height: calc(var(--tap) * 0.6);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tap) * 0.28);
+  font-weight: 800;
+  color: #fff;
+  background: rgba(88, 28, 135, 0.75);
+  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.2);
+}
+
+/* ---- the player ---- */
+.vd-player {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: #1e1b2e;
+  container-type: size;
+  /* Room for the ✕ in the corner, clear of the picture. */
+  --gap: calc(var(--tap) + 4vmin);
+}
+.vd-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  /* As big as fits: under the ✕ when upright, beside it when sideways. */
+  width: min(100cqw, (100cqh - var(--gap) * 2) * 16 / 9);
+  border-radius: min(2vmin, 16px);
+  overflow: hidden;
+  background: #000;
+}
+@media (orientation: landscape) {
+  .vd-frame {
+    width: min(100cqw - var(--gap) * 2, 100cqh * 16 / 9);
+  }
+}
+.vd-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.vd-frame[data-offline] {
+  display: grid;
+  place-items: center;
+  background: #2e2a45;
+}
+.vd-offline {
+  max-width: 80%;
+  display: grid;
+  justify-items: center;
+  gap: 2vmin;
+  font-size: clamp(16px, 3.4vmin, 28px);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  color: #fff;
+}
+.vd-offline-icon {
+  font-size: var(--emoji);
+  line-height: 1;
+}
+.vd-close {
+  position: absolute;
+  top: 2vmin;
+  left: 2vmin;
+}
+
+/* ---- adding a link ---- */
+.vd-add {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 3vmin;
+  background: rgba(28, 25, 23, 0.55);
+}
+.vd-box {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 2vmin;
+  padding: 3vmin;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.vd-box-title {
+  font-size: clamp(18px, 3vmin, 24px);
+  font-weight: 800;
+}
+.stage .vd-add,
+.stage .vd-add * {
+  touch-action: manipulation;
+}
+.stage .vd-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 2px solid #c4b5fd;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 16px; /* below 16px iOS zooms the page in on focus */
+  color: inherit;
+  background: var(--surface);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.vd-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+.vd-error {
+  min-height: 1.3em;
+  font-size: 15px;
+  font-weight: 700;
+  color: #dc2626;
+}
+.vd-error:empty {
+  min-height: 0;
+}
+.vd-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2vmin;
+}
+.vd-btn {
+  min-height: 52px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 17px;
+  font-weight: 800;
+}
+.vd-cancel {
+  background: rgba(127, 127, 127, 0.15);
+  color: inherit;
+}
+.vd-ok {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+@keyframes vd-press {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 0.94;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vd-press {
+    animation: none;
+  }
+}

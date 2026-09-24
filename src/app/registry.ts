@@ -13,6 +13,8 @@ import { meta as sizes } from '../games/sizes/meta';
 import { meta as shadows } from '../games/shadows/meta';
 import { meta as sounds } from '../games/sounds/meta';
 import { meta as soundbook } from '../games/soundbook/meta';
+import { meta as ambience } from '../games/ambience/meta';
+import { meta as videos } from '../games/videos/meta';
 import { meta as piano } from '../games/piano/meta';
 import { meta as jam } from '../games/jam/meta';
 import { meta as sing } from '../games/sing/meta';
@@ -60,6 +62,8 @@ export const GAMES: readonly GameEntry[] = [
   { ...shadows, load: () => import('../games/shadows/index') },
   { ...sounds, load: () => import('../games/sounds/index') },
   { ...soundbook, load: () => import('../games/soundbook/index') },
+  { ...ambience, load: () => import('../games/ambience/index') },
+  { ...videos, load: () => import('../games/videos/index') },
   { ...jam, load: () => import('../games/jam/index') },
   { ...sing, load: () => import('../games/sing/index') },
   { ...parrot, load: () => import('../games/parrot/index') },
