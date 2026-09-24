@@ -52,6 +52,22 @@ const TEXTURE_S = 12;
 const TARGET_LUFS = -26;
 
 /**
+ * For sounds that live below what a phone or tablet speaker can play. A heartbeat
+ * is nearly all 40–120 Hz: on a small speaker it is a faint rumble with no beat in
+ * it. The low band is driven into a soft clipper and only the overtones it makes
+ * (150 Hz up) are mixed back in — the ear hears those and fills in the missing
+ * fundamental — then the thump and the knock are lifted, and the whole is played
+ * a little louder than the other beds, since it is meant to be listened to.
+ */
+const SMALL_SPEAKER = {
+  graph: (inp, out) =>
+    `[${inp}]asplit=2[dry][wet];` +
+    `[wet]lowpass=f=220,volume=14,asoftclip=type=tanh,highpass=f=150,lowpass=f=2500,volume=1.4[over];` +
+    `[dry][over]amix=inputs=2:normalize=0,equalizer=f=220:t=q:w=1:g=6,equalizer=f=1200:t=q:w=1.5:g=6[${out}]`,
+  lufs: 4,
+};
+
+/**
  * Loop id -> where it comes from. `len` caps the loop for an even texture;
  * `beat: false` keeps a tune whole instead of cutting it to its beat.
  *
@@ -151,6 +167,7 @@ const SOURCES = {
       q: ['slow heartbeat', 'quiet heartbeat', 'heartbeat loop'],
       prompt: 'a calm slow human heartbeat, lub-dub, and nothing else',
     },
+    tone: SMALL_SPEAKER,
   },
   bath: {
     freesound: {
@@ -284,13 +301,17 @@ for (const [id, src] of todo) {
   const fade = beat ? BEAT_FADE_S : Math.min(FADE_S, len / 4);
   // head: the loop body; tail: what came right after it, faded out and laid over
   // the head's fade-in, so the end of the loop runs straight into its start.
+  const level = TARGET_LUFS + (src.tone?.lufs ?? 0);
+  const finish = `loudnorm=I=${level}:TP=-3:LRA=15,alimiter=limit=0.8:level=disabled[out]`;
   const graph = [
     `[0:a]aformat=channel_layouts=mono,highpass=f=60,atrim=${from}:${from + len + fade},asetpts=PTS-STARTPTS,asplit=3[a][b][c]`,
     `[a]atrim=0:${fade},asetpts=PTS-STARTPTS,afade=t=in:d=${fade}[head]`,
     `[b]atrim=${fade}:${len},asetpts=PTS-STARTPTS[body]`,
     `[c]atrim=${len}:${len + fade},asetpts=PTS-STARTPTS,afade=t=out:d=${fade}[tail]`,
     `[head][tail]amix=inputs=2:normalize=0:duration=first[seam]`,
-    `[seam][body]concat=n=2:v=0:a=1,loudnorm=I=${TARGET_LUFS}:TP=-3:LRA=15,alimiter=limit=0.8:level=disabled[out]`,
+    ...(src.tone
+      ? [`[seam][body]concat=n=2:v=0:a=1[joined]`, src.tone.graph('joined', 'toned'), `[toned]${finish}`]
+      : [`[seam][body]concat=n=2:v=0:a=1,${finish}`]),
   ].join(';');
   ffmpeg([
     '-i',
