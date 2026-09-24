@@ -153,17 +153,39 @@ document.addEventListener('selectstart', (e) => e.preventDefault());
 // New builds are looked for on opening and on coming back to the app, and offered on
 // the home screen rather than swapped in mid-game. See app/updateCheck.ts.
 let registration: ServiceWorkerRegistration | undefined;
+/** How long a new build gets to take over before the update goes the other way round. */
+const SWAP_WAIT_MS = 4000;
 const updates = watchForUpdates({
   current: currentBuild() ?? '',
   base: import.meta.env.BASE_URL,
   refreshWorker: 'serviceWorker' in navigator ? async () => registration?.update() : undefined,
   apply: () => {
-    // With a waiting worker this lets it in and reloads; without one, just reload.
-    if (registration?.waiting) void updateSW(true);
-    else location.reload();
+    // Let the waiting build in and reload once it has taken over. Not through the
+    // plugin's own updateSW(): it reloads only for a worker it found itself, and
+    // one found by our checks counts as "external" — the button sat on "Đang cập
+    // nhật…" for ever.
+    let gone = false;
+    const reload = () => {
+      if (gone) return;
+      gone = true;
+      location.reload();
+    };
+    const waiting = registration?.waiting;
+    if (!waiting) return reload();
+    navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
+    waiting.postMessage({ type: 'SKIP_WAITING' });
+    // Safari in a home-screen app can keep the old worker in charge while the page
+    // is open, and then nothing ever changes hands. If nothing has happened after a
+    // moment, take the parent panel's road: drop the worker and come back through
+    // the network — quick, since the caches it fills from are kept.
+    setTimeout(() => {
+      if (gone) return;
+      gone = true;
+      void update.force().then((ok) => ok || location.reload());
+    }, SWAP_WAIT_MS);
   },
 });
-const updateSW = registerSW({
+registerSW({
   immediate: true,
   onRegisteredSW: (_url, reg) => {
     registration = reg;
