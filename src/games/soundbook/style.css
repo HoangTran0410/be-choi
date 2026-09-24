@@ -1,0 +1,293 @@
+.sb {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Each page is a place: sky over grass, a jungle, a road, a room. */
+  --sky: #bae6fd;
+  --ground: #86efac;
+  --horizon: 58%;
+  background: linear-gradient(to bottom, var(--sky) 0 var(--horizon), var(--ground) var(--horizon) 100%);
+  transition: background 0.3s;
+}
+.sb[data-page='farm'] {
+  --sky: #bae6fd;
+  --ground: #a3e635;
+}
+.sb[data-page='wild'] {
+  --sky: #bbf7d0;
+  --ground: #4ade80;
+  --horizon: 50%;
+}
+.sb[data-page='vehicles'] {
+  --sky: #bfdbfe;
+  --ground: #cbd5e1;
+  --horizon: 55%;
+}
+.sb[data-page='things'] {
+  --sky: #fef3c7;
+  --ground: #fdba74;
+  --horizon: 66%;
+}
+.sb[data-page='people'] {
+  --sky: #fce7f3;
+  --ground: #f9a8d4;
+  --horizon: 66%;
+}
+.sb[data-page='nature'] {
+  --sky: #c7d2fe;
+  --ground: #86efac;
+  --horizon: 62%;
+}
+
+/* ---- the page picker, one round button per page ---- */
+.sb-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: min(1.6vmin, 2vw);
+  padding: 2.2vmin 2vmin 0.6vmin;
+  z-index: 2;
+}
+.sb-tab {
+  --size: min(calc(var(--tap) * 0.82), 13vw);
+  width: var(--size);
+  height: var(--size);
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--size) * 0.58);
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.18);
+  touch-action: none;
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+.sb-tab-on {
+  background: #fff;
+  transform: scale(1.14);
+  box-shadow:
+    0 4px 0 rgba(15, 23, 42, 0.22),
+    0 0 0 0.8vmin #fde047;
+}
+.sb-tab:active {
+  transform: scale(0.92);
+}
+
+/* ---- the scene ---- */
+.sb-scene {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
+  padding: 1vmin 3vmin 3vmin;
+}
+@media (orientation: portrait) {
+  .sb-scene {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.sb-scene[data-count='7'] {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (orientation: portrait) {
+  .sb-scene[data-count='7'] {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.sb-thing {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+  translate: var(--dx) var(--dy);
+  rotate: var(--tilt);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* A soft shadow on the ground, so each picture stands somewhere. */
+.sb-thing::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 26cqmin);
+  width: 52cqmin;
+  height: 9cqmin;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.14);
+}
+.sb-face {
+  position: relative;
+  font-size: 66cqmin;
+  line-height: 1;
+  filter: drop-shadow(0 0.6cqmin 0 rgba(255, 255, 255, 0.9)) drop-shadow(0 1.4cqmin 1.2cqmin rgba(15, 23, 42, 0.18));
+  animation: sb-bob 3.2s ease-in-out var(--delay) infinite;
+  transform-origin: 50% 90%;
+}
+
+/* ---- while it makes its sound ---- */
+.sb-press {
+  animation: sb-squash 0.32s ease-out;
+}
+.sb-on {
+  z-index: 1;
+}
+.sb-on .sb-face {
+  animation: sb-hop 0.5s ease-in-out infinite;
+}
+.sb[data-motion='drive'] .sb-on .sb-face {
+  animation: sb-drive 0.9s ease-in-out infinite;
+}
+.sb[data-motion='shake'] .sb-on .sb-face {
+  animation: sb-shake 0.18s linear infinite;
+}
+.sb[data-motion='wiggle'] .sb-on .sb-face {
+  animation: sb-wiggle 0.5s ease-in-out infinite;
+}
+.sb[data-motion='sway'] .sb-on .sb-face {
+  animation: sb-sway 1.1s ease-in-out infinite;
+}
+/* A glow behind the picture that is sounding. */
+.sb-on::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 84cqmin;
+  height: 84cqmin;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 70%);
+  z-index: -1;
+  animation: sb-glow 0.9s ease-in-out infinite alternate;
+}
+
+.sb-note {
+  position: absolute;
+  left: 50%;
+  top: 20%;
+  font-size: 18cqmin;
+  font-weight: 800;
+  color: #7c3aed;
+  pointer-events: none;
+  opacity: 0;
+  animation: sb-note 1.3s ease-out calc(var(--i) * 0.22s) forwards;
+}
+.sb-note:nth-child(3) {
+  color: #db2777;
+}
+.sb-note:nth-child(4) {
+  color: #0284c7;
+}
+
+@keyframes sb-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3%);
+  }
+}
+@keyframes sb-squash {
+  0% {
+    scale: 1;
+  }
+  35% {
+    scale: 1.18 0.86;
+  }
+  70% {
+    scale: 0.94 1.08;
+  }
+  100% {
+    scale: 1;
+  }
+}
+@keyframes sb-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.12);
+  }
+  50% {
+    transform: translateY(-9%) scale(1.16, 1.08);
+  }
+}
+@keyframes sb-drive {
+  0%,
+  100% {
+    transform: translateX(-7%) scale(1.12) rotate(-2deg);
+  }
+  50% {
+    transform: translateX(7%) scale(1.12) rotate(2deg);
+  }
+}
+@keyframes sb-shake {
+  0%,
+  100% {
+    transform: scale(1.12) rotate(0);
+  }
+  25% {
+    transform: scale(1.12) rotate(-7deg);
+  }
+  75% {
+    transform: scale(1.12) rotate(7deg);
+  }
+}
+@keyframes sb-wiggle {
+  0%,
+  100% {
+    transform: scale(1.14) rotate(-6deg);
+  }
+  50% {
+    transform: scale(1.14) rotate(6deg);
+  }
+}
+@keyframes sb-sway {
+  0%,
+  100% {
+    transform: scale(1.12) translateX(-4%) skewX(-4deg);
+  }
+  50% {
+    transform: scale(1.12) translateX(4%) skewX(4deg);
+  }
+}
+@keyframes sb-glow {
+  from {
+    opacity: 0.6;
+    scale: 0.92;
+  }
+  to {
+    opacity: 1;
+    scale: 1.05;
+  }
+}
+@keyframes sb-note {
+  0% {
+    opacity: 0;
+    transform: translate(calc(-50% + (var(--i) - 1) * 40%), 0) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + (var(--i) - 1) * 120%), -160%) scale(1.1) rotate(calc((var(--i) - 1) * 20deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-face,
+  .sb-on .sb-face,
+  .sb-on::after {
+    animation: none !important;
+  }
+}

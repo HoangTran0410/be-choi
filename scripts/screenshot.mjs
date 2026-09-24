@@ -28,6 +28,7 @@ const GAMES = [
   'sizes',
   'shadows',
   'sounds',
+  'soundbook',
   'piano',
   'paint',
   'peekaboo',

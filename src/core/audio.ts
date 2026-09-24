@@ -109,6 +109,22 @@ export interface AudioEngine {
   fx(kind: FxKind): void;
   /** Resolves once the recorded animal voices are decoded (or known to be missing). */
   ready(): Promise<void>;
+  /**
+   * Play one of the app's own recordings (`public/…`, relative to the app root).
+   * Fetched and decoded on first use and kept, so `preload` it ahead of the tap.
+   * Resolves to a handle that can cut it short, or null when sound is off or the
+   * file cannot play.
+   */
+  clip(url: string): Promise<Clip | null>;
+  /** Fetch and decode recordings in the background so the first tap is instant. */
+  preload(urls: readonly string[]): void;
+}
+
+export interface Clip {
+  /** Seconds. */
+  readonly duration: number;
+  /** Fade it out over a few milliseconds (a hard stop clicks). */
+  stop(): void;
 }
 
 type Ctx = AudioContext;
@@ -923,6 +939,53 @@ export function createAudio(): AudioEngine {
     }
   }
 
+  /** Decoded recordings by URL. A failed decode stays failed: no refetch per tap. */
+  const clips = new Map<string, Promise<AudioBuffer | null>>();
+
+  function loadClip(url: string): Promise<AudioBuffer | null> {
+    const c = ctx;
+    if (!c) return Promise.resolve(null);
+    let job = clips.get(url);
+    if (!job) {
+      job = fetch(`${import.meta.env.BASE_URL}${url}`)
+        .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+        .then((raw) => c.decodeAudioData(raw))
+        .catch(() => null);
+      clips.set(url, job);
+    }
+    return job;
+  }
+
+  async function clip(url: string): Promise<Clip | null> {
+    if (!getCtx()) return null;
+    const buf = await loadClip(url);
+    const c = getCtx();
+    if (!buf || !c || !master) return null;
+    try {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = LOUDNESS.sample;
+      src.connect(g).connect(master);
+      src.start(c.currentTime);
+      return {
+        duration: buf.duration,
+        stop() {
+          try {
+            const now = c.currentTime;
+            g.gain.setValueAtTime(g.gain.value, now);
+            g.gain.linearRampToValueAtTime(0, now + 0.04);
+            src.stop(now + 0.05);
+          } catch {
+            /* already stopped */
+          }
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+
   function fx(kind: FxKind): void {
     at(`fx:${kind}`, () => {
       if (!playTake(kind)) playFx(kind);
@@ -1002,6 +1065,10 @@ export function createAudio(): AudioEngine {
     fx,
     ready() {
       return loaded ?? Promise.resolve();
+    },
+    clip,
+    preload(urls) {
+      for (const url of urls) void loadClip(url);
     },
     puff() {
       at('puff', () => noise(0.35, { gain: 0.8, filter: { type: 'lowpass', freq: 500 } }));
