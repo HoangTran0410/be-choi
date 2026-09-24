@@ -202,6 +202,19 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   ro?.observe(canvas);
   resize();
 
+  /**
+   * x positions every `step` px from the left edge to the right one — always ending
+   * exactly on W. A plain `x <= W; x += step` stops short whenever the width is not a
+   * multiple of the step, and a filled outline drawn from it drops straight down from
+   * there, cutting a notch out of the right-hand corner.
+   */
+  function across(step: number): number[] {
+    const xs: number[] = [];
+    for (let x = 0; x < W; x += step) xs.push(x);
+    xs.push(W);
+    return xs;
+  }
+
   // ---- layout ----
   const U = () => Math.min(W, H);
   const groundY = () => H * 0.68;
@@ -346,14 +359,14 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     g.fillStyle = rgb(far);
     g.beginPath();
     g.moveTo(0, gy);
-    for (let x = 0; x <= W; x += 20) g.lineTo(x, gy - Math.sin((x / W) * Math.PI * 2 + 1) * H * 0.04 - H * 0.02);
+    for (const x of across(20)) g.lineTo(x, gy - Math.sin((x / W) * Math.PI * 2 + 1) * H * 0.04 - H * 0.02);
     g.lineTo(W, H);
     g.lineTo(0, H);
     g.fill();
     g.fillStyle = rgb(near);
     g.beginPath();
     g.moveTo(0, gy + H * 0.06);
-    for (let x = 0; x <= W; x += 20) g.lineTo(x, gy + H * 0.06 - Math.sin((x / W) * Math.PI * 3) * H * 0.025);
+    for (const x of across(20)) g.lineTo(x, gy + H * 0.06 - Math.sin((x / W) * Math.PI * 3) * H * 0.025);
     g.lineTo(W, H);
     g.lineTo(0, H);
     g.fill();
@@ -657,7 +670,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
       g.fillStyle = color;
       g.beginPath();
       g.moveTo(0, H);
-      for (let x = 0; x <= W; x += 8) {
+      for (const x of across(8)) {
         const y = base + off + Math.sin((x / W) * 8 + time * speed * dir) * H * 0.02 + Math.sin((x / W) * 17 - time * speed) * H * 0.008;
         g.lineTo(x, y);
       }
@@ -667,7 +680,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
       g.strokeStyle = 'rgba(255,255,255,0.6)';
       g.lineWidth = 2;
       g.beginPath();
-      for (let x = 0; x <= W; x += 8) {
+      for (const x of across(8)) {
         const y = base + off + Math.sin((x / W) * 8 + time * speed * dir) * H * 0.02 + Math.sin((x / W) * 17 - time * speed) * H * 0.008;
         if (x) g.lineTo(x, y);
         else g.moveTo(x, y);
