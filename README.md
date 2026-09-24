@@ -49,7 +49,8 @@ npm run typecheck
 node scripts/screenshot.mjs [game…]    # chụp mọi game ở 3 cỡ màn hình, báo lỗi tràn
 npm run e2e                            # chơi thật các game trong Chromium headless
 npm run loudness:check                 # kiểm tra âm lượng các âm thanh đều nhau
-node scripts/soundbook.mjs [id…]       # tìm lại âm thanh cho Bấm nghe tiếng (cần ffmpeg + uv)
+node scripts/sfx.mjs [kind…]           # tìm lại tiếng con vật/xe dùng chung (cần ffmpeg + uv)
+node scripts/soundbook.mjs [id…]       # tìm lại âm thanh cho Bấm nghe tiếng
 ```
 
 </details>

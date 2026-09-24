@@ -75,7 +75,7 @@ export function pokeReply(prop: Prop, job: Job, rng: () => number = Math.random)
     case 'wash':
       return { emoji: '🫧', count: 4 };
     case 'crossing':
-      return { emoji: '🚂', count: 1, fx: 'whistle' };
+      return { emoji: '🚂', count: 1, fx: 'train' };
     case 'stop': {
       if (job.kind === 'ride') return { emoji: '❤️', count: 2 };
       return { emoji: job.kind === 'parcel' ? '📦' : '🌾', count: 2 };

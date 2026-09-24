@@ -47,7 +47,7 @@ export const SPECIES: readonly Species[] = [
   {
     id: 'chicken',
     name: 'con gà',
-    voice: 'chirp',
+    voice: 'cluck',
     coat: '#fef3c7',
     spot: '#ef4444',
     size: 0.5,
@@ -112,7 +112,7 @@ export const SPECIES: readonly Species[] = [
   {
     id: 'horse',
     name: 'con ngựa',
-    voice: 'kazoo',
+    voice: 'horse',
     coat: '#b45309',
     spot: '#78350f',
     size: 1.4,
@@ -138,7 +138,7 @@ export const SPECIES: readonly Species[] = [
   {
     id: 'goat',
     name: 'con dê',
-    voice: 'sheep',
+    voice: 'goat',
     coat: '#d6d3d1',
     spot: '#57534e',
     size: 0.85,

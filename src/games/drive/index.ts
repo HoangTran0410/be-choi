@@ -280,7 +280,7 @@ function start(ctx: GameContext): void {
       if (prop.kind !== 'crossing' || crossings.has(prop.slot)) continue;
       if (prop.x < car.x || prop.x - car.x > road.unit * RAIL_WAKE_UNITS) continue;
       crossings.set(prop.slot, 0);
-      ctx.audio.fx('whistle');
+      ctx.audio.fx('train');
       ctx.speak('Tàu hoả tới, đợi một chút nhé!');
     }
     for (const [slot, t] of crossings) {

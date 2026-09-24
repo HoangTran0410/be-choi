@@ -75,7 +75,7 @@ export const FOODS: readonly Item[] = [
 ];
 
 /**
- * Animals the synth can actually voice, shared by every game that makes an
+ * Animals with a voice of their own, shared by every game that makes an
  * animal speak (ú oà, ai kêu đấy, nông trại, bé lái xe).
  */
 const VOICES: Readonly<Record<string, FxKind>> = {
@@ -86,13 +86,14 @@ const VOICES: Readonly<Record<string, FxKind>> = {
   '🐸': 'frog',
   '🦁': 'roar',
   '🐯': 'roar',
-  '🐻': 'roar',
+  '🐻': 'growl',
   '🦆': 'quack',
-  '🐔': 'chirp',
-  '🐧': 'chirp',
+  '🐔': 'cluck',
+  '🐧': 'penguin',
   '🐘': 'elephant',
-  '🐵': 'kazoo',
-  '🐭': 'cricket',
+  '🐵': 'monkey',
+  '🐭': 'squeak',
+  '🐴': 'horse',
 };
 
 /** Animals with no voice of their own get a soft twinkle instead of a wrong noise. */

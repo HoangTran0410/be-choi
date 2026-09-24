@@ -8,8 +8,8 @@ import { SFX_TAKES, sfxUrl } from './sfx';
 
 export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax' | 'bass';
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
-/** Sound effects and (very) approximate animal voices, all synthesized. */
-export type FxKind =
+/** Effects and voices the synth can make by itself. */
+type SynthFx =
   | 'laser'
   | 'honk'
   | 'siren'
@@ -32,6 +32,14 @@ export type FxKind =
   | 'elephant'
   | 'sheep'
   | 'cricket';
+/**
+ * Sound effects and voices. The animals and machines are recorded (see
+ * src/core/sfx.ts) and the synth only stands in until the file has loaded; the
+ * kinds after SynthFx exist only as recordings and borrow a neighbour's synth
+ * voice (STAND_IN) meanwhile.
+ */
+export type FxKind =
+  SynthFx | 'cluck' | 'horse' | 'goat' | 'monkey' | 'growl' | 'squeak' | 'parrot' | 'penguin' | 'horn' | 'train' | 'tractor';
 
 export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax', 'bass'];
 export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell', 'shaker', 'wood', 'ride', 'triangle', 'crash'];
@@ -58,6 +66,17 @@ export const FX: readonly FxKind[] = [
   'elephant',
   'sheep',
   'cricket',
+  'cluck',
+  'horse',
+  'goat',
+  'monkey',
+  'growl',
+  'squeak',
+  'parrot',
+  'penguin',
+  'horn',
+  'train',
+  'tractor',
 ];
 
 /**
@@ -128,6 +147,21 @@ export interface Clip {
 }
 
 type Ctx = AudioContext;
+
+/** The synthesized voice each recorded-only kind falls back to. */
+const STAND_IN: Readonly<Record<Exclude<FxKind, SynthFx>, SynthFx>> = {
+  cluck: 'chirp',
+  horse: 'kazoo',
+  goat: 'sheep',
+  monkey: 'kazoo',
+  growl: 'roar',
+  squeak: 'chirp',
+  parrot: 'chirp',
+  penguin: 'chirp',
+  horn: 'honk',
+  train: 'whistle',
+  tractor: 'honk',
+};
 
 /**
  * The bass exciter, which is what makes a kick or a distant boom exist at all on
@@ -905,6 +939,9 @@ export function createAudio(): AudioEngine {
           }
         }
         return;
+      default:
+        // Recorded-only voices borrow the nearest synth until their file lands.
+        playFx(STAND_IN[kind]);
     }
   }
 

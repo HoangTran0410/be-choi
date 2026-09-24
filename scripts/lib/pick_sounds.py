@@ -14,9 +14,13 @@ could also be a foghorn loses to one that could only be a cow.
 
 Each recording is also cut here: the calls in it are found from the loudness
 envelope, a window is tried from the start of each one, and the best window is
-what gets kept. The Node side (scripts/soundbook.mjs) only encodes.
+what gets kept. The Node side (scripts/lib/freesound.mjs) only encodes.
 
-    uv run scripts/soundbook_pick.py <candidates.json> <picks.json>
+An item asking for several `takes` gets the best cut of each of its best few
+recordings, so a button pressed twenty times is not twenty copies of one moo —
+as long as the runners-up are nearly as clear as the winner.
+
+    uv run scripts/lib/pick_sounds.py <candidates.json> <picks.json>
 """
 import json
 import sys
@@ -45,6 +49,13 @@ NOISY = "a distant, noisy outdoor field recording with background noise"
 ACTIVE_DB = -26
 # Two bursts closer than this are one call (a "baa-aa", a double bark).
 GAP_S = 0.3
+# A cut shorter than this is a fragment — half a moo, one toot of a "choo choo" —
+# and loses this much score. Items that really are a blip (a pop, a click) set
+# their own minLen.
+MIN_LEN = 0.9
+SHORT_PENALTY = 3.0
+# A second take has to score within this much of the best one to be kept.
+TAKE_SLACK = 3.0
 # At most this many windows are tried per recording.
 MAX_WINDOWS = 6
 
@@ -138,6 +149,8 @@ def main() -> None:
                 others = torch.cat([lg[:idx], lg[idx + 1 :]])
                 margin = float(lg[idx] - others.max())
                 score = margin + 4 * (float(c) - 0.5)
+                if w[1] - w[0] < it.get("minLen", MIN_LEN):
+                    score -= SHORT_PENALTY
                 row = {
                     "id": cand["id"],
                     "start": w[0],
@@ -145,14 +158,26 @@ def main() -> None:
                     "score": round(score, 3),
                     "p": round(float(p[idx]), 3),
                     "clean": round(float(c), 3),
+                    "path": cand["path"],
                 }
                 report.append(row)
                 if best is None or score > best["score"]:
-                    best = {**row, "path": cand["path"]}
+                    best = row
         report.sort(key=lambda r: -r["score"])
         if best:
-            picks[it["id"]] = {**best, "alternatives": report[1:6]}
-            print(f"{it['id']:<14} {best['score']:6.2f}  p={best['p']:.2f} clean={best['clean']:.2f}  fs#{best['id']}  {best['start']:.2f}-{best['end']:.2f}s", flush=True)
+            # One cut per recording: two slices of the same moo are not two takes.
+            takes, used = [], set()
+            for r in report:
+                if r["id"] in used or r["score"] < best["score"] - TAKE_SLACK or len(takes) >= it.get("takes", 1):
+                    continue
+                used.add(r["id"])
+                takes.append(r)
+            picks[it["id"]] = {**best, "takes": takes, "alternatives": report[1:6]}
+            print(
+                f"{it['id']:<14} {best['score']:6.2f}  p={best['p']:.2f} clean={best['clean']:.2f}  "
+                f"fs#{best['id']}  {best['start']:.2f}-{best['end']:.2f}s  ({len(takes)} take{'s' * (len(takes) > 1)})",
+                flush=True,
+            )
         else:
             print(f"{it['id']:<14} nothing usable", flush=True)
     json.dump(picks, open(dst, "w"), indent=2)

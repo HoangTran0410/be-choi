@@ -23,10 +23,10 @@ describe('audio', () => {
     expect(a.enabled).toBe(false);
     a.note(440, 0.3, 'guitar');
   });
-  it('lists 8 timbres and 6 drums', () => {
+  it('lists every timbre, drum and effect', () => {
     expect(TIMBRES.length).toBe(9);
     expect(DRUMS.length).toBe(11);
-    expect(FX.length).toBe(22);
+    expect(FX.length).toBe(33);
   });
 });
 

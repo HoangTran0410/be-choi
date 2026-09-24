@@ -16,8 +16,8 @@ export interface Critter {
 }
 
 export const CRITTERS: readonly Critter[] = [
-  { id: 'parrot', emoji: '🦜', name: 'vẹt', rate: 1.5, fx: 'chirp' },
-  { id: 'mouse', emoji: '🐭', name: 'chuột', rate: 2, fx: 'kazoo' },
+  { id: 'parrot', emoji: '🦜', name: 'vẹt', rate: 1.5, fx: 'parrot' },
+  { id: 'mouse', emoji: '🐭', name: 'chuột', rate: 2, fx: 'squeak' },
   { id: 'robot', emoji: '🤖', name: 'rô-bốt', rate: 0.85, fx: 'zap' },
   { id: 'elephant', emoji: '🐘', name: 'voi', rate: 0.65, fx: 'elephant' },
   { id: 'dino', emoji: '🦖', name: 'khủng long', rate: 0.5, fx: 'roar' },

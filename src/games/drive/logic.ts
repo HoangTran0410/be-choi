@@ -31,7 +31,7 @@ export const VEHICLES: readonly Vehicle[] = [
     height: 0.5,
     wheelbase: 1.05,
     speed: 4.6,
-    horn: 'honk',
+    horn: 'horn',
     shape: 'car',
   },
   {
@@ -43,7 +43,7 @@ export const VEHICLES: readonly Vehicle[] = [
     height: 0.78,
     wheelbase: 1.6,
     speed: 3.6,
-    horn: 'honk',
+    horn: 'horn',
     shape: 'bus',
   },
   {
@@ -67,7 +67,7 @@ export const VEHICLES: readonly Vehicle[] = [
     height: 0.66,
     wheelbase: 1.55,
     speed: 3.8,
-    horn: 'honk',
+    horn: 'horn',
     shape: 'truck',
   },
   {
@@ -79,7 +79,7 @@ export const VEHICLES: readonly Vehicle[] = [
     height: 0.6,
     wheelbase: 1.2,
     speed: 2.6,
-    horn: 'kazoo',
+    horn: 'tractor',
     shape: 'tractor',
   },
 ];

@@ -26,19 +26,19 @@ mỗi tiếng từ đâu ra và thay được khi cần.
 | frog | [Croaking Frogs](https://freesound.org/s/573584/) | Breviceps | 0.01–2.01 s |
 | owl | [Owl Hooting with far away dog barking](https://freesound.org/s/159726/) | gfrog | 0.00–2.50 s |
 | bird | [bird tweets 01.wav](https://freesound.org/s/582178/) | denalwa | 0.03–1.60 s |
-| snake | [hiss2.wav](https://freesound.org/s/343927/) | Reitanna | 0.00–0.70 s |
+| snake | [hiss3.wav](https://freesound.org/s/343928/) | Reitanna | 0.00–0.94 s |
 | parrot | [R01-25-Squawking Gulls or Parrots.wav](https://freesound.org/s/479587/) | craigsmith | 11.61–13.61 s |
 | dolphin | [fake whales.ogg](https://freesound.org/s/275472/) | adharca | 0.08–2.58 s |
 | bee | [Bees buzzing 1](https://freesound.org/s/528935/) | fthgurdy | 6.09–8.09 s |
 | firetruck | [Distant ambulance & fire truck sirens (Germany)](https://freesound.org/s/535776/) | Breviceps | 0.00–3.50 s |
 | ambulance | [German Ambulance.wav](https://freesound.org/s/468098/) | Breviceps | 0.02–3.52 s |
 | police | [Police Siren](https://freesound.org/s/746302/) | TitanKaempfer | 0.00–3.50 s |
-| car | [Car Horn.wav](https://freesound.org/s/170243/) | BeatsbyCasper | 0.00–0.50 s |
+| car | [boedie_alfa_romeo_MiTo_honking_car_horn.wav](https://freesound.org/s/457425/) | boedie | 1.11–2.91 s |
 | train | [Steam Train In Motion 1.wav](https://freesound.org/s/179349/) | lolamadeus | 0.00–3.00 s |
 | airplane | [Jet Plane Flyby.flac](https://freesound.org/s/189446/) | qubodup | 0.29–3.79 s |
 | helicopter | [Helicopter flyby](https://freesound.org/s/467225/) | derjuli | 0.24–3.24 s |
 | motorbike | [motorcycle, bmw, engine rev, underground, garage.wav](https://freesound.org/s/632218/) | golovlev.sound | 0.00–3.00 s |
-| bicycle | [bicycle bell.wav](https://freesound.org/s/156064/) | marcolo91 | 0.01–0.39 s |
+| bicycle | [Bicycle Bell Sound Effect Free High Quality Sound FX](https://freesound.org/s/383340/) | deleted_user_7146007 | 7.63–8.90 s |
 | ship | [120616 Boat horn, harbour tour, NYC.flac](https://freesound.org/s/577494/) | TRP | 0.03–3.03 s |
 | tractor | [tractor engine on](https://freesound.org/s/707745/) | lauderson | 0.00–1.39 s |
 | rocket | [Rocket Launch.flac](https://freesound.org/s/182794/) | qubodup | 7.23–10.73 s |
@@ -56,14 +56,14 @@ mỗi tiếng từ đâu ra và thay được khi cần.
 | keys | [Keys, various, jingle (2012).wav](https://freesound.org/s/616835/) | TRP | 4.84–6.22 s |
 | giggle | [Baby laughs.wav](https://freesound.org/s/260774/) | iccleste | 4.45–6.77 s |
 | cry | [C1_baby_crying.mp3](https://freesound.org/s/371303/) | Iamgiorgio | 0.13–2.63 s |
-| sneeze | [Sneeze.WAV](https://freesound.org/s/595731/) | myfreesoundaccount1998 | 1.67–2.48 s |
+| sneeze | [DOG SNEEZING.mp3](https://freesound.org/s/584067/) | sofiaromero.n | 0.00–1.50 s |
 | snore | [SNORE-03_44100](https://freesound.org/s/760036/) | stevielematt | 0.17–3.67 s |
 | clap | [Small Crowd Applause](https://freesound.org/s/858309/) | miuziqa | 0.06–2.56 s |
 | kiss | [sucking smacking slurping](https://freesound.org/s/788330/) | treesound1951 | 5.61–6.48 s |
 | yawn | [B9_yawning.mp3](https://freesound.org/s/371301/) | Iamgiorgio | 0.75–1.97 s |
 | cough | [650914__frenkfurth__coughing-001segment_5](https://freesound.org/s/745563/) | lvjt | 1.55–3.35 s |
 | laugh | [Classroom Kids laughing out loud](https://freesound.org/s/807751/) | o_ultimo | 0.01–2.36 s |
-| footsteps | [Hiking Boot Footsteps on Stone](https://freesound.org/s/521590/) | Fission9 | 2.36–3.21 s |
+| footsteps | [Footsteps_Wood_Walk_Mono.wav](https://freesound.org/s/543685/) | Nox_Sound | 17.27–19.77 s |
 | eat | [apple bite](https://freesound.org/s/774782/) | yuliana_yurukova | 0.73–2.73 s |
 | whistle | [Human Happy Whistle](https://freesound.org/s/532754/) | schinew.de | 6.00–7.83 s |
 | rain | [Raining on roof](https://freesound.org/s/468025/) | Duasun | 0.00–3.00 s |
