@@ -85,6 +85,31 @@
   letter-spacing: -2px;
 }
 
+/* Pick a favourite: top-left, where the stars are not. Big enough for a small finger,
+   quiet enough not to compete with the game's own picture. */
+.tile-heart {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: clamp(36px, 7vmin, 52px);
+  height: clamp(36px, 7vmin, 52px);
+  display: grid;
+  place-items: center;
+  font-size: clamp(16px, 3.4vmin, 24px);
+  line-height: 1;
+  border-radius: 50%;
+  opacity: 0.55;
+  transition:
+    transform 0.15s,
+    opacity 0.15s;
+}
+.tile-heart-on {
+  opacity: 1;
+}
+.tile-heart:active {
+  transform: scale(1.3);
+}
+
 .section-album .grid {
   grid-template-columns: 1fr;
 }

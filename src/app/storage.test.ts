@@ -71,4 +71,14 @@ describe('store', () => {
     s.setItem('be-choi:v1', '{nope');
     expect(createStore(s).stars('x')).toBe(0);
   });
+  it('keeps favourite games in the order they were picked, and forgets one when asked', () => {
+    const s = mem();
+    const a = createStore(s);
+    expect(a.favorites()).toEqual([]);
+    expect(a.toggleFavorite('drive')).toBe(true);
+    a.toggleFavorite('bubbles');
+    expect(createStore(s).favorites()).toEqual(['drive', 'bubbles']);
+    expect(a.toggleFavorite('drive')).toBe(false);
+    expect(createStore(s).favorites()).toEqual(['bubbles']);
+  });
 });

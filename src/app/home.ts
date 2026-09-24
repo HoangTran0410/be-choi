@@ -32,8 +32,28 @@ function starsText(n: number): string {
   return `⭐×${n}`;
 }
 
-function tile(entry: GameEntry, deps: AppDeps): HTMLElement {
+function tile(entry: GameEntry, deps: AppDeps, onFavorite: () => void): HTMLElement {
   const stars = h('span', { class: 'tile-stars' }, starsText(deps.store.stars(entry.id)));
+  const liked = deps.store.favorites().includes(entry.id);
+  // A heart rather than a star: stars on a tile already count what the child has earned.
+  // A span, not a button, because the tile itself is one.
+  const heart = h(
+    'span',
+    {
+      class: `tile-heart${liked ? ' tile-heart-on' : ''}`,
+      role: 'button',
+      'aria-label': liked ? `Bỏ thích ${entry.title}` : `Thích ${entry.title}`,
+      'aria-pressed': String(liked),
+    },
+    liked ? '❤️' : '🤍',
+  );
+  heart.addEventListener('click', (e) => {
+    // The heart is inside the tile: without this the game would open too.
+    e.stopPropagation();
+    const on = deps.store.toggleFavorite(entry.id);
+    deps.audio.pop(on ? 1.4 : 0.8);
+    onFavorite();
+  });
   const el = h(
     'button',
     {
@@ -52,6 +72,7 @@ function tile(entry: GameEntry, deps: AppDeps): HTMLElement {
     h('span', { class: 'tile-icon' }, entry.icon),
     h('span', { class: 'tile-title' }, entry.title),
     stars,
+    heart,
   );
   return el;
 }
@@ -84,8 +105,24 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
     return el;
   };
   const render = () => {
-    const placed = new Set<string>();
+    const tileOf = (g: GameEntry) => tile(g, deps, render);
+    // Favourites come first, in the order they were picked, and leave their usual
+    // section: "at the top" means the child does not have to scroll for them.
+    const favorites = deps.store
+      .favorites()
+      .map((id) => GAMES.find((g) => g.id === id))
+      .filter((g): g is GameEntry => g !== undefined);
+    const placed = new Set<string>(favorites.map((g) => g.id));
     const blocks: Array<HTMLElement | null> = [h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile()))];
+    if (favorites.length)
+      blocks.push(
+        h(
+          'section',
+          { class: 'section section-favorites' },
+          h('h2', { class: 'section-title' }, '❤️ Bé thích'),
+          h('div', { class: 'grid' }, ...favorites.map(tileOf)),
+        ),
+      );
     blocks.push(
       ...SECTIONS.map((section) => {
         const games = GAMES.filter((g) => !placed.has(g.id) && section.skills.includes(g.skill));
@@ -95,12 +132,12 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
           'section',
           { class: 'section' },
           h('h2', { class: 'section-title' }, section.title),
-          h('div', { class: 'grid' }, ...games.map((g) => tile(g, deps))),
+          h('div', { class: 'grid' }, ...games.map(tileOf)),
         );
       }),
     );
     const rest = GAMES.filter((g) => !placed.has(g.id));
-    if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map((g) => tile(g, deps)))));
+    if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map(tileOf))));
     grid.replaceChildren(...blocks.filter((b): b is HTMLElement => b !== null));
   };
   render();

@@ -29,12 +29,17 @@ export interface Store {
   addSticker(emoji: string): void;
   settings(): Settings;
   setSettings(patch: Partial<Settings>): Settings;
+  /** Games the child likes best, in the order they were picked; shown first on the home screen. */
+  favorites(): string[];
+  /** Add or remove one. Returns whether it is now a favourite. */
+  toggleFavorite(id: string): boolean;
 }
 
 interface State {
   stars: Record<string, number>;
   stickers: string[];
   settings: Settings;
+  favorites: string[];
 }
 
 const KEY = 'be-choi:v1';
@@ -57,12 +62,13 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
           stars: { ...(parsed.stars ?? {}) },
           stickers: [...(parsed.stickers ?? [])],
           settings: { ...DEFAULTS, ...(parsed.settings ?? {}) },
+          favorites: Array.isArray(parsed.favorites) ? parsed.favorites.filter((id) => typeof id === 'string') : [],
         };
       }
     } catch {
       /* fall through to defaults */
     }
-    return { stars: {}, stickers: [], settings: { ...DEFAULTS } };
+    return { stars: {}, stickers: [], settings: { ...DEFAULTS }, favorites: [] };
   }
 
   function save(): void {
@@ -100,6 +106,15 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
     },
     settings() {
       return { ...state.settings };
+    },
+    favorites() {
+      return [...state.favorites];
+    },
+    toggleFavorite(id) {
+      const on = !state.favorites.includes(id);
+      state.favorites = on ? [...state.favorites, id] : state.favorites.filter((x) => x !== id);
+      save();
+      return on;
     },
     setSettings(patch) {
       state = { ...state, settings: { ...state.settings, ...patch } };
