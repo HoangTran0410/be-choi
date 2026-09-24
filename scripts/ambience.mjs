@@ -101,9 +101,7 @@ async function download(file) {
   return local;
 }
 
-const todo = Object.entries(SOURCES).filter(([id]) =>
-  only.length ? only.includes(id) : force || !existsSync(join(OUT_DIR, `${id}.m4a`)),
-);
+const todo = Object.entries(SOURCES).filter(([id]) => (only.length ? only.includes(id) : force || !existsSync(join(OUT_DIR, `${id}.m4a`))));
 
 // ---- find the beat of each, where there is one ----
 // Decoded to wav first: some iFocus ".mp3" files are really AAC, which the Python
@@ -145,7 +143,23 @@ for (const [id, src] of todo) {
     `[head][tail]amix=inputs=2:normalize=0:duration=first[seam]`,
     `[seam][body]concat=n=2:v=0:a=1,loudnorm=I=${TARGET_LUFS}:TP=-3:LRA=15,alimiter=limit=0.8:level=disabled[out]`,
   ].join(';');
-  ffmpeg(['-i', raw, '-filter_complex', graph, '-map', '[out]', '-ar', '44100', '-c:a', 'aac', '-b:a', '64k', '-movflags', '+faststart', out]);
+  ffmpeg([
+    '-i',
+    raw,
+    '-filter_complex',
+    graph,
+    '-map',
+    '[out]',
+    '-ar',
+    '44100',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '64k',
+    '-movflags',
+    '+faststart',
+    out,
+  ]);
   const how = beat ? `beat ${beats[id].period}s` : src.len ? 'texture' : 'long';
   console.log(`${id.padEnd(14)} ${len.toFixed(2).padStart(6)} s loop (${how}) from ${from}s of ${src.file}`);
 }
