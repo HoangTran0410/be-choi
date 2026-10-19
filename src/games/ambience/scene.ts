@@ -7,6 +7,7 @@
  * One canvas, one frame loop. Everything is placed in fractions of the canvas
  * so it holds up from a phone on its side to a tablet standing up.
  */
+import { onFrame } from '../../core/frame';
 import { doodle, type Pt } from './doodles';
 import { skyOf, type Sky } from './logic';
 
@@ -78,8 +79,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   let W = 1;
   let H = 1;
   let alive = true;
-  let raf = 0;
-  let last = performance.now();
+  let stopLoop: () => void = () => undefined;
   let time = 0;
 
   /** Target (0/1) and eased level of every effect, and of every sky. */
@@ -2218,13 +2218,12 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     }
   }
 
-  function frame(now: number): void {
+  function frame(_now: number, dtMs: number): void {
     if (!alive) return;
-    raf = requestAnimationFrame(frame);
-    const raw = (now - last) / 1000;
+    const raw = dtMs / 1000;
     const dt = Math.min(0.05, raw);
-    last = now;
-    adapt(raw);
+    // The first frame (and the first after the tab was hidden) has no gap to judge by.
+    if (dtMs > 0) adapt(raw);
     time += dt;
     // Ease every effect and sky towards what is wanted: in over ~1 s, out over ~1.5 s.
     for (const [id, w] of want) {
@@ -2292,7 +2291,8 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     drawHero(dt);
     drawSparkles(dt);
   }
-  raf = requestAnimationFrame(frame);
+  // maxDt 1000: `adapt` tells a slow picture from a tab that was away by the size of the gap.
+  stopLoop = onFrame(frame, { maxDt: 1000 });
 
   return {
     setOn(ids) {
@@ -2322,7 +2322,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     },
     destroy() {
       alive = false;
-      cancelAnimationFrame(raf);
+      stopLoop();
       ro?.disconnect();
     },
   };

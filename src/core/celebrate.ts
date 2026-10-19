@@ -1,5 +1,6 @@
 import type { AudioEngine } from './audio';
 import { PRAISES } from './content';
+import { onFrame } from './frame';
 
 const DURATION = 1600;
 const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7'];
@@ -71,10 +72,8 @@ export function celebrate(stage: HTMLElement, audio: AudioEngine, speak: (t: str
       color: COLORS[Math.floor(Math.random() * COLORS.length)] ?? '#fff',
     }));
     const t0 = performance.now();
-    let last = t0;
-    const frame = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    const frame = (now: number, dtMs: number): boolean => {
+      const dt = Math.min(0.05, dtMs / 1000);
       ctx.clearRect(0, 0, w, hgt);
       const fade = Math.max(0, 1 - (now - t0 - DURATION * 0.6) / (DURATION * 0.4));
       for (const p of parts) {
@@ -91,12 +90,11 @@ export function celebrate(stage: HTMLElement, audio: AudioEngine, speak: (t: str
         ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
       }
-      if (now - t0 < DURATION) requestAnimationFrame(frame);
-      else {
-        canvas.remove();
-        resolve();
-      }
+      if (now - t0 < DURATION) return true;
+      canvas.remove();
+      resolve();
+      return false;
     };
-    requestAnimationFrame(frame);
+    onFrame(frame);
   });
 }

@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { startLoop } from '../../core/frame';
 import type { Point } from '../../core/creature';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -905,13 +906,10 @@ function start(ctx: GameContext): void {
     g.restore();
   }
 
-  let raf = 0;
-  let last = 0;
-  function loop(now: number): void {
+  function loop(_now: number, dtMs: number): void {
     if (!alive) return;
-    raf = requestAnimationFrame(loop);
-    const dt = last ? Math.min(MAX_STEP, (now - last) / 1000) : 0.016;
-    last = now;
+    // No gap yet on the first frame (or the first after the tab was hidden).
+    const dt = dtMs ? Math.min(MAX_STEP, dtMs / 1000) : 0.016;
     build();
     if (!c || !viv.w) return;
     step(dt);
@@ -1183,11 +1181,10 @@ function start(ctx: GameContext): void {
     closePicker?.();
     for (const timer of timers) clearTimeout(timer);
     window.removeEventListener('resize', onResize);
-    if (raf) cancelAnimationFrame(raf);
   });
 
   build();
-  if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);
+  startLoop(ctx, loop);
 }
 
 const game: GameModule = { ...meta, start };

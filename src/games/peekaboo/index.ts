@@ -1,4 +1,5 @@
 import { h, randInt, replay, shuffle } from '../../core/dom';
+import { makeTappable } from '../../core/tap';
 import type { Item } from '../../core/content';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -78,10 +79,7 @@ function start(ctx: GameContext): void {
     // Half the animals peek round the left edge, half round the right.
     el.style.setProperty('--peek-x', i % 2 ? '1' : '-1');
     const spot: LiveSpot = { el, hider, peek, item: spec.item };
-    el.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      reveal(spot);
-    });
+    makeTappable(el, () => reveal(spot), { feedback: false, cooldownMs: 0 });
     grid.append(el);
     return spot;
   });

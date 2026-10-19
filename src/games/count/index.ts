@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { makeTappable } from '../../core/tap';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makeCountRound, minDistFor, numberWord } from './logic';
@@ -54,19 +55,22 @@ function start(ctx: GameContext): void {
         { class: 'g-item count-fruit', style: `left:${(p.x * 100).toFixed(2)}%;top:${(p.y * 100).toFixed(2)}%` },
         h('span', { class: 'count-emoji' }, r.item.emoji),
       );
-      fruit.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        replay(fruit, 'anim-bounce');
-        if (fruit.classList.contains('counted')) return;
-        counted++;
-        const n = counted;
-        fruit.classList.add('counted');
-        fruit.append(h('span', { class: 'count-badge' }, String(n)));
-        ctx.audio.pop(1 + n * 0.12);
-        navigator.vibrate?.(10);
-        ctx.speak(numberWord(n));
-        if (n === r.count) finish();
-      });
+      makeTappable(
+        fruit,
+        () => {
+          replay(fruit, 'anim-bounce');
+          if (fruit.classList.contains('counted')) return;
+          counted++;
+          const n = counted;
+          fruit.classList.add('counted');
+          fruit.append(h('span', { class: 'count-badge' }, String(n)));
+          ctx.audio.pop(1 + n * 0.12);
+          navigator.vibrate?.(10);
+          ctx.speak(numberWord(n));
+          if (n === r.count) finish();
+        },
+        { feedback: false },
+      );
       return fruit;
     });
     board.replaceChildren(...fruits);

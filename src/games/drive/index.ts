@@ -1,4 +1,5 @@
 import { h, mulberry32, replay } from '../../core/dom';
+import { startLoop } from '../../core/frame';
 import { voiceOf } from '../../core/content';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -867,13 +868,10 @@ function start(ctx: GameContext): void {
     nightLayer.draw(g, s, glows());
   }
 
-  let raf = 0;
-  let last = 0;
-  function loop(now: number): void {
+  function loop(_now: number, dtMs: number): void {
     if (!alive) return;
-    raf = requestAnimationFrame(loop);
-    const dt = last ? Math.min(MAX_STEP, (now - last) / 1000) : 0.016;
-    last = now;
+    // No gap yet on the first frame (or the first after the tab was hidden).
+    const dt = dtMs ? Math.min(MAX_STEP, dtMs / 1000) : 0.016;
     build();
     if (!c || !road.w) return;
     step(dt);
@@ -1093,7 +1091,6 @@ function start(ctx: GameContext): void {
     alive = false;
     shutGarage?.();
     window.removeEventListener('resize', onResize);
-    if (raf) cancelAnimationFrame(raf);
   });
 
   build();
@@ -1117,7 +1114,7 @@ function start(ctx: GameContext): void {
   }
   garage.textContent = vehicle.emoji;
   garage.dataset.vehicle = vehicle.id;
-  if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);
+  startLoop(ctx, loop);
 }
 
 const game: GameModule = { ...meta, start };

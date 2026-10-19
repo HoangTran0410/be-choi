@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { makeTappable } from '../../core/tap';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { INSTRUMENTS, QUIZ_ROUNDS, makeQuizRound, playPhrase, type Instrument, type QuizRound } from './logic';
@@ -40,26 +41,29 @@ function start(ctx: GameContext): void {
       },
       h('span', { class: 'band-emoji' }, inst.emoji),
     );
-    tile.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      tap(inst, tile);
-    });
+    makeTappable(tile, () => tap(inst, tile), { feedback: false, cooldownMs: 0, ctx });
     tiles.set(inst.id, tile);
     grid.append(tile);
   }
   const replayBtn = h('button', { class: 'btn-round band-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: true }, '🔁');
   const quizBtn = h('button', { class: 'btn-round band-quiz', type: 'button', 'aria-label': 'Đố nghe' }, '🎧');
-  replayBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    if (!quiz) return;
-    ctx.hint.touch();
-    play(quiz.answer, false);
-  });
-  quizBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    if (quiz) exitQuiz();
-    else enterQuiz();
-  });
+  makeTappable(
+    replayBtn,
+    () => {
+      if (!quiz) return;
+      ctx.hint.touch();
+      play(quiz.answer, false);
+    },
+    { feedback: false, cooldownMs: 0, ctx },
+  );
+  makeTappable(
+    quizBtn,
+    () => {
+      if (quiz) exitQuiz();
+      else enterQuiz();
+    },
+    { feedback: false, cooldownMs: 0, ctx },
+  );
   root.append(grid, replayBtn, quizBtn);
   ctx.stage.append(root);
 

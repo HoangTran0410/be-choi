@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { startLoop } from '../../core/frame';
 import { createMic } from '../../core/mic';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -121,14 +122,10 @@ function start(ctx: GameContext): void {
     draw();
   }
 
-  let raf = 0;
-  let last = 0;
-  function loop(now: number): void {
+  function loop(_now: number, dtMs: number): void {
     if (!alive) return;
-    raf = requestAnimationFrame(loop);
-    const dt = last ? Math.min(MAX_STEP_MS, now - last) / 1000 : 0.016;
-    last = now;
-    frame(dt);
+    // The first frame (and the first after the tab was hidden) has no gap yet.
+    frame(dtMs ? Math.min(MAX_STEP_MS, dtMs) / 1000 : 0.016);
   }
 
   // ---- the child ----
@@ -181,11 +178,10 @@ function start(ctx: GameContext): void {
 
   showScore();
   draw();
-  if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);
+  startLoop(ctx, loop);
 
   ctx.onCleanup(() => {
     alive = false;
-    if (raf) cancelAnimationFrame(raf);
     mic.stop();
     for (const t of timers) clearTimeout(t);
     timers.clear();

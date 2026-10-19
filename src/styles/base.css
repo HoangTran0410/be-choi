@@ -346,3 +346,8 @@ button {
   height: calc(var(--tap) * 0.8);
   font-size: calc(var(--tap) * 0.4);
 }
+
+/* Light press feedback from makeTappable (src/core/tap.ts). */
+.is-tapped {
+  filter: brightness(1.07);
+}

@@ -1,4 +1,5 @@
 import { h, randInt, replay } from '../../core/dom';
+import { startLoop } from '../../core/frame';
 import type { GameContext, GameModule } from '../../core/types';
 import { BLOW_THRESHOLD, blowStrength } from '../birthday/logic';
 import { meta } from './meta';
@@ -119,8 +120,6 @@ function start(ctx: GameContext): void {
   let fwAsked = false;
   /** Something was drawn last frame, so the canvas still has to be cleared once. */
   let fwUsed = false;
-  let raf = 0;
-  let last = performance.now();
   let lastShort = 0;
   const timers = new Set<ReturnType<typeof setTimeout>>();
   /** Words already said out loud, so the field does not narrate every single touch. */
@@ -519,11 +518,10 @@ function start(ctx: GameContext): void {
   }
 
   // ---- the field, frame by frame ----
-  function frame(now: number): void {
-    // Clamped at both ends: a backgrounded tab hands back a huge gap, and a frame
-    // stamp from a different clock than `performance.now()` can hand back a negative one.
-    const dt = Math.min(MAX_STEP, Math.max(0, (now - last) / 1000));
-    last = now;
+  function frame(now: number, dtMs: number): void {
+    // Clamped: a backgrounded tab hands back a huge gap (the shared loop already
+    // reports 0 for the first frame after one).
+    const dt = Math.min(MAX_STEP, Math.max(0, dtMs / 1000));
     const t = now / 1000;
     // The wind eases in and out. Snapping straight to the microphone's reading
     // reads as a glitch; a breath that arrives and dies away reads as weather.
@@ -576,8 +574,6 @@ function start(ctx: GameContext): void {
       sparks.length = kept;
     }
     drawFireworks(w, hgt, short);
-
-    raf = requestAnimationFrame(frame);
   }
 
   // ---- microphone ----
@@ -723,7 +719,7 @@ function start(ctx: GameContext): void {
   // One on the way in: the button is worth finding, and the sky says so first.
   later(() => launch(BURSTS[0]), 900);
 
-  raf = requestAnimationFrame(frame);
+  startLoop(ctx, frame);
 
   /** Nudge whatever is nearest to hand, without asking for anything in particular. */
   ctx.hint.arm(() => {
@@ -753,7 +749,6 @@ function start(ctx: GameContext): void {
     rockets = [];
     sparks = [];
     flashes = [];
-    cancelAnimationFrame(raf);
     for (const id of timers) clearTimeout(id);
     timers.clear();
     stopMic();

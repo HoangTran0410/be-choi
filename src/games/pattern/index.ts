@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { makeTappable } from '../../core/tap';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makePatternRound, roundSpeech, STAR_EVERY } from './logic';
@@ -46,18 +47,21 @@ function start(ctx: GameContext): void {
 
     const choices = r.choices.map((item) => {
       const btn = h('button', { class: 'pattern-choice', type: 'button', 'data-emoji': item.emoji, 'aria-label': item.name }, item.emoji);
-      btn.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        if (locked) return;
-        if (item.emoji !== r.answer.emoji) {
-          btn.classList.remove('anim-wiggle');
-          replay(btn, 'anim-shake');
-          ctx.audio.boing();
-          return;
-        }
-        locked = true;
-        solve(btn);
-      });
+      makeTappable(
+        btn,
+        () => {
+          if (locked) return;
+          if (item.emoji !== r.answer.emoji) {
+            btn.classList.remove('anim-wiggle');
+            replay(btn, 'anim-shake');
+            ctx.audio.boing();
+            return;
+          }
+          locked = true;
+          solve(btn);
+        },
+        { feedback: false },
+      );
       return btn;
     });
     tray.replaceChildren(...choices);

@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { startLoop } from '../../core/frame';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { MAX_ALIVE, makeBubble, popPitch, SPAWN_MS, starEvery } from './logic';
@@ -24,8 +25,6 @@ function start(ctx: GameContext): void {
 
   const live: Live[] = [];
   let pops = 0;
-  let raf = 0;
-  let last = performance.now();
 
   function scale(): number {
     const min = Math.min(field.clientWidth || 400, field.clientHeight || 600);
@@ -86,9 +85,8 @@ function start(ctx: GameContext): void {
     if (i >= 0) live.splice(i, 1);
   }
 
-  function frame(now: number): void {
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
+  function frame(now: number, dtMs: number): void {
+    const dt = Math.min(0.05, dtMs / 1000);
     for (const b of [...live]) {
       if (b.popped) continue;
       b.y -= b.speed * dt;
@@ -96,19 +94,15 @@ function start(ctx: GameContext): void {
       b.el.style.transform = `translate(${b.x + sway}px, ${b.y}px)`;
       if (b.y < -b.size) remove(b);
     }
-    raf = requestAnimationFrame(frame);
   }
 
   spawn(true);
   spawn(true);
   spawn(true);
   const timer = setInterval(spawn, SPAWN_MS);
-  raf = requestAnimationFrame(frame);
+  startLoop(ctx, frame);
 
-  ctx.onCleanup(() => {
-    clearInterval(timer);
-    cancelAnimationFrame(raf);
-  });
+  ctx.onCleanup(() => clearInterval(timer));
 }
 
 const game: GameModule = { ...meta, start };
