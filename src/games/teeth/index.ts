@@ -5,6 +5,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { allClean, CHEERS, JOBS, JOB_ICON, makeMouth, NUDGES, scrub, SCRUBS_TO_CLEAN, type Job, type Mouth, type Tooth } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** Minimum gap between two brush ticks. */
 const TICK_MS = 120;
@@ -302,26 +303,32 @@ function start(ctx: GameContext): void {
 
   // ---- tray ----
 
-  tube.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    ctx.hint.touch();
-    replay(tube, 'anim-bounce');
-    if (finished || chores.done('paste')) return;
-    paste.hidden = false;
-    ctx.audio.pop();
-    replay(brush, 'anim-wiggle');
-    setJob('paste', true);
-  });
+  makeTappable(
+    tube,
+    (e) => {
+      e.stopPropagation();
+      ctx.hint.touch();
+      replay(tube, 'anim-bounce');
+      if (finished || chores.done('paste')) return;
+      paste.hidden = false;
+      ctx.audio.pop();
+      replay(brush, 'anim-wiggle');
+      setJob('paste', true);
+    },
+    { ctx },
+  );
 
-  cup.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    ctx.hint.touch();
-    if (finished) return;
-    replay(cup, 'anim-bounce');
-    rinse();
-  });
+  makeTappable(
+    cup,
+    (e) => {
+      e.stopPropagation();
+      ctx.hint.touch();
+      if (finished) return;
+      replay(cup, 'anim-bounce');
+      rinse();
+    },
+    { ctx },
+  );
 
   function splash(): void {
     for (let i = 0; i < SPLASH_COUNT; i++) {

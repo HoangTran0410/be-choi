@@ -6,6 +6,7 @@ import { PAGES, pageDone, scatter, type Page, type Thing } from './logic';
 import { SOUND_IDS, soundUrl } from './sounds';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 const SAVE_KEY = 'be-choi:soundbook-page';
 /** The name is said this long after the sound ends, so the two never talk over each other. */
@@ -113,13 +114,16 @@ function start(ctx: GameContext): void {
           { class: `sb-tab${p === page ? ' sb-tab-on' : ''}`, type: 'button', 'aria-label': p.name, 'data-page': p.id },
           p.icon,
         );
-        b.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          ctx.hint.touch();
-          if (p === page) return;
-          show(p);
-          ctx.audio.tick();
-        });
+        makeTappable(
+          b,
+          () => {
+            ctx.hint.touch();
+            if (p === page) return;
+            show(p);
+            ctx.audio.tick();
+          },
+          { ctx },
+        );
         return b;
       }),
     );
@@ -148,10 +152,13 @@ function start(ctx: GameContext): void {
           },
           h('span', { class: 'sb-face' }, thing.emoji),
         );
-        el.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          void press(el, thing);
-        });
+        makeTappable(
+          el,
+          () => {
+            void press(el, thing);
+          },
+          { cooldownMs: 0, ctx },
+        );
         return el;
       }),
     );

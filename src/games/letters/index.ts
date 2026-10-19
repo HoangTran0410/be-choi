@@ -3,6 +3,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { captionFor, isDigit, pageDone, pages, sayFor } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /**
  * Letters & numbers: a big grid of ten tiles. Touching a tile reads it aloud with a
@@ -42,19 +43,22 @@ function start(ctx: GameContext): void {
         h('span', { class: 'letter-word' }, captionFor(glyph)),
       );
       tile.style.setProperty('--hue', String(((page * 7 + i) * 37) % 360));
-      tile.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        ctx.hint.touch();
-        replay(tile, 'anim-bounce');
-        ctx.audio.pop(1 + (i % 5) * 0.1);
-        navigator.vibrate?.(10);
-        ctx.speak(sayFor(glyph));
-        if (touched.has(i)) return;
-        touched.add(i);
-        tile.classList.add('seen');
-        renderDots(touched.size, glyphs.length);
-        if (pageDone(touched, glyphs.length) && !busy) void finish();
-      });
+      makeTappable(
+        tile,
+        () => {
+          ctx.hint.touch();
+          replay(tile, 'anim-bounce');
+          ctx.audio.pop(1 + (i % 5) * 0.1);
+          navigator.vibrate?.(10);
+          ctx.speak(sayFor(glyph));
+          if (touched.has(i)) return;
+          touched.add(i);
+          tile.classList.add('seen');
+          renderDots(touched.size, glyphs.length);
+          if (pageDone(touched, glyphs.length) && !busy) void finish();
+        },
+        { cooldownMs: 0, ctx },
+      );
       return tile;
     });
     grid.replaceChildren(...tiles);

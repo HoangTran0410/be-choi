@@ -19,6 +19,7 @@ import {
 } from './logic';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 const NOTE_GLYPHS = ['🎵', '🎶'] as const;
 const NOTE_MS = 700;
@@ -59,16 +60,16 @@ function start(ctx: GameContext): void {
   const root = h('div', { class: 'xylo' });
   const strip = h('div', { class: 'xylo-songs' });
   const songEls = SONGBOOK.map((s, i) =>
-    h('button', { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title, onpointerdown: () => selectSong(s) }, s.icon),
+    h('button', { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title }, s.icon),
   );
-  const playBtn = h('button', { class: 'xylo-play', type: 'button', 'aria-label': 'Phát bài hát', onpointerdown: togglePlay }, '▶');
-  const recBtn = h('button', { class: 'xylo-rec', type: 'button', 'aria-label': 'Ghi âm', onpointerdown: toggleRec }, '⏺');
-  const replayBtn = h(
-    'button',
-    { class: 'xylo-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: saved.length === 0, onpointerdown: toggleReplay },
-    '🔁',
-  );
+  const playBtn = h('button', { class: 'xylo-play', type: 'button', 'aria-label': 'Phát bài hát' }, '▶');
+  const recBtn = h('button', { class: 'xylo-rec', type: 'button', 'aria-label': 'Ghi âm' }, '⏺');
+  const replayBtn = h('button', { class: 'xylo-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: saved.length === 0 }, '🔁');
   strip.append(...songEls, playBtn, recBtn, replayBtn);
+  SONGBOOK.forEach((s, i) => makeTappable(songEls[i] as HTMLElement, () => selectSong(s), { cooldownMs: 0, ctx }));
+  makeTappable(playBtn, togglePlay, { cooldownMs: 0, ctx });
+  makeTappable(recBtn, toggleRec, { cooldownMs: 0, ctx });
+  makeTappable(replayBtn, toggleReplay, { cooldownMs: 0, ctx });
 
   const bars = h('div', { class: 'xylo-bars' });
   const barEls = BARS.map((_, i) =>

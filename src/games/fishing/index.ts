@@ -20,6 +20,7 @@ import {
   type Tank,
 } from '../aquarium/logic';
 import { meta } from './meta';
+import { makeTappable } from '../../core/tap';
 import {
   BAIT_SMELL,
   CATCH_FOR_STAR,
@@ -715,22 +716,25 @@ function start(ctx: GameContext): void {
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   reelBtn.hidden = true;
-  reelBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.hint.touch();
-    holding = false;
-    replay(reelBtn, 'anim-bounce');
-    ctx.audio.tick();
-    if (hook.caught || hook.junk) {
-      // Every press is one heave on the rod: stop pressing and the fish wins.
-      tug(hook);
-      casting = false;
-      return;
-    }
-    casting = true;
-    aimCast(hook, tank);
-    ctx.speak('Thả câu nào!');
-  });
+  makeTappable(
+    reelBtn,
+    () => {
+      ctx.hint.touch();
+      holding = false;
+      replay(reelBtn, 'anim-bounce');
+      ctx.audio.tick();
+      if (hook.caught || hook.junk) {
+        // Every press is one heave on the rod: stop pressing and the fish wins.
+        tug(hook);
+        casting = false;
+        return;
+      }
+      casting = true;
+      aimCast(hook, tank);
+      ctx.speak('Thả câu nào!');
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   ctx.hint.arm(() => {
     if (hook.caught || hook.junk || !reelBtn.hidden) {

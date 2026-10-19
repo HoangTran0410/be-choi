@@ -3,6 +3,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { type Card, FLIP_BACK_MS, isMatch, makeDeck, pairCount } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 const PASTELS = ['#fecaca', '#fed7aa', '#fef08a', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fbcfe8', '#a5f3fc'];
 
@@ -61,10 +62,13 @@ function start(ctx: GameContext): void {
         ),
       );
       const slot: Slot = { card, el };
-      el.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        flip(slot);
-      });
+      makeTappable(
+        el,
+        () => {
+          flip(slot);
+        },
+        { cooldownMs: 0, ctx },
+      );
       return slot;
     });
     grid.replaceChildren(...slots.map((s) => s.el));

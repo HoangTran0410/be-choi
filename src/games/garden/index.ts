@@ -34,6 +34,7 @@ import {
   type Tuft,
 } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 const MAX_STEP = 0.05;
 
@@ -103,13 +104,16 @@ function start(ctx: GameContext): void {
       { class: 'g-item garden-seed', type: 'button', 'data-seed': seed.id, 'aria-label': `hạt ${seed.name}` },
       seed.emoji,
     );
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      chosen = seed;
-      render();
-      ctx.audio.tick();
-      ctx.speak(seed.name);
-    });
+    makeTappable(
+      btn,
+      () => {
+        chosen = seed;
+        render();
+        ctx.audio.tick();
+        ctx.speak(seed.name);
+      },
+      { ctx },
+    );
     return btn;
   });
   tray.append(...buttons);

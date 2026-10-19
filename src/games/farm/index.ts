@@ -25,6 +25,7 @@ import {
   type Yard,
 } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** Longest frame the yard will take in one step. */
 const MAX_STEP = 0.05;
@@ -686,16 +687,19 @@ function start(ctx: GameContext): void {
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  feed.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.hint.touch();
-    if (feeding) return;
-    feeding = true;
-    grains = makeGrain(yard, GRAIN_PER_FEED);
-    replay(feed, 'anim-bounce');
-    ctx.audio.tick();
-    ctx.speak('Cho các bạn ăn nào!');
-  });
+  makeTappable(
+    feed,
+    () => {
+      ctx.hint.touch();
+      if (feeding) return;
+      feeding = true;
+      grains = makeGrain(yard, GRAIN_PER_FEED);
+      replay(feed, 'anim-bounce');
+      ctx.audio.tick();
+      ctx.speak('Cho các bạn ăn nào!');
+    },
+    { ctx },
+  );
 
   ctx.hint.arm(() => {
     replay(feed, 'anim-wiggle');

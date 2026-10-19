@@ -17,6 +17,7 @@ import {
   type RewardState,
 } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 interface FaceDetectorLike {
   detect(source: HTMLVideoElement): Promise<Array<{ boundingBox: { x: number; y: number; width: number; height: number } }>>;
@@ -55,10 +56,11 @@ function start(ctx: GameContext): void {
   mirror.append(cartoon);
   const emoji = h('div', { class: 'mask-emoji' });
   const face = h('div', { class: 'mask-face' }, emoji);
-  const nextBtn = h('button', { class: 'btn-round mask-next hint', type: 'button', 'aria-label': 'Đổi mặt nạ', onpointerdown: onNext });
+  const nextBtn = h('button', { class: 'btn-round mask-next hint', type: 'button', 'aria-label': 'Đổi mặt nạ' });
   const camBtn = h('button', { class: 'btn-round mask-cam', type: 'button', 'aria-label': 'Bật máy ảnh', onpointerup: onCam }, '📷');
   const root = h('div', { class: 'mask' }, mirror, note, face, nextBtn, camBtn);
   ctx.stage.append(root);
+  makeTappable(nextBtn, onNext, { cooldownMs: 0, ctx });
 
   function current(): MaskDef {
     return MASKS[index] as MaskDef;

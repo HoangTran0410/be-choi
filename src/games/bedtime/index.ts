@@ -5,6 +5,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { CHEERS, JOBS, JOB_ICON, LULLABY_BPM, LULLABY_NOTES, NUDGES, UNDOS, makeNight, type Job, type Night } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** How long a toy takes to fly into the box. */
 const TOY_FLY_MS = 500;
@@ -130,30 +131,36 @@ function start(ctx: GameContext): void {
     }, TOY_FLY_MS);
   }
 
-  lamp.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.hint.touch();
-    replay(lamp, 'anim-bounce');
-    if (asleep) return;
-    // A switch, not a step: off, on, off again is a game in itself at this age.
-    const off = !chores.done('light');
-    wrap.classList.toggle('dark', off);
-    ctx.audio.tick();
-    ctx.audio.pop(off ? 0.6 : 1.4);
-    setJob('light', off);
-  });
+  makeTappable(
+    lamp,
+    () => {
+      ctx.hint.touch();
+      replay(lamp, 'anim-bounce');
+      if (asleep) return;
+      // A switch, not a step: off, on, off again is a game in itself at this age.
+      const off = !chores.done('light');
+      wrap.classList.toggle('dark', off);
+      ctx.audio.tick();
+      ctx.audio.pop(off ? 0.6 : 1.4);
+      setJob('light', off);
+    },
+    { cooldownMs: 0, ctx },
+  );
 
-  blanket.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.hint.touch();
-    if (asleep) return;
-    const tucked = !chores.done('blanket');
-    blanket.classList.toggle('tucked', tucked);
-    if (tucked) ctx.audio.puff();
-    else ctx.audio.pop(0.8);
-    navigator.vibrate?.(12);
-    setJob('blanket', tucked);
-  });
+  makeTappable(
+    blanket,
+    () => {
+      ctx.hint.touch();
+      if (asleep) return;
+      const tucked = !chores.done('blanket');
+      blanket.classList.toggle('tucked', tucked);
+      if (tucked) ctx.audio.puff();
+      else ctx.audio.pop(0.8);
+      navigator.vibrate?.(12);
+      setJob('blanket', tucked);
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   function twinkle(): void {
     const star = h(
@@ -173,32 +180,35 @@ function start(ctx: GameContext): void {
     cancelSong = null;
   }
 
-  moon.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.hint.touch();
-    replay(moon, 'anim-bounce');
-    // Singing again is always allowed; only a song already in the air is not interrupted.
-    if (asleep || cancelSong) return;
-    const notes = (LULLABY?.notes ?? []).slice(0, LULLABY_NOTES);
-    if (notes.length === 0) {
-      setJob('lullaby', true);
-      return;
-    }
-    ctx.speak(LULLABY?.title ?? '');
-    cancelSong = schedule(
-      notes,
-      LULLABY_BPM,
-      (_i, n, ms) => {
-        if (n.n === 'R') return;
-        ctx.audio.note(noteFreq(n.n), (ms / 1000) * 1.1, 'bell');
-        twinkle();
-      },
-      () => {
-        cancelSong = null;
-        later(() => setJob('lullaby', true), ZZZ_MS * 0.4);
-      },
-    );
-  });
+  makeTappable(
+    moon,
+    () => {
+      ctx.hint.touch();
+      replay(moon, 'anim-bounce');
+      // Singing again is always allowed; only a song already in the air is not interrupted.
+      if (asleep || cancelSong) return;
+      const notes = (LULLABY?.notes ?? []).slice(0, LULLABY_NOTES);
+      if (notes.length === 0) {
+        setJob('lullaby', true);
+        return;
+      }
+      ctx.speak(LULLABY?.title ?? '');
+      cancelSong = schedule(
+        notes,
+        LULLABY_BPM,
+        (_i, n, ms) => {
+          if (n.n === 'R') return;
+          ctx.audio.note(noteFreq(n.n), (ms / 1000) * 1.1, 'bell');
+          twinkle();
+        },
+        () => {
+          cancelSong = null;
+          later(() => setJob('lullaby', true), ZZZ_MS * 0.4);
+        },
+      );
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   // ---- lights out ----
 
@@ -248,11 +258,14 @@ function start(ctx: GameContext): void {
           },
           toy.emoji,
         );
-        el.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          ctx.hint.touch();
-          tidy(el);
-        });
+        makeTappable(
+          el,
+          () => {
+            ctx.hint.touch();
+            tidy(el);
+          },
+          { cooldownMs: 0, ctx },
+        );
         return el;
       }),
     );
