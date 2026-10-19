@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { BARS, CRITTERS, findCritter, MAX_RECORD_MS, pushBar, shouldStar, type Critter } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** How long the animal keeps bouncing after a playback that reports no end. */
 const JUMP_MS = 600;
@@ -248,10 +249,13 @@ function start(ctx: GameContext): void {
   });
   // The animal on stage is the biggest thing on screen: worth a press of its own,
   // and a much easier target than the row for a child who keeps missing.
-  stageCritter.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    choose(chosen);
-  });
+  makeTappable(
+    stageCritter,
+    () => {
+      choose(chosen);
+    },
+    { ctx },
+  );
   micBtn.addEventListener('pointerdown', onMicDown);
   micBtn.addEventListener('pointerup', onMicRelease);
   micBtn.addEventListener('pointercancel', onMicRelease);

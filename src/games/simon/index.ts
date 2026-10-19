@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { checkStep, extend, GAP_MS, makeSequence, MAX_LEN, PADS, PLAY_MS, STAR_AT, START_LEN } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** Pause before the first melody so the intro speech can start. */
 const INTRO_MS = 600;
@@ -47,10 +48,13 @@ function start(ctx: GameContext): void {
       },
       h('span', { class: 'simon-animal' }, pad.emoji),
     );
-    el.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      tap(i);
-    });
+    makeTappable(
+      el,
+      () => {
+        tap(i);
+      },
+      { cooldownMs: 0, ctx },
+    );
     return el;
   });
   grid.append(...padEls);

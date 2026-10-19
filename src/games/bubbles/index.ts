@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { MAX_ALIVE, makeBubble, popPitch, SPAWN_MS, starEvery } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 interface Live {
   el: HTMLElement;
@@ -51,10 +52,13 @@ function start(ctx: GameContext): void {
       phase: Math.random() * Math.PI * 2,
       popped: false,
     };
-    el.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      pop(bubble, spec.item?.name ?? null, spec.size);
-    });
+    makeTappable(
+      el,
+      () => {
+        pop(bubble, spec.item?.name ?? null, spec.size);
+      },
+      { cooldownMs: 0, feedback: false, ctx },
+    );
     field.append(el);
     live.push(bubble);
   }

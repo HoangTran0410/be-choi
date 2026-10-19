@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { CORRECT_FOR_STAR, makeRound, voiceFor } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** The question is asked this long after the cards appear, so the child sees them first. */
 const ASK_MS = 600;
@@ -96,13 +97,16 @@ function start(ctx: GameContext): void {
           { class: 'g-item sounds-card', type: 'button', 'data-emoji': item.emoji, 'aria-label': item.name },
           item.emoji,
         );
-        card.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          ctx.hint.touch();
-          if (locked) return;
-          if (item.emoji === answer?.emoji) void right(card, item);
-          else wrong(card);
-        });
+        makeTappable(
+          card,
+          () => {
+            ctx.hint.touch();
+            if (locked) return;
+            if (item.emoji === answer?.emoji) void right(card, item);
+            else wrong(card);
+          },
+          { cooldownMs: 0, ctx },
+        );
         return card;
       }),
     );
@@ -113,11 +117,14 @@ function start(ctx: GameContext): void {
     });
   }
 
-  speaker.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.hint.touch();
-    ask();
-  });
+  makeTappable(
+    speaker,
+    () => {
+      ctx.hint.touch();
+      ask();
+    },
+    { ctx },
+  );
 
   ctx.onCleanup(() => {
     alive = false;

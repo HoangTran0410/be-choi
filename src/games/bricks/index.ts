@@ -28,6 +28,7 @@ import {
 } from './logic';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** localStorage key of the free-mode build. */
 export const STORAGE_KEY = 'be-choi:bricks';
@@ -358,10 +359,13 @@ function start(ctx: GameContext): void {
       'data-color': c,
       'aria-label': colorName(c),
     });
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      pickColor(c);
-    });
+    makeTappable(
+      btn,
+      () => {
+        pickColor(c);
+      },
+      { cooldownMs: 0, ctx },
+    );
     return btn;
   });
 
@@ -378,10 +382,13 @@ function start(ctx: GameContext): void {
   ctx.onCleanup(onHold(trash, 700, clearPlate));
 
   const modeBtn = h('button', { class: 'bricks-btn bricks-mode', 'aria-label': 'xây theo mẫu' }, '🏗️');
-  modeBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    setMode(mode === 'free' ? 'model' : 'free');
-  });
+  makeTappable(
+    modeBtn,
+    () => {
+      setMode(mode === 'free' ? 'model' : 'free');
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   colors.append(...colorBtns, trash, modeBtn);
   for (const b of colorBtns) b.classList.toggle('active', b.dataset.color === color);

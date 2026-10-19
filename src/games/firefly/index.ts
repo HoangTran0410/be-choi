@@ -41,6 +41,7 @@ import {
   type Spark,
 } from './logic';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** Microphone poll, and how many loud ones in a row put the candle out — as on the cake. */
 const MIC_POLL_MS = 100;
@@ -147,10 +148,13 @@ function start(ctx: GameContext): void {
         `left:${(s.x * 100).toFixed(2)}%;top:${(s.y * 100).toFixed(2)}%;` +
         `--fly-size:${s.size.toFixed(2)}vmin;--fly-dur:${s.dur.toFixed(2)}s;--fly-delay:${s.delay.toFixed(2)}s`,
     });
-    star.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      tapStar(star);
-    });
+    makeTappable(
+      star,
+      () => {
+        tapStar(star);
+      },
+      { cooldownMs: 0, feedback: false, ctx },
+    );
     sky.append(star);
   }
 
@@ -198,11 +202,14 @@ function start(ctx: GameContext): void {
       h('div', { class: 'fly-stick' }),
     );
     const candle = { el, flame: null as HTMLElement | null };
-    el.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      if (candle.flame) blowOut(candle);
-      else light(candle);
-    });
+    makeTappable(
+      el,
+      () => {
+        if (candle.flame) blowOut(candle);
+        else light(candle);
+      },
+      { cooldownMs: 0, ctx },
+    );
     grass.append(el);
     candles.push(candle);
   }
@@ -216,13 +223,16 @@ function start(ctx: GameContext): void {
   // The moon is the one thing in the sky that is not a dot, and it is what makes
   // the field read as a night rather than as a dark screen.
   const moon = h('div', { class: 'fly-moon' });
-  moon.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    replay(moon, 'fly-moon-hit');
-    ctx.audio.fx('sparkle');
-    nameOnce('moon', 'Ông trăng!');
-    happy();
-  });
+  makeTappable(
+    moon,
+    () => {
+      replay(moon, 'fly-moon-hit');
+      ctx.audio.fx('sparkle');
+      nameOnce('moon', 'Ông trăng!');
+      happy();
+    },
+    { cooldownMs: 0, ctx },
+  );
   sky.append(h('div', { class: 'fly-way' }), moon);
 
   /** Candle light lying over the meadow. Its strength is `--fly-warm`, set as they are lit. */
@@ -256,10 +266,13 @@ function start(ctx: GameContext): void {
   for (let i = 0; i < FIREFLIES; i++) {
     const el = h('div', { class: 'fly-bug' });
     const bug: Bug = { el, spec: makeFirefly(), px: MIN_BUG_PX };
-    el.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      tapBug(bug);
-    });
+    makeTappable(
+      el,
+      () => {
+        tapBug(bug);
+      },
+      { cooldownMs: 0, feedback: false, ctx },
+    );
     // Above the grass, under the microphone button.
     field.insertBefore(el, micBtn);
     bugs.push(bug);

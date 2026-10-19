@@ -10,6 +10,7 @@ import { AUDIENCE, NOTE_EMOJI, pitchBand } from './logic';
 /** Only songs with Vietnamese words: the rest of the songbook is for playing, not singing. */
 const SONGBOOK: readonly SungSong[] = SONGS.filter(hasLyrics);
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /**
  * Wait after the spoken title before the music starts: long enough for the child
@@ -81,12 +82,15 @@ function start(ctx: GameContext): void {
       h('span', { class: 'sing-song-icon' }, song.icon),
       h('span', { class: 'sing-song-title' }, song.title),
     );
-    card.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      ctx.hint.touch();
-      ctx.audio.pop();
-      playSong(song);
-    });
+    makeTappable(
+      card,
+      () => {
+        ctx.hint.touch();
+        ctx.audio.pop();
+        playSong(song);
+      },
+      { ctx },
+    );
     picker.append(card);
   }
 
@@ -304,13 +308,16 @@ function start(ctx: GameContext): void {
   micBtn.addEventListener('pointerup', () => void onMic());
   camBtn.addEventListener('pointerup', () => void onCam());
   shotBtn.addEventListener('pointerup', () => void onShot());
-  backBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    ctx.audio.tick();
-    stopSong();
-    toPicker();
-    armHint();
-  });
+  makeTappable(
+    backBtn,
+    () => {
+      ctx.audio.tick();
+      stopSong();
+      toPicker();
+      armHint();
+    },
+    { ctx },
+  );
 
   ctx.onCleanup(() => {
     alive = false;

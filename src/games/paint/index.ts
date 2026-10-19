@@ -24,6 +24,7 @@ import {
 } from './logic';
 import { readRaw, removeRaw, writeRaw } from '../../core/save';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 interface Point {
   x: number;
@@ -277,12 +278,15 @@ function start(ctx: GameContext): void {
       'aria-label': colorName(color),
       'data-color': color,
     });
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      select(nextTool(tool, { color }));
-      const name = colorName(color);
-      if (name) ctx.speak(name);
-    });
+    makeTappable(
+      btn,
+      () => {
+        select(nextTool(tool, { color }));
+        const name = colorName(color);
+        if (name) ctx.speak(name);
+      },
+      { cooldownMs: 0, ctx },
+    );
     return btn;
   });
 
@@ -292,10 +296,13 @@ function start(ctx: GameContext): void {
       { class: 'paint-btn paint-size', 'aria-label': SIZE_NAMES[i] ?? 'cỡ bút', 'data-size': size },
       h('span', { class: 'paint-size-dot', style: `--paint-dot:${size}px` }),
     );
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      select(nextTool(tool, { size }));
-    });
+    makeTappable(
+      btn,
+      () => {
+        select(nextTool(tool, { size }));
+      },
+      { cooldownMs: 0, ctx },
+    );
     return btn;
   });
 
@@ -304,10 +311,13 @@ function start(ctx: GameContext): void {
   // would leave no paper to draw on.
   const stamps = STAMPS.map((emoji) => {
     const btn = h('button', { class: 'paint-btn paint-stamp', 'aria-label': `dán hình ${emoji}`, 'data-emoji': emoji }, emoji);
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      select(nextTool(tool, { emoji }));
-    });
+    makeTappable(
+      btn,
+      () => {
+        select(nextTool(tool, { emoji }));
+      },
+      { cooldownMs: 0, ctx },
+    );
     return btn;
   });
 
@@ -336,10 +346,13 @@ function start(ctx: GameContext): void {
   const stampButtons = [...stamps, moreBtn];
 
   const eraser = h('button', { class: 'paint-btn paint-eraser', 'aria-label': 'cục tẩy' }, '🧹');
-  eraser.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    select(nextTool(tool, { eraser: true }));
-  });
+  makeTappable(
+    eraser,
+    () => {
+      select(nextTool(tool, { eraser: true }));
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   const trash = h('button', { class: 'paint-btn paint-trash', 'aria-label': 'giữ để xoá hết' }, '🗑️');
   ctx.onCleanup(onHold(trash, 700, clear));
@@ -439,10 +452,13 @@ function start(ctx: GameContext): void {
       setPhoto(choice.id === 'none' ? -1 : photos.findIndex((p) => p.id === choice.id));
     });
   }
-  photoBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    openPicker();
-  });
+  makeTappable(
+    photoBtn,
+    () => {
+      openPicker();
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   /** Turn the background photo into a line drawing. Call `dropConversion()` first. */
   function startLineArt(): void {
@@ -488,10 +504,13 @@ function start(ctx: GameContext): void {
     }
     schedulePersist();
   }
-  lineArtBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    toggleLineArt();
-  });
+  makeTappable(
+    lineArtBtn,
+    () => {
+      toggleLineArt();
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   function setPhotos(list: Photo[]): void {
     closePicker?.();

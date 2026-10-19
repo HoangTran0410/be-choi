@@ -21,6 +21,7 @@ import {
 } from './logic';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
+import { makeTappable } from '../../core/tap';
 
 /** Toppings kept on the cake; the oldest falls off after that. */
 const MAX_PLACED = 30;
@@ -86,7 +87,7 @@ function start(ctx: GameContext): void {
   const main = h('div', { class: 'birthday-main' });
   const cake = h('div', { class: 'birthday-cake' });
   const top = h('div', { class: 'birthday-top' });
-  const topper = h('div', { class: 'birthday-topper', hidden: true, onpointerdown: onTopper });
+  const topper = h('div', { class: 'birthday-topper', hidden: true });
   const decor = h('div', { class: 'birthday-decor' });
   const tierTop = h('div', { class: 'birthday-tier birthday-tier-top' });
   const tierBottom = h('div', { class: 'birthday-tier birthday-tier-bottom' });
@@ -98,22 +99,20 @@ function start(ctx: GameContext): void {
     cake,
   );
 
-  const flavorBtn = h('button', { class: 'btn-round birthday-flavor', 'aria-label': 'Đổi vị bánh', onpointerdown: onFlavor }, '🎂');
-  const candleBtn = h('button', { class: 'btn-round birthday-add-candle', 'aria-label': 'Thêm nến', onpointerdown: onAddCandle }, '🕯️');
-  const lightBtn = h(
-    'button',
-    { class: 'btn-round birthday-light birthday-dim', 'aria-label': 'Thắp nến', onpointerdown: onLightAll },
-    '🔥',
-  );
-  const photoBtn = h(
-    'button',
-    { class: 'btn-round birthday-photo', 'aria-label': 'Chọn ảnh', hidden: true, onpointerdown: onPhotoBtn },
-    '🖼️',
-  );
+  const flavorBtn = h('button', { class: 'btn-round birthday-flavor', 'aria-label': 'Đổi vị bánh' }, '🎂');
+  const candleBtn = h('button', { class: 'btn-round birthday-add-candle', 'aria-label': 'Thêm nến' }, '🕯️');
+  const lightBtn = h('button', { class: 'btn-round birthday-light birthday-dim', 'aria-label': 'Thắp nến' }, '🔥');
+  const photoBtn = h('button', { class: 'btn-round birthday-photo', 'aria-label': 'Chọn ảnh', hidden: true }, '🖼️');
   // getUserMedia needs a user activation; on touch screens pointerup grants one, pointerdown may not.
   const micBtn = h('button', { class: 'btn-round birthday-mic', 'aria-label': 'Thổi vào micro', hidden: true, onpointerup: onMic }, '🎤');
-  const againBtn = h('button', { class: 'btn-round birthday-again', 'aria-label': 'Làm bánh mới', onpointerdown: onAgain }, '🔁');
+  const againBtn = h('button', { class: 'btn-round birthday-again', 'aria-label': 'Làm bánh mới' }, '🔁');
   const buttons = h('div', { class: 'birthday-buttons' }, flavorBtn, candleBtn, lightBtn, photoBtn, micBtn, againBtn);
+  makeTappable(topper, onTopper, { cooldownMs: 0, ctx });
+  makeTappable(flavorBtn, onFlavor, { cooldownMs: 0, ctx });
+  makeTappable(candleBtn, onAddCandle, { cooldownMs: 0, ctx });
+  makeTappable(lightBtn, onLightAll, { cooldownMs: 0, ctx });
+  makeTappable(photoBtn, onPhotoBtn, { cooldownMs: 0, ctx });
+  makeTappable(againBtn, onAgain, { cooldownMs: 0, ctx });
 
   /** One tick per job, so the child can see where the cake has got to. */
   const ticks = new Map<Job, HTMLElement>();
