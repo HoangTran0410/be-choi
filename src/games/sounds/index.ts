@@ -1,5 +1,5 @@
 import { h, replay } from '../../core/dom';
-import type { Item } from '../../core/content';
+import { VOICED_ANIMALS, type Item } from '../../core/content';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { CORRECT_FOR_STAR, makeRound, voiceFor } from './logic';
@@ -21,6 +21,7 @@ const NEXT_ROUND_MS = 900;
  * roar, so they never turn up together.
  */
 function start(ctx: GameContext): void {
+  ctx.audio.preloadFx(VOICED_ANIMALS.map(voiceFor));
   let alive = true;
   let round = 0;
   let correct = 0;

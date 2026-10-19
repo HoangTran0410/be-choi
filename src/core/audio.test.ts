@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { SFX_TAKES } from './sfx';
 import { createAudio, DRUMS, FX, TIMBRES, type SoundId } from './audio';
 import { LOUDNESS } from './loudness';
 
@@ -27,6 +28,90 @@ describe('audio', () => {
     expect(TIMBRES.length).toBe(9);
     expect(DRUMS.length).toBe(11);
     expect(FX.length).toBe(33);
+  });
+});
+
+describe('recorded voices load lazily', () => {
+  let played = 0;
+  const urls: string[] = [];
+
+  function fakeContext() {
+    const param = () => ({ value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} });
+    const node = () => ({ connect: (n: unknown) => n, gain: param(), frequency: param(), Q: param(), detune: param() });
+    return class {
+      state = 'running';
+      currentTime = 0;
+      sampleRate = 44100;
+      destination = {};
+      createGain = node;
+      createBiquadFilter = node;
+      createDynamicsCompressor = node;
+      createWaveShaper = node;
+      createOscillator = () => ({ ...node(), type: '', start() {}, stop() {} });
+      createBuffer = () => ({ getChannelData: () => new Float32Array(1) });
+      createBufferSource = () => ({
+        ...node(),
+        buffer: null,
+        start: () => {
+          played += 1;
+        },
+      });
+      resume = () => Promise.resolve();
+      decodeAudioData = () => Promise.resolve({ duration: 1 } as AudioBuffer);
+    };
+  }
+
+  beforeEach(() => {
+    played = 0;
+    urls.length = 0;
+    vi.stubGlobal('AudioContext', fakeContext());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        urls.push(url);
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) });
+      }),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('fetches nothing at startup', async () => {
+    const a = createAudio();
+    a.unlock();
+    a.pop();
+    await a.ready();
+    expect(urls).toEqual([]);
+  });
+
+  it('first tap plays the synth and fetches only that voice; the next tap plays the recording', async () => {
+    const a = createAudio();
+    a.unlock();
+    a.fx('meow');
+    expect(urls.length).toBe(SFX_TAKES.meow);
+    expect(urls.every((u) => u.includes('sfx/meow-'))).toBe(true);
+    expect(played).toBe(0); // the synth uses oscillators, not a decoded buffer
+    await a.ready();
+    a.fx('meow');
+    expect(played).toBe(1);
+    a.fx('meow');
+    expect(urls.length).toBe(SFX_TAKES.meow); // never fetched twice
+  });
+
+  it('preloadFx loads each named voice once', async () => {
+    const a = createAudio();
+    a.unlock();
+    a.preloadFx(['moo', 'pig', 'moo']);
+    await a.ready();
+    expect(urls.length).toBe((SFX_TAKES.moo ?? 0) + (SFX_TAKES.pig ?? 0));
+  });
+
+  it('a failed fetch keeps the synth voice and does not throw', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const a = createAudio();
+    a.unlock();
+    a.fx('bark');
+    await a.ready();
+    expect(() => a.fx('bark')).not.toThrow();
   });
 });
 

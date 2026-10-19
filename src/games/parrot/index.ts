@@ -21,6 +21,7 @@ const TAP_MS = 500;
  * voice. With no microphone every animal still has a synthesized cry of its own.
  */
 function start(ctx: GameContext): void {
+  ctx.audio.preloadFx(CRITTERS.map((c) => c.fx));
   const mic = createMic();
   let alive = true;
   let chosen: Critter = CRITTERS[0] as Critter;

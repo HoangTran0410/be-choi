@@ -6,6 +6,7 @@ import { meta } from './meta';
 import {
   EGGS_FOR_STAR,
   GRAIN_PER_FEED,
+  SPECIES,
   TAPS_FOR_STAR,
   hitsAnimal,
   hitsEgg,
@@ -62,6 +63,7 @@ const LOOKS: Readonly<Record<string, Look>> = {
  * the hens leave in the grass.
  */
 function start(ctx: GameContext): void {
+  ctx.audio.preloadFx(SPECIES.map((s) => s.voice));
   const canvas = h('canvas', { class: 'farm-canvas' });
   const feed = h('button', { class: 'farm-feed', type: 'button', 'aria-label': 'cho ăn' }, '🌾');
   const basket = h('div', { class: 'farm-basket' }, '🧺 0');

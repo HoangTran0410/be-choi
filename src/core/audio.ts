@@ -126,7 +126,7 @@ export interface AudioEngine {
   puff(): void;
   /** Sound effect / animal voice. */
   fx(kind: FxKind): void;
-  /** Resolves once the recorded animal voices are decoded (or known to be missing). */
+  /** Resolves once the voices requested so far are decoded (or known to be missing). */
   ready(): Promise<void>;
   /**
    * Play one of the app's own recordings (`public/…`, relative to the app root).
@@ -137,6 +137,12 @@ export interface AudioEngine {
   clip(url: string): Promise<Clip | null>;
   /** Fetch and decode recordings in the background so the first tap is instant. */
   preload(urls: readonly string[]): void;
+  /**
+   * Fetch and decode the recorded takes of these voices in the background.
+   * Voices are otherwise loaded on first use (the first tap plays the synth),
+   * so a game that leans on a few calls this from `start` to have them ready.
+   */
+  preloadFx(kinds: readonly FxKind[]): void;
   /**
    * Play a recording round and round until stopped, fading in — a background
    * (rain, birds, the sea) under everything else. Null when sound is off or the
@@ -281,34 +287,39 @@ export function createAudio(): AudioEngine {
    * downgrade rather than silence.
    */
   const takes = new Map<FxKind, AudioBuffer[]>();
-  let loaded: Promise<void> | null = null;
+  /** One load per voice, started the first time it is asked for. */
+  const loading = new Map<FxKind, Promise<void>>();
 
   /**
-   * Fetch and decode the recordings in the background. Nothing waits on this:
-   * the first tap plays the synth, and the real voices take over once they land
-   * — usually well before a two-year-old has found the animal.
+   * Fetch and decode one voice's takes in the background. Nothing waits on this:
+   * a tap on a voice that has not landed plays the synth, and the recording takes
+   * over from the next tap. Nothing is fetched until a voice is wanted, so the
+   * Home screen costs no audio at all.
    */
-  function loadTakes(c: Ctx): Promise<void> {
-    if (loaded) return loaded;
+  function loadVoice(kind: FxKind): Promise<void> {
+    const started = loading.get(kind);
+    if (started) return started;
+    const c = ctx;
+    const count = SFX_TAKES[kind] ?? 0;
+    if (!c || count === 0 || typeof fetch !== 'function') return Promise.resolve();
     const base = import.meta.env.BASE_URL;
     const jobs: Promise<void>[] = [];
-    for (const [kind, count] of Object.entries(SFX_TAKES) as [FxKind, number][]) {
-      for (let i = 0; i < count; i++) {
-        jobs.push(
-          fetch(`${base}${sfxUrl(kind, i)}`)
-            .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
-            .then((raw) => c.decodeAudioData(raw))
-            .then((buf) => {
-              const list = takes.get(kind);
-              if (list) list.push(buf);
-              else takes.set(kind, [buf]);
-            })
-            .catch(() => undefined),
-        );
-      }
+    for (let i = 0; i < count; i++) {
+      jobs.push(
+        fetch(`${base}${sfxUrl(kind, i)}`)
+          .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+          .then((raw) => c.decodeAudioData(raw))
+          .then((buf) => {
+            const list = takes.get(kind);
+            if (list) list.push(buf);
+            else takes.set(kind, [buf]);
+          })
+          .catch(() => undefined),
+      );
     }
-    loaded = Promise.all(jobs).then(() => undefined);
-    return loaded;
+    const job = Promise.all(jobs).then(() => undefined);
+    loading.set(kind, job);
+    return job;
   }
 
   function unlock(): void {
@@ -369,7 +380,6 @@ export function createAudio(): AudioEngine {
       }
       void ctx.resume().catch(() => undefined);
       startKeepAlive();
-      void loadTakes(ctx).catch(() => undefined);
     } catch {
       ctx = null;
       master = null;
@@ -1104,7 +1114,12 @@ export function createAudio(): AudioEngine {
 
   function fx(kind: FxKind): void {
     at(`fx:${kind}`, () => {
-      if (!playTake(kind)) playFx(kind);
+      if (!playTake(kind)) {
+        // Not landed yet (or not recorded): the synth answers this tap, and the
+        // recording is fetched so the next one is the real voice.
+        void loadVoice(kind);
+        playFx(kind);
+      }
     });
   }
 
@@ -1180,7 +1195,10 @@ export function createAudio(): AudioEngine {
     drum,
     fx,
     ready() {
-      return loaded ?? Promise.resolve();
+      return Promise.all([...loading.values()]).then(() => undefined);
+    },
+    preloadFx(kinds) {
+      for (const kind of kinds) void loadVoice(kind);
     },
     clip,
     loop,

@@ -37,6 +37,7 @@ interface FaceDetectorCtor {
  * button always gives another mask and its animal sound.
  */
 function start(ctx: GameContext): void {
+  ctx.audio.preloadFx(MASKS.map((m) => m.voice));
   const cam = createCamera();
   let alive = true;
   let index = 0;
