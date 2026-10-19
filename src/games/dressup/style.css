@@ -1,0 +1,176 @@
+.dressup {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 8px;
+  padding: 8px 16px;
+  touch-action: none;
+  background: linear-gradient(180deg, #fdf2f8 0%, #fce7f3 60%, #fbcfe8 100%);
+  transition: background 0.6s;
+}
+.dressup:has(.dressup-sky[data-scenario='rainy']) {
+  background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+}
+.dressup:has(.dressup-sky[data-scenario='cold']) {
+  background: linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%);
+}
+.dressup:has(.dressup-sky[data-scenario='bedtime']) {
+  background: linear-gradient(180deg, #e0e7ff 0%, #c7d2fe 100%);
+}
+
+.dressup-sky {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  font-size: var(--emoji);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ---- the friend ---- */
+.dressup-kid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+.dressup-head {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  font-size: 60px;
+  line-height: 1;
+  pointer-events: none;
+}
+.dressup-slot {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 56px;
+  line-height: 1;
+  border: 3px dashed rgba(190, 24, 93, 0.3);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+.dressup-slot.on {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* ---- clothes ---- */
+.dressup-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dressup-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dressup-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.dressup-garment,
+.dressup-toy {
+  width: var(--tap);
+  height: var(--tap);
+  min-width: 72px;
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: var(--emoji);
+  line-height: 1;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  box-shadow: 0 4px 10px var(--btn-shadow);
+  touch-action: none;
+  cursor: grab;
+}
+.dressup-garment.worn {
+  opacity: 0.45;
+}
+
+/* ---- the room after dressing ---- */
+.dressup-floor {
+  display: none;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.dressup-box {
+  display: none;
+  width: calc(var(--tap) * 1.4);
+  height: calc(var(--tap) * 1.4);
+  place-items: center;
+  font-size: calc(var(--emoji) * 1.2);
+  line-height: 1;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.5);
+}
+.dressup[data-phase='tidy'] .dressup-tray,
+.dressup[data-phase='done'] .dressup-tray {
+  display: none;
+}
+.dressup[data-phase='tidy'] .dressup-floor,
+.dressup[data-phase='done'] .dressup-floor {
+  display: flex;
+}
+.dressup[data-phase='tidy'] .dressup-box,
+.dressup[data-phase='done'] .dressup-box {
+  display: grid;
+}
+.dressup-toy.away {
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.4);
+  transition:
+    transform 0.5s ease-in,
+    opacity 0.5s ease-in;
+}
+
+/* Landscape: the friend on the left, clothes or toys on the right. */
+@media (orientation: landscape) {
+  .dressup {
+    flex-direction: row;
+    justify-content: space-evenly;
+  }
+  .dressup-tray {
+    gap: 4px;
+  }
+}
+@media (orientation: landscape) and (max-height: 480px) {
+  .dressup-garment,
+  .dressup-toy {
+    width: 72px;
+    height: 72px;
+    font-size: 48px;
+  }
+  .dressup-kid {
+    padding: 0 8px;
+  }
+  .dressup-box {
+    width: 88px;
+    height: 88px;
+  }
+}
