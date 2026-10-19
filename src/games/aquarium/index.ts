@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
-import { startLoop } from '../../core/frame';
+import { onPerfChange, perf, startLoop } from '../../core/frame';
+import { decorCount, decorRate, pickDpr } from '../../core/quality';
 import type { Point } from '../../core/creature';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -123,11 +124,32 @@ function start(ctx: GameContext): void {
 
   // ---- the tank itself ----
 
+  /** Bubbles are decoration: fewer while the device struggles. */
+  const maxBubbles = (): number => decorCount(MAX_BUBBLES, perf.low, 10);
+
+  /** Quality changed: re-fit the canvas to the new resolution in place. Nothing is rebuilt or reloaded. */
+  function refit(): void {
+    const w = root.clientWidth;
+    const hgt = root.clientHeight;
+    if (!w || !hgt) return;
+    const next = pickDpr(window.devicePixelRatio || 1, 2, perf.low);
+    if (next === dpr) return;
+    dpr = next;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(hgt * dpr);
+  }
+  ctx.onCleanup(
+    onPerfChange(() => {
+      refit();
+      if (bubbles.length > maxBubbles()) bubbles.length = maxBubbles();
+    }),
+  );
+
   function build(): void {
     const w = root.clientWidth;
     const hgt = root.clientHeight;
     if (!w || !hgt) return;
-    const nextDpr = Math.min(2, window.devicePixelRatio || 1);
+    const nextDpr = pickDpr(window.devicePixelRatio || 1, 2, perf.low);
     if (canvas.width === Math.round(w * nextDpr) && canvas.height === Math.round(hgt * nextDpr)) return;
     dpr = nextDpr;
     canvas.width = Math.round(w * dpr);
@@ -508,7 +530,7 @@ function start(ctx: GameContext): void {
     g.fillRect(u * 0.42, -u * 0.28, u * 0.16, u * 0.28);
     g.restore();
     // An open chest lets its treasure breathe.
-    if (Math.random() < (d.open ? 0.14 : 0.02) && bubbles.length < MAX_BUBBLES) {
+    if (Math.random() < (d.open ? 0.14 : 0.02) && bubbles.length < maxBubbles()) {
       bubbles.push(makeBubble(d.x, base - u * 0.55, tank));
     }
   }
@@ -732,7 +754,7 @@ function start(ctx: GameContext): void {
         if (brushed) brushed.shake = Math.max(brushed.shake, SHAKE_SECONDS * 0.45);
       }
       // A hungry fish lets out a small bubble now and then: the tank asking to be fed.
-      if (cr.mood === 'hungry' && Math.random() < dt * 0.5 && bubbles.length < MAX_BUBBLES) {
+      if (cr.mood === 'hungry' && Math.random() < dt * 0.5 && bubbles.length < maxBubbles()) {
         bubbles.push(makeBubble(cr.x, cr.y - cr.length * 0.2, tank));
       }
     }
@@ -764,7 +786,7 @@ function start(ctx: GameContext): void {
       if (b.y + b.r < 0) bubbles.splice(i, 1);
     }
     // A slow stream from one corner, so the tank is never quite still.
-    if (Math.random() < dt * 2.5 && bubbles.length < MAX_BUBBLES) {
+    if (Math.random() < decorRate(dt * 2.5, perf.low) && bubbles.length < maxBubbles()) {
       bubbles.push(makeBubble(tank.w * 0.9 + Math.random() * tank.unit * 0.3, tank.floor, tank));
     }
   }
@@ -1083,13 +1105,13 @@ function start(ctx: GameContext): void {
     if (held) {
       held.hold(p.x, p.y);
       net.classList.toggle('aquarium-net-over', overNet(e));
-      if (Math.random() < 0.4 && bubbles.length < MAX_BUBBLES) bubbles.push(makeBubble(p.x, p.y, tank));
+      if (Math.random() < 0.4 && bubbles.length < maxBubbles()) bubbles.push(makeBubble(p.x, p.y, tank));
       return;
     }
     // A finger dragged through the weeds sets them waving.
     const brushed = plantAt(plants, p.x, p.y, tank);
     if (brushed) brushed.shake = Math.max(brushed.shake, SHAKE_SECONDS * 0.7);
-    if (Math.random() < 0.25 && bubbles.length < MAX_BUBBLES) bubbles.push(makeBubble(p.x, p.y, tank));
+    if (Math.random() < 0.25 && bubbles.length < maxBubbles()) bubbles.push(makeBubble(p.x, p.y, tank));
   });
 
   const release = (e?: PointerEvent): void => {

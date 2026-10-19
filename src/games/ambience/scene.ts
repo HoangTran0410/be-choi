@@ -7,7 +7,8 @@
  * One canvas, one frame loop. Everything is placed in fractions of the canvas
  * so it holds up from a phone on its side to a tablet standing up.
  */
-import { onFrame } from '../../core/frame';
+import { onFrame, onPerfChange, perf } from '../../core/frame';
+import { decorCount, decorRate, pickDpr } from '../../core/quality';
 import { doodle, type Pt } from './doodles';
 import { skyOf, type Sky } from './logic';
 
@@ -174,11 +175,11 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   /** Spawn at `rate` per second, scaled by how far faded in the effect is. */
   const spawnAcc = new Map<string, number>();
   function spawn(id: string, rate: number, dt: number, make: () => P): void {
-    let acc = (spawnAcc.get(id) ?? 0) + rate * L(id) * dt;
+    let acc = (spawnAcc.get(id) ?? 0) + decorRate(rate, perf.low) * L(id) * dt;
     const ps = pool(id);
     while (acc >= 1) {
       acc -= 1;
-      if (ps.length < 600) ps.push(make());
+      if (ps.length < decorCount(600, perf.low, 60)) ps.push(make());
     }
     spawnAcc.set(id, acc);
   }
@@ -231,7 +232,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
    * at most — and steps down on its own when the device cannot keep up (see
    * `frame`), because a smooth picture reads better than a sharp stuttering one.
    */
-  let dpr = Math.min(1.5, window.devicePixelRatio || 1);
+  let dpr = pickDpr(window.devicePixelRatio || 1, 1.5, perf.low);
   const MIN_DPR = 0.75;
   function resize(): void {
     const r = canvas.getBoundingClientRect();
@@ -245,6 +246,15 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
   ro?.observe(canvas);
   resize();
+  // The device started (or stopped) struggling: sharpness follows. Going back up is
+  // safe here because `perf` only flips back after seconds of steady frames.
+  const offPerf = onPerfChange(() => {
+    const next = pickDpr(window.devicePixelRatio || 1, 1.5, perf.low);
+    if (perf.low ? next < dpr : next !== dpr) {
+      dpr = next;
+      resize();
+    }
+  });
 
   /**
    * x positions every `step` px from the left edge to the right one — always ending
@@ -2324,6 +2334,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
       alive = false;
       stopLoop();
       ro?.disconnect();
+      offPerf();
     },
   };
 }

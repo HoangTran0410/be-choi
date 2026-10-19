@@ -1,5 +1,6 @@
 import { h, mulberry32, replay } from '../../core/dom';
-import { startLoop } from '../../core/frame';
+import { onPerfChange, perf, startLoop } from '../../core/frame';
+import { pickDpr } from '../../core/quality';
 import { voiceOf } from '../../core/content';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -233,12 +234,25 @@ function start(ctx: GameContext): void {
 
   // ---- the road ----
 
+  /** Quality changed: re-fit the canvas to the new resolution in place. Nothing is rebuilt or reloaded. */
+  function refit(): void {
+    const w = canvas.parentElement?.clientWidth ?? 0;
+    const hgt = canvas.parentElement?.clientHeight ?? 0;
+    if (!w || !hgt) return;
+    const next = pickDpr(window.devicePixelRatio || 1, 2, perf.low);
+    if (next === dpr) return;
+    dpr = next;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(hgt * dpr);
+  }
+  ctx.onCleanup(onPerfChange(refit));
+
   function build(): void {
     const view = canvas.parentElement;
     const w = view?.clientWidth ?? 0;
     const hgt = view?.clientHeight ?? 0;
     if (!w || !hgt) return;
-    const nextDpr = Math.min(2, window.devicePixelRatio || 1);
+    const nextDpr = pickDpr(window.devicePixelRatio || 1, 2, perf.low);
     if (canvas.width === Math.round(w * nextDpr) && canvas.height === Math.round(hgt * nextDpr)) return;
     dpr = nextDpr;
     canvas.width = Math.round(w * dpr);
