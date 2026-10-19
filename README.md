@@ -22,6 +22,7 @@ Vài trò nổi bật:
 - **📺 Xem nhạc** — chọn video nhạc êm, lofi, thiên nhiên (danh sách của iFocus); bố mẹ dán thêm link YouTube được. Cần có mạng.
 - **🐠 Bể cá / 🦎 Bể cạn** — bể của riêng bé, tự sống, nhớ giữa các lần chơi. Bắt, thả, cho ăn, bật đèn đêm.
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
+- **🎭 Biến hình** — bật camera trước như một chiếc gương, bé đội mặt nạ gấu, mèo, thỏ, khủng long… lên mặt; bấm nút to để đổi mặt nạ và nghe tiếng con vật. Mặt nạ đi theo mặt bé nếu trình duyệt có `FaceDetector`, không thì nằm giữa màn hình để bé tự đưa mặt vào. Không có camera thì chơi với gương hoạt hình.
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
 
 Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô màu.
@@ -30,7 +31,7 @@ Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô m�
 
 - **Cài lên máy:** iOS mở bằng Safari → Chia sẻ → *Thêm vào MH chính*. Android: menu ⋮ → *Cài đặt ứng dụng*.
 - **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé.
-- **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic tắt.
+- **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic và camera tắt. *Biến hình* không chụp, không lưu, không gửi hình đi đâu — chỉ hiện lên màn hình.
 - **Giọng đọc tiếng Việt** dùng giọng có sẵn của máy (iOS: Cài đặt → Trợ năng → Nội dung đọc → Giọng nói → Tiếng Việt).
 
 ## Chạy thử
