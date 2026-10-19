@@ -40,6 +40,7 @@ import { meta as cooking } from '../games/cooking/meta';
 import { meta as teeth } from '../games/teeth/meta';
 import { meta as bedtime } from '../games/bedtime/meta';
 import { meta as firefly } from '../games/firefly/meta';
+import { meta as mask } from '../games/mask/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -89,6 +90,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...teeth, load: () => import('../games/teeth/index') },
   { ...bedtime, load: () => import('../games/bedtime/index') },
   { ...firefly, load: () => import('../games/firefly/index') },
+  { ...mask, load: () => import('../games/mask/index') },
 ];
 
 export function findGame(id: string): GameEntry | undefined {
