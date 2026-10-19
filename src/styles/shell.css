@@ -241,3 +241,63 @@
   font-size: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
+
+/* ---- top bar: big, spaced buttons so a stray tap is unlikely and a deliberate one easy ---- */
+.topbar {
+  padding: 1vmin max(20px, env(safe-area-inset-right)) 1vmin max(20px, env(safe-area-inset-left));
+  gap: 4vmin;
+}
+.topbar .btn-round {
+  width: max(72px, calc(var(--tap) * 0.8));
+  height: max(72px, calc(var(--tap) * 0.8));
+  font-size: calc(var(--tap) * 0.4);
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+/* Home is the one the child needs: the biggest, with the parent gate pushed to the far side. */
+.topbar .btn-round.home {
+  width: max(84px, calc(var(--tap) * 0.95));
+  height: max(84px, calc(var(--tap) * 0.95));
+  font-size: calc(var(--tap) * 0.48);
+}
+.topbar-title {
+  flex: 1;
+  text-align: center;
+}
+
+/* ---- gentle rest reminder ---- */
+.break-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 4vmin;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 3vmin;
+  padding: 2vmin 3vmin;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+.shell {
+  position: relative;
+}
+.break-emoji {
+  font-size: clamp(32px, 7vmin, 56px);
+}
+.break-text {
+  font-size: clamp(16px, 3.4vmin, 26px);
+  font-weight: 800;
+}
+.break-ok {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--c-green);
+  font-size: 32px;
+  line-height: 1;
+  touch-action: manipulation;
+}

@@ -4,7 +4,9 @@ import type { AppDeps } from './deps';
 import type { Skill } from '../core/types';
 import { GAMES, type GameEntry } from './registry';
 import { hrefFor } from './router';
-import { openParentPanel, STARS_CHANGED } from './parentPanel';
+import { suitsAge } from './ages';
+import { buzz } from './haptics';
+import { openParentPanel, SETTINGS_CHANGED, STARS_CHANGED } from './parentPanel';
 import '../styles/home.css';
 
 const PARENT_HOLD_MS = 1500;
@@ -19,12 +21,25 @@ try {
 }
 
 /** Home sections, in display order. A game belongs to the first section listing its skill. */
-const SECTIONS: readonly { title: string; skills: readonly Skill[] }[] = [
-  { title: '🌊 Thế giới nhỏ', skills: ['nature'] },
-  { title: '🎵 Âm nhạc', skills: ['music'] },
-  { title: '🧩 Xếp hình & suy nghĩ', skills: ['puzzle', 'logic', 'matching', 'listening', 'sorting', 'memory', 'counting'] },
-  { title: '🎈 Chơi vui', skills: ['cause-effect', 'creative', 'care'] },
+const SECTIONS: readonly { icon: string; title: string; skills: readonly Skill[] }[] = [
+  { icon: '🌊', title: 'Thế giới nhỏ', skills: ['nature'] },
+  { icon: '🎵', title: 'Âm nhạc', skills: ['music'] },
+  { icon: '🧩', title: 'Xếp hình & suy nghĩ', skills: ['puzzle', 'logic', 'matching', 'listening', 'sorting', 'memory', 'counting'] },
+  { icon: '🎈', title: 'Chơi vui', skills: ['cause-effect', 'creative', 'care'] },
 ];
+
+/**
+ * A section heading a child can read without letters: a big picture first, the
+ * words (for the grown-up) small beside it.
+ */
+function heading(icon: string, title: string, extra = ''): HTMLElement {
+  return h(
+    'h2',
+    { class: `section-title${extra}` },
+    h('span', { class: 'section-icon', 'aria-hidden': 'true' }, icon),
+    h('span', { class: 'section-name' }, title),
+  );
+}
 
 function starsText(n: number): string {
   if (n === 0) return '';
@@ -62,6 +77,7 @@ function tile(entry: GameEntry, deps: AppDeps, onFavorite: () => void): HTMLElem
       'aria-label': entry.title,
       onClick: () => {
         deps.audio.pop();
+        buzz();
         deps.speech.speak(entry.title);
         el.classList.add('anim-bounce');
         setTimeout(() => {
@@ -104,6 +120,28 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
     );
     return el;
   };
+  /** Big "carry on" tile: the game opened last, one tap away from the top of the screen. */
+  const resumeTile = (): HTMLElement | null => {
+    const id = deps.store.lastPlayed();
+    const entry = id ? GAMES.find((g) => g.id === id) : undefined;
+    if (!entry) return null;
+    return h(
+      'button',
+      {
+        class: 'tile tile-resume',
+        style: `background:${entry.color}`,
+        'aria-label': `Chơi tiếp ${entry.title}`,
+        onClick: () => {
+          deps.audio.pop();
+          buzz();
+          deps.speech.speak(entry.title);
+          location.hash = hrefFor({ name: 'game', id: entry.id });
+        },
+      },
+      h('span', { class: 'tile-icon' }, entry.icon),
+      h('span', { class: 'resume-text' }, h('span', { class: 'resume-play' }, '▶️'), h('span', { class: 'tile-title' }, entry.title)),
+    );
+  };
   const render = () => {
     const tileOf = (g: GameEntry) => tile(g, deps, render);
     // Favourites come first, in the order they were picked — and stay in their usual
@@ -115,30 +153,35 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
       .map((id) => GAMES.find((g) => g.id === id))
       .filter((g): g is GameEntry => g !== undefined);
     const placed = new Set<string>();
-    const blocks: Array<HTMLElement | null> = [h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile()))];
+    const age = deps.store.settings().age;
+    const resume = resumeTile();
+    const blocks: Array<HTMLElement | null> = [
+      resume ? h('section', { class: 'section section-resume' }, h('div', { class: 'grid' }, resume)) : null,
+      h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile())),
+    ];
     if (favorites.length)
       blocks.push(
         h(
           'section',
           { class: 'section section-favorites' },
-          h('h2', { class: 'section-title' }, '❤️ Bé thích'),
+          heading('❤️', 'Bé thích'),
           h('div', { class: 'grid' }, ...favorites.map(tileOf)),
         ),
       );
     blocks.push(
       ...SECTIONS.map((section) => {
-        const games = GAMES.filter((g) => !placed.has(g.id) && section.skills.includes(g.skill));
+        const games = GAMES.filter((g) => suitsAge(g, age) && !placed.has(g.id) && section.skills.includes(g.skill));
         games.forEach((g) => placed.add(g.id));
         if (games.length === 0) return null;
         return h(
           'section',
           { class: 'section section-regular' },
-          h('h2', { class: 'section-title' }, section.title),
+          heading(section.icon, section.title),
           h('div', { class: 'grid' }, ...games.map(tileOf)),
         );
       }),
     );
-    const rest = GAMES.filter((g) => !placed.has(g.id));
+    const rest = GAMES.filter((g) => suitsAge(g, age) && !placed.has(g.id));
     if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map(tileOf))));
     // The favourites row growing or shrinking above pushes everything below it: move
     // the scroll by the same amount, so the tile under the child's finger stays put.
@@ -150,6 +193,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
   };
   render();
   window.addEventListener(STARS_CHANGED, render);
+  window.addEventListener(SETTINGS_CHANGED, render);
 
   const home = h(
     'div',
@@ -174,6 +218,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
     grid.removeEventListener('scroll', remember);
     disposeHold();
     window.removeEventListener(STARS_CHANGED, render);
+    window.removeEventListener(SETTINGS_CHANGED, render);
     root.replaceChildren();
   };
 }

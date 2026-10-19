@@ -6,6 +6,7 @@ import { watchViewport } from './core/viewport';
 import type { InstallState, UpdateState } from './app/deps';
 import { mountAlbum } from './app/album';
 import { mountHome } from './app/home';
+import { installEdgeGuard, installTapHaptics } from './app/haptics';
 import { findGame } from './app/registry';
 import { hrefFor, startRouter } from './app/router';
 import { mountShell } from './app/shell';
@@ -143,6 +144,10 @@ document.addEventListener(
 for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 }
+// A sweep from the very edge is the browser's swipe-back / app switch: not for little hands.
+installEdgeGuard();
+// A light tick under the finger on every button, where the device can vibrate.
+installTapHaptics();
 document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('dragstart', (e) => e.preventDefault());

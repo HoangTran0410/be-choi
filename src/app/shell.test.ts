@@ -68,6 +68,14 @@ describe('game shell', () => {
     expect(chrome()).toBe('#fb923c');
   });
 
+  it('remembers the game for the Chơi tiếp tile and has a big way home', () => {
+    const d = deps();
+    const unmount = mountShell(root, entry(), d);
+    expect(d.store.lastPlayed()).toBe('test');
+    expect(root.querySelector('.topbar .btn-round.home')).not.toBeNull();
+    unmount();
+  });
+
   it('puts the parent’s own theme back, not a guess at it', () => {
     const d = deps();
     d.store.setSettings({ theme: 'dark' });

@@ -17,6 +17,10 @@ export interface Settings {
    * jingle and the praise still say "well done", this is only the paper.
    */
   confetti: boolean;
+  /** Child's age (2, 3 or 4) used to hide games that are too hard yet; 0 shows everything. */
+  age: 0 | 2 | 3 | 4;
+  /** Gentle "time for a rest" reminder after this many minutes of play; 0 = off. */
+  breakMinutes: number;
 }
 
 export interface Store {
@@ -33,6 +37,9 @@ export interface Store {
   favorites(): string[];
   /** Add or remove one. Returns whether it is now a favourite. */
   toggleFavorite(id: string): boolean;
+  /** The game opened most recently, for the "Chơi tiếp" tile; null before the first one. */
+  lastPlayed(): string | null;
+  setLastPlayed(id: string): void;
 }
 
 interface State {
@@ -40,10 +47,11 @@ interface State {
   stickers: string[];
   settings: Settings;
   favorites: string[];
+  lastPlayed: string | null;
 }
 
 const KEY = 'be-choi:v1';
-const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true, confetti: true };
+const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true, confetti: true, age: 0, breakMinutes: 0 };
 
 /**
  * Stars per game and parent settings, persisted in localStorage. Every storage
@@ -63,12 +71,13 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
           stickers: [...(parsed.stickers ?? [])],
           settings: { ...DEFAULTS, ...(parsed.settings ?? {}) },
           favorites: Array.isArray(parsed.favorites) ? parsed.favorites.filter((id) => typeof id === 'string') : [],
+          lastPlayed: typeof parsed.lastPlayed === 'string' ? parsed.lastPlayed : null,
         };
       }
     } catch {
       /* fall through to defaults */
     }
-    return { stars: {}, stickers: [], settings: { ...DEFAULTS }, favorites: [] };
+    return { stars: {}, stickers: [], settings: { ...DEFAULTS }, favorites: [], lastPlayed: null };
   }
 
   function save(): void {
@@ -115,6 +124,14 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
       state.favorites = on ? [...state.favorites, id] : state.favorites.filter((x) => x !== id);
       save();
       return on;
+    },
+    lastPlayed() {
+      return state.lastPlayed;
+    },
+    setLastPlayed(id) {
+      if (state.lastPlayed === id) return;
+      state.lastPlayed = id;
+      save();
     },
     setSettings(patch) {
       state = { ...state, settings: { ...state.settings, ...patch } };

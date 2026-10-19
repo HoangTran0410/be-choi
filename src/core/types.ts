@@ -34,6 +34,12 @@ export interface GameMeta {
    * over a night sky is a strip of daylight across the top of the screen.
    */
   night?: boolean;
+  /**
+   * Youngest age (2, 3 or 4) this suits. Optional: when missing it is worked out
+   * from `skill` and a short list of exceptions in `app/ages.ts`, so a new game
+   * needs no extra line to show up for everyone.
+   */
+  minAge?: 2 | 3 | 4;
 }
 
 export interface HintScheduler {

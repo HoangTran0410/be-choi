@@ -1,11 +1,14 @@
 import { h } from '../core/dom';
 import { MAX_PHOTOS } from '../core/photos';
 import { currentBuild, formatBuildTime } from './buildTime';
+import type { AgeFilter } from './ages';
 import type { AppDeps } from './deps';
 import type { Theme } from './storage';
 import { applyTheme } from './theme';
 
 export const STARS_CHANGED = 'be-choi:stars';
+/** Fired when a setting that changes what the home screen shows (child's age) is changed. */
+export const SETTINGS_CHANGED = 'be-choi:settings';
 
 /**
  * A big on/off switch. A real <button> toggled on pointerup instead of a hidden
@@ -120,7 +123,68 @@ export function openParentPanel(deps: AppDeps): void {
   );
   const themeRow = h('div', { class: 'panel-section' }, h('h3', null, '🎨 Giao diện'), h('div', { class: 'panel-seg' }, ...themeBtns));
 
-  const installRow = install.isStandalone
+  // ---- child's age: hides games that are still too hard (0 = show all) ----
+  const AGES: { id: AgeFilter; label: string }[] = [
+    { id: 0, label: 'Tất cả' },
+    { id: 2, label: '2 tuổi' },
+    { id: 3, label: '3 tuổi' },
+    { id: 4, label: '4 tuổi' },
+  ];
+  const ageBtns = AGES.map((a) =>
+    h(
+      'button',
+      {
+        class: `panel-seg-btn${settings.age === a.id ? ' active' : ''}`,
+        type: 'button',
+        onClick: () => {
+          store.setSettings({ age: a.id });
+          ageBtns.forEach((b, i) => b.classList.toggle('active', AGES[i]?.id === a.id));
+          window.dispatchEvent(new Event(SETTINGS_CHANGED));
+          audio.tick();
+        },
+      },
+      a.label,
+    ),
+  );
+  const ageRow = h(
+    'div',
+    { class: 'panel-section' },
+    h('h3', null, '🎂 Bé mấy tuổi?'),
+    h('div', { class: 'panel-seg' }, ...ageBtns),
+    h('p', { class: 'panel-note' }, 'Chọn tuổi để ẩn bớt trò còn khó. Trò nào bé đã thích (❤️) vẫn hiện. Chọn "Tất cả" để hiện hết.'),
+  );
+
+  // ---- rest reminder: off by default, never stops the game ----
+  const BREAKS = [0, 10, 15, 20, 30];
+  const breakBtns = BREAKS.map((m) =>
+    h(
+      'button',
+      {
+        class: `panel-seg-btn${settings.breakMinutes === m ? ' active' : ''}`,
+        type: 'button',
+        onClick: () => {
+          store.setSettings({ breakMinutes: m });
+          breakBtns.forEach((b, i) => b.classList.toggle('active', BREAKS[i] === m));
+          audio.tick();
+          if (m > 0) speech.speak('Bé ơi, mình nghỉ một chút nhé!');
+        },
+      },
+      m === 0 ? 'Tắt' : `${m}'`,
+    ),
+  );
+  const breakRow = h(
+    'div',
+    { class: 'panel-section' },
+    h('h3', null, '💧 Nhắc nghỉ'),
+    h('div', { class: 'panel-seg' }, ...breakBtns),
+    h(
+      'p',
+      { class: 'panel-note' },
+      'Sau chừng ấy phút chơi, bé nghe một lời nhắc nhẹ "nghỉ một chút nhé". Game không dừng, không mất sao — bé chỉ bấm ▶️ để chơi tiếp.',
+    ),
+  );
+
+  const installRow =install.isStandalone
     ? h('p', { class: 'panel-note' }, '✅ Đã cài lên màn hình chính.')
     : install.available()
       ? h('button', { class: 'panel-btn primary', onClick: () => install.prompt() }, '📲 Cài lên màn hình chính')
@@ -258,6 +322,8 @@ export function openParentPanel(deps: AppDeps): void {
     settings.confetti ? null : h('p', { class: 'panel-note' }, 'Bé thắng vẫn có nhạc và lời khen, chỉ bỏ đám giấy màu bay đầy màn hình.'),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     installRow,
+    ageRow,
+    breakRow,
     themeRow,
     photoSection,
     resetBox,
