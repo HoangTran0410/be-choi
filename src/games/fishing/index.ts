@@ -59,6 +59,7 @@ import {
   settleHook,
   type Hook,
 } from './logic';
+import { readRaw, writeJson } from '../../core/save';
 import './style.css';
 
 const MAX_STEP = 0.05;
@@ -500,16 +501,12 @@ function start(ctx: GameContext): void {
 
   /** Add one fish to the tank the child keeps in Bể cá. */
   function intoTheTank(cr: Creature): void {
-    try {
-      const save = readSave(localStorage.getItem(SAVE_KEY)) ?? { v: 1 as const, fish: [], decor: [], plants: [] };
-      // A full tank makes room rather than turning the catch away: the fish the
-      // child just landed is the one they want to go and look at.
-      save.fish = trimStock([...save.fish, cr.species.id]);
-
-      localStorage.setItem(SAVE_KEY, JSON.stringify(save));
-    } catch {
-      /* storage blocked: the catch still counts, it just does not travel */
-    }
+    const save = readSave(readRaw(SAVE_KEY)) ?? { v: 1 as const, fish: [], decor: [], plants: [] };
+    // A full tank makes room rather than turning the catch away: the fish the
+    // child just landed is the one they want to go and look at.
+    save.fish = trimStock([...save.fish, cr.species.id]);
+    // Storage blocked: the catch still counts, it just does not travel.
+    writeJson(SAVE_KEY, save);
   }
 
   /** Lifted clear of the water: a look at it, then it goes home to the tank. */

@@ -41,6 +41,7 @@ import {
   type Tank,
 } from './logic';
 import { drawBubbles, drawCreature, drawPlant, drawSand, drawWater, type Scene } from './draw';
+import { readRaw, writeJson } from '../../core/save';
 import './style.css';
 
 /** Caustics are baked into a tile this many pixels square and blown up over the tank. */
@@ -162,11 +163,7 @@ function start(ctx: GameContext): void {
   // ---- the tank the child built ----
 
   function load(): string | null {
-    try {
-      return localStorage.getItem(SAVE_KEY);
-    } catch {
-      return null;
-    }
+    return readRaw(SAVE_KEY);
   }
 
   /**
@@ -175,11 +172,8 @@ function start(ctx: GameContext): void {
    */
   function save(): void {
     if (!tank.w) return;
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(creatures, decor, plants, tank, night)));
-    } catch {
-      /* private browsing, or storage full: the tank still plays, it just forgets */
-    }
+    // Blocked or full storage: the tank still plays, it just forgets.
+    writeJson(SAVE_KEY, makeSave(creatures, decor, plants, tank, night));
   }
 
   // ---- choosing a fish to add ----

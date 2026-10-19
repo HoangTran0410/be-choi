@@ -26,6 +26,7 @@ import {
   type BrickSize,
   type Model,
 } from './logic';
+import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 
 /** localStorage key of the free-mode build. */
@@ -50,20 +51,13 @@ function plateDims(portrait: boolean): { cols: number; rows: number } {
 }
 
 function loadSaved(): Board | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? deserialize(raw) : null;
-  } catch {
-    return null;
-  }
+  const raw = readRaw(STORAGE_KEY);
+  return raw ? deserialize(raw) : null;
 }
 
 function save(board: Board): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, serialize(board));
-  } catch {
-    /* quota or blocked storage: the build lives in memory only */
-  }
+  // Quota or blocked storage: the build lives in memory only.
+  writeRaw(STORAGE_KEY, serialize(board));
 }
 
 /** A brick drawing; geometry and colour live in custom properties so the same node works in the tray and on the plate. */

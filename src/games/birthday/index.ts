@@ -19,6 +19,7 @@ import {
   type Flavor,
   type Job,
 } from './logic';
+import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 
 /** Toppings kept on the cake; the oldest falls off after that. */
@@ -560,19 +561,11 @@ function start(ctx: GameContext): void {
 
   // ---- photo topper ----
   function readChoice(): string | null {
-    try {
-      return localStorage.getItem(PHOTO_KEY);
-    } catch {
-      return null;
-    }
+    return readRaw(PHOTO_KEY);
   }
 
   function saveChoice(id: string): void {
-    try {
-      localStorage.setItem(PHOTO_KEY, id);
-    } catch {
-      /* private mode: simply not remembered */
-    }
+    writeRaw(PHOTO_KEY, id);
   }
 
   /** The saved photo if it still exists, else the first one; NO_PHOTO or no photos → no topper. */

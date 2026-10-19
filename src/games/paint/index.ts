@@ -22,6 +22,7 @@ import {
   type SavedPainting,
   type Tool,
 } from './logic';
+import { readRaw, removeRaw, writeRaw } from '../../core/save';
 import './style.css';
 
 interface Point {
@@ -40,21 +41,14 @@ const LINE_ART_TIMEOUT_MS = 10_000;
 export const STORAGE_KEY = 'be-choi:paint';
 
 function loadSaved(): SavedPainting | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? deserializePainting(raw) : null;
-  } catch {
-    return null;
-  }
+  const raw = readRaw(STORAGE_KEY);
+  return raw ? deserializePainting(raw) : null;
 }
 
 function writeSaved(raw: string | null): void {
-  try {
-    if (raw === null) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, raw);
-  } catch {
-    /* quota or blocked storage: the drawing lives in memory only */
-  }
+  // Quota or blocked storage: the drawing lives in memory only.
+  if (raw === null) removeRaw(STORAGE_KEY);
+  else writeRaw(STORAGE_KEY, raw);
 }
 
 /** A toolbar group. The landscape strip is a grid, so the group spans one row per button. */

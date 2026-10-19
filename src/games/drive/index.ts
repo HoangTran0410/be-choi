@@ -75,6 +75,7 @@ import {
   type Halt,
   type Traveller,
 } from './traffic';
+import { readRaw, writeJson } from '../../core/save';
 import {
   beamGlows,
   drawBirds,
@@ -986,11 +987,8 @@ function start(ctx: GameContext): void {
    * Written only after something they did on purpose, never every frame.
    */
   function save(): void {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(vehicle, wantNight)));
-    } catch {
-      /* private browsing, or storage full: the drive still plays, it just forgets */
-    }
+    // Blocked or full storage: the drive still plays, it just forgets.
+    writeJson(SAVE_KEY, makeSave(vehicle, wantNight));
   }
 
   function useVehicle(v: Vehicle): void {
@@ -1098,12 +1096,7 @@ function start(ctx: GameContext): void {
   camX = car.x - road.w * CAMERA_AT;
   fuelBar.style.width = '100%';
   // Back where the child left off: the same vehicle, at the same time of day.
-  let saved: ReturnType<typeof readSave> = null;
-  try {
-    saved = readSave(localStorage.getItem(SAVE_KEY));
-  } catch {
-    /* private browsing: start with the little red car in daylight */
-  }
+  const saved = readSave(readRaw(SAVE_KEY));
   if (saved) {
     vehicle = vehicleById(saved.vehicle) ?? vehicle;
     job = jobOf(vehicle);

@@ -29,6 +29,7 @@ import {
   type PlayerCommand,
   type YouTubeRef,
 } from './logic';
+import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 
 const TAB_KEY = 'be-choi:videos-tab';
@@ -41,19 +42,12 @@ const MINE = 'mine';
 const REMOVE_HOLD_MS = 900;
 
 function load(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
+  return readRaw(key);
 }
 
 function save(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* private mode: the list lasts until the game closes */
-  }
+  // Blocked storage: the list lasts until the game closes.
+  writeRaw(key, value);
 }
 
 /**
