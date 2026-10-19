@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**41 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**43 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -11,7 +11,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 |---|---|
 | 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
-| 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
+| 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · 🐝 Đi theo đường · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch |
 

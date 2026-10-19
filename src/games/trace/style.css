@@ -1,0 +1,34 @@
+.trace {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ecfccb 0%, #d9f99d 100%);
+}
+.trace-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.trace-svg svg {
+  display: block;
+}
+.trace-bee,
+.trace-hive {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 72px;
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  font-size: var(--emoji);
+  line-height: 1;
+  pointer-events: none;
+}
+.trace-bee {
+  will-change: transform;
+}
+.trace-bee-body,
+.trace-hive {
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.15));
+}

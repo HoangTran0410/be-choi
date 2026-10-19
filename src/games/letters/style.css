@@ -1,0 +1,87 @@
+.letters {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 10px;
+  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+}
+.letters-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 10px;
+}
+@media (orientation: landscape) {
+  .letters-grid {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+.letter-tile {
+  min-width: 72px;
+  min-height: 72px;
+  border: 0;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 4px;
+  padding: 4px 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: hsl(var(--hue), 85%, 90%);
+  box-shadow: 0 4px 0 hsl(var(--hue), 55%, 72%);
+  color: #1f2937;
+}
+.letter-tile.seen {
+  background: hsl(var(--hue), 90%, 82%);
+}
+.letter-char {
+  font-size: clamp(32px, 9vmin, 72px);
+  font-weight: 800;
+  line-height: 1;
+}
+.letter-pic {
+  font-size: clamp(30px, 8vmin, 64px);
+  line-height: 1;
+}
+.letter-word {
+  display: none;
+  font-size: clamp(12px, 2.4vmin, 18px);
+  font-weight: 600;
+}
+@media (orientation: landscape) {
+  .letter-tile {
+    flex-direction: column;
+    justify-content: center;
+  }
+  .letter-word {
+    display: block;
+  }
+}
+.letters-grid.digits .letter-pic {
+  font-size: clamp(16px, 3.4vmin, 28px);
+  word-break: break-all;
+  text-align: center;
+  line-height: 1.1;
+}
+.letters-dots {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  min-height: 14px;
+}
+.letters-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.12);
+}
+.letters-dot.on {
+  background: #f59e0b;
+}
