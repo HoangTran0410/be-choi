@@ -1,137 +1,188 @@
-import { h, replay, shuffle, svgEl } from '../../core/dom';
+import { h, replay, shuffle, wait } from '../../core/dom';
+import { makeTappable } from '../../core/tap';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { TRACKS, advance, isHome, makePath, pointAt, sampleTrack, toBox, toleranceFor, type Path, type Pt } from './logic';
+import { toleranceFor, type Pt } from './logic';
+import { MODES, fitBox, toPixels, toUnit, type Box, type Mode } from './modes';
+import { PICTURES } from './pictures';
+import { createScene, type Scene, type Step } from './scene';
 import './style.css';
 
+/** Remembered for the whole visit, so a child who likes dot-to-dot keeps getting dot-to-dot. */
+let lastMode: Mode = 'follow';
+
+const ICONS: Record<Mode, string> = {
+  follow:
+    '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 36C12 8 28 46 40 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="0.1 9"/><path d="M34 8l8 6-3 8z" fill="currentColor"/></svg>',
+  dots: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 36L21 13L36 29L40 9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/><g fill="currentColor"><circle cx="11" cy="36" r="5.5"/><circle cx="21" cy="13" r="5.5"/><circle cx="36" cy="29" r="5.5"/><circle cx="40" cy="9" r="5.5"/></g></svg>',
+  color:
+    '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 5C24 5 10 21 10 31a14 14 0 0028 0C38 21 24 5 24 5z" fill="currentColor"/><path d="M17 31a7 7 0 007 7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/></svg>',
+};
+const LABELS: Record<Mode, string> = { follow: 'Theo nét', dots: 'Nối chấm', color: 'Tô màu' };
+
 /**
- * Follow the path: drag a finger along a curve to lead the bee home. The bee only ever moves
- * forward and only when the finger is somewhere near the path ahead of it; anywhere else
- * nothing happens. There is no wrong, only "keep going".
+ * Tập vẽ: the child draws familiar pictures one of three ways — follow the dotted lines, join
+ * the dots, or rub colour in. No order, no wrong: a touch that is nowhere useful does nothing.
+ * The drawing rules live in modes.ts (pure) and scene.ts (one picture, one way).
  */
 function start(ctx: GameContext): void {
-  const order = shuffle(TRACKS.map((_, i) => i));
+  const order = shuffle(PICTURES.map((_, i) => i));
   let round = 0;
+  let mode: Mode = lastMode;
   let alive = true;
-  let done = false;
-  let progress = 0;
-  let path: Path = makePath([]);
-  let lastNote = 0;
+  let finishing = false;
+  let pressed = false;
+  let scene: Scene | null = null;
+  let box: Box = { x: 0, y: 0, size: 300 };
 
-  const svgHost = h('div', { class: 'trace-svg' });
-  const hive = h('div', { class: 'trace-hive' }, '🍯');
-  const bee = h('div', { class: 'trace-bee' }, h('span', { class: 'trace-bee-body' }, '🐝'));
-  const field = h('div', { class: 'trace' }, svgHost, hive, bee);
-  ctx.stage.append(field);
+  const paper = h('div', { class: 'tp-paper' });
+  const pen = h('div', { class: 'tp-pen' }, '🖍️');
+  const field = h('div', { class: 'tp' }, paper, pen);
+  const bar = h('div', { class: 'tp-bar' });
+  ctx.stage.append(field, bar);
+
+  const buttons = new Map<Mode, HTMLElement>();
+  for (const m of MODES) {
+    const b = h('button', { class: 'tp-mode', type: 'button', 'aria-label': LABELS[m] });
+    b.innerHTML = ICONS[m];
+    makeTappable(b, () => setMode(m), { ctx, cooldownMs: 250 });
+    buttons.set(m, b);
+    bar.append(b);
+  }
 
   const size = () => ({ w: field.clientWidth || 400, h: field.clientHeight || 600 });
-
-  function currentTrack(): number {
-    return order[round % order.length]!;
-  }
-
-  /** Lay the current track out for the current stage size, keeping the bee's progress as a fraction. */
-  function layout(keepFraction = 0): void {
+  const picture = () => PICTURES[order[round % order.length]!]!;
+  const tol = () => {
     const { w, h: ht } = size();
-    const landscape = w > ht;
-    const pts = sampleTrack(TRACKS[currentTrack()]!).map((pt) => toBox(pt, w, ht, landscape));
-    path = makePath(pts);
-    progress = keepFraction * path.total;
-    draw();
+    return toleranceFor(w, ht) / box.size;
+  };
+
+  function syncButtons(): void {
+    for (const [m, b] of buttons) b.setAttribute('aria-pressed', String(m === mode));
   }
 
-  function pathData(points: readonly Pt[]): string {
-    return points.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
-  }
-
-  function draw(): void {
-    const { w, h: ht } = size();
-    const tol = toleranceFor(w, ht);
-    const walked: Pt[] = [];
-    for (let i = 0; i < path.pts.length && path.cum[i]! <= progress; i++) walked.push(path.pts[i]!);
-    walked.push(pointAt(path, progress));
-    const svg = svgEl(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${ht}" width="${w}" height="${ht}" aria-hidden="true">` +
-        `<path d="${pathData(path.pts)}" fill="none" stroke="#fef9c3" stroke-width="${tol * 1.1}" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>` +
-        `<path d="${pathData(path.pts)}" fill="none" stroke="#a16207" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14" opacity="0.7"/>` +
-        `<path d="${pathData(walked)}" fill="none" stroke="#f59e0b" stroke-width="${Math.max(10, tol * 0.28)}" stroke-linecap="round" stroke-linejoin="round"/>` +
-        `</svg>`,
-    );
-    svgHost.replaceChildren(svg);
-    const end = path.pts[path.pts.length - 1] ?? { x: 0, y: 0 };
-    hive.style.transform = `translate(${end.x}px, ${end.y}px) translate(-50%, -50%)`;
-    const at = pointAt(path, progress);
-    bee.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -50%)`;
-  }
-
-  function fingerAt(e: PointerEvent | MouseEvent): Pt {
-    const r = field.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
-  }
-
-  function touch(e: PointerEvent | MouseEvent): void {
-    if (done) return;
-    const { w, h: ht } = size();
-    const next = advance(path, progress, fingerAt(e), toleranceFor(w, ht), path.total * 0.25);
-    if (next <= progress) return;
-    progress = next;
-    ctx.hint.touch();
-    draw();
-    const step = Math.floor((progress / path.total) * 10);
-    if (step > lastNote) {
-      lastNote = step;
-      ctx.audio.note(440 * Math.pow(2, step / 12), 0.12);
-      navigator.vibrate?.(5);
+  function placePen(at: Pt | null): void {
+    if (!at || mode === 'color') {
+      pen.style.opacity = '0';
+      return;
     }
-    if (isHome(path, progress)) arrive();
+    const px = toPixels(box, at);
+    pen.style.opacity = '1';
+    pen.style.transform = `translate(${px.x}px, ${px.y}px)`;
   }
 
-  function arrive(): void {
-    done = true;
-    progress = path.total;
-    draw();
-    ctx.hint.clear();
-    replay(bee, 'anim-bounce');
-    replay(hive, 'anim-bounce');
-    ctx.audio.ding();
-    ctx.speak('Ong về tổ rồi!');
-    void ctx.celebrate().then(() => {
-      if (!alive) return;
-      ctx.addStar();
-      round++;
-      begin();
-    });
+  /** Fit the square paper in the stage (on load and on resize; progress lives in unit coordinates, so it just scales). */
+  function layout(): void {
+    const { w, h: ht } = size();
+    box = fitBox(w, ht);
+    bar.classList.toggle('is-side', w > ht);
+    paper.style.cssText = `left:${box.x}px;top:${box.y}px;width:${box.size}px;height:${box.size}px`;
+    scene?.el.setAttribute('width', String(box.size));
+    scene?.el.setAttribute('height', String(box.size));
+    placePen(scene?.pen() ?? null);
   }
 
-  function begin(): void {
-    done = false;
-    lastNote = 0;
-    layout(0);
-    ctx.speak('Dẫn ong về tổ nào!');
+  function load(announce: boolean): void {
+    scene?.destroy();
+    const pic = picture();
+    field.style.background = pic.bg;
+    scene = createScene(pic, mode);
+    paper.replaceChildren(scene.el);
+    finishing = false;
+    pressed = false;
+    layout();
+    placePen(null);
+    if (announce) ctx.speak(`Mình vẽ ${pic.name} nhé!`);
     ctx.hint.arm(() => {
-      replay(bee, 'anim-wiggle');
+      const at = scene?.hint();
+      if (at) {
+        placePen(at);
+        replay(pen, 'anim-wiggle');
+      }
     });
+  }
+
+  function setMode(m: Mode): void {
+    if (finishing || m === mode) return;
+    mode = m;
+    lastMode = m;
+    syncButtons();
+    ctx.audio.pop();
+    load(false);
+  }
+
+  function finish(): void {
+    finishing = true;
+    const pic = picture();
+    scene?.reveal();
+    placePen(null);
+    ctx.hint.clear();
+    ctx.audio.ding();
+    ctx.speak(`Bé vẽ xong ${pic.name} rồi!`);
+    void ctx
+      .celebrate()
+      .then(() => {
+        if (!alive) return;
+        ctx.addStar();
+        return wait(700);
+      })
+      .then(() => {
+        if (!alive) return;
+        round++;
+        load(true);
+      });
+  }
+
+  function handle(step: Step): void {
+    if (!step.moved) return;
+    ctx.hint.touch();
+    placePen(scene?.pen() ?? null);
+    if (step.partDone) {
+      ctx.audio.note(660, 0.12);
+      navigator.vibrate?.(12);
+    } else {
+      navigator.vibrate?.(4);
+    }
+    if (step.complete) finish();
+  }
+
+  function unit(e: PointerEvent | MouseEvent): Pt {
+    const r = field.getBoundingClientRect();
+    return toUnit(box, { x: e.clientX - r.left, y: e.clientY - r.top });
   }
 
   field.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    touch(e);
+    if (finishing || !scene) return;
+    pressed = true;
+    try {
+      field.setPointerCapture(e.pointerId);
+    } catch {
+      /* not capturable (synthetic event): fine */
+    }
+    handle(scene.press(unit(e), tol()));
   });
   field.addEventListener('pointermove', (e) => {
-    if (e.buttons === 0 && e.pointerType === 'mouse') return;
-    touch(e);
+    if (!pressed || finishing || !scene) return;
+    handle(scene.drag(unit(e), tol()));
   });
-
-  const onResize = () => {
-    if (path.total > 0) layout(done ? 1 : progress / path.total);
+  const up = () => {
+    pressed = false;
+    scene?.release();
   };
+  field.addEventListener('pointerup', up);
+  field.addEventListener('pointercancel', up);
+
+  const onResize = () => layout();
   window.addEventListener('resize', onResize);
   ctx.onCleanup(() => {
     alive = false;
     window.removeEventListener('resize', onResize);
+    scene?.destroy();
   });
 
-  begin();
+  syncButtons();
+  load(true);
 }
 
 const game: GameModule = { ...meta, start };

@@ -2,9 +2,9 @@ import type { GameMeta } from '../../core/types';
 
 export const meta: GameMeta = {
   id: 'trace',
-  title: 'Đi theo đường',
-  icon: '🐝',
+  title: 'Tập vẽ',
+  icon: '✏️',
   color: '#d9f99d',
-  skill: 'puzzle',
-  intro: 'Kéo ngón tay dẫn chú ong về tổ nhé!',
+  skill: 'creative',
+  intro: 'Mình cùng tập vẽ nhé!',
 };
