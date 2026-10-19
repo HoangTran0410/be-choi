@@ -86,6 +86,7 @@ function start(ctx: GameContext): void {
     scene?.destroy();
     const pic = picture();
     field.style.background = pic.bg;
+    field.dataset.pic = pic.id;
     scene = createScene(pic, mode);
     paper.replaceChildren(scene.el);
     finishing = false;

@@ -109,7 +109,7 @@ export interface DotStroke {
 }
 
 const STRAIGHT_EPS = 0.004;
-const MIN_GAP = 0.02;
+const MIN_GAP = 0.07;
 
 function distToLine(p: Pt, a: Pt, b: Pt): number {
   const len = dist(a, b);
@@ -125,14 +125,20 @@ function segLength(c: Cubic): number {
   return dist(c[0], c[1]) + dist(c[1], c[2]) + dist(c[2], c[3]);
 }
 
-function dotsOne(stroke: Stroke, spacing: number): DotStroke {
+/** Most dots one stroke ever gets: a child can follow eight numbers, not twenty. */
+export const MAX_DOTS = 8;
+/** Strokes shorter than this (rays, whiskers, drops) are just a start dot and an end dot. */
+const SHORT_STROKE = 0.3;
+
+function dotsOne(stroke: Stroke): DotStroke {
   const segs = stroke.segs;
   const path = strokePath(stroke);
+  const endIdx = segs.length * SAMPLES_PER_SEGMENT;
   const cand: { pt: Pt; idx: number }[] = [];
   segs.forEach((seg, i) => {
     cand.push({ pt: seg[0], idx: i * SAMPLES_PER_SEGMENT });
     if (isStraight(seg)) return;
-    const m = Math.max(1, Math.min(4, Math.round(segLength(seg) / spacing)));
+    const m = Math.max(1, Math.min(4, Math.round(segLength(seg) / 0.11)));
     for (let j = 1; j < m; j++) {
       const k = Math.round((j / m) * SAMPLES_PER_SEGMENT);
       cand.push({ pt: bezier(seg, k / SAMPLES_PER_SEGMENT), idx: i * SAMPLES_PER_SEGMENT + k });
@@ -140,34 +146,31 @@ function dotsOne(stroke: Stroke, spacing: number): DotStroke {
   });
   const last = segs[segs.length - 1]![3];
   const closed = dist(last, segs[0]![0]) < 1e-3 && segs.length > 1;
-  if (!closed) cand.push({ pt: last, idx: segs.length * SAMPLES_PER_SEGMENT });
-  const kept: { pt: Pt; idx: number }[] = [];
+  if (!closed) cand.push({ pt: last, idx: endIdx });
+  let kept: { pt: Pt; idx: number }[] = [];
   for (const c of cand) {
     const prev = kept[kept.length - 1];
     if (prev && dist(prev.pt, c.pt) < MIN_GAP) {
-      // Keep the end of an open stroke even when it crowds the previous dot.
-      if (!closed && c.idx === segs.length * SAMPLES_PER_SEGMENT && kept.length > 1) kept[kept.length - 1] = c;
+      // The end of an open stroke wins over a dot that crowds it.
+      if (!closed && c.idx === endIdx && kept.length > 1) kept[kept.length - 1] = c;
       continue;
     }
     kept.push(c);
   }
   if (closed && kept.length > 1 && dist(kept[kept.length - 1]!.pt, kept[0]!.pt) < MIN_GAP) kept.pop();
-  if (kept.length < 2) kept.push({ pt: last, idx: segs.length * SAMPLES_PER_SEGMENT });
+  if (!closed && path.total < SHORT_STROKE) kept = [kept[0]!, { pt: last, idx: endIdx }];
+  const limit = closed ? Math.min(MAX_DOTS, Math.max(3, Math.floor(path.total / 0.09))) : MAX_DOTS;
+  if (kept.length > limit) {
+    const n = kept.length;
+    kept = Array.from({ length: limit }, (_, i) => kept[Math.round(closed ? (i * n) / limit : (i * (n - 1)) / (limit - 1))]!);
+  }
+  if (kept.length < 2) kept.push({ pt: last, idx: endIdx });
   return { path, pts: kept.map((k) => k.pt), s: kept.map((k) => path.cum[k.idx] ?? path.total), closed };
 }
 
-/**
- * Turn strokes into dots to join: the corners of straight runs, and evenly spaced points along
- * curves (thinned out if the picture would otherwise have more than `budget` dots).
- */
-export function deriveDots(strokes: readonly Stroke[], budget = 80): DotStroke[] {
-  let spacing = 0.11;
-  let out = strokes.map((s) => dotsOne(s, spacing));
-  for (let i = 0; i < 6 && out.reduce((n, d) => n + d.pts.length, 0) > budget; i++) {
-    spacing *= 1.5;
-    out = strokes.map((s) => dotsOne(s, spacing));
-  }
-  return out;
+/** Turn strokes into a few dots each: the corners of straight runs, a thin sample along curves, 8 at most. */
+export function deriveDots(strokes: readonly Stroke[]): DotStroke[] {
+  return strokes.map(dotsOne);
 }
 
 export function dotsDone(d: DotStroke, connected: number): boolean {

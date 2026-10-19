@@ -17,7 +17,8 @@ import {
   toUnit,
   walked,
 } from './modes';
-import { circle, line, p, polygon, rectFill, type Stroke } from './shapes';
+import { PICTURES } from './pictures';
+import { circle, line, p, polygon, rectFill, smooth, type Stroke } from './shapes';
 
 const hLine: Stroke = { segs: line(p(0.1, 0.5), p(0.9, 0.5)), color: '#000' };
 const vLine: Stroke = { segs: line(p(0.5, 0.1), p(0.5, 0.9)), color: '#000' };
@@ -82,17 +83,22 @@ describe('deriveDots', () => {
     expect(d.closed).toBe(true);
     expect(d.pts).toHaveLength(4);
   });
-  it('samples curves evenly, 8 to 16 dots on a circle, in increasing arc length', () => {
+  it('a circle gets 8 dots, in increasing arc length', () => {
     const d = deriveDots([{ segs: circle(0.5, 0.5, 0.25), color: '#000' }])[0]!;
     expect(d.closed).toBe(true);
-    expect(d.pts.length).toBeGreaterThanOrEqual(8);
-    expect(d.pts.length).toBeLessThanOrEqual(16);
+    expect(d.pts).toHaveLength(8);
     for (let i = 1; i < d.s.length; i++) expect(d.s[i]!).toBeGreaterThan(d.s[i - 1]!);
   });
-  it('stays within the budget when a picture has many strokes', () => {
-    const strokes = Array.from({ length: 12 }, (_, i) => ({ segs: circle(0.5, 0.5, 0.1 + i * 0.03), color: '#000' }));
-    const total = deriveDots(strokes, 80).reduce((n, d) => n + d.pts.length, 0);
-    expect(total).toBeLessThan(110);
+  it('never more than 8 dots a stroke, none closer than 0.07, very short strokes get 2', () => {
+    const wavy: Stroke = { segs: smooth(Array.from({ length: 12 }, (_, i) => p(0.05 + i * 0.08, 0.5 + (i % 2) * 0.1))), color: '#000' };
+    const short: Stroke = { segs: line(p(0.5, 0.5), p(0.6, 0.55)), color: '#000' };
+    const [w, s] = deriveDots([wavy, short]);
+    expect(w!.pts.length).toBeLessThanOrEqual(8);
+    expect(s!.pts).toHaveLength(2);
+    for (const d of [w!]) for (let i = 1; i < d.pts.length; i++) expect(Math.hypot(d.pts[i]!.x - d.pts[i - 1]!.x, d.pts[i]!.y - d.pts[i - 1]!.y)).toBeGreaterThanOrEqual(0.06);
+  });
+  it('every library picture stays within 8 dots a stroke', () => {
+    for (const pic of PICTURES) for (const d of deriveDots(pic.strokes)) expect(d.pts.length).toBeLessThanOrEqual(8);
   });
 });
 

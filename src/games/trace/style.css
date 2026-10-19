@@ -111,3 +111,11 @@
 .tp-mode.is-tapped {
   transform: scale(0.94);
 }
+.tp-dot.tp-start {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tp-pulse 1.4s ease-in-out infinite;
+}
+.tp-dot.tp-start.tp-hint {
+  animation: tp-pulse 0.7s ease-in-out 3;
+}

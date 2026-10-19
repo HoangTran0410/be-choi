@@ -63,6 +63,8 @@ describe('trace game (Tập vẽ)', () => {
     expect(modeBtn(1).getAttribute('aria-pressed')).toBe('true');
     const shown = PICTURES.find((p) => ctx.spoken[0]!.includes(p.name))!;
     const ds = deriveDots(shown.strokes);
+    // Only one stroke's dots show at a time.
+    expect([...ctx.stage.querySelectorAll('.tp-dots > g')].filter((g) => g.getAttribute('display') !== 'none')).toHaveLength(1);
     expect(ctx.stage.querySelectorAll('.tp-dot').length).toBe(ds.reduce((n, d) => n + d.pts.length, 0));
     // The second dot of the first stroke does nothing before the first is joined.
     field.dispatchEvent(ev('pointerdown', ds[0]!.pts[1]!));

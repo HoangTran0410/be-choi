@@ -18,7 +18,6 @@ import type { Picture } from './shapes';
 
 const NS = 'http://www.w3.org/2000/svg';
 const INK = 0.024;
-const DOT_R = 0.042;
 const GRAY = '#d6d3d1';
 
 function node(tag: string, attrs: Record<string, string | number> = {}, parent?: Element): SVGElement {
@@ -189,17 +188,22 @@ export function createScene(pic: Picture, mode: Mode): Scene {
   if (mode === 'dots') {
     const ds: DotStroke[] = deriveDots(pic.strokes);
     const connected = ds.map(() => -1);
-    let active = -1;
+    /** The stroke whose dots are showing. Touching the start of another stroke makes that one current. */
+    let current = 0;
+    const guideLayer = node('g', { class: 'tp-guides' }, inkLayer);
+    const guides = pic.strokes.map((s, i) =>
+      node('path', { d: d(ds[i]!.path.pts), fill: 'none', stroke: s.color, 'stroke-width': 0.012, 'stroke-linecap': 'round', 'stroke-dasharray': '0.001 0.03', opacity: 0.3 }, guideLayer),
+    );
     const inks = pic.strokes.map((s) => node('path', { d: '', ...inkAttrs(s.color) }, inkLayer));
-    const groups = ds.map((stroke, i) => {
+    const groups = ds.map((stroke) => {
       const g = node('g', {}, dotLayer);
-      const color = pic.strokes[i]!.color;
-      const dots = stroke.pts.map((pt, k) => {
-        const dg = node('g', { class: 'tp-dot', transform: `translate(${pt.x.toFixed(4)} ${pt.y.toFixed(4)})` }, g);
-        node('circle', { r: DOT_R, fill: '#fff', stroke: color, 'stroke-width': 0.012 }, dg);
-        const t = node('text', { 'font-size': 0.046, fill: color, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-weight': 800 }, dg);
-        t.textContent = String(k + 1);
-        return dg;
+      const dots = stroke.pts.map((pt) => {
+        // The outer group positions the dot; the inner one is free to animate (CSS animation replaces `transform`).
+        const pos = node('g', { transform: `translate(${pt.x.toFixed(4)} ${pt.y.toFixed(4)})` }, g);
+        const dg = node('g', { class: 'tp-dot' }, pos);
+        const c = node('circle', {}, dg);
+        const t = node('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-weight': 800 }, dg);
+        return { dg, c, t };
       });
       return { g, dots };
     });
@@ -210,55 +214,87 @@ export function createScene(pic: Picture, mode: Mode): Scene {
       const end = dotsDone(s, c) ? s.path.total : s.s[Math.max(0, c)]!;
       inks[i]!.setAttribute('d', c < 0 ? '' : d(walked(s.path, end)));
     };
+    const style = (el: SVGElement, attrs: Record<string, string>): void => {
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    };
+    /** Dress the current stroke's dots: a big start dot, a clear next dot, small faint ones after. */
+    const refresh = (): void => {
+      groups.forEach((grp, i) => {
+        const finished = dotsDone(ds[i]!, connected[i]!);
+        const showing = i === current && !finished;
+        grp.g.setAttribute('display', showing ? '' : 'none');
+        guides[i]!.setAttribute('display', finished || i === current ? 'none' : '');
+        if (!showing) return;
+        const color = pic.strokes[i]!.color;
+        const next = connected[i]! + 1;
+        grp.dots.forEach(({ dg, c, t }, k) => {
+          dg.classList.toggle('tp-start', k === 0 && next === 0);
+          t.textContent = k <= connected[i]! ? '' : String(k + 1);
+          if (k <= connected[i]!) {
+            style(c, { r: '0.03', fill: color, stroke: 'none', opacity: '1' });
+          } else if (k === 0) {
+            style(c, { r: '0.065', fill: color, stroke: '#fff', 'stroke-width': '0.012', opacity: '1' });
+            style(t, { 'font-size': '0.075', fill: '#fff' });
+          } else if (k === next) {
+            style(c, { r: '0.05', fill: '#fff', stroke: color, 'stroke-width': '0.014', opacity: '1' });
+            style(t, { 'font-size': '0.06', fill: color });
+          } else {
+            style(c, { r: '0.036', fill: '#fff', stroke: color, 'stroke-width': '0.008', opacity: '0.6' });
+            style(t, { 'font-size': '0.045', fill: color });
+          }
+        });
+      });
+    };
+    const firstOpen = (): number => ds.findIndex((s, i) => !dotsDone(s, connected[i]!));
+    refresh();
 
-    const touch = (at: Pt, tol: number, fresh: boolean): Step => {
+    const touch = (at: Pt, tol: number): Step => {
       if (isComplete) return NOTHING;
-      if (fresh) active = -1;
-      const hit = hitDot(ds, connected, active, at, Math.max(tol * 0.8, 0.05));
+      const hit = hitDot(ds, connected, current, at, Math.max(tol * 0.8, 0.05));
       if (!hit) return NOTHING;
       const { stroke, dot } = hit;
       connected[stroke] = dot;
-      active = stroke;
-      const grp = groups[stroke]!;
-      const color = pic.strokes[stroke]!.color;
-      const dg = grp.dots[dot]!;
-      dg.querySelector('circle')!.setAttribute('fill', color);
-      dg.querySelector('text')!.setAttribute('fill', '#fff');
+      current = stroke;
       drawInk(stroke);
       const partDone = dotsDone(ds[stroke]!, dot);
       pen = partDone ? ds[stroke]!.path.pts[ds[stroke]!.path.pts.length - 1]! : ds[stroke]!.pts[dot]!;
       if (partDone) {
-        grp.g.setAttribute('display', 'none');
-        active = -1;
-        if (allDone()) return finish();
+        if (allDone()) {
+          refresh();
+          return finish();
+        }
+        current = firstOpen();
       }
+      refresh();
       return { moved: true, partDone, complete: false };
     };
 
     return {
       ...base,
-      press: (at, tol) => touch(at, tol, true),
-      drag: (at, tol) => touch(at, tol, false),
-      release() {
-        active = -1;
-      },
+      press: (at, tol) => touch(at, tol),
+      drag: (at, tol) => touch(at, tol),
+      release() {},
       reveal() {
         ds.forEach((s, i) => {
           connected[i] = s.pts.length - 1;
           drawInk(i);
-          groups[i]!.g.setAttribute('display', 'none');
         });
+        refresh();
         finishColour();
         pen = null;
       },
       hint() {
         const i = nextUnfinished(
           ds.map((s, k) => dotsDone(s, connected[k]!)),
-          active,
+          current,
         );
         if (i < 0) return null;
+        if (i !== current) {
+          current = i;
+          refresh();
+        }
         const k = connected[i]! + 1;
-        blink(groups[i]!.dots[k]!);
+        blink(groups[i]!.dots[k]!.dg);
         return ds[i]!.pts[k]!;
       },
       pen: () => pen,
