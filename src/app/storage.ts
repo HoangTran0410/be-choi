@@ -17,6 +17,8 @@ export interface Settings {
    * jingle and the praise still say "well done", this is only the paper.
    */
   confetti: boolean;
+  /** Show the "Hôm nay chơi gì" row of three suggestions on the home screen. */
+  todayPick: boolean;
 }
 
 export interface Store {
@@ -33,6 +35,13 @@ export interface Store {
   favorites(): string[];
   /** Add or remove one. Returns whether it is now a favourite. */
   toggleFavorite(id: string): boolean;
+  /** Note that a game was opened. Only the latest few are kept. */
+  recordPlay(id: string): void;
+  /** Recent plays, oldest first, one id per play. */
+  recentPlays(): string[];
+  /** The suggestions fixed for one day, so they hold still while the child plays them. */
+  todayPicks(): { key: string; ids: string[] } | null;
+  setTodayPicks(key: string, ids: string[]): void;
 }
 
 interface State {
@@ -40,10 +49,13 @@ interface State {
   stickers: string[];
   settings: Settings;
   favorites: string[];
+  recent: string[];
+  today: { key: string; ids: string[] } | null;
 }
 
+const RECENT_MAX = 30;
 const KEY = 'be-choi:v1';
-const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true, confetti: true };
+const DEFAULTS: Settings = { sound: true, voice: true, theme: 'auto', stickerPopup: true, confetti: true, todayPick: true };
 
 /**
  * Stars per game and parent settings, persisted in localStorage. Every storage
@@ -63,12 +75,17 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
           stickers: [...(parsed.stickers ?? [])],
           settings: { ...DEFAULTS, ...(parsed.settings ?? {}) },
           favorites: Array.isArray(parsed.favorites) ? parsed.favorites.filter((id) => typeof id === 'string') : [],
+          recent: Array.isArray(parsed.recent) ? parsed.recent.filter((id) => typeof id === 'string').slice(-RECENT_MAX) : [],
+          today:
+            parsed.today && typeof parsed.today.key === 'string' && Array.isArray(parsed.today.ids)
+              ? { key: parsed.today.key, ids: parsed.today.ids.filter((id) => typeof id === 'string') }
+              : null,
         };
       }
     } catch {
       /* fall through to defaults */
     }
-    return { stars: {}, stickers: [], settings: { ...DEFAULTS }, favorites: [] };
+    return { stars: {}, stickers: [], settings: { ...DEFAULTS }, favorites: [], recent: [], today: null };
   }
 
   function save(): void {
@@ -115,6 +132,20 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
       state.favorites = on ? [...state.favorites, id] : state.favorites.filter((x) => x !== id);
       save();
       return on;
+    },
+    recordPlay(id) {
+      state.recent = [...state.recent, id].slice(-RECENT_MAX);
+      save();
+    },
+    recentPlays() {
+      return [...state.recent];
+    },
+    todayPicks() {
+      return state.today ? { key: state.today.key, ids: [...state.today.ids] } : null;
+    },
+    setTodayPicks(key, ids) {
+      state.today = { key, ids: [...ids] };
+      save();
     },
     setSettings(patch) {
       state = { ...state, settings: { ...state.settings, ...patch } };

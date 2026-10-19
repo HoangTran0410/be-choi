@@ -4,6 +4,7 @@ import type { AppDeps } from './deps';
 import type { Skill } from '../core/types';
 import { GAMES, type GameEntry } from './registry';
 import { hrefFor } from './router';
+import { dateKeyOf, pickToday } from './today';
 import { openParentPanel, STARS_CHANGED } from './parentPanel';
 import '../styles/home.css';
 
@@ -30,6 +31,40 @@ function starsText(n: number): string {
   if (n === 0) return '';
   if (n <= 5) return '⭐'.repeat(n);
   return `⭐×${n}`;
+}
+
+function openGame(el: HTMLElement, entry: GameEntry, deps: AppDeps): void {
+  deps.audio.pop();
+  deps.speech.speak(entry.title);
+  el.classList.add('anim-bounce');
+  setTimeout(() => {
+    location.hash = hrefFor({ name: 'game', id: entry.id });
+  }, 150);
+}
+
+/**
+ * Today's three suggestions, fixed for the day: picked once, then remembered, so they do not
+ * shuffle under the child as plays pile up.
+ */
+export function todaysGames(deps: AppDeps, now: Date = new Date()): GameEntry[] {
+  const key = dateKeyOf(now);
+  const saved = deps.store.todayPicks();
+  if (saved && saved.key === key) {
+    const games = saved.ids.map((id) => GAMES.find((g) => g.id === id));
+    if (games.length > 0 && games.every((g): g is GameEntry => g !== undefined)) return games;
+  }
+  const picks = pickToday(GAMES, { dateKey: key, recent: deps.store.recentPlays() });
+  deps.store.setTodayPicks(key, picks.map((g) => g.id));
+  return picks;
+}
+
+function todayTile(entry: GameEntry, deps: AppDeps): HTMLElement {
+  const el = h(
+    'button',
+    { class: 'today-tile', style: `background:${entry.color}`, 'aria-label': entry.title, onClick: () => openGame(el, entry, deps) },
+    entry.icon,
+  );
+  return el;
 }
 
 function tile(entry: GameEntry, deps: AppDeps, onFavorite: () => void): HTMLElement {
@@ -60,14 +95,7 @@ function tile(entry: GameEntry, deps: AppDeps, onFavorite: () => void): HTMLElem
       class: 'tile',
       style: `background:${entry.color}`,
       'aria-label': entry.title,
-      onClick: () => {
-        deps.audio.pop();
-        deps.speech.speak(entry.title);
-        el.classList.add('anim-bounce');
-        setTimeout(() => {
-          location.hash = hrefFor({ name: 'game', id: entry.id });
-        }, 150);
-      },
+      onClick: () => openGame(el, entry, deps),
     },
     h('span', { class: 'tile-icon' }, entry.icon),
     h('span', { class: 'tile-title' }, entry.title),
@@ -116,6 +144,18 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
       .filter((g): g is GameEntry => g !== undefined);
     const placed = new Set<string>();
     const blocks: Array<HTMLElement | null> = [h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile()))];
+    if (deps.store.settings().todayPick) {
+      const today = todaysGames(deps);
+      if (today.length)
+        blocks.push(
+          h(
+            'section',
+            { class: 'section section-today', 'aria-label': 'Hôm nay chơi gì' },
+            h('span', { class: 'today-badge', 'aria-hidden': 'true' }, '✨'),
+            ...today.map((g) => todayTile(g, deps)),
+          ),
+        );
+    }
     if (favorites.length)
       blocks.push(
         h(

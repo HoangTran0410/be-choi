@@ -134,3 +134,37 @@
   font-size: clamp(16px, 3.5vmin, 24px);
   letter-spacing: 0;
 }
+
+/* Hôm nay chơi gì: three big icons, no words. */
+.section-today {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3vmin;
+  padding: 1.5vmin 2vmin;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.45);
+}
+.today-badge {
+  font-size: clamp(28px, 6vmin, 48px);
+  line-height: 1;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.today-tile {
+  flex: 1;
+  max-width: 240px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  font-size: clamp(56px, 16vmin, 120px);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.12s;
+}
+.today-tile:active {
+  transform: scale(0.94);
+}

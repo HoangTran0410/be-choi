@@ -65,3 +65,41 @@ describe('home favourites', () => {
     unmount();
   });
 });
+
+describe('home today suggestions', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    localStorage.clear();
+    location.hash = '';
+    root = document.createElement('div');
+    document.body.replaceChildren(root);
+  });
+  const today = () => [...root.querySelectorAll<HTMLElement>('.section-today .today-tile')].map((t) => t.getAttribute('aria-label'));
+
+  it('shows three icon-only games', () => {
+    const unmount = mountHome(root, deps());
+    const tiles = [...root.querySelectorAll<HTMLElement>('.section-today .today-tile')];
+    expect(tiles).toHaveLength(3);
+    for (const t of tiles) expect(t.textContent).toBe(GAMES.find((g) => g.title === t.getAttribute('aria-label'))?.icon);
+    unmount();
+  });
+
+  it('holds still for the day even after the child plays', () => {
+    const d = deps();
+    const a = mountHome(root, d);
+    const first = today();
+    a();
+    for (const g of GAMES) d.store.recordPlay(g.id);
+    const b = mountHome(root, d);
+    expect(today()).toEqual(first);
+    b();
+  });
+
+  it('goes away when the parent switches it off', () => {
+    const d = deps();
+    d.store.setSettings({ todayPick: false });
+    const unmount = mountHome(root, d);
+    expect(root.querySelector('.section-today')).toBeNull();
+    unmount();
+  });
+});

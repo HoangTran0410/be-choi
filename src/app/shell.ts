@@ -92,6 +92,7 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
 
   audio.tick();
   speech.speak(entry.intro);
+  store.recordPlay(entry.id);
 
   entry
     .load()
