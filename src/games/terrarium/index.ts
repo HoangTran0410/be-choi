@@ -48,6 +48,7 @@ import {
   type Vivarium,
 } from './logic';
 import { drawBack, drawCreature, drawDrops, drawFoodItem, drawGlass, drawPlant, drawSoil, type Scene } from './draw';
+import { readRaw, writeJson } from '../../core/save';
 import './style.css';
 
 /** Longest frame the simulation will take in one step. */
@@ -188,11 +189,7 @@ function start(ctx: GameContext): void {
   // ---- the box the child built ----
 
   function load(): string | null {
-    try {
-      return localStorage.getItem(SAVE_KEY);
-    } catch {
-      return null;
-    }
+    return readRaw(SAVE_KEY);
   }
 
   /**
@@ -201,11 +198,8 @@ function start(ctx: GameContext): void {
    */
   function save(): void {
     if (!viv.w) return;
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(makeSave(creatures, decor, plants, viv, night)));
-    } catch {
-      /* private browsing, or storage full: the box still plays, it just forgets */
-    }
+    // Blocked or full storage: the box still plays, it just forgets.
+    writeJson(SAVE_KEY, makeSave(creatures, decor, plants, viv, night));
   }
 
   // ---- choosing an animal to add ----

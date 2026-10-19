@@ -12,6 +12,7 @@
 import { Spine, angleDelta } from '../../core/creature';
 import { pick } from '../../core/dom';
 import type { FxKind } from '../../core/audio';
+import { parseVersioned } from '../../core/save';
 
 // ---- who lives in the box ----
 
@@ -2158,29 +2159,27 @@ export function bankY(at: number, viv: Vivarium): number {
 
 /** Anything unreadable, from an older version or another app, is simply ignored. */
 export function readSave(raw: string | null): VivSave | null {
-  if (!raw) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    const save = parsed as Partial<VivSave>;
-    if (save.v !== 1) return null;
-    const fractions = (list: unknown): number[] =>
-      Array.isArray(list) ? list.filter((n): n is number => typeof n === 'number' && n >= 0 && n <= 1) : [];
-    const pets = Array.isArray(save.pets)
-      ? save.pets.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
-      : [];
-    return {
-      v: 1,
-      pets: trimStock(pets),
-      decor: fractions(save.decor),
-      plants: fractions(save.plants),
-      decorY: fractions(save.decorY),
-      plantsY: fractions(save.plantsY),
-      night: save.night === true,
-    };
-  } catch {
-    return null;
-  }
+  // A save with no `v` is the oldest shape (version 0) and has the same fields.
+  return parseVersioned<VivSave>(raw, {
+    current: 1,
+    validate(save) {
+      if (!Array.isArray(save.pets)) return null; // nothing recognisable: not one of ours
+      const fractions = (list: unknown): number[] =>
+        Array.isArray(list) ? list.filter((n): n is number => typeof n === 'number' && n >= 0 && n <= 1) : [];
+      const pets = Array.isArray(save.pets)
+        ? save.pets.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
+        : [];
+      return {
+        v: 1,
+        pets: trimStock(pets),
+        decor: fractions(save.decor),
+        plants: fractions(save.plants),
+        decorY: fractions(save.decorY),
+        plantsY: fractions(save.plantsY),
+        night: save.night === true,
+      };
+    },
+  });
 }
 
 export function makeSave(

@@ -5,6 +5,7 @@ import { meta } from './meta';
 import { BACKDROPS, MAX_ON, SHELVES, backdropThumb, backdropUrl, findAmbient, mixLevel, toggle, type Ambient, type Shelf } from './logic';
 import { LOOP_IDS, loopUrl } from './files';
 import { createScene } from './scene';
+import { readJson, writeJson } from '../../core/save';
 import './style.css';
 
 const SAVE_KEY = 'be-choi:ambience';
@@ -19,24 +20,17 @@ interface Saved {
 }
 
 function load(): Saved {
-  try {
-    const raw = JSON.parse(localStorage.getItem(SAVE_KEY) ?? '{}') as Partial<Saved>;
-    return {
-      on: Array.isArray(raw.on) ? raw.on.filter((id) => typeof id === 'string' && findAmbient(id)) : [],
-      shelf: typeof raw.shelf === 'string' ? raw.shelf : (SHELVES[0]?.id ?? ''),
-      backdrop: BACKDROPS.some((b) => b.id === raw.backdrop) ? (raw.backdrop as string) : '',
-    };
-  } catch {
-    return { on: [], shelf: SHELVES[0]?.id ?? '', backdrop: '' };
-  }
+  const parsed = readJson(SAVE_KEY, null);
+  const raw = (typeof parsed === 'object' && parsed !== null ? parsed : {}) as Partial<Saved>;
+  return {
+    on: Array.isArray(raw.on) ? raw.on.filter((id) => typeof id === 'string' && findAmbient(id)) : [],
+    shelf: typeof raw.shelf === 'string' ? raw.shelf : (SHELVES[0]?.id ?? ''),
+    backdrop: BACKDROPS.some((b) => b.id === raw.backdrop) ? (raw.backdrop as string) : '',
+  };
 }
 
 function save(s: Saved): void {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(s));
-  } catch {
-    /* private mode: the scene starts empty next time */
-  }
+  writeJson(SAVE_KEY, s);
 }
 
 /**

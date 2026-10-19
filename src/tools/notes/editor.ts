@@ -36,6 +36,7 @@ import {
   type Pitch,
   type Quote,
 } from './logic';
+import { readRaw, removeRaw, writeRaw } from '../../core/save';
 
 const PX_PER_BEAT = 46;
 const ROW_H = 24;
@@ -59,21 +60,14 @@ function beatsOf(draft: Draft): number {
 }
 
 function loadDraft(song: Song): Draft {
-  try {
-    const raw = localStorage.getItem(draftKey(song.id));
-    if (raw) return parseDraft(raw, song) ?? draftFromSong(song);
-  } catch {
-    /* private browsing: the draft just does not survive the reload */
-  }
+  const raw = readRaw(draftKey(song.id));
+  if (raw) return parseDraft(raw, song) ?? draftFromSong(song);
   return draftFromSong(song);
 }
 
 function saveDraft(draft: Draft): void {
-  try {
-    localStorage.setItem(draftKey(draft.id), serializeDraft(draft));
-  } catch {
-    /* nothing to do: the draft still lives for this session */
-  }
+  // On failure the draft still lives for this session.
+  writeRaw(draftKey(draft.id), serializeDraft(draft));
 }
 
 /** Mounts the editor into `root`. Returns a teardown function. */
@@ -187,11 +181,7 @@ export function mountEditor(root: HTMLElement, audio: AudioEngine): () => void {
 
   function reset(): void {
     stop();
-    try {
-      localStorage.removeItem(draftKey(song.id));
-    } catch {
-      /* nothing saved to remove */
-    }
+    removeRaw(draftKey(song.id));
     draft = draftFromSong(song);
     history = createHistory(draft);
     selected = Math.min(selected, draft.notes.length - 1);

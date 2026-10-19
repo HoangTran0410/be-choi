@@ -1,6 +1,7 @@
 import type { FxKind } from '../../core/audio';
 import { ANIMALS, type Item } from '../../core/content';
 import { mulberry32 } from '../../core/dom';
+import { parseVersioned } from '../../core/save';
 
 /** What the child is driving. Each one is drawn from these numbers and has its own horn. */
 export interface Vehicle {
@@ -105,17 +106,14 @@ export function makeSave(vehicle: Vehicle, night: boolean): DriveSave {
 
 /** Read a saved game back, or null if there is nothing usable there. */
 export function readSave(raw: string | null): DriveSave | null {
-  if (!raw) return null;
-  try {
-    const data: unknown = JSON.parse(raw);
-    if (!data || typeof data !== 'object') return null;
-    const save = data as Partial<DriveSave>;
-    if (save.v !== 1 || typeof save.vehicle !== 'string') return null;
-    if (!vehicleById(save.vehicle)) return null;
-    return { v: 1, vehicle: save.vehicle, night: save.night === true };
-  } catch {
-    return null;
-  }
+  // A save with no `v` is the oldest shape (version 0) and has the same fields.
+  return parseVersioned<DriveSave>(raw, {
+    current: 1,
+    validate(save) {
+      if (typeof save.vehicle !== 'string' || !vehicleById(save.vehicle)) return null;
+      return { v: 1, vehicle: save.vehicle, night: save.night === true };
+    },
+  });
 }
 
 // ---- where the road goes ----

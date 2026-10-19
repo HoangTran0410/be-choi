@@ -5,6 +5,7 @@
  */
 import { Spine, angleDelta } from '../../core/creature';
 import { pick } from '../../core/dom';
+import { parseVersioned } from '../../core/save';
 
 // ---- who lives in the tank ----
 
@@ -1188,27 +1189,25 @@ const EMPTY_SAVE: TankSave = { v: 1, fish: [], decor: [], plants: [], night: fal
 
 /** Anything unreadable, from an older version or another app, is simply ignored. */
 export function readSave(raw: string | null): TankSave | null {
-  if (!raw) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    const save = parsed as Partial<TankSave>;
-    if (save.v !== 1) return null;
-    const fractions = (list: unknown): number[] =>
-      Array.isArray(list) ? list.filter((n): n is number => typeof n === 'number' && n >= 0 && n <= 1) : [];
-    const fish = Array.isArray(save.fish)
-      ? save.fish.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
-      : [];
-    return {
-      v: 1,
-      fish: trimStock(fish),
-      decor: fractions(save.decor),
-      plants: fractions(save.plants),
-      night: save.night === true,
-    };
-  } catch {
-    return null;
-  }
+  // A save with no `v` is the oldest shape (version 0) and has the same fields.
+  return parseVersioned<TankSave>(raw, {
+    current: 1,
+    validate(save) {
+      if (!Array.isArray(save.fish)) return null; // nothing recognisable: not one of ours
+      const fractions = (list: unknown): number[] =>
+        Array.isArray(list) ? list.filter((n): n is number => typeof n === 'number' && n >= 0 && n <= 1) : [];
+      const fish = Array.isArray(save.fish)
+        ? save.fish.filter((id): id is string => typeof id === 'string' && speciesById(id) !== undefined)
+        : [];
+      return {
+        v: 1,
+        fish: trimStock(fish),
+        decor: fractions(save.decor),
+        plants: fractions(save.plants),
+        night: save.night === true,
+      };
+    },
+  });
 }
 
 export function makeSave(

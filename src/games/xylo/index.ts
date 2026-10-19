@@ -17,6 +17,7 @@ import {
   serializeRec,
   type RecEvent,
 } from './logic';
+import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 
 const NOTE_GLYPHS = ['🎵', '🎶'] as const;
@@ -28,20 +29,13 @@ const REPLAY_TAIL_MS = 600;
 const REC_KEY = 'be-choi:xylo-rec';
 
 function loadRec(): RecEvent[] {
-  try {
-    const raw = localStorage.getItem(REC_KEY);
-    return raw ? (parseRec(raw) ?? []) : [];
-  } catch {
-    return [];
-  }
+  const raw = readRaw(REC_KEY);
+  return raw ? (parseRec(raw) ?? []) : [];
 }
 
 function saveRec(events: readonly RecEvent[]): void {
-  try {
-    localStorage.setItem(REC_KEY, serializeRec(events));
-  } catch {
-    /* private browsing or full: the recording still replays this session */
-  }
+  // Blocked or full storage: the recording still replays this session.
+  writeRaw(REC_KEY, serializeRec(events));
 }
 
 /**

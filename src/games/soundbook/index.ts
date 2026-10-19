@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { PAGES, pageDone, scatter, type Page, type Thing } from './logic';
 import { SOUND_IDS, soundUrl } from './sounds';
+import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 
 const SAVE_KEY = 'be-choi:soundbook-page';
@@ -13,19 +14,11 @@ const NAME_AFTER_MS = 150;
 const SILENT_MS = 900;
 
 function loadPage(): string | null {
-  try {
-    return localStorage.getItem(SAVE_KEY);
-  } catch {
-    return null;
-  }
+  return readRaw(SAVE_KEY);
 }
 
 function savePage(id: string): void {
-  try {
-    localStorage.setItem(SAVE_KEY, id);
-  } catch {
-    /* private mode: the book opens on the first page next time */
-  }
+  writeRaw(SAVE_KEY, id);
 }
 
 /**

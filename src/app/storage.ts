@@ -1,3 +1,5 @@
+import { readRaw, writeRaw } from '../core/save';
+
 export type Theme = 'auto' | 'light' | 'dark';
 
 export interface Settings {
@@ -55,7 +57,7 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
 
   function load(): State {
     try {
-      const raw = storage?.getItem(KEY);
+      const raw = readRaw(KEY, storage);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<State>;
         return {
@@ -72,11 +74,8 @@ export function createStore(storage: Storage | null = typeof localStorage !== 'u
   }
 
   function save(): void {
-    try {
-      storage?.setItem(KEY, JSON.stringify(state));
-    } catch {
-      /* quota or blocked: keep in-memory */
-    }
+    // Quota or blocked: keep in-memory.
+    writeRaw(KEY, JSON.stringify(state), storage);
   }
 
   return {
