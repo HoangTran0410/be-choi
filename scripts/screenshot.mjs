@@ -55,6 +55,8 @@ const GAMES = [
   'sing',
   'parrot',
   'birdsong',
+  'firefly',
+  'feelings',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
