@@ -1,0 +1,92 @@
+.feel-board {
+  --feel-size: clamp(calc(var(--emoji) * 2), 42vmin, calc(var(--emoji) * 3.4));
+}
+.feel-friend {
+  position: relative;
+  width: var(--feel-size);
+  height: var(--feel-size);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fef3c7;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.1);
+  transition: background 0.4s;
+}
+.feel-friend[data-mood='sad'] {
+  background: #dbeafe;
+}
+.feel-friend[data-mood='angry'] {
+  background: #fecaca;
+}
+.feel-friend[data-mood='surprised'] {
+  background: #e9d5ff;
+}
+.feel-friend[data-mood='sleepy'] {
+  background: #e0e7ff;
+}
+.feel-face {
+  font-size: calc(var(--feel-size) * 0.72);
+  line-height: 1;
+  pointer-events: none;
+}
+.feel-float {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0;
+  animation: feel-rise 1.4s ease-out var(--delay, 0ms) forwards;
+}
+@keyframes feel-rise {
+  0% {
+    opacity: 0;
+    transform: translate(calc(var(--dx, 0px) - 50%), 0) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dx, 0px) - 50%), calc(var(--tap) * -1.6)) scale(1.1);
+  }
+}
+
+.feel-tray {
+  gap: 2vmin;
+}
+.feel-btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 1vmin 2vmin;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.5vmin;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 5px 0 var(--btn-shadow);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.feel-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--btn-shadow);
+}
+.feel-btn-icon {
+  font-size: calc(var(--tap) * 0.55);
+  line-height: 1;
+}
+.feel-btn-label {
+  font-size: clamp(13px, 2.4vmin, 20px);
+  font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feel-float {
+    animation-duration: 0.01s;
+  }
+}
