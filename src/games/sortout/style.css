@@ -1,0 +1,61 @@
+.sortout-tray {
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 1.5vmin 3vmin;
+}
+/* Narrow portrait phone: 6 items wrap onto two rows, so give the tray room. */
+@media (max-width: 600px) and (orientation: portrait) {
+  .sortout-board {
+    bottom: calc(var(--tap) * 2.6);
+  }
+  .sortout-tray {
+    min-height: calc(var(--tap) * 2.6);
+  }
+}
+.sortout-bin {
+  width: calc(var(--tap) * 2);
+  min-height: calc(var(--tap) * 2.2);
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5vmin;
+  padding: 1.5vmin;
+  background: rgba(255, 255, 255, 0.5);
+  border: 4px dashed rgba(59, 47, 47, 0.25);
+  cursor: pointer;
+}
+.sortout-bin-icon {
+  font-size: calc(var(--tap) * 0.8);
+  line-height: 1;
+  pointer-events: none;
+}
+.sortout-bin-name {
+  font-size: calc(var(--tap) * 0.24);
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+.sortout-contents {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5vmin;
+  pointer-events: none;
+}
+.sortout-piece {
+  cursor: grab;
+}
+.sortout-piece.selected {
+  outline: 4px solid var(--c-orange, #f97316);
+  outline-offset: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+.sortout-piece.placed {
+  pointer-events: none;
+  width: calc(var(--tap) * 0.6);
+  height: calc(var(--tap) * 0.6);
+  font-size: calc(var(--tap) * 0.45);
+}
