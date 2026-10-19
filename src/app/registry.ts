@@ -42,6 +42,10 @@ import { meta as bedtime } from '../games/bedtime/meta';
 import { meta as firefly } from '../games/firefly/meta';
 import { meta as letters } from '../games/letters/meta';
 import { meta as trace } from '../games/trace/meta';
+import { meta as sortout } from '../games/sortout/meta';
+import { meta as feelings } from '../games/feelings/meta';
+import { meta as dressup } from '../games/dressup/meta';
+import { meta as mask } from '../games/mask/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -93,6 +97,10 @@ export const GAMES: readonly GameEntry[] = [
   { ...firefly, load: () => import('../games/firefly/index') },
   { ...letters, load: () => import('../games/letters/index') },
   { ...trace, load: () => import('../games/trace/index') },
+  { ...sortout, load: () => import('../games/sortout/index') },
+  { ...feelings, load: () => import('../games/feelings/index') },
+  { ...dressup, load: () => import('../games/dressup/index') },
+  { ...mask, load: () => import('../games/mask/index') },
 ];
 
 export function findGame(id: string): GameEntry | undefined {

@@ -65,6 +65,14 @@ describe('parent panel: the sticker announcement', () => {
     expect(d.store.stickers()).toEqual(['🐣']);
   });
 
+  it('has a switch for the daily suggestions, on by default', () => {
+    const d = deps();
+    openParentPanel(d);
+    expect(d.store.settings().todayPick).toBe(true);
+    btn('Hôm nay chơi gì').dispatchEvent(new Event('pointerup'));
+    expect(d.store.settings().todayPick).toBe(false);
+  });
+
   it('has its own switch for the confetti, which fires far more often', () => {
     const d = deps();
     openParentPanel(d);

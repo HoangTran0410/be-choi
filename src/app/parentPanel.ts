@@ -320,6 +320,12 @@ export function openParentPanel(deps: AppDeps): void {
       store.setSettings({ confetti: v });
     }),
     settings.confetti ? null : h('p', { class: 'panel-note' }, 'Bé thắng vẫn có nhạc và lời khen, chỉ bỏ đám giấy màu bay đầy màn hình.'),
+    toggle('✨ Hôm nay chơi gì', settings.todayPick, (v) => {
+      store.setSettings({ todayPick: v });
+      // Home listens for this to redraw itself.
+      window.dispatchEvent(new Event(STARS_CHANGED));
+    }),
+    settings.todayPick ? null : h('p', { class: 'panel-note' }, 'Màn hình chính không còn hàng 3 game gợi ý mỗi ngày.'),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     installRow,
     ageRow,

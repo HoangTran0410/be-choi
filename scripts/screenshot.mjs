@@ -58,6 +58,10 @@ const GAMES = [
   'firefly',
   'letters',
   'trace',
+  'sortout',
+  'feelings',
+  'dressup',
+  'mask',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
