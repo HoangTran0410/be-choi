@@ -134,3 +134,45 @@
   font-size: clamp(16px, 3.5vmin, 24px);
   letter-spacing: 0;
 }
+
+/* Section headings lead with a big picture: a child who cannot read yet still finds "music". */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 2vmin;
+}
+.section-icon {
+  font-size: clamp(32px, 7vmin, 56px);
+  line-height: 1;
+}
+.section-name {
+  font-size: clamp(14px, 3vmin, 22px);
+  opacity: 0.85;
+}
+
+/* "Chơi tiếp": the last game, wide and easy to hit. */
+.section-resume .grid,
+.section-album .grid {
+  grid-template-columns: 1fr;
+}
+.tile-resume {
+  aspect-ratio: auto;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 4vmin;
+  padding: 2vmin 5vmin;
+  min-height: calc(var(--tap) * 1.3);
+}
+.tile-resume .tile-icon {
+  font-size: clamp(48px, 12vmin, 88px);
+}
+.resume-text {
+  display: flex;
+  align-items: center;
+  gap: 3vmin;
+  margin-left: auto;
+}
+.resume-play {
+  font-size: clamp(36px, 8vmin, 64px);
+  line-height: 1;
+}

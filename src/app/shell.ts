@@ -10,6 +10,8 @@ import { maybeUnlockSticker, showStickerReveal } from './rewards';
 import type { GameEntry } from './registry';
 import { hrefFor } from './router';
 import { applyTheme } from './theme';
+import { watchBreaks } from './breakTimer';
+import { buzz } from './haptics';
 import '../styles/shell.css';
 
 const PARENT_HOLD_MS = 1500;
@@ -33,6 +35,7 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
       'aria-label': 'Về trang chính',
       onClick: () => {
         audio.tick();
+        buzz();
         location.hash = hrefFor({ name: 'home' });
       },
     },
@@ -89,6 +92,9 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
     photos: deps.photos,
     stickers: () => store.stickers(),
   };
+
+  store.setLastPlayed(entry.id);
+  cleanups.push(watchBreaks(deps, shell));
 
   audio.tick();
   speech.speak(entry.intro);
