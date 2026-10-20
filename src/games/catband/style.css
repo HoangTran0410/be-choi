@@ -2,12 +2,14 @@
  * Dàn mèo hát: a bar of three band buttons on top, a strip with the cat's name or
  * the song's progress, eight cats on a shelf (2 × 4 upright, 1 × 8 sideways), a bar
  * of three mode buttons below. Everything is sized in fractions of the stage, every
- * button is at least 72 px each way, and the page never scrolls (only the song list
+ * button is at least 56 px each way, the cats are laid out from the size of their own shelf (.cb-mid), and the page never scrolls (only the song list
  * does, inside itself).
  */
 .catband {
   --cb-gap: 1.6vmin;
   --cb-beat: 536ms;
+  /* Button height: 76 px when the screen is tall, 56 px when it is short; never less. */
+  --cb-btn-h: clamp(56px, 11.5dvh, 76px);
   position: absolute;
   inset: 0;
   display: flex;
@@ -30,14 +32,14 @@
 }
 .cb-btn {
   flex: 1 1 0;
-  min-width: 72px;
-  min-height: 76px;
+  min-width: 56px;
+  min-height: var(--cb-btn-h);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 4px 6px;
+  padding: 4px 2px;
   border: 0;
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.78);
@@ -62,12 +64,12 @@
     0 3px 8px rgba(120, 40, 100, 0.2);
 }
 .cb-emoji {
-  font-size: clamp(26px, 6.5vmin, 44px);
+  font-size: clamp(24px, 6.5vmin, 44px);
   line-height: 1;
   pointer-events: none;
 }
 .cb-label {
-  font-size: clamp(13px, 3.2vmin, 19px);
+  font-size: clamp(12px, 3.2vmin, 19px);
   font-weight: 700;
   line-height: 1.1;
   text-align: center;
@@ -111,22 +113,47 @@
 }
 
 /* --------------------------------------------------------------- stage */
-.cb-stage {
+/*
+ * The shelf lives in .cb-mid, which measures itself. Eight cats, the smallest (highest)
+ * on top like a staircase:
+ *   - the default, for any phone or a split view: four across, two rows (a cat is never
+ *     narrower than a quarter of the shelf, so none is clipped and each is a big target);
+ *   - a tall, wide-enough shelf (iPad upright): two across, four rows;
+ *   - a very wide, short shelf (a big screen sideways): all eight in one row.
+ * The song picker covers the same box.
+ */
+.cb-mid {
+  position: relative;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  container-type: size;
+  container-name: cbmid;
+}
+.cb-stage {
+  position: absolute;
+  inset: 0;
   display: grid;
-  /* Upright: two cats a row, four rows, the smallest (highest) cats on top like a staircase. */
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: var(--cb-gap);
 }
 .cb-cell {
-  grid-row: calc(4 - var(--row, 0));
+  grid-row: calc(2 - var(--row4, 0));
 }
-@media (min-aspect-ratio: 1/1) {
+@container cbmid (min-width: 420px) and (max-aspect-ratio: 9/10) {
   .cb-stage {
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+  }
+  .cb-cell {
+    grid-row: calc(4 - var(--row, 0));
+  }
+}
+@container cbmid (min-width: 760px) and (min-aspect-ratio: 5/2) {
+  .cb-stage {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
   }
   .cb-cell {
     grid-row: 1;
@@ -136,7 +163,7 @@
 .cb-cell {
   position: relative;
   min-width: 0;
-  min-height: 72px;
+  min-height: 56px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -173,6 +200,7 @@
   margin-bottom: 7%;
   transform-origin: 50% 100%;
   pointer-events: none;
+  isolation: isolate;
 }
 @supports (width: 1cqw) {
   .cb-cat {
@@ -184,7 +212,18 @@
   width: 100%;
   height: 100%;
   overflow: visible;
-  filter: drop-shadow(0 3px 2px rgba(80, 20, 60, 0.2));
+  /* No drop-shadow filter: the cats sway and hop, and a filter would be redrawn every frame. */
+}
+.cb-cat::after {
+  content: '';
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: -2%;
+  height: 7%;
+  z-index: -1;
+  border-radius: 50%;
+  background: rgba(80, 20, 60, 0.2);
 }
 .cb-dot {
   position: relative;
@@ -221,7 +260,25 @@
 .cb-hop {
   animation: cb-hop 0.38s ease-out;
 }
+.cb-hop-b {
+  animation: cb-hop-b 0.38s ease-out;
+}
 @keyframes cb-hop {
+  0% {
+    transform: scale(1, 1);
+  }
+  25% {
+    transform: translateY(-9%) scale(0.94, 1.1);
+  }
+  55% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+/* The same hop under another name, so a cat can hop again before the last hop is over. */
+@keyframes cb-hop-b {
   0% {
     transform: scale(1, 1);
   }
@@ -354,11 +411,7 @@
 /* ---------------------------------------------------------- song picker */
 .cb-picker {
   position: absolute;
-  left: var(--cb-gap);
-  right: var(--cb-gap);
-  /* Below the caption strip, above the mode bar. */
-  top: calc(var(--cb-gap) * 2 + 76px + 40px);
-  bottom: calc(var(--cb-gap) * 2 + 76px);
+  inset: 0;
   display: flex;
   flex-direction: column;
   gap: var(--cb-gap);
@@ -392,20 +445,15 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: minmax(80px, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 128px), 1fr));
+  grid-auto-rows: minmax(64px, auto);
   gap: var(--cb-gap);
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
-@media (min-aspect-ratio: 1/1) {
-  .cb-songs {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
 .cb-song {
-  min-height: 80px;
+  min-height: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -446,17 +494,18 @@
 }
 
 /*
- * Sideways, the two button bars share one row under the cats (4 + 3 buttons), so
- * the cats keep the height. The strip and the buttons shrink; no button goes under 72 px.
+ * Sideways, the two button bars share one row under the cats (4 + 3 or 4 buttons), so
+ * the cats keep the height. The columns follow the number of buttons (--cb-modes), so
+ * every button gets the same width, never under 56 px.
  */
 @media (min-aspect-ratio: 1/1) {
   .catband {
     display: grid;
-    grid-template-columns: 4fr 3fr;
+    grid-template-columns: minmax(0, 4fr) minmax(0, calc(var(--cb-modes, 3) * 1fr));
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
       'caption caption'
-      'stage stage'
+      'mid mid'
       'styles modes';
   }
   .cb-caption {
@@ -466,8 +515,8 @@
   .cb-caption-text {
     padding: 3px 12px;
   }
-  .cb-stage {
-    grid-area: stage;
+  .cb-mid {
+    grid-area: mid;
   }
   .cb-styles {
     grid-area: styles;
@@ -476,26 +525,10 @@
     grid-area: modes;
   }
   .cb-btn {
-    min-height: 72px;
-    padding: 2px 4px;
+    padding: 2px 1px;
   }
   .cb-emoji {
-    font-size: clamp(24px, 6vh, 36px);
-  }
-  .cb-picker {
-    top: calc(var(--cb-gap) * 2 + 36px);
-    bottom: calc(var(--cb-gap) * 2 + 72px);
-  }
-}
-
-/* A big sideways screen (tablet): two rows of four, the high cats on top, so they are not tiny. */
-@media (min-aspect-ratio: 1/1) and (min-width: 700px) and (min-height: 600px) {
-  .cb-stage {
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-  }
-  .cb-cell {
-    grid-row: calc(2 - var(--row4, 0));
+    font-size: clamp(22px, 6vh, 36px);
   }
 }
 .cb-stop.cb-on {

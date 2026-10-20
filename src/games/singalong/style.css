@@ -2,11 +2,14 @@
  * Hát cùng bé. One concert hall: backdrop and lights behind, then (portrait) the
  * mode buttons, a panel for the mode, the singer and the crowd; (landscape) the
  * mode buttons on the left, the panel in the middle, the singer on the right and the
- * crowd along the bottom. Every button is at least --tap (72px) square.
+ * crowd along the bottom. Every button is at least --tap-min square: 72px, and 56px on a
+ * short sideways screen or a very narrow one, where nothing else fits. The crowd sizes its
+ * fans from its own width, so five animals and three photos always stand in view.
  */
 .sa {
+  --tap-min: 72px;
+  --tap: clamp(var(--tap-min), 14vmin, 140px);
   --sg: clamp(110px, 20vmin, 190px);
-  --fan: clamp(72px, 11vmin, 104px);
   --sa-level: 0;
   position: absolute;
   inset: 0;
@@ -108,7 +111,8 @@
   border-radius: 50%;
   background: var(--lc);
   opacity: calc(0.3 + var(--sa-level) * 0.7);
-  box-shadow: 0 0 calc(2vmin + var(--sa-level) * 8vmin) var(--lc);
+  /* A fixed glow, brightened through opacity: a blur radius that changes with the voice is redrawn every frame. */
+  box-shadow: 0 0 6vmin var(--lc);
   transition: opacity 0.12s linear;
 }
 .sa-back[data-lights='rainbow'] .sa-light {
@@ -159,8 +163,8 @@
 .sa-mode {
   width: var(--tap);
   height: var(--tap);
-  min-width: 72px;
-  min-height: 72px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -322,6 +326,7 @@
 /* ---- the crowd ---- */
 .sa-crowd {
   grid-area: crowd;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -329,10 +334,13 @@
 }
 .sa-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   min-height: 0;
 }
 .sa-fan {
+  /* Five animals in a row (portrait) or all eight in one (sideways) fit the crowd's own width. */
+  --fan: clamp(56px, min(11vmin, 18cqw), 104px);
   width: var(--fan);
   height: var(--fan);
   flex: none;
@@ -637,8 +645,8 @@
   position: relative;
   width: var(--tap);
   height: var(--tap);
-  min-width: 72px;
-  min-height: 72px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -821,8 +829,8 @@
 .sa-fx-btn {
   width: var(--tap);
   height: var(--tap);
-  min-width: 72px;
-  min-height: 72px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -982,8 +990,8 @@
   position: relative;
   width: var(--tap);
   height: var(--tap);
-  min-width: 72px;
-  min-height: 72px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
   display: grid;
   place-items: center;
   border-radius: var(--radius);
@@ -1057,7 +1065,7 @@
     grid-auto-rows: var(--tap);
   }
   .sa-mode {
-    min-width: 72px;
+    min-width: var(--tap-min);
   }
   .sa-singer-row {
     display: grid;
@@ -1079,10 +1087,14 @@
   }
   .sa-crowd {
     flex-direction: row;
+    flex-wrap: wrap;
     justify-content: center;
   }
   .sa-row {
     display: contents;
+  }
+  .sa-fan {
+    --fan: clamp(56px, min(11vmin, 11.5cqw), 104px);
   }
   .sa-lights {
     top: 0.4vmin;
@@ -1114,5 +1126,12 @@
   }
   .sa-lyric-emoji {
     font-size: calc(var(--emoji) * 0.85);
+  }
+}
+
+/* A short sideways screen, or a very narrow one: the buttons give up 16px each so the words get room. */
+@media (orientation: landscape) and (max-height: 430px), (max-width: 359px) {
+  .sa {
+    --tap-min: 56px;
   }
 }

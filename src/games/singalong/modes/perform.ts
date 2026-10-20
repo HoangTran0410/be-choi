@@ -144,7 +144,7 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
     now.hidden = false;
     nowIcon.textContent = song.icon;
     nowTitle.textContent = song.title;
-    env.say(`${song.title}. Cả dàn nhạc cùng chơi nào!`);
+    env.say(`${song.title}. Cả dàn nhạc cùng chơi nào!`, { speak: true });
     [3, 2, 1].forEach((n) => {
       const at = INTRO_MS - n * beatMs;
       if (at > 800) timers.after(at, () => env.ctx.audio.tick());
@@ -170,7 +170,7 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
     enter() {
       choose(effect, false);
       showPicker();
-      env.say('Chọn ánh sáng và một bài hát. Cả dàn thú sẽ chơi nhạc cho bé biểu diễn.');
+      env.say('Chọn ánh sáng và một bài hát. Cả dàn thú sẽ chơi nhạc cho bé biểu diễn.', { speak: true });
     },
     leave() {
       abort();
@@ -181,7 +181,10 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
       if (playing && tracker) tracker.feed({ active: f.active, onset: f.onset, band: f.band }, FRAME_MS);
     },
     nudge() {
-      if (phase === 'pick') replay(fxRow, 'anim-wiggle');
+      if (phase === 'pick') {
+        replay(fxRow, 'anim-wiggle');
+        env.say('Bé chọn một bài hát nhé.', { speak: true });
+      }
     },
   };
 }

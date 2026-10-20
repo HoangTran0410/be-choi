@@ -229,15 +229,29 @@ describe('catband game', () => {
     }
     down(mode(ctx, 'song'));
     down(songBtn(ctx, 'twinkle'));
-    vi.advanceTimersByTime(40_000); // long enough for the idle nudge
+    vi.advanceTimersByTime(4000); // under the idle time: the child is still busy
     down(mode(ctx, 'free'));
     down(mode(ctx, 'scale'));
-    vi.advanceTimersByTime(10_000);
+    vi.advanceTimersByTime(5000);
     expect(ctx.sequenced).toEqual([]);
     ctx.cleanup();
   });
 
-  it('says one short welcome the first time, and nothing when a child who has played comes back', () => {
+  it('reminds a child who sits still, a few words at a time, and only then', () => {
+    const { ctx } = setup();
+    vi.advanceTimersByTime(3000);
+    ctx.sequenced.length = 0;
+    vi.advanceTimersByTime(30_000); // nobody touched a cat
+    expect(ctx.sequenced.length).toBeGreaterThanOrEqual(1);
+    expect(ctx.sequenced.every((t) => t.length < 40)).toBe(true);
+    ctx.sequenced.length = 0;
+    down(cell(ctx, 0));
+    vi.advanceTimersByTime(1000);
+    expect(ctx.sequenced).toEqual([]); // a touch is not answered with words
+    ctx.cleanup();
+  });
+
+  it('welcomes every visit with one short line, a longer one for a child who has played', () => {
     const first = setup();
     vi.advanceTimersByTime(2000);
     expect(first.ctx.sequenced).toEqual(['Chạm vào mèo nhé.']);
@@ -245,7 +259,7 @@ describe('catband game', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stars: 1, faces: {} }));
     const back = setup();
     vi.advanceTimersByTime(2000);
-    expect(back.ctx.sequenced).toEqual([]);
+    expect(back.ctx.sequenced).toEqual(['Chào bé!', 'Chạm vào mèo để mèo hát nhé.']);
     back.ctx.cleanup();
   });
 

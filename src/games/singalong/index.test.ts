@@ -86,28 +86,41 @@ describe('the hall', () => {
     expect(all(ctx, '.sa-animal').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('keeps the shell’s introduction free of our own voice', async () => {
+  it('greets the child on opening and says what to do (the voice gate holds it until the shell’s title is done)', async () => {
     game.start(ctx);
     await settle(50);
-    expect(ctx.sequenced).toEqual([]);
-    expect(ctx.spoken).toEqual([]);
+    expect(ctx.sequenced).toContain('Chọn một bài hát nhé.');
   });
 
-  it('does not talk over the music: taps, songs and mode changes are silent (text only)', async () => {
+  it('does not talk over the music: a tap on the singer is silent, and so is the song once it is under way', async () => {
     game.start(ctx);
     await settle(4000); // past the shell’s introduction window
-    ctx.sequenced.length = 0;
-    ctx.spoken.length = 0;
     for (const id of ['bird', 'perform', 'echo', 'song']) {
       await tap(mode(id));
       await settle(300);
+      ctx.sequenced.length = 0;
+      ctx.spoken.length = 0;
       await tap(q(ctx, '.sa-singer'));
+      expect(ctx.sequenced).toEqual([]);
+      expect(ctx.spoken).toEqual([]);
     }
     await tap(q(ctx, `.sa-song[data-song="${SINGABLE[0]!.id}"]`));
-    await vi.advanceTimersByTimeAsync(8000); // the song is under way: the title, the count-in and the first words
+    await vi.advanceTimersByTimeAsync(300);
+    expect(ctx.sequenced).toContain('Mình cùng hát nhé!'); // the title and the invitation, once
+    ctx.sequenced.length = 0;
+    ctx.spoken.length = 0;
+    await vi.advanceTimersByTimeAsync(7000); // the count-in and the first words
     expect(ctx.sequenced).toEqual([]);
     expect(ctx.spoken).toEqual([]);
     expect(q(ctx, '.sa-bubble').textContent).toContain(SINGABLE[0]!.title);
+  });
+
+  it('reminds a child who sits still on the song shelf, once in a while', async () => {
+    game.start(ctx);
+    await settle(4000);
+    ctx.sequenced.length = 0;
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(ctx.sequenced).toContain('Bé chạm vào một bài hát nhé.');
   });
 
   it('moves between the four modes in any order', async () => {
