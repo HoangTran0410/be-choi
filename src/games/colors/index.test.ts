@@ -16,7 +16,15 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, {
+    clientX: x,
+    clientY: y,
+    pointerId: 1,
+    button: 0,
+    buttons: type === 'pointerup' ? 0 : 1,
+    isPrimary: true,
+    bubbles: true,
+  });
 }
 
 /** jsdom has no layout: give basket `i` the rect x ∈ [i·200, i·200+100], y ∈ [0, 100]. */
@@ -70,18 +78,22 @@ describe('colors game', () => {
     const right = ctx.stage.querySelector<HTMLElement>(`.colors-ball[data-color="${color}"]`)!;
     const wrong = ctx.stage.querySelector<HTMLElement>(`.colors-ball:not([data-color="${color}"])`)!;
 
+    const greeting = [...ctx.spoken];
+    expect(greeting.length).toBe(1);
+
     drop(wrong, 50, 50);
     expect(wrong.classList.contains('placed')).toBe(false);
-    expect(wrong.classList.contains('spring-back')).toBe(true);
+    expect(wrong.classList.contains('is-carried')).toBe(false);
     expect(wrong.parentElement?.classList.contains('colors-tray')).toBe(true);
-    expect(ctx.spoken).toEqual([]);
+    expect(ctx.spoken).toEqual(greeting);
 
     drop(right, 50, 50);
     expect(right.classList.contains('placed')).toBe(true);
-    expect(right.style.transform).toBe('');
     expect(first.querySelector('.colors-basket-balls')?.contains(right)).toBe(true);
-    expect(ctx.spoken).toEqual([COLORS.find((c) => c.id === color)?.name]);
+    expect(ctx.spoken).toEqual([...greeting, COLORS.find((c) => c.id === color)?.name]);
+    // The refused ball's ghost is still gliding home; leaving the game clears it.
     ctx.cleanup();
+    expect(document.querySelector('.dd-ghost')).toBeNull();
   });
 
   it('celebrates, awards a star and starts the next round once every ball is sorted', async () => {

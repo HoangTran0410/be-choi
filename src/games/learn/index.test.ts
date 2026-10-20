@@ -16,7 +16,7 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 const ptr = (type: string, x = 0, y = 0) =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true, cancelable: true });
+  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true, bubbles: true, cancelable: true });
 
 function tap(el: Element): void {
   el.dispatchEvent(ptr('pointerdown'));

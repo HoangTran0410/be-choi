@@ -49,3 +49,10 @@
     min-height: calc(var(--tap) * 2.6);
   }
 }
+/* The ball being carried stays in the tray as a faint mark; the ghost follows the finger. */
+.colors-ball.is-carried {
+  opacity: 0.3;
+}
+.colors-basket.is-hover {
+  transform: scale(1.08);
+}

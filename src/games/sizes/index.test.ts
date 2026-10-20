@@ -15,7 +15,15 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, {
+    clientX: x,
+    clientY: y,
+    pointerId: 1,
+    button: 0,
+    buttons: type === 'pointerup' ? 0 : 1,
+    isPrimary: true,
+    bubbles: true,
+  });
 }
 
 /** Press at (0,0), drag to (x,y), release. */
@@ -63,7 +71,7 @@ describe('sizes game', () => {
     drop(smallPiece, 50, 50); // into the big box: wrong
     expect(boing).toHaveBeenCalledTimes(1);
     expect(smallPiece.classList.contains('placed')).toBe(false);
-    expect(smallPiece.classList.contains('spring-back')).toBe(true);
+    expect(smallPiece.classList.contains('is-carried')).toBe(false);
     expect(ding).not.toHaveBeenCalled();
 
     for (const el of ctx.stage.querySelectorAll<HTMLElement>('.sizes-piece-big')) drop(el, 50, 50);

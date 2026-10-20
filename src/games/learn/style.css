@@ -749,8 +749,12 @@
   will-change: transform;
   user-select: none;
 }
-.lq-item.dragging {
-  z-index: 10;
+.lq-item.is-carried {
+  opacity: 0.3;
+}
+.lq-bin.is-hover {
+  border-style: solid;
+  background: #fff;
 }
 
 /* the prize at the end of a station */
