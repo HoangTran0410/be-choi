@@ -6,6 +6,7 @@
 import { LOUDNESS } from './loudness';
 import { SFX_TAKES, sfxUrl } from './sfx';
 import { VOICE_HZ } from './voicepitch';
+import { renderCatNote } from './catvoice';
 import { INSTRUMENT_IDS, INSTRUMENT_REF, renderInstrument, type InstrumentId } from './instruments';
 
 export type { InstrumentId };
@@ -144,11 +145,11 @@ export interface AudioEngine {
   /** Sound effect / animal voice. */
   fx(kind: FxKind): void;
   /**
-   * A recorded voice retuned to sing at `hz` (a recorded take played faster or
-   * slower, see src/core/voicepitch.ts), so a cat can meow a note of a tune. Falls
-   * back to a synthesized voice at that pitch while the recording has not loaded
-   * or when the voice has no measured pitch (any voice but the meow then plays untuned). `gain` scales the level (default 1);
-   * `maxDur` caps the length in seconds (a low meow is stretched, default 1.1).
+   * A voice singing the note `hz`. The meow is a cat voice built to hold one steady
+   * pitch (src/core/catvoice.ts), so a tune can be heard in the cats. Any other voice
+   * with a measured pitch (src/core/voicepitch.ts) is a recorded take retuned by playing
+   * it faster or slower, and plays untuned when it has none. `gain` scales the level
+   * (default 1); `maxDur` caps the length in seconds.
    */
   pitched(kind: FxKind, hz: number, opts?: { gain?: number; maxDur?: number }): void;
   /** Resolves once the voices requested so far are decoded (or known to be missing). */
@@ -1089,35 +1090,46 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  /** A synthesized "mee-ow" sung at `hz`: the stand-in for a retuned recording. */
-  function synthMeowAt(hz: number, gain: number): void {
-    at('fx:meow', () => {
-      const f = Math.max(80, hz);
-      const g = 0.22 * gain;
-      const vib = { hz: 6, depth: f * 0.02 };
-      tone('sawtooth', f * 0.9, 0.28, {
-        gain: g,
-        attack: 0.04,
-        slideTo: f * 1.1,
-        filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 },
-        vibrato: vib,
-      });
-      tone('sawtooth', f * 1.1, 0.4, {
-        gain: g,
-        attack: 0.01,
-        at: 0.28,
-        slideTo: f * 0.8,
-        filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 },
-        vibrato: vib,
-      });
-      tone('sine', f * 0.9, 0.28, { gain: 0.12 * gain, attack: 0.04, slideTo: f * 1.1 });
-      tone('sine', f * 1.1, 0.4, { gain: 0.12 * gain, attack: 0.01, at: 0.28, slideTo: f * 0.8 });
-    });
+  /** Sung cat notes already rendered, by pitch and length (a handful of notes in a tune, so a small cache). */
+  const sung = new Map<string, AudioBuffer>();
+  const SUNG_KEPT = 48;
+
+  /**
+   * A cat singing ONE steady note (see catvoice.ts). Not a retuned recording: a real
+   * meow glides by a couple of semitones, so shifting it gives no note to hear.
+   */
+  function singCat(hz: number, gain: number, dur: number): void {
+    const c = getCtx();
+    if (!c || !master) return;
+    try {
+      const key = `${Math.round(hz * 10)}|${dur.toFixed(2)}`;
+      let buf = sung.get(key);
+      if (buf) sung.delete(key);
+      else {
+        const data = renderCatNote(hz, { sampleRate: c.sampleRate, dur });
+        buf = c.createBuffer(1, data.length, c.sampleRate);
+        buf.getChannelData(0).set(data);
+      }
+      sung.set(key, buf);
+      while (sung.size > SUNG_KEPT) sung.delete(sung.keys().next().value as string);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = LOUDNESS.sample * gain;
+      src.connect(g).connect(master);
+      src.start(c.currentTime);
+    } catch {
+      /* closed context: stay silent */
+    }
   }
 
   function pitched(kind: FxKind, hz: number, opts: { gain?: number; maxDur?: number } = {}): void {
     const gain = opts.gain ?? 1;
     const maxDur = opts.maxDur ?? 1.1;
+    if (kind === 'meow') {
+      if (hz > 0 && Number.isFinite(hz)) singCat(hz, gain, Math.min(maxDur, 0.7));
+      return;
+    }
     const list = takes.get(kind)?.filter((b) => takeHz.has(b)) ?? [];
     const c = getCtx();
     if (!c || !master || !(hz > 0)) return;
@@ -1125,9 +1137,8 @@ export function createAudio(): AudioEngine {
     const base = buf ? takeHz.get(buf) : undefined;
     if (!buf || !base) {
       void loadVoice(kind);
-      // A meow can be sung from scratch; any other voice cannot be retuned, so it just plays.
-      if (kind === 'meow') synthMeowAt(hz, gain);
-      else fx(kind);
+      // A voice that cannot be retuned just plays.
+      fx(kind);
       return;
     }
     try {

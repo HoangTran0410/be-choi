@@ -13,8 +13,11 @@ export interface Env {
   stage: Stage;
   audience: Audience;
   progress: ProgressStore;
-  /** Say it slowly, and show it in the speech bubble. */
-  say(text: string, opts?: { quiet?: boolean }): void;
+  /**
+   * Show a line in the speech bubble. It is NOT spoken unless `speak` is set, and only the
+   * big moments do that: the game is for listening and singing, not for being talked over.
+   */
+  say(text: string, opts?: { quiet?: boolean; speak?: boolean }): void;
   /** A fresh set of timers, dropped when the game ends. The mode clears it in `leave`. */
   timers(): Timers;
   /**

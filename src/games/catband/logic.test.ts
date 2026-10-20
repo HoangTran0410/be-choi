@@ -18,7 +18,6 @@ import {
   bestChord,
   buildFinale,
   catHz,
-  catLine,
   catScale,
   catSize,
   chordCats,
@@ -403,25 +402,42 @@ describe('the finale', () => {
   });
 });
 
-describe('what the voice says', () => {
-  const design = designsFor(3)[2]!;
-  it('breaks lines into short sentences ending in full stops', () => {
-    for (let cat = 0; cat < CAT_COUNT; cat++) {
-      for (let round = 0; round < 6; round++) {
-        const line = catLine(cat, designsFor(0)[cat]!, round);
-        expect(line.endsWith('.')).toBe(true);
-        expect(line.split('. ').length).toBeGreaterThanOrEqual(2);
+describe('the names', () => {
+  it('has a number word for every cat (shown as text, never spoken on a tap)', () => {
+    expect(NUMBER_WORDS.length).toBe(CAT_COUNT);
+    for (const d of designsFor(3)) expect(d.say.length).toBeGreaterThan(0);
+  });
+});
+
+describe('tuning: the cats and the band share one A440 scale', () => {
+  const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+  const cents = (a: number, b: number) => Math.abs(1200 * Math.log2(a / b));
+  const fold = (hz: number, ref: number) => {
+    let x = hz;
+    while (x > ref * 1.4142) x /= 2;
+    while (x < ref / 1.4142) x *= 2;
+    return x;
+  };
+
+  it('every cat sits on the equal-tempered note it is named for (C5 D5 E5 F5 G5 A5 B5 C6)', () => {
+    [72, 74, 76, 77, 79, 81, 83, 84].forEach((m, cat) => expect(cents(catHz(cat), midiHz(m))).toBeLessThan(1));
+  });
+
+  it('a cat that sings over a chord is on one of the chord tones, to the cent', () => {
+    for (const name of CHORD_NAMES) {
+      const tones = chordHz(name);
+      for (const cat of chordCats(name)) {
+        const best = Math.min(...tones.map((t) => cents(catHz(cat), fold(t, catHz(cat)))));
+        expect(best, `${name} ${cat}`).toBeLessThan(1);
       }
     }
   });
-  it('says Mèo first, then the colour', () => {
-    expect(catLine(0, { id: 'cam', name: 'Mèo cam', say: 'Mèo cam' }, 0)).toBe('Mèo. Mèo cam.');
-    expect(design.say.length).toBeGreaterThan(0);
-  });
-  it('counts the cats and says big is low, small is high', () => {
-    expect(catLine(2, design, 1)).toContain('Số ba');
-    expect(catLine(0, design, 2)).toContain('Mèo to. Tiếng trầm');
-    expect(catLine(7, design, 2)).toContain('Mèo nhỏ. Tiếng cao');
-    expect(NUMBER_WORDS.length).toBe(CAT_COUNT);
+
+  it('the bass is the chord root, in tune with the cats', () => {
+    for (const name of CHORD_NAMES) {
+      const root = chordTones(name)[0] as number;
+      const pcHz = midiHz(72 + root);
+      expect(cents(fold(bassHz(name), pcHz), pcHz)).toBeLessThan(1);
+    }
   });
 });

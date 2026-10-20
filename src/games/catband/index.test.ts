@@ -128,7 +128,7 @@ describe('catband game', () => {
     down(songBtn(ctx, 'birthday'));
     expect(picker.hidden).toBe(false);
     expect(lit(ctx)).toBe(-1);
-    expect(ctx.sequenced.length).toBeGreaterThan(0);
+    expect(ctx.sequenced).toEqual([]); // choosing a song is silent: the music is the point
     ctx.cleanup();
   });
 
@@ -200,23 +200,53 @@ describe('catband game', () => {
     ctx.cleanup();
   });
 
-  it('counting the cats says the numbers one by one from the biggest cat up', () => {
+  it('counting the cats sings the scale upward and says nothing', () => {
     const { ctx, pitched } = setup();
+    vi.advanceTimersByTime(1000); // past the welcome
+    ctx.sequenced.length = 0;
     down(mode(ctx, 'scale'));
     vi.advanceTimersByTime(8 * 720 + 1500);
     const hz = pitched.mock.calls.map((c) => c[1] as number);
     expect(hz.length).toBe(CAT_COUNT);
     for (let i = 1; i < hz.length; i++) expect(hz[i]!).toBeGreaterThan(hz[i - 1]!);
-    expect(ctx.sequenced.slice(0, 8)).toEqual(['một.', 'hai.', 'ba.', 'bốn.', 'năm.', 'sáu.', 'bảy.', 'tám.']);
-    expect(ctx.sequenced.slice(8)).toEqual(['Mèo nhỏ.', 'Tiếng cao.']);
+    expect(ctx.sequenced).toEqual([]);
     ctx.cleanup();
   });
 
-  it('names the cat in a slow, broken-up line the first time it is touched', () => {
+  it('is silent while the child plays: no name, no number, no style or mode announcement', () => {
     const { ctx } = setup();
-    down(cell(ctx, 1));
-    expect(ctx.sequenced.slice(0, 2)).toEqual(['Mèo.', 'Mèo trắng.']);
+    vi.advanceTimersByTime(3000);
+    ctx.sequenced.length = 0;
+    for (let round = 0; round < 3; round++) {
+      for (let i = 0; i < CAT_COUNT; i++) {
+        down(cell(ctx, i));
+        vi.advanceTimersByTime(700);
+      }
+    }
+    for (const s of STYLES) {
+      down(styleBtn(ctx, s.id));
+      vi.advanceTimersByTime(300);
+    }
+    down(mode(ctx, 'song'));
+    down(songBtn(ctx, 'twinkle'));
+    vi.advanceTimersByTime(40_000); // long enough for the idle nudge
+    down(mode(ctx, 'free'));
+    down(mode(ctx, 'scale'));
+    vi.advanceTimersByTime(10_000);
+    expect(ctx.sequenced).toEqual([]);
     ctx.cleanup();
+  });
+
+  it('says one short welcome the first time, and nothing when a child who has played comes back', () => {
+    const first = setup();
+    vi.advanceTimersByTime(2000);
+    expect(first.ctx.sequenced).toEqual(['Chạm vào mèo nhé.']);
+    first.ctx.cleanup();
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stars: 1, faces: {} }));
+    const back = setup();
+    vi.advanceTimersByTime(2000);
+    expect(back.ctx.sequenced).toEqual([]);
+    back.ctx.cleanup();
   });
 
   it('leaves nothing running when the child leaves', () => {

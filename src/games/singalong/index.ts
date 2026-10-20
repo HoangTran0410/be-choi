@@ -70,7 +70,8 @@ function start(ctx: GameContext): void {
     stage,
     audience,
     progress,
-    say: (text, opts) => narrator.say(text, { quiet: opts?.quiet || Date.now() < hushUntil }),
+    // Text only unless a mode asks for `speak`: nothing is spoken over the music on a tap.
+    say: (text, opts) => narrator.say(text, { quiet: !opts?.speak || opts.quiet === true || Date.now() < hushUntil }),
     timers() {
       const t = createTimers();
       ctx.onCleanup(t.clear);
@@ -210,7 +211,7 @@ function start(ctx: GameContext): void {
       narrator.say('Chưa nghe được micro. Không sao, bé chạm vào ca sĩ để vỗ tay nhé!');
       return;
     }
-    narrator.say('Micro nghe được rồi. Bé hát to lên nào!');
+    narrator.say('Micro nghe được rồi. Bé hát to lên nào!', { quiet: true });
   }
 
   makeTappable(
@@ -239,7 +240,7 @@ function start(ctx: GameContext): void {
         progress,
         photos,
         onChange: refreshLook,
-        onLocked: (need, have) => narrator.say(`Còn ${Math.max(1, need - have)} vé nữa là mở. Bé hát thêm nhé!`),
+        onLocked: (need, have) => narrator.say(`Còn ${Math.max(1, need - have)} vé nữa là mở. Bé hát thêm nhé!`, { quiet: true }),
       });
     },
     { ctx },
