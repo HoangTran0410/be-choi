@@ -92,6 +92,41 @@ describe('build (Xưởng xếp hình)', () => {
     ctx.cleanup();
   });
 
+  it('keeps the brick dock thin: colours fold into a palette, the next brick glows, a tap picks a brick', async () => {
+    const ctx = fakeContext();
+    localStorage.setItem('be-choi:build:progress', JSON.stringify({ v: 1, counts: { puzzle: 0, shadow: 0, build: 0 }, mode: 'build' }));
+    game.start(ctx);
+    await vi.advanceTimersByTimeAsync(500);
+    const q = <T extends Element>(s: string): T => ctx.stage.querySelector<T>(s)!;
+    // The colours live in a palette that is shut until the chip is tapped.
+    const palette = q<HTMLElement>('.bw-bk-palette');
+    expect(palette.hidden).toBe(true);
+    expect(q('.bw-bk-tray').contains(palette)).toBe(false);
+    // The blueprint's next brick is lit in the dock.
+    expect(ctx.stage.querySelectorAll('.bw-bk-piece.next')).toHaveLength(1);
+    // Free build: every colour is on offer; the chip opens and a colour closes the palette.
+    tap(q('.bw-bk-btn[aria-label="Xây tự do"]'));
+    await vi.advanceTimersByTimeAsync(400);
+    expect(ctx.stage.querySelectorAll('.bw-bk-color:not([hidden])').length).toBeGreaterThanOrEqual(5);
+    tap(q('.bw-bk-chip'));
+    expect(palette.hidden).toBe(false);
+    tap(q('.bw-bk-color[data-color]:not(.active)'));
+    expect(palette.hidden).toBe(true);
+    // Tap (no drag) on a brick in the dock picks it; a tap on another one moves the pick.
+    const [a, b] = [...ctx.stage.querySelectorAll<HTMLElement>('.bw-bk-piece')];
+    for (const piece of [a!, b!]) {
+      piece.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true, clientX: 5, clientY: 5 }),
+      );
+      piece.dispatchEvent(
+        new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true, clientX: 5, clientY: 5 }),
+      );
+    }
+    expect(a!.classList.contains('sel')).toBe(false);
+    expect(b!.classList.contains('sel')).toBe(true);
+    ctx.cleanup();
+  });
+
   it('the cabinet shows saved works, a work large, and closes', async () => {
     saveGallery([{ id: 'a', name: 'tháp cao', at: 1, bricks: [[0, 0, 2, 1, '#ef4444']] }]);
     const ctx = fakeContext();

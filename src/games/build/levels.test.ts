@@ -79,10 +79,11 @@ describe('shadows', () => {
     for (let i = 0; i < 30; i++) expect(open.has(pickShadow(2, rng).id)).toBe(true);
   });
   it('can say every colour and shape of every picture', () => {
-    for (const p of BLOCK_PICTURES) for (const b of p.blocks) {
-      expect(blockColorName(b.color)).not.toBe('nhiều màu');
-      expect(describeBlock(b.shape, b.color)).toContain('hình');
-    }
+    for (const p of BLOCK_PICTURES)
+      for (const b of p.blocks) {
+        expect(blockColorName(b.color)).not.toBe('nhiều màu');
+        expect(describeBlock(b.shape, b.color)).toContain('hình');
+      }
   });
 });
 
@@ -99,7 +100,10 @@ describe('blueprints', () => {
     }
   });
   it('can always be built by following the glowing step, on both plates', () => {
-    for (const [cols, rows] of [[10, 8], [8, 10]] as const) {
+    for (const [cols, rows] of [
+      [10, 8],
+      [8, 10],
+    ] as const) {
       for (const { model: base } of BLUEPRINTS) {
         const model = shiftModel(base, centerOffset(base, cols));
         let board = emptyBoard(cols, rows);

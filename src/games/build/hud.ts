@@ -40,7 +40,13 @@ export function createHud(ctx: GameContext, onMode: (m: ModeId) => void, onCabin
   const bar = h('span', { class: 'bw-bar', 'aria-hidden': 'true' }, fill);
 
   const badge = h('span', { class: 'bw-badge' }, '0');
-  const cabinet = h('button', { class: 'bw-btn bw-cabinet', type: 'button', 'aria-label': 'Tủ trưng bày' }, h('span', { class: 'bw-ico' }, '🏆'), pill, badge);
+  const cabinet = h(
+    'button',
+    { class: 'bw-btn bw-cabinet', type: 'button', 'aria-label': 'Tủ trưng bày' },
+    h('span', { class: 'bw-ico' }, '🏆'),
+    pill,
+    badge,
+  );
   makeTappable(cabinet, onCabinet, { ctx, cooldownMs: 300 });
 
   const el = h('div', { class: 'bw-hud' }, modes, cabinet, bar);
