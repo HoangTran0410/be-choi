@@ -17,7 +17,7 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 const ptr = (type: string, x = 0, y = 0): PointerEvent =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true, cancelable: true });
+  Object.assign(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true, cancelable: true }), { pointerType: 'touch' });
 const press = (el: Element): void => void el.dispatchEvent(ptr('pointerdown'));
 /** A real tap: down and up. */
 const tap = (el: Element): void => {

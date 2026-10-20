@@ -15,7 +15,7 @@ import {
   type Crop,
   type Plot,
 } from './crops';
-import { elementAt, type Env, type Pt, type View } from './env';
+import { type Env, type Pt, type View } from './env';
 import { addStock, levelFor, XP_HARVEST } from './progress';
 import { pop, pressOrDrag, setClass, wiggle } from './ui';
 
@@ -158,12 +158,10 @@ export function createGarden(env: Env): View {
         }
         wiggle(can);
       },
-      onMove(p) {
+      targets: () => plotEls.map((n, i) => ({ id: String(i), rect: n.getBoundingClientRect() })),
+      onHover(id) {
         // Wherever the can passes, every thirsty plot it touches gets a drink.
-        const node = elementAt(p, plotEls, 0);
-        if (!node) return;
-        const i = plotEls.indexOf(node);
-        if (i >= 0 && waterPlot(i)) env.say('Tưới nước.', false);
+        if (waterPlot(Number(id))) env.say('Tưới nước.', false);
       },
     });
     tray.replaceChildren(can, h('div', { class: 'hv-seeds' }, ...seeds));

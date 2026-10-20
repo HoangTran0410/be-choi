@@ -252,6 +252,8 @@ function start(ctx: GameContext): void {
   // ---- nudges when nothing has happened for a while ----
   root.addEventListener('pointerdown', () => ctx.hint.touch());
   ctx.hint.arm(() => {
+    // Spoken only a few times while the child sits still (the shell's gate decides).
+    ctx.speak('Bé chạm vào chỗ đang lắc nhé.');
     const target = views[env.tab].hint();
     if (target) {
       wiggle(target, 'hv-hint');

@@ -60,6 +60,7 @@ export function bindControls(ctx: GameContext, s: State, picker: Picker): void {
   ctx.hint.arm(() => {
     // Point at whatever the tank needs: food when they are hungry, a new friend otherwise.
     const starving = s.creatures.filter((cr) => cr.mood === 'hungry').length;
+    ctx.speak(starving > s.creatures.length / 3 ? 'Cá đói rồi, cho cá ăn nhé.' : 'Bé chạm vào cá nhé.');
     replay(starving > s.creatures.length / 3 ? feed : add, 'anim-wiggle');
     const cr = s.creatures[Math.floor(Math.random() * s.creatures.length)];
     if (cr) cr.joy = 0.8;

@@ -743,6 +743,7 @@ function start(ctx: GameContext): void {
       return;
     }
     const hungry = fish.find((cr) => cr.mood === 'hungry');
+    ctx.speak('Bé kéo mồi tới gần cá nhé.');
     if (hungry) {
       // Nudge the bait towards a fish that is looking for something to eat.
       hook.x += Math.sign(hungry.x - hook.x) * tank.unit * 0.2;
