@@ -9,7 +9,7 @@ import { createStore } from './storage';
 
 function deps(): AppDeps {
   const noop = () => undefined;
-  const speech: Speech = { warm: noop, setEnabled: noop, available: () => true, speak: noop, cancel: noop };
+  const speech: Speech = { warm: noop, setEnabled: noop, available: () => true, speak: noop, speakSeq: () => Promise.resolve(false), cancel: noop };
   return {
     audio: fakeAudio(),
     speech,

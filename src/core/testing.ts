@@ -33,6 +33,8 @@ export function fakeAudio(): AudioEngine {
 
 export interface FakeContext extends GameContext {
   spoken: string[];
+  /** Texts of `speakSeq` parts, in order (the `onStart` of each is called at once). */
+  sequenced: string[];
   stars: number;
   celebrations: number;
   /** Run the game's cleanups and remove the stage from the document. */
@@ -49,10 +51,21 @@ export function fakeContext(): FakeContext {
     audio: fakeAudio(),
     hint: createHint(),
     spoken: [],
+    sequenced: [],
     stars: 0,
     celebrations: 0,
     speak(text) {
       ctx.spoken.push(text);
+    },
+    speakSeq(parts) {
+      for (const p of parts) {
+        ctx.sequenced.push(p.text);
+        p.onStart?.();
+      }
+      return Promise.resolve(true);
+    },
+    stopSpeech() {
+      /* nothing is playing in tests */
     },
     celebrate() {
       ctx.celebrations++;

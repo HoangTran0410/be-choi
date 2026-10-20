@@ -1,5 +1,6 @@
 import type { AudioEngine } from './audio';
 import type { PhotoStore } from './photos';
+import type { SpeechPart } from './speech';
 
 export type Skill =
   | 'cause-effect'
@@ -56,6 +57,14 @@ export interface GameContext {
   audio: AudioEngine;
   /** Vietnamese text-to-speech. No-op when voice is off or unavailable. */
   speak(text: string): void;
+  /**
+   * Say parts one after another, slowly, with a gap after each (see `Speech.speakSeq`).
+   * A new call cuts off the old one. Resolves true if finished, false if cut short.
+   * Still runs on a quiet timer (so `onStart` fires) when the voice is off.
+   */
+  speakSeq(parts: SpeechPart[]): Promise<boolean>;
+  /** Stop speaking right now (also drops a running `speakSeq`). */
+  stopSpeech(): void;
   /** Confetti + jingle + praise. Resolves after ~1.6 s. */
   celebrate(): Promise<void>;
   hint: HintScheduler;

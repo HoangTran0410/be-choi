@@ -16,7 +16,7 @@ document.head.append(buildMeta);
 
 function fakeSpeech(): Speech {
   const noop = () => undefined;
-  return { warm: noop, setEnabled: noop, available: () => true, speak: noop, cancel: noop };
+  return { warm: noop, setEnabled: noop, available: () => true, speak: noop, speakSeq: () => Promise.resolve(false), cancel: noop };
 }
 
 function deps(): AppDeps {
