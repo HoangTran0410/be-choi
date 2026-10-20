@@ -265,3 +265,57 @@ describe('parent panel: fetching a new version', () => {
     expect(button.disabled).toBe(false);
   });
 });
+
+describe('parent panel: naming family photos', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.body.replaceChildren();
+  });
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  const settle = async () => {
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+  };
+
+  it('shows a name box under each photo and saves what is typed', async () => {
+    const d = deps();
+    await d.photos.add([new Blob(['a'])]);
+    openParentPanel(d);
+    await settle();
+
+    const input = document.querySelector<HTMLInputElement>('.photo-name');
+    expect(input).not.toBeNull();
+    expect(input!.value).toBe('');
+    input!.value = 'Bà ngoại';
+    input!.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect((await d.photos.list())[0]!.name).toBe('Bà ngoại');
+  });
+
+  it('names a photo with one tap on a quick chip, then hides the chips', async () => {
+    const d = deps();
+    await d.photos.add([new Blob(['a'])]);
+    openParentPanel(d);
+    await settle();
+
+    const chip = [...document.querySelectorAll<HTMLButtonElement>('.photo-chip')].find((b) => b.textContent === 'Mẹ');
+    chip!.click();
+    await settle();
+
+    expect((await d.photos.list())[0]!.name).toBe('Mẹ');
+    expect(document.querySelector<HTMLInputElement>('.photo-name')!.value).toBe('Mẹ');
+    expect(document.querySelector('.photo-chip')).toBeNull();
+  });
+
+  it('shows photos saved before names existed with an empty box', async () => {
+    const d = deps();
+    await d.photos.add([new Blob(['a']), new Blob(['bb'])]);
+    openParentPanel(d);
+    await settle();
+    expect(document.querySelectorAll('.photo-name').length).toBe(2);
+  });
+});

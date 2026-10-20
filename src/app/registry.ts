@@ -50,6 +50,7 @@ import { meta as robots } from '../games/robots/meta';
 import { meta as habitat } from '../games/habitat/meta';
 import { meta as catband } from '../games/catband/meta';
 import { meta as museum } from '../games/museum/meta';
+import { meta as learn } from '../games/learn/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -109,6 +110,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...habitat, load: () => import('../games/habitat/index') },
   { ...catband, load: () => import('../games/catband/index') },
   { ...museum, load: () => import('../games/museum/index') },
+  { ...learn, load: () => import('../games/learn/index') },
 ];
 
 /**

@@ -9,6 +9,11 @@ export interface Photo {
   /** JPEG data URL, longest side ≤ MAX_SIDE. */
   url: string;
   createdAt: number;
+  /**
+   * Who is in the photo ("Mẹ", "Ba", "Bà"…), set by a parent. Optional: photos saved
+   * before names existed have none, and the games that need a name skip them.
+   */
+  name?: string;
 }
 
 export interface PhotoStore {
@@ -16,12 +21,20 @@ export interface PhotoStore {
   /** Resize and store. Returns the stored photos. Stops silently at MAX_PHOTOS. */
   add(files: Iterable<Blob>): Promise<Photo[]>;
   remove(id: string): Promise<void>;
+  /** Set (or, with an empty string, clear) the name of a photo. Unknown ids are ignored. */
+  rename(id: string, name: string): Promise<void>;
   /** Called after every add/remove. Returns an unsubscribe function. */
   onChange(fn: (photos: Photo[]) => void): () => void;
 }
 
 export const MAX_PHOTOS = 12;
 export const MAX_SIDE = 1024;
+export const MAX_NAME = 16;
+
+/** A name as kept: trimmed, single-spaced, cut to MAX_NAME. Empty means "no name". */
+export function cleanName(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME).trim();
+}
 const DB_NAME = 'be-choi';
 const STORE = 'photos';
 
@@ -229,6 +242,31 @@ export function createPhotoStore(resize: (file: Blob) => Promise<string> = resiz
       }
       memory = memory.filter((p) => p.id !== id);
       await notify();
+    },
+    async rename(id, rawName) {
+      const name = cleanName(rawName);
+      const apply = (p: Photo): Photo => {
+        const next: Photo = { ...p };
+        if (name) next.name = name;
+        else delete next.name;
+        return next;
+      };
+      const d = await db();
+      let done = false;
+      if (d) {
+        try {
+          const found = await tx<Photo | undefined>(d, 'readonly', (s) => s.get(id) as IDBRequest<Photo | undefined>);
+          if (found) {
+            await tx(d, 'readwrite', (s) => s.put(apply(found)));
+            done = true;
+          }
+        } catch {
+          /* fall through to the in-memory copy */
+        }
+      }
+      const inMemory = memory.some((p) => p.id === id);
+      if (inMemory) memory = memory.map((p) => (p.id === id ? apply(p) : p));
+      if (done || inMemory) await notify();
     },
     onChange(fn) {
       listeners.add(fn);

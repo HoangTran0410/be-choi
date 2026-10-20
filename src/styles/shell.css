@@ -218,8 +218,39 @@
 }
 .photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 12px;
+}
+.photo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.photo-name {
+  width: 100%;
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 2px solid rgba(127, 127, 127, 0.35);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px; /* 16px keeps iOS from zooming in on focus */
+  background: var(--surface);
+  color: var(--ink);
+}
+.photo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.photo-chip {
+  min-height: 32px;
+  padding: 2px 10px;
+  border-radius: 16px;
+  background: rgba(127, 127, 127, 0.18);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
 }
 .photo-grid:empty {
   display: none;
