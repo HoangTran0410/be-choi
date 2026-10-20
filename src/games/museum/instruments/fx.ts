@@ -79,10 +79,12 @@ interface Sink {
   glow?: string;
 }
 
+/** The struck part moves this much more than the first version did: it has to be seen across a room. */
+const ZONE_AMP = 1.6;
 const sc = (n: number): number => Math.round(n * 1000) / 1000;
 const SKIN: Rings = { n: 2, from: 0.12, to: 0.95, clip: true, color: '#64748b', w: 4, ms: 620, gap: 110 };
 const WATER: Rings = { n: 3, from: 0.15, to: 1.8, clip: false, color: '#0ea5e9', w: 3, ms: 900, gap: 150 };
-const WAVE: Rings = { n: 3, from: 0.3, to: 1.55, clip: false, color: '#d97706', w: 5, ms: 1500, gap: 260 };
+const WAVE: Rings = { n: 1, from: 0.3, to: 1.2, clip: false, color: '#d97706', w: 5, ms: 1300, gap: 300 };
 const SHINE: Rings = { n: 1, from: 0.5, to: 1.3, clip: false, color: '#f59e0b', w: 3, ms: 900, gap: 0 };
 
 function motionFor(board: Board, zone: Zone): Motion | null {
@@ -111,17 +113,8 @@ function motionFor(board: Board, zone: Zone): Motion | null {
       }
       return { make: (u, v) => `rotate(${sc(u * 9 * v)}deg)`, cycles: 2.3, decay: 1.9, dur: 1500, origin: '50% 0%', along };
     }
-    case 'gong': {
-      const other = id === 'gong:boss' ? 'gong:rim' : 'gong:boss';
-      return {
-        make: (u, v) => `rotate(${sc(u * 2.4 * v)}deg) scale(${sc(1 - 0.03 * v * Math.abs(u))})`,
-        cycles: 2.4,
-        decay: 1.3,
-        dur: 2000,
-        origin: '50% 4%',
-        along: [{ id: other, k: 1, delay: 0 }],
-      };
-    }
+    case 'gong':
+      return null; // the whole gong swings as one group (see bodyFor)
     case 'pan':
       return { make: (u, v) => `scale(${sc(1 - 0.07 * v * u)})`, cycles: 2.6, decay: 3, dur: 600 };
     case 'kit': {
@@ -205,6 +198,76 @@ function motionFor(board: Board, zone: Zone): Motion | null {
       return zone.role === 'chord' ? { make: (u, v) => `scale(${sc(1 - 0.06 * v * Math.abs(u))})`, cycles: 2, decay: 4, dur: 300 } : null;
     case 'panflute':
       return { make: (u, v) => `translate(0px, ${sc(u * 4 * v)}px)`, cycles: 2, decay: 3.5, dur: 420 };
+    default:
+      return null;
+  }
+}
+
+/**
+ * The whole instrument answers a touch: it squashes and springs, shakes or hums the way
+ * its material does (metal rings long and fast, wood bounces short, skin dips, strings buzz).
+ * One animation on the drawing itself, restarted on every touch, never stacked.
+ */
+function bodyFor(board: Board, zone: Zone): Motion | null {
+  const id = zone.id;
+  switch (board.family) {
+    case 'keyboard':
+      return { make: (u, v) => `scale(${sc(1 - 0.03 * v * u)}, ${sc(1 + 0.02 * v * u)})`, cycles: 2, decay: 4, dur: 380, origin: '50% 100%' };
+    case 'bars':
+      return {
+        make: (u, v) => `scale(${sc(1 - 0.06 * v * u)}, ${sc(1 + 0.07 * v * u)})`,
+        cycles: board.kind === 'vibraphone' ? 4 : 2.5,
+        decay: board.kind === 'vibraphone' ? 2.5 : 4,
+        dur: board.kind === 'vibraphone' ? 1000 : 560,
+        origin: '50% 75%',
+      };
+    case 'tines':
+      return { make: (u, v) => `scale(${sc(1 - 0.05 * v * u)}, ${sc(1 + 0.06 * v * u)}) rotate(${sc(u * 1.6 * v)}deg)`, cycles: 4, decay: 3, dur: 650, origin: '50% 80%' };
+    case 'chimes':
+      return { make: (u, v) => `rotate(${sc(u * 1.8 * v)}deg)`, cycles: 2.3, decay: 1.9, dur: 1500, swing: true, origin: '50% 0%' };
+    case 'gong':
+      return { make: (u, v) => `rotate(${sc(u * 3.4 * v)}deg)`, cycles: 2.4, decay: 1.3, dur: 2000, swing: true, origin: '50% 4%' };
+    case 'fret':
+    case 'harp':
+    case 'bow':
+      return {
+        make: (u, v) => `scale(${sc(1 + 0.012 * v * u)}, ${sc(1 - 0.03 * v * u)}) rotate(${sc(u * 0.9 * v)}deg)`,
+        cycles: 7,
+        decay: 3.2,
+        dur: 700,
+        swing: true,
+        origin: '50% 55%',
+      };
+    case 'pan':
+      return { make: (u, v) => `scale(${sc(1 - 0.06 * v * u)}, ${sc(1 - 0.045 * v * u)})`, cycles: 2.6, decay: 3, dur: 600, origin: '50% 60%' };
+    case 'kit':
+    case 'djembe':
+      return {
+        make: (u, v) => `scale(${sc(1 - 0.05 * v * u)}, ${sc(1 - 0.06 * v * u)})`,
+        cycles: 2.6,
+        decay: 3.2,
+        dur: id === 'd:crash' || id === 'd:ride' ? 900 : 520,
+        origin: '50% 70%',
+      };
+    case 'rack':
+      return { make: (u, v) => `rotate(${sc(u * 1.6 * v)}deg) scale(${sc(1 - 0.04 * v * Math.abs(u))})`, cycles: 3, decay: 3, dur: 600, swing: true, origin: '50% 20%' };
+    case 'shake':
+      if (id.startsWith('cast:'))
+        return { make: (u, v) => `scale(${sc(1 - 0.09 * v * Math.abs(u))}, ${sc(1 + 0.05 * v * Math.abs(u))})`, cycles: 4, decay: 5, dur: 420, origin: '50% 70%' };
+      return {
+        make: (u, v) => `translate(${sc(u * 10 * v)}px, 0px) rotate(${sc(u * 4 * v)}deg)`,
+        cycles: 4,
+        decay: 2.6,
+        dur: 720,
+        swing: true,
+        origin: '50% 60%',
+      };
+    case 'tube':
+    case 'harmonica':
+    case 'panflute':
+      return { make: (u, v) => `scale(${sc(1 - 0.04 * v * u)}, ${sc(1 + 0.03 * v * u)})`, cycles: 2, decay: 4, dur: 400, origin: '50% 60%' };
+    case 'accordion':
+      return { make: (u, v) => `scale(${sc(1 + 0.05 * v * u)}, ${sc(1 - 0.05 * v * u)})`, cycles: 2, decay: 3.5, dur: 480, origin: '50% 60%' };
     default:
       return null;
   }
@@ -352,6 +415,11 @@ export function createFx(env: FxEnv): Fx {
   const pressedAt = new Map<string, number>();
   /** Throwaway sprites (rings, notes, dust): trimmed to a few. */
   let layer: SVGGElement | null = null;
+  /** Sparks and notes that fly out of the spot touched: kept apart so they never push the rings out. */
+  let burstG: SVGGElement | null = null;
+  let lastBody = 0;
+  let lastBuzz = 0;
+  let lastBurst = 0;
   /** Things that last while a finger is down: string glow, trails, the bow. */
   let glows: SVGGElement | null = null;
   let trailG: SVGGElement | null = null;
@@ -398,7 +466,7 @@ export function createFx(env: FxEnv): Fx {
     trails.clear();
     bows.clear();
     clips.clear();
-    layer = glows = trailG = bowG = null;
+    layer = burstG = glows = trailG = bowG = null;
     clipDefs = null;
     if (!svg) return;
     clipDefs = el('defs');
@@ -406,7 +474,8 @@ export function createFx(env: FxEnv): Fx {
     glows = el('g', { class: 'fx-glow', 'pointer-events': 'none' });
     trailG = el('g', { class: 'fx-trail', 'pointer-events': 'none' });
     bowG = el('g', { class: 'fx-bow', 'pointer-events': 'none' });
-    svg.append(clipDefs, glows, layer, trailG, bowG);
+    burstG = el('g', { class: 'fx-burst', 'pointer-events': 'none' });
+    svg.append(clipDefs, glows, layer, burstG, trailG, bowG);
 
     const board = env.board();
     // origins for the zones that swing or spring
@@ -452,7 +521,7 @@ export function createFx(env: FxEnv): Fx {
     const n = found.length;
     found.forEach((s, i) => {
       s.st = newString(150 - (n > 1 ? (i / (n - 1)) * 65 : 0), env.board().family === 'harp' ? 950 : 700);
-      s.maxAmp = clamp(Number.isFinite(gap) ? gap * 0.42 : 10, 4, 19);
+      s.maxAmp = clamp(Number.isFinite(gap) ? gap * 0.6 : 12, 5, 26);
       strings.set(s.idx, s);
     });
   }
@@ -478,9 +547,11 @@ export function createFx(env: FxEnv): Fx {
 
   function rings(zone: Zone, spec: Rings, x: number, y: number, vel: number, swipe: boolean): void {
     if (!layer || reducedMotion() || !canAnimate) return;
+    // a big ring repaints a lot of pixels each frame: never more than three alive at once
+    if (spec === WAVE && layer.querySelectorAll('.wave').length >= 3) return;
     const n = swipe ? 1 : perf.low ? 1 : spec.n;
     const size = spec === WAVE ? Math.min(env.board().w, env.board().h) * 0.32 : shapeSize(zone.shape) / 2;
-    const host = el('g');
+    const host = el('g', spec === WAVE ? { class: 'wave' } : {});
     if (spec.clip) {
       const id = clipFor(zone, 0.97);
       if (id) host.setAttribute('clip-path', `url(#${id})`);
@@ -505,7 +576,7 @@ export function createFx(env: FxEnv): Fx {
         { duration: spec.ms, delay: i * spec.gap, easing: 'cubic-bezier(.15,.6,.3,1)', fill: 'both' },
       );
     }
-    trim(layer, 30);
+    trim(layer, 18);
     layer.append(host);
     env.later(() => host.remove(), spec.ms + n * spec.gap + 60);
   }
@@ -515,7 +586,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function wobble(zoneId: string, m: Motion, vel: number, k: number): void {
-    const v = clamp(0.45 + vel * 0.7, 0.3, 1.1) * k;
+    const v = clamp(0.45 + vel * 0.7, 0.3, 1.1) * k * ZONE_AMP;
     env.zoneEls(zoneId).forEach((e, i) => {
       ani(
         e,
@@ -544,6 +615,9 @@ export function createFx(env: FxEnv): Fx {
     }
     const rg = ringsFor(board, zone);
     if (rg) rings(zone, rg, x, y, vel, swipe);
+    body(zone, vel, swipe);
+    if (zone.role !== 'blow') burst(x, y, vel, swipe);
+    if (!swipe) buzz(vel);
     if (board.family === 'harp') {
       const idx = stringOfZone.get(zone.id);
       if (idx !== undefined) pluck(idx, vel, { x, y });
@@ -556,6 +630,62 @@ export function createFx(env: FxEnv): Fx {
     }
   }
 
+  /** The whole drawing squashes / shakes / hums; one animation, restarted by the next touch. */
+  function body(zone: Zone, vel: number, swipe: boolean): void {
+    const svg = env.svg();
+    const board = env.board();
+    const m = bodyFor(board, zone);
+    if (!svg || !m) return;
+    const now = performance.now();
+    if (now - lastBody < (swipe ? 120 : 40)) return;
+    lastBody = now;
+    const v = clamp(0.5 + vel * 0.7, 0.35, 1.2) * (swipe ? 0.6 : 1);
+    svg.style.transformOrigin = m.origin ?? '50% 60%';
+    ani(svg, wobbleFrames((u) => m.make(u, v, 0), m.cycles, m.decay, 22, m.swing ? 0 : Math.PI / 2), { duration: m.dur, easing: 'linear' });
+  }
+
+  /** A few sparks and a note fly out of the spot touched. */
+  function burst(x: number, y: number, vel: number, swipe: boolean): void {
+    if (!burstG || !canAnimate || reducedMotion()) return;
+    if (swipe && perf.low) return;
+    const n = swipe ? 1 : perf.low ? 2 : 4;
+    const g = el('g', { transform: `translate(${r1(x)} ${r1(y)})` });
+    for (let i = 0; i < n; i++) {
+      const inner = el('g');
+      const color = NOTE_COLORS[breathN++ % NOTE_COLORS.length]!;
+      if (i === 0) inner.innerHTML = `<g transform="scale(.8)">${noteGlyph(color)}</g>`;
+      else inner.innerHTML = `<circle r="${r1(3.5 + Math.random() * 2.5)}" fill="#fffbeb" stroke="${color}" stroke-width="2"/>`;
+      g.append(inner);
+      const ang = -Math.PI / 2 + (i - (n - 1) / 2) * 0.8 + (Math.random() - 0.5) * 0.4;
+      const dist = 46 + 64 * vel + Math.random() * 22;
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist;
+      inner.animate(
+        [
+          { transform: 'translate(0px,0px) scale(.4)', opacity: 0, offset: 0 },
+          { transform: `translate(${r1(dx * 0.4)}px,${r1(dy * 0.4)}px) scale(1.1)`, opacity: 1, offset: 0.22 },
+          { transform: `translate(${r1(dx)}px,${r1(dy)}px) scale(.8)`, opacity: 0, offset: 1 },
+        ],
+        { duration: 760, easing: 'ease-out', fill: 'both' },
+      );
+    }
+    burstG.append(g);
+    trim(burstG, 4);
+    env.later(() => g.remove(), 820);
+  }
+
+  /** A short buzz where the device has one (some Android phones); nothing depends on it. */
+  function buzz(vel: number): void {
+    const now = performance.now();
+    if (now - lastBuzz < 60) return;
+    lastBuzz = now;
+    try {
+      navigator.vibrate?.(Math.round(6 + vel * 10));
+    } catch {
+      /* no vibration motor */
+    }
+  }
+
   function mallet(x: number, y: number): void {
     if (!layer || !canAnimate || reducedMotion() || perf.low) return;
     const g = el('g', { transform: `translate(${r1(x)} ${r1(y)})` });
@@ -564,7 +694,7 @@ export function createFx(env: FxEnv): Fx {
       '<line x1="0" y1="0" x2="46" y2="-70" stroke="#92400e" stroke-width="7" stroke-linecap="round"/><circle cx="0" cy="0" r="12" fill="#f97316" stroke="#7c2d12" stroke-width="3"/>';
     g.append(inner);
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     inner.animate(
       [
         { transform: 'translate(22px,-34px) rotate(16deg)', opacity: 0, offset: 0 },
@@ -582,7 +712,7 @@ export function createFx(env: FxEnv): Fx {
     g.setAttribute('fill', '#ffffff');
     g.setAttribute('opacity', '0');
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     fly(g, [{ opacity: 0.6 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' });
   }
 
@@ -612,6 +742,15 @@ export function createFx(env: FxEnv): Fx {
     const pos = at ? alongSegment(s.x1, s.y1, s.x2, s.y2, at.x, at.y) : 0.5;
     pluckString(s.st, s.maxAmp * (0.4 + 0.6 * clamp(vel, 0, 1)), pos);
     s.active = true;
+    // the body of the instrument hums with the string, and a spark leaves the spot plucked
+    const z = { id: 'string' } as Zone;
+    body(z, vel, false);
+    const now = performance.now();
+    if (at && now - lastBurst > 90) {
+      lastBurst = now;
+      burst(at.x, at.y, vel, false);
+      buzz(vel);
+    }
   }
 
   function sweep(from: number, to: number, gap: number): void {
@@ -635,7 +774,7 @@ export function createFx(env: FxEnv): Fx {
     const dist = Math.hypot(mx(b) - mx(a), my(b) - my(a)) || 1;
     line.setAttribute('stroke-dasharray', `${r1(dist * 0.35)} ${r1(dist * 2)}`);
     layer.append(line);
-    trim(layer, 30);
+    trim(layer, 18);
     const ms = Math.abs(to - from) * gap + 140;
     fly(
       line,
@@ -814,7 +953,7 @@ export function createFx(env: FxEnv): Fx {
       opacity: 0,
     });
     layer.append(c);
-    trim(layer, 30);
+    trim(layer, 18);
     const dx = (Math.random() - 0.5) * 30;
     fly(
       c,
@@ -841,7 +980,7 @@ export function createFx(env: FxEnv): Fx {
     inner.innerHTML = noteGlyph(NOTE_COLORS[breathN++ % NOTE_COLORS.length]!);
     g.append(inner);
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     const drift = 70 + Math.random() * 40;
     const side = (Math.random() - 0.5) * 36;
     const dx = sx * drift + (sx === 0 ? side : 0);
@@ -874,7 +1013,7 @@ export function createFx(env: FxEnv): Fx {
     });
     g.append(p);
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     fly(
       p,
       [
