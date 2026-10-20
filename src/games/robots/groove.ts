@@ -540,8 +540,7 @@ export function createGroove(deps: GrooveDeps): Groove {
           if (world) {
             const freq = h.tune && h.p ? tunedFreq(world, pitchOf(song, bar, { ...h.p, oct: 0 }), h.p.oct) : undefined;
             deps.audio.inst?.(world, freq, hard, undefined, late, false, vol * BAND_GAIN);
-          }
-          else deps.audio.drum(h.drum, late, mix);
+          } else deps.audio.drum(h.drum, late, mix);
           hits.push({ slot, drum: h.drum });
         } else if (h.p) {
           const midi = pitchOf(song, bar, h.p);

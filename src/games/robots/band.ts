@@ -6,7 +6,7 @@
  */
 import { perf, startLoop } from '../../core/frame';
 import { h } from '../../core/dom';
-import type { Photo } from '../../core/photos';
+import { photoThumb, type Photo } from '../../core/photos';
 import { makeTappable } from '../../core/tap';
 import type { GameContext } from '../../core/types';
 import { createRig } from './art';
@@ -88,7 +88,9 @@ export function mountBand(ctx: GameContext): void {
   const pips = h('div', { class: 'rb-pips' }, ...SONGS.map((s) => h('i', { 'data-song': s.id })));
   const songIcon = h('span', { class: 'rb-song-icon' });
   const songBtn = h('button', { class: 'btn-round rb-song', type: 'button', 'aria-label': 'Đổi bài nhạc' }, songIcon, pips);
-  const top = h('div', { class: 'rb-top' }, questBox, againBtn, songBtn);
+  // Only there when the family has photos: robot faces ↔ photo faces. Shows what a tap switches to.
+  const faceBtn = h('button', { class: 'btn-round rb-faces', type: 'button', 'aria-label': 'Mặt robot / ảnh gia đình', hidden: true });
+  const top = h('div', { class: 'rb-top' }, questBox, againBtn, faceBtn, songBtn);
   const reward = h('div', { class: 'rb-reward-layer', 'aria-hidden': 'true' });
   const root = h('div', { class: 'rb' }, top, stage.el, shelf.el, reward);
   root.dataset.song = songId;
@@ -124,11 +126,38 @@ export function mountBand(ctx: GameContext): void {
 
   function persist(): void {
     if (lineup.count() > 0) last = lineup.snapshot();
-    saveProgress({ done: [...done], tried: [...tried], fullIn: [...fullIn], last, song: songId });
+    saveProgress({ done: [...done], tried: [...tried], fullIn: [...fullIn], last, song: songId, photoFaces });
   }
 
   // ---- photos --------------------------------------------------------------------------------
+  let photoFaces = saved.photoFaces;
   const photoUrl = (id: string | undefined): string | null => (id ? (photos.find((p) => p.id === id)?.url ?? null) : null);
+  /** Small crops for the faces, by photo id; the full photo stands in until one is ready. */
+  const thumbs = new Map<string, string>();
+  const thumbing = new Set<string>();
+  function faceUrl(id: string | undefined): string | null {
+    const full = photoUrl(id);
+    if (!id || !full) return null;
+    const small = thumbs.get(id);
+    if (small) return small;
+    if (!thumbing.has(id)) {
+      thumbing.add(id);
+      photoThumb(full).then(
+        (url) => {
+          thumbs.set(id, url);
+          if (alive) syncFaces();
+        },
+        () => undefined, // no canvas: the full photo it is
+      );
+    }
+    return full;
+  }
+
+  function renderFaceBtn(): void {
+    faceBtn.hidden = photos.length === 0;
+    faceBtn.textContent = photoFaces ? '🤖' : '🖼️';
+    faceBtn.setAttribute('aria-pressed', String(photoFaces));
+  }
 
   function assignFace(robot: string): void {
     if (photos.length === 0) return;
@@ -138,11 +167,18 @@ export function mountBand(ctx: GameContext): void {
   }
 
   function syncFaces(): void {
+    renderFaceBtn();
+    for (const [id] of thumbs) if (!photos.some((p) => p.id === id)) thumbs.delete(id);
+    if (!photoFaces) {
+      for (let s = 0; s < lineup.capacity; s++) stage.setFace(s, null);
+      stage.setBackdrop(null);
+      return;
+    }
     for (const [robot, pid] of [...faces]) if (!photos.some((p) => p.id === pid) || lineup.slotOf(robot) < 0) faces.delete(robot);
     for (const robot of lineup.robots()) if (!faces.has(robot)) assignFace(robot);
     for (let s = 0; s < lineup.capacity; s++) {
       const seat = lineup.seat(s);
-      stage.setFace(s, seat ? photoUrl(faces.get(seat.robot)) : null);
+      stage.setFace(s, seat ? faceUrl(faces.get(seat.robot)) : null);
     }
     const lastRobot = backdropOf && lineup.slotOf(backdropOf) >= 0 ? backdropOf : (lineup.robots()[0] ?? null);
     backdropOf = lastRobot;
@@ -316,7 +352,7 @@ export function mountBand(ctx: GameContext): void {
     botDispose.get(seat.robot)?.();
     botDispose.delete(seat.robot);
     faces.delete(seat.robot);
-    stage.leave(slot, performance.now());
+    stage.leave(slot);
     shelf.setOnStage(new Set(lineup.robots()));
     if (!silent) ctx.audio.tick();
     if (lineup.count() === 0) groove.stop();
@@ -397,6 +433,17 @@ export function mountBand(ctx: GameContext): void {
       changed();
     },
     { ctx, feedback: false, cooldownMs: 300 },
+  );
+
+  makeTappable(
+    faceBtn,
+    () => {
+      ctx.hint.touch();
+      photoFaces = !photoFaces;
+      syncFaces();
+      persist();
+    },
+    { ctx, cooldownMs: 300 },
   );
 
   makeTappable(

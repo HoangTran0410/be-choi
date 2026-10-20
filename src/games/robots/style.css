@@ -92,6 +92,13 @@
   color: #1e1b4b;
   animation: rb-pulse 1.4s ease-in-out infinite;
 }
+.rb-faces {
+  flex: none;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: calc(var(--tap) * 0.45);
+  line-height: 1;
+}
+.rb-faces[hidden],
 .rb-again[hidden] {
   display: none;
 }
@@ -156,11 +163,17 @@
     flex: 1;
     order: 1;
   }
-  .rb-again {
+  .rb-again,
+  .rb-faces {
     order: 2;
   }
   .rb-song {
     order: 3;
+  }
+  .rb-faces {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
   }
   /* The equaliser starts below the HUD strip (song button 56px + 2x6px padding), never under it. */
   .rb-song {
@@ -204,10 +217,6 @@
 .rb-floor,
 .rb-eq,
 .rb-fx,
-.rb-away {
-  position: absolute;
-  pointer-events: none;
-}
 .rb-lights {
   inset: 0;
 }
@@ -278,13 +287,6 @@
   text-shadow: 0 1px 0 #fff;
   opacity: 0;
   will-change: transform, opacity;
-}
-.rb-away {
-  inset: 0;
-  z-index: 5;
-}
-.rb-away .rb-bot {
-  pointer-events: none;
 }
 
 .rb-grid {

@@ -1,20 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import type { Backend } from '../../core/save';
 import { SONGS, type SongId } from './groove';
-import {
-  QUESTS,
-  SAVE_KEY,
-  currentQuest,
-  emptyProgress,
-  loadProgress,
-  newlyDone,
-  saveProgress,
-  unlockedIds,
-  type View,
-} from './quests';
+import { QUESTS, SAVE_KEY, currentQuest, emptyProgress, loadProgress, newlyDone, saveProgress, unlockedIds, type View } from './quests';
 import { ROBOTS, STARTERS, findRobot } from './robots';
 
-const view = (robots: string[], tried: SongId[] = [], fullIn: SongId[] = []): View => ({ robots, tried: new Set(tried), fullIn: new Set(fullIn) });
+const view = (robots: string[], tried: SongId[] = [], fullIn: SongId[] = []): View => ({
+  robots,
+  tried: new Set(tried),
+  fullIn: new Set(fullIn),
+});
 
 function memory(): Backend & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -63,9 +57,26 @@ describe('quests', () => {
 
   it('songs: all three songs tried; grand: all three filled', () => {
     expect(newlyDone(new Set(), view([], ['fun', 'disco'])).map((q) => q.id)).not.toContain('songs');
-    expect(newlyDone(new Set(), view([], SONGS.map((s) => s.id))).map((q) => q.id)).toContain('songs');
+    expect(
+      newlyDone(
+        new Set(),
+        view(
+          [],
+          SONGS.map((s) => s.id),
+        ),
+      ).map((q) => q.id),
+    ).toContain('songs');
     expect(newlyDone(new Set(), view([], [], ['fun', 'calm'])).map((q) => q.id)).not.toContain('grand');
-    expect(newlyDone(new Set(), view([], [], SONGS.map((s) => s.id))).map((q) => q.id)).toContain('grand');
+    expect(
+      newlyDone(
+        new Set(),
+        view(
+          [],
+          [],
+          SONGS.map((s) => s.id),
+        ),
+      ).map((q) => q.id),
+    ).toContain('grand');
   });
 
   it('groups: percussion, plucked, wind and bowed/keys', () => {
@@ -94,7 +105,10 @@ describe('quests', () => {
         if (!next || lit([...pick, next]) <= lit(pick)) break;
         pick.push(next);
       }
-      expect(q.parts(view(pick, all, all)).every((p) => p.done), `${q.id} unreachable with ${shelf.length} robots`).toBe(true);
+      expect(
+        q.parts(view(pick, all, all)).every((p) => p.done),
+        `${q.id} unreachable with ${shelf.length} robots`,
+      ).toBe(true);
       done.add(q.id);
     }
   });
@@ -115,6 +129,7 @@ describe('saved progress', () => {
       fullIn: ['fun'] as SongId[],
       last: [{ robot: 'kick', level: 3 as const }, null, { robot: 'piano', level: 1 as const }],
       song: 'disco' as SongId,
+      photoFaces: true,
     };
     expect(saveProgress(p, s)).toBe(true);
     expect(JSON.parse(s.data.get(SAVE_KEY)!).v).toBe(1);
@@ -143,7 +158,14 @@ describe('saved progress', () => {
         song: 'polka',
       }),
     );
-    expect(loadProgress(s)).toEqual({ done: ['trio'], tried: ['fun'], fullIn: [], last: [{ robot: 'kick', level: 2 }, null, null, null], song: 'fun' });
+    expect(loadProgress(s)).toEqual({
+      done: ['trio'],
+      tried: ['fun'],
+      fullIn: [],
+      last: [{ robot: 'kick', level: 2 }, null, null, null],
+      song: 'fun',
+      photoFaces: false,
+    });
   });
 
   it('refuses a save from a newer app rather than guessing', () => {

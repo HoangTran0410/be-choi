@@ -95,7 +95,10 @@ export function tint(color: string, amount: number): string {
   const m = /^#([0-9a-f]{6})$/i.exec(color);
   if (!m) return color;
   const n = parseInt(m[1] as string, 16);
-  const c = (v: number) => Math.round(v + (255 - v) * amount).toString(16).padStart(2, '0');
+  const c = (v: number) =>
+    Math.round(v + (255 - v) * amount)
+      .toString(16)
+      .padStart(2, '0');
   return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`;
 }
 
@@ -105,9 +108,10 @@ export function shade(color: string, amount: number): string {
   if (!m) return color;
   const n = parseInt(m[1] as string, 16);
   const f = 1 - amount;
-  const c = (v: number) => Math.round(v * f)
-    .toString(16)
-    .padStart(2, '0');
+  const c = (v: number) =>
+    Math.round(v * f)
+      .toString(16)
+      .padStart(2, '0');
   return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`;
 }
 
@@ -301,7 +305,8 @@ const BASE_PROPS: Partial<Record<PropKind, PropArt>> = {
     held: ['none', 'none'],
     draw: (_c, d) => {
       let keys = '';
-      for (let i = 0; i < 7; i++) keys += `<line x1="${24 + i * 10.3}" y1="106" x2="${24 + i * 10.3}" y2="124" stroke="${INK}" stroke-width="1" opacity=".5"/>`;
+      for (let i = 0; i < 7; i++)
+        keys += `<line x1="${24 + i * 10.3}" y1="106" x2="${24 + i * 10.3}" y2="124" stroke="${INK}" stroke-width="1" opacity=".5"/>`;
       let blacks = '';
       for (const i of [0, 1, 3, 4, 5]) blacks += `<rect x="${24 + i * 10.3 + 6.5}" y="106" width="7" height="11" rx="1.5" fill="${INK}"/>`;
       return `<rect x="22" y="104" width="76" height="22" rx="4" fill="#fff" stroke="${d}" stroke-width="2.5"/>${keys}${blacks}<rect x="20" y="124" width="80" height="6" rx="3" fill="${d}"/>`;
@@ -323,7 +328,12 @@ const BASE_PROPS: Partial<Record<PropKind, PropArt>> = {
       const cols = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7'];
       return (
         `<rect x="22" y="104" width="76" height="6" rx="3" fill="${WOOD_DARK}"/><rect x="22" y="122" width="76" height="6" rx="3" fill="${WOOD_DARK}"/>` +
-        cols.map((col, i) => `<rect x="${24 + i * 12.2}" y="${103 + i * 1.6}" width="10" height="${27 - i * 3}" rx="3" fill="${col}" stroke="${INK}" stroke-width="1.6"/>`).join('')
+        cols
+          .map(
+            (col, i) =>
+              `<rect x="${24 + i * 12.2}" y="${103 + i * 1.6}" width="10" height="${27 - i * 3}" rx="3" fill="${col}" stroke="${INK}" stroke-width="1.6"/>`,
+          )
+          .join('')
       );
     },
   },
@@ -339,7 +349,9 @@ const BASE_PROPS: Partial<Record<PropKind, PropArt>> = {
     draw: (_c, d) =>
       `<line x1="52" y1="58" x2="108" y2="104" stroke="${METAL}" stroke-width="7" stroke-linecap="round"/>` +
       `<line x1="52" y1="58" x2="108" y2="104" stroke="${d}" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>` +
-      [0.35, 0.5, 0.65, 0.8].map((t) => `<circle cx="${(52 + 56 * t).toFixed(1)}" cy="${(58 + 46 * t).toFixed(1)}" r="2.2" fill="${INK}"/>`).join(''),
+      [0.35, 0.5, 0.65, 0.8]
+        .map((t) => `<circle cx="${(52 + 56 * t).toFixed(1)}" cy="${(58 + 46 * t).toFixed(1)}" r="2.2" fill="${INK}"/>`)
+        .join(''),
   },
   trumpet: {
     rest: [-62, -48],
@@ -396,10 +408,18 @@ const BASE_PROPS: Partial<Record<PropKind, PropArt>> = {
 // ---- the newer instruments -----------------------------------------------------------------
 
 const barRow = (n: number, x0: number, w: number, fill: (i: number) => string, stroke: string, y0 = 104, shrink = 3): string =>
-  Array.from({ length: n }, (_, i) => `<rect x="${(x0 + i * (w + 2)).toFixed(1)}" y="${y0 + i * 1.4}" width="${w}" height="${28 - i * shrink}" rx="3" fill="${fill(i)}" stroke="${stroke}" stroke-width="1.6"/>`).join('');
+  Array.from(
+    { length: n },
+    (_, i) =>
+      `<rect x="${(x0 + i * (w + 2)).toFixed(1)}" y="${y0 + i * 1.4}" width="${w}" height="${28 - i * shrink}" rx="3" fill="${fill(i)}" stroke="${stroke}" stroke-width="1.6"/>`,
+  ).join('');
 
 const tubeRow = (n: number, x0: number, step: number, y0: number, len: (i: number) => number, color: string, w = 4): string =>
-  Array.from({ length: n }, (_, i) => `<rect x="${(x0 + i * step).toFixed(1)}" y="${y0}" width="${w}" height="${len(i).toFixed(1)}" rx="${w / 2}" fill="${color}" stroke="${INK}" stroke-width="1.2"/>`).join('');
+  Array.from(
+    { length: n },
+    (_, i) =>
+      `<rect x="${(x0 + i * step).toFixed(1)}" y="${y0}" width="${w}" height="${len(i).toFixed(1)}" rx="${w / 2}" fill="${color}" stroke="${INK}" stroke-width="1.2"/>`,
+  ).join('');
 
 const cymbalDisc = (cx: number, cy: number, r: number, fill: string, stroke: string): string =>
   `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2.4"/><circle cx="${cx}" cy="${cy}" r="${r * 0.55}" fill="none" stroke="${stroke}" stroke-width="1.4" opacity=".6"/><circle cx="${cx}" cy="${cy}" r="${r * 0.18}" fill="${stroke}"/>`;
@@ -417,7 +437,11 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     held: ['none', 'none'],
     draw: (_c, d) =>
       `<rect x="34" y="104" width="52" height="30" rx="8" fill="#d6a35c" stroke="${WOOD_DARK}" stroke-width="2.6"/>` +
-      Array.from({ length: 7 }, (_, i) => `<rect x="${39 + i * 6.4}" y="${100 - (4 - Math.abs(i - 3)) * 1.6}" width="3.6" height="${22 + (4 - Math.abs(i - 3)) * 1.6}" rx="1.5" fill="${METAL}" stroke="${d}" stroke-width="1"/>`).join('') +
+      Array.from(
+        { length: 7 },
+        (_, i) =>
+          `<rect x="${39 + i * 6.4}" y="${100 - (4 - Math.abs(i - 3)) * 1.6}" width="3.6" height="${22 + (4 - Math.abs(i - 3)) * 1.6}" rx="1.5" fill="${METAL}" stroke="${d}" stroke-width="1"/>`,
+      ).join('') +
       `<circle cx="60" cy="124" r="4.5" fill="${WOOD_DARK}"/>`,
   },
   vibraphone: {
@@ -434,7 +458,15 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     draw: (_c, d) =>
       `<path d="M30 112L36 136H84L90 112Z" fill="#475569" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>` +
       `<ellipse cx="60" cy="112" rx="30" ry="10" fill="#e2e8f0" stroke="${d}" stroke-width="2.6"/>` +
-      [[46, 112], [60, 108], [74, 112], [53, 115], [67, 115]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5.5" ry="2.8" fill="none" stroke="#64748b" stroke-width="1.6"/>`).join(''),
+      [
+        [46, 112],
+        [60, 108],
+        [74, 112],
+        [53, 115],
+        [67, 115],
+      ]
+        .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5.5" ry="2.8" fill="none" stroke="#64748b" stroke-width="1.6"/>`)
+        .join(''),
   },
   handpan: {
     rest: [-32, -32],
@@ -443,21 +475,37 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
       `<ellipse cx="60" cy="122" rx="34" ry="14" fill="#a8a29e" stroke="${d}" stroke-width="2.6"/>` +
       `<ellipse cx="60" cy="118" rx="30" ry="11" fill="#d6d3d1" stroke="${d}" stroke-width="2"/>` +
       `<ellipse cx="60" cy="118" rx="7" ry="3.4" fill="${c}" stroke="${d}" stroke-width="1.6"/>` +
-      [[44, 117], [76, 117], [52, 123], [68, 123], [60, 111]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5" ry="2.4" fill="none" stroke="${d}" stroke-width="1.4"/>`).join(''),
+      [
+        [44, 117],
+        [76, 117],
+        [52, 123],
+        [68, 123],
+        [60, 111],
+      ]
+        .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5" ry="2.4" fill="none" stroke="${d}" stroke-width="1.4"/>`)
+        .join(''),
   },
   chime: {
     rest: [30, 30],
     held: ['bell', 'bell'],
     draw: (_c, d) =>
       `<rect x="26" y="90" width="68" height="6" rx="3" fill="${WOOD_DARK}"/>` +
-      Array.from({ length: 6 }, (_, i) => `<line x1="${32 + i * 11.2}" y1="96" x2="${32 + i * 11.2}" y2="${106 + (i % 3) * 5}" stroke="${d}" stroke-width="1"/><rect x="${30 + i * 11.2}" y="${106 + (i % 3) * 5}" width="4" height="${16 + ((i * 7) % 5) * 3}" rx="2" fill="#a7f3d0" stroke="${d}" stroke-width="1.4"/>`).join(''),
+      Array.from(
+        { length: 6 },
+        (_, i) =>
+          `<line x1="${32 + i * 11.2}" y1="96" x2="${32 + i * 11.2}" y2="${106 + (i % 3) * 5}" stroke="${d}" stroke-width="1"/><rect x="${30 + i * 11.2}" y="${106 + (i % 3) * 5}" width="4" height="${16 + ((i * 7) % 5) * 3}" rx="2" fill="#a7f3d0" stroke="${d}" stroke-width="1.4"/>`,
+      ).join(''),
   },
   trung: {
     rest: [-18, -18],
     held: ['stick', 'stick'],
     draw: () =>
       `<rect x="22" y="106" width="76" height="5" rx="2.5" fill="${WOOD_DARK}"/><rect x="22" y="122" width="76" height="5" rx="2.5" fill="${WOOD_DARK}"/>` +
-      Array.from({ length: 7 }, (_, i) => `<rect x="${24 + i * 10.4}" y="${100 + i * 1.4}" width="8" height="${32 - i * 2.4}" rx="3" fill="#84cc16" stroke="#365314" stroke-width="1.6"/><line x1="${24 + i * 10.4}" y1="${112 + i}" x2="${32 + i * 10.4}" y2="${112 + i}" stroke="#365314" stroke-width="1.4"/>`).join(''),
+      Array.from(
+        { length: 7 },
+        (_, i) =>
+          `<rect x="${24 + i * 10.4}" y="${100 + i * 1.4}" width="8" height="${32 - i * 2.4}" rx="3" fill="#84cc16" stroke="#365314" stroke-width="1.6"/><line x1="${24 + i * 10.4}" y1="${112 + i}" x2="${32 + i * 10.4}" y2="${112 + i}" stroke="#365314" stroke-width="1.4"/>`,
+      ).join(''),
   },
   harp: {
     rest: [-40, -40],
@@ -465,15 +513,26 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     draw: (c, d) =>
       `<path d="M92 56C102 56 104 66 98 74L58 134H92" fill="none" stroke="${WOOD_DARK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>` +
       `<path d="M92 56C102 56 104 66 98 74L58 134H92" fill="none" stroke="${c}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>` +
-      Array.from({ length: 6 }, (_, i) => `<line x1="${94 - i * 4.4}" y1="${70 + i * 10}" x2="${94 - i * 4.4 + 0.1}" y2="134" stroke="${d}" stroke-width="1.3"/>`).join(''),
+      Array.from(
+        { length: 6 },
+        (_, i) => `<line x1="${94 - i * 4.4}" y1="${70 + i * 10}" x2="${94 - i * 4.4 + 0.1}" y2="134" stroke="${d}" stroke-width="1.3"/>`,
+      ).join(''),
   },
   tranh: {
     rest: [-40, -30],
     held: ['none', 'none'],
     draw: (c, d) =>
       `<path d="M12 128L106 100V116L12 140Z" fill="${c}" stroke="${d}" stroke-width="2.6" stroke-linejoin="round"/>` +
-      Array.from({ length: 8 }, (_, i) => `<line x1="${16 + i * 11}" y1="${128 - i * 3.6}" x2="${20 + i * 11}" y2="${120 - i * 3.6}" stroke="#fef3c7" stroke-width="1.2"/>`).join('') +
-      Array.from({ length: 5 }, (_, i) => `<polygon points="${24 + i * 17},${126 - i * 5.4} ${28 + i * 17},${126 - i * 5.4} ${26 + i * 17},${120 - i * 5.4}" fill="${WOOD}" stroke="${d}" stroke-width="1"/>`).join(''),
+      Array.from(
+        { length: 8 },
+        (_, i) =>
+          `<line x1="${16 + i * 11}" y1="${128 - i * 3.6}" x2="${20 + i * 11}" y2="${120 - i * 3.6}" stroke="#fef3c7" stroke-width="1.2"/>`,
+      ).join('') +
+      Array.from(
+        { length: 5 },
+        (_, i) =>
+          `<polygon points="${24 + i * 17},${126 - i * 5.4} ${28 + i * 17},${126 - i * 5.4} ${26 + i * 17},${120 - i * 5.4}" fill="${WOOD}" stroke="${d}" stroke-width="1"/>`,
+      ).join(''),
   },
   ukulele: {
     rest: [-50, -28],
@@ -517,7 +576,10 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     draw: (c, d, a) =>
       `<rect x="20" y="100" width="18" height="34" rx="4" fill="${d}" stroke="${INK}" stroke-width="2"/><rect x="82" y="100" width="18" height="34" rx="4" fill="${d}" stroke="${INK}" stroke-width="2"/>` +
       `<rect x="38" y="102" width="44" height="30" fill="${a}" stroke="${INK}" stroke-width="1.6"/>` +
-      Array.from({ length: 7 }, (_, i) => `<line x1="${42 + i * 6}" y1="102" x2="${42 + i * 6}" y2="132" stroke="${c}" stroke-width="2.6"/>`).join('') +
+      Array.from(
+        { length: 7 },
+        (_, i) => `<line x1="${42 + i * 6}" y1="102" x2="${42 + i * 6}" y2="132" stroke="${c}" stroke-width="2.6"/>`,
+      ).join('') +
       Array.from({ length: 3 }, (_, i) => `<circle cx="29" cy="${108 + i * 9}" r="2.6" fill="#fde047"/>`).join('') +
       Array.from({ length: 3 }, (_, i) => `<circle cx="91" cy="${108 + i * 9}" r="2.6" fill="#f8fafc"/>`).join(''),
   },
@@ -525,9 +587,16 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     rest: [-28, -28],
     held: ['none', 'none'],
     draw: (c, d) =>
-      Array.from({ length: 5 }, (_, i) => `<rect x="${28 + i * 13}" y="${86 + (i % 2) * 4}" width="9" height="${22 - (i % 2) * 4}" rx="3" fill="#cbd5e1" stroke="${d}" stroke-width="1.6"/>`).join('') +
+      Array.from(
+        { length: 5 },
+        (_, i) =>
+          `<rect x="${28 + i * 13}" y="${86 + (i % 2) * 4}" width="9" height="${22 - (i % 2) * 4}" rx="3" fill="#cbd5e1" stroke="${d}" stroke-width="1.6"/>`,
+      ).join('') +
       `<rect x="20" y="106" width="80" height="22" rx="4" fill="#fff" stroke="${d}" stroke-width="2.5"/>` +
-      Array.from({ length: 7 }, (_, i) => `<line x1="${30 + i * 10}" y1="106" x2="${30 + i * 10}" y2="126" stroke="${INK}" stroke-width="1" opacity=".5"/>`).join('') +
+      Array.from(
+        { length: 7 },
+        (_, i) => `<line x1="${30 + i * 10}" y1="106" x2="${30 + i * 10}" y2="126" stroke="${INK}" stroke-width="1" opacity=".5"/>`,
+      ).join('') +
       [0, 1, 3, 4, 5].map((i) => `<rect x="${24 + i * 10 + 6}" y="106" width="7" height="11" rx="1.5" fill="${INK}"/>`).join('') +
       `<rect x="18" y="126" width="84" height="6" rx="3" fill="${c}" stroke="${d}" stroke-width="1.4"/>`,
   },
@@ -536,8 +605,11 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     held: ['none', 'none'],
     front: true,
     draw: (_c, d) =>
-      Array.from({ length: 6 }, (_, i) => `<rect x="${38 + i * 7.6}" y="52" width="6" height="${30 - i * 3.4}" rx="3" fill="#d9f99d" stroke="${d}" stroke-width="1.6"/>`).join('') +
-      `<rect x="36" y="64" width="50" height="4" rx="2" fill="${WOOD_DARK}"/>`,
+      Array.from(
+        { length: 6 },
+        (_, i) =>
+          `<rect x="${38 + i * 7.6}" y="52" width="6" height="${30 - i * 3.4}" rx="3" fill="#d9f99d" stroke="${d}" stroke-width="1.6"/>`,
+      ).join('') + `<rect x="36" y="64" width="50" height="4" rx="2" fill="${WOOD_DARK}"/>`,
   },
   tuba: {
     rest: [-44, -44],
@@ -555,12 +627,15 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
   bongo: {
     rest: [-22, -22],
     held: ['stick', 'stick'],
-    draw: (c, d) => drumBody(28, 108, 30, 26, c, d) + drumBody(62, 108, 30, 26, c, d) + `<rect x="54" y="116" width="12" height="5" rx="2" fill="${d}"/>`,
+    draw: (c, d) =>
+      drumBody(28, 108, 30, 26, c, d) + drumBody(62, 108, 30, 26, c, d) + `<rect x="54" y="116" width="12" height="5" rx="2" fill="${d}"/>`,
   },
   tambourine: {
     rest: [30, 30],
     held: ['bell', 'bell'],
-    draw: (c, d) => cymbalDisc(60, 118, 22, '#fff7ed', d) + `<circle cx="60" cy="118" r="22" fill="none" stroke="${c}" stroke-width="4" stroke-dasharray="6 5"/>`,
+    draw: (c, d) =>
+      cymbalDisc(60, 118, 22, '#fff7ed', d) +
+      `<circle cx="60" cy="118" r="22" fill="none" stroke="${c}" stroke-width="4" stroke-dasharray="6 5"/>`,
   },
   maracas: {
     rest: [48, 48],
@@ -602,7 +677,8 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
     held: ['none', 'stick'],
     draw: (c) =>
       `<path d="M26 142V88H94V142" fill="none" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
-      cymbalDisc(60, 112, 20, '#fbbf24', '#b45309') + `<circle cx="60" cy="112" r="20" fill="none" stroke="${c}" stroke-width="1.6" opacity=".7"/>`,
+      cymbalDisc(60, 112, 20, '#fbbf24', '#b45309') +
+      `<circle cx="60" cy="112" r="20" fill="none" stroke="${c}" stroke-width="1.6" opacity=".7"/>`,
   },
 };
 const PROPS = { ...BASE_PROPS, ...NEW_PROPS } as Record<PropKind, PropArt>;
@@ -690,7 +766,17 @@ export interface Rig {
 export function createRig(color: string, look: Look): Rig {
   const svg = svgEl(robotMarkup(color, look));
   const get = (sel: string): SVGGElement => svg.querySelector<SVGGElement>(sel) as SVGGElement;
-  const rig: Rig = { svg, head: get('.rb-head-rot'), armL: get('.rb-arm-l .rb-arm-rot'), armR: get('.rb-arm-r .rb-arm-rot'), prop: get('.rb-prop-rot'), eyes: get('.rb-eyes'), photo: get('.rb-photo'), photoImg: svg.querySelector('.rb-photo-img') as SVGImageElement, rest: PROPS[look.prop].rest };
+  const rig: Rig = {
+    svg,
+    head: get('.rb-head-rot'),
+    armL: get('.rb-arm-l .rb-arm-rot'),
+    armR: get('.rb-arm-r .rb-arm-rot'),
+    prop: get('.rb-prop-rot'),
+    eyes: get('.rb-eyes'),
+    photo: get('.rb-photo'),
+    photoImg: svg.querySelector('.rb-photo-img') as SVGImageElement,
+    rest: PROPS[look.prop].rest,
+  };
   setPose(rig, null);
   return rig;
 }
@@ -708,11 +794,6 @@ export function setPose(rig: Rig, pose: Pose | null, armOverride?: { l: number; 
   rig.armR.setAttribute('transform', `rotate(${fix(-r)})`);
   rig.head.setAttribute('transform', `rotate(${fix(pose?.head ?? 0)})`);
   rig.prop.setAttribute('transform', `rotate(${fix(pose?.prop ?? 0)})`);
-}
-
-/** A friendly wave goodbye: the right arm up and swinging. `t` in seconds. */
-export function waveArms(rig: Rig, t: number): void {
-  setPose(rig, { y: 0, rot: 0, sx: 1, sy: 1, head: 8 * Math.sin(t * 9), armL: 0, armR: 0, prop: 0 }, { l: rig.rest[0], r: 150 + 22 * Math.sin(t * 14) });
 }
 
 /** Put a family photo where the face is (`null` brings the usual face back). */

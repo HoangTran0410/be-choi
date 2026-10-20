@@ -36,10 +36,12 @@ describe('dances', () => {
 
   it('every dance is different from the others', () => {
     const sig = DANCES.map((d) =>
-      [0, 0.25, 0.5, 0.75, 1, 1.5, 2.2, 3].map((b) => {
-        const p = pose(d, b, 2);
-        return KEYS.map((k) => p[k].toFixed(2)).join(',');
-      }).join(';'),
+      [0, 0.25, 0.5, 0.75, 1, 1.5, 2.2, 3]
+        .map((b) => {
+          const p = pose(d, b, 2);
+          return KEYS.map((k) => p[k].toFixed(2)).join(',');
+        })
+        .join(';'),
     );
     expect(new Set(sig).size).toBe(DANCES.length);
   });

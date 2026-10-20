@@ -129,10 +129,11 @@ export const QUESTS: readonly Quest[] = [
     id: 'roles',
     sticker: '🧩',
     reward: ['steelpan', 'handpan', 'trung'],
-    parts: (v) => (['beat', 'bass', 'chord', 'melody', 'color'] as const).map((role) => ({
-      icon: { beat: '🥁', bass: '🎸', chord: '🎹', melody: '🎵', color: '🔔' }[role],
-      done: roleOn(v, roleIs(role)),
-    })),
+    parts: (v) =>
+      (['beat', 'bass', 'chord', 'melody', 'color'] as const).map((role) => ({
+        icon: { beat: '🥁', bass: '🎸', chord: '🎹', melody: '🎵', color: '🔔' }[role],
+        done: roleOn(v, roleIs(role)),
+      })),
   },
   {
     id: 'tour',
@@ -144,10 +145,11 @@ export const QUESTS: readonly Quest[] = [
     id: 'band',
     sticker: '🎪',
     reward: ['beatbox', 'timpani', 'gong'],
-    parts: (v) => (['gõ', 'gảy', 'thổi', 'kéo', 'phím'] as const).map((g) => ({
-      icon: { gõ: '🥁', gảy: '🎸', thổi: '🎺', kéo: '🎻', phím: '🎹' }[g],
-      done: roleOn(v, groupIs(g)),
-    })),
+    parts: (v) =>
+      (['gõ', 'gảy', 'thổi', 'kéo', 'phím'] as const).map((g) => ({
+        icon: { gõ: '🥁', gảy: '🎸', thổi: '🎺', kéo: '🎻', phím: '🎹' }[g],
+        done: roleOn(v, groupIs(g)),
+      })),
   },
   {
     id: 'grand',
@@ -198,10 +200,12 @@ export interface Progress {
   /** The last line-up, so a child can ask for it back. */
   last: (SavedSeat | null)[];
   song: SongId;
+  /** Family photos as the robots' faces and backdrop. Off by default: the drawn faces are the game's. */
+  photoFaces: boolean;
 }
 
 export function emptyProgress(): Progress {
-  return { done: [], tried: [], fullIn: [], last: [], song: 'fun' };
+  return { done: [], tried: [], fullIn: [], last: [], song: 'fun', photoFaces: false };
 }
 
 const SPEC: VersionedSpec<Progress> = {
@@ -222,6 +226,7 @@ const SPEC: VersionedSpec<Progress> = {
       fullIn: strings(d.fullIn).filter((id): id is SongId => songs.has(id)),
       last,
       song: typeof d.song === 'string' && songs.has(d.song) ? (d.song as SongId) : 'fun',
+      photoFaces: d.photoFaces === true,
     };
   },
 };

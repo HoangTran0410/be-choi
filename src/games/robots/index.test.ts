@@ -2,7 +2,7 @@ import { HOLD_MS } from './dnd';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
 import { resetFrameLoop } from '../../core/frame';
-import { SAVE_KEY } from './quests';
+import { SAVE_KEY, loadProgress } from './quests';
 import game from './index';
 
 function ev(el: Element, type: string, x = 0, y = 0): void {
@@ -85,7 +85,7 @@ describe('Ban nhạc robot', () => {
     ctx.cleanup();
   });
 
-  it('tapping a robot on stage changes its play style (1–3 dots); holding it sends it away with a wave', () => {
+  it('tapping a robot on stage changes its play style (1–3 dots); holding it takes it off at once', () => {
     const ctx = fakeContext();
     game.start(ctx);
     tap(item(ctx.stage, 'piano'));
@@ -103,7 +103,7 @@ describe('Ban nhạc robot', () => {
     vi.advanceTimersByTime(HOLD_MS + 100);
     ev(bot, 'pointerup');
     expect(slot(ctx.stage, 0).classList.contains('has-bot')).toBe(false);
-    expect(ctx.stage.querySelector('.rb-away .rb-bot')).not.toBeNull();
+    expect(ctx.stage.querySelectorAll('.rb-bot').length).toBe(0); // gone, no goodbye left standing
     expect(item(ctx.stage, 'piano').classList.contains('on-stage')).toBe(false);
     ctx.cleanup();
   });
@@ -182,16 +182,30 @@ describe('Ban nhạc robot', () => {
     ctx.cleanup();
   });
 
-  it('wears family photos as faces and as the backdrop, and copes with none', async () => {
+  it('wears family photos as faces and as the backdrop only when switched on, and copes with none', async () => {
     const ctx = fakeContext();
     game.start(ctx);
+    const faceBtn = ctx.stage.querySelector<HTMLElement>('.rb-faces')!;
+    expect(faceBtn.hidden).toBe(true); // no photos, no switch
     await ctx.photos.add([new Blob(['a'])]);
     tap(item(ctx.stage, 'kick'));
     tap(slot(ctx.stage, 0));
     await vi.advanceTimersByTimeAsync(50);
     const photo = ctx.stage.querySelector<HTMLElement>('.rb-slot[data-slot="0"] .rb-photo')!;
+    const backdrop = ctx.stage.querySelector<HTMLElement>('.rb-backdrop')!;
+    // the drawn faces by default
+    expect(faceBtn.hidden).toBe(false);
+    expect(photo.style.display).toBe('none');
+    expect(backdrop.style.backgroundImage).toBe('');
+    tap(faceBtn);
     expect(photo.style.display).toBe('');
-    expect(ctx.stage.querySelector<HTMLElement>('.rb-backdrop')!.style.backgroundImage).toContain('data:image');
+    expect(backdrop.style.backgroundImage).toContain('data:image');
+    expect(loadProgress().photoFaces).toBe(true);
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 1000);
+    tap(faceBtn);
+    expect(photo.style.display).toBe('none');
+    expect(backdrop.style.backgroundImage).toBe('');
+    expect(loadProgress().photoFaces).toBe(false);
     ctx.cleanup();
   });
 

@@ -529,7 +529,13 @@ export const ROBOTS: readonly RobotDef[] = [
     look: { head: 'square', antenna: 'none', eyes: 'star', belly: 'grid', ears: 'discs', prop: 'tambourine', accent: '#fbc9e3' },
     patterns: pat('tambourine'),
     vol: 0.6,
-    perc: { fun: { shaker: 'tambourine', hat: 'tambourine' }, disco: { shaker: 'tambourine', hat: 'tambourine' }, calm: { shaker: 'tambourine', hat: 'tambourine' }, latin: { shaker: 'tambourine', hat: 'tambourine' }, east: { shaker: 'tambourine', hat: 'tambourine' } },
+    perc: {
+      fun: { shaker: 'tambourine', hat: 'tambourine' },
+      disco: { shaker: 'tambourine', hat: 'tambourine' },
+      calm: { shaker: 'tambourine', hat: 'tambourine' },
+      latin: { shaker: 'tambourine', hat: 'tambourine' },
+      east: { shaker: 'tambourine', hat: 'tambourine' },
+    },
   },
   {
     id: 'maracas',
@@ -543,7 +549,13 @@ export const ROBOTS: readonly RobotDef[] = [
     look: { head: 'wide', antenna: 'flower', eyes: 'big', belly: 'star', ears: 'bolts', prop: 'maracas', accent: '#a4e4cf' },
     patterns: pat('maracas'),
     vol: 0.6,
-    perc: { fun: { shaker: 'maracas', hat: 'maracas' }, disco: { shaker: 'maracas', hat: 'maracas' }, calm: { shaker: 'maracas', hat: 'maracas' }, latin: { shaker: 'maracas', hat: 'maracas' }, east: { shaker: 'maracas', hat: 'maracas' } },
+    perc: {
+      fun: { shaker: 'maracas', hat: 'maracas' },
+      disco: { shaker: 'maracas', hat: 'maracas' },
+      calm: { shaker: 'maracas', hat: 'maracas' },
+      latin: { shaker: 'maracas', hat: 'maracas' },
+      east: { shaker: 'maracas', hat: 'maracas' },
+    },
   },
   {
     id: 'castanets',
@@ -557,7 +569,13 @@ export const ROBOTS: readonly RobotDef[] = [
     look: { head: 'round', antenna: 'heart', eyes: 'visor', belly: 'dots', ears: 'cups', prop: 'castanets', accent: '#d6b6a3' },
     patterns: pat('castanets'),
     vol: 0.6,
-    perc: { fun: { wood: 'castanets' }, disco: { wood: 'castanets' }, calm: { wood: 'castanets' }, latin: { wood: 'castanets' }, east: { wood: 'castanets' } },
+    perc: {
+      fun: { wood: 'castanets' },
+      disco: { wood: 'castanets' },
+      calm: { wood: 'castanets' },
+      latin: { wood: 'castanets' },
+      east: { wood: 'castanets' },
+    },
   },
   {
     id: 'mo',

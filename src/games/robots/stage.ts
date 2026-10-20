@@ -9,7 +9,7 @@
 import { h } from '../../core/dom';
 import type { Target } from '../../core/drag';
 import { pose } from './dance';
-import { createRig, setFace, setPose, waveArms, type Rig } from './art';
+import { createRig, setFace, setPose, type Rig } from './art';
 import type { Level, Phase, PlayedHit, SongId, StepEvent } from './groove';
 import { CAPACITY } from './lineup';
 import type { RobotDef } from './robots';
@@ -17,8 +17,6 @@ import type { RobotDef } from './robots';
 const BARS_IN_EQ = 16;
 const MAX_NOTES = 28;
 const MAX_NOTES_LOW = 10;
-const LEAVE_WAVE_MS = 900;
-const LEAVE_WALK_MS = 450;
 const TAU = Math.PI * 2;
 
 interface Figure {
@@ -32,11 +30,6 @@ interface Figure {
   pulse: number;
   waiting: boolean;
   lastNote: number;
-}
-
-interface Leaving {
-  fig: Figure;
-  start: number;
 }
 
 interface Note {
@@ -70,8 +63,8 @@ export interface Stage {
   setLevel(slot: number, level: Level): void;
   /** Swap two seats' figures (either may be empty). */
   swap(a: number, b: number): void;
-  /** Take the robot away with a goodbye wave. */
-  leave(slot: number, now: number): void;
+  /** Take the robot away at once: no goodbye that would stand over the others and feel like lag. */
+  leave(slot: number): void;
   /** Remove a robot with no goodbye (the stage is being reset). */
   clearAll(): void;
   /** Make the seats say "put someone here" (a robot on the shelf is picked). */
@@ -89,7 +82,7 @@ export interface Stage {
   targets(): Target[];
   figureEl(slot: number): HTMLElement | null;
   update(f: FrameInfo): void;
-  /** Number of robots standing (not counting those leaving). */
+  /** Number of robots standing. */
   count(): number;
   dispose(): void;
 }
@@ -141,7 +134,6 @@ function put(el: HTMLElement, prop: 'transform' | 'opacity', value: string): voi
 export function createStage(): Stage {
   const slotEls: HTMLElement[] = [];
   const figs: Array<Figure | null> = Array.from({ length: CAPACITY }, () => null);
-  const leaving: Leaving[] = [];
   const notes: Note[] = [];
   const notePool: HTMLElement[] = [];
   let finale = false;
@@ -174,10 +166,9 @@ export function createStage(): Stage {
     eq.append(b);
   }
   const fx = h('div', { class: 'rb-fx', 'aria-hidden': 'true' });
-  const away = h('div', { class: 'rb-away', 'aria-hidden': 'true' });
   const backdrop = h('div', { class: 'rb-backdrop', 'aria-hidden': 'true' });
   let hasBackdrop = false;
-  const el = h('div', { class: 'rb-stage' }, backdrop, lights, floor, eq, grid, fx, away);
+  const el = h('div', { class: 'rb-stage' }, backdrop, lights, floor, eq, grid, fx);
 
   function makeFigure(slot: number, def: RobotDef, level: Level): Figure {
     const rig = createRig(def.color, def.look);
@@ -313,28 +304,6 @@ export function createStage(): Stage {
     }
   }
 
-  function updateLeaving(now: number): void {
-    for (let i = leaving.length - 1; i >= 0; i--) {
-      const l = leaving[i] as Leaving;
-      const t = now - l.start;
-      if (t >= LEAVE_WAVE_MS + LEAVE_WALK_MS) {
-        l.fig.el.remove();
-        leaving.splice(i, 1);
-        continue;
-      }
-      if (t < LEAVE_WAVE_MS) {
-        waveArms(l.fig.rig, t / 1000);
-        l.fig.el.style.transform = `translateY(${(-Math.abs(Math.sin(t / 130)) * 4).toFixed(1)}%)`;
-        l.fig.el.style.opacity = '1';
-      } else {
-        const k = (t - LEAVE_WAVE_MS) / LEAVE_WALK_MS;
-        setPose(l.fig.rig, null);
-        l.fig.el.style.transform = `translateY(${(k * 40).toFixed(1)}%) scale(${(1 - 0.4 * k).toFixed(3)})`;
-        l.fig.el.style.opacity = String(Math.round((1 - k) * 100) / 100);
-      }
-    }
-  }
-
   const stage: Stage = {
     el,
     slotEls,
@@ -372,17 +341,11 @@ export function createStage(): Stage {
       paintSlot(a);
       paintSlot(b);
     },
-    leave(slot, now) {
+    leave(slot) {
       const f = figs[slot];
       if (!f) return;
       figs[slot] = null;
-      const er = el.getBoundingClientRect();
-      const fr = f.el.getBoundingClientRect();
-      f.el.classList.remove('waiting', 'rb-popin');
-      f.el.style.cssText = `--c:${f.def.color};position:absolute;left:${(fr.left - er.left).toFixed(1)}px;top:${(fr.top - er.top).toFixed(1)}px;width:${fr.width.toFixed(1)}px;height:${fr.height.toFixed(1)}px`;
-      f.glow.style.opacity = '0';
-      away.append(f.el);
-      leaving.push({ fig: f, start: now });
+      f.el.remove();
       paintSlot(slot);
     },
     clearAll() {
@@ -437,7 +400,6 @@ export function createStage(): Stage {
       const half = f.low && eqTick % 2 === 0;
 
       for (const fig of figs) if (fig) updateFigure(fig, f, beat);
-      updateLeaving(f.now);
       updateNotes(f.dt);
 
       if (half) return;
@@ -472,7 +434,6 @@ export function createStage(): Stage {
       window.removeEventListener('resize', forget);
       window.removeEventListener('orientationchange', forget);
       watcher?.disconnect();
-      leaving.length = 0;
       el.remove();
     },
   };

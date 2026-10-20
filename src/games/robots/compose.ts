@@ -148,33 +148,76 @@ type Shape = 'up' | 'down' | 'updown' | 'skip';
 const SHAPES: Record<Shape, readonly number[]> = { up: [0, 1, 2, 3], down: [3, 2, 1, 0], updown: [0, 1, 2, 3, 2, 1], skip: [0, 2, 1, 3] };
 
 /** Steps for [body, fill] bars at each level, per feel. */
-const ARP_STEPS: Record<DrumStyle, readonly [readonly [number[], number[]], readonly [number[], number[]], readonly [number[], number[]]]> = {
-  pop: [
-    [[0, 8], [0, 8, 12]],
-    [[0, 2, 4, 6, 8, 10, 12, 14], [0, 2, 4, 6, 8, 10, 12, 14, 15]],
-    [[0, 2, 3, 4, 6, 8, 10, 11, 12, 14], [0, 2, 4, 6, 8, 10, 11, 12, 13, 14, 15]],
-  ],
-  disco: [
-    [[2, 10], [2, 10, 14]],
-    [[2, 4, 6, 10, 12, 14], [2, 4, 6, 10, 12, 13, 14, 15]],
-    [[0, 2, 3, 6, 7, 10, 11, 14, 15], [0, 2, 3, 6, 7, 10, 12, 13, 14, 15]],
-  ],
-  soft: [
-    [[0, 8], [0, 8, 12]],
-    [[0, 4, 6, 8, 12, 14], [0, 4, 6, 8, 12, 13, 14]],
-    [[0, 2, 4, 6, 8, 10, 12, 14], [0, 2, 4, 6, 8, 10, 12, 13, 14, 15]],
-  ],
-  latin: [
-    [[0, 6, 12], [0, 6, 12, 14]],
-    [[0, 3, 6, 8, 11, 14], [0, 3, 6, 8, 11, 13, 14, 15]],
-    [[0, 3, 4, 6, 8, 11, 12, 14], [0, 3, 6, 8, 10, 11, 12, 13, 14, 15]],
-  ],
-  east: [
-    [[0], [0, 10]],
-    [[0, 4, 8, 12], [0, 4, 8, 12, 14]],
-    [[0, 2, 4, 6, 8, 10, 12, 14], [0, 2, 4, 6, 8, 10, 12, 14, 15]],
-  ],
-};
+const ARP_STEPS: Record<DrumStyle, readonly [readonly [number[], number[]], readonly [number[], number[]], readonly [number[], number[]]]> =
+  {
+    pop: [
+      [
+        [0, 8],
+        [0, 8, 12],
+      ],
+      [
+        [0, 2, 4, 6, 8, 10, 12, 14],
+        [0, 2, 4, 6, 8, 10, 12, 14, 15],
+      ],
+      [
+        [0, 2, 3, 4, 6, 8, 10, 11, 12, 14],
+        [0, 2, 4, 6, 8, 10, 11, 12, 13, 14, 15],
+      ],
+    ],
+    disco: [
+      [
+        [2, 10],
+        [2, 10, 14],
+      ],
+      [
+        [2, 4, 6, 10, 12, 14],
+        [2, 4, 6, 10, 12, 13, 14, 15],
+      ],
+      [
+        [0, 2, 3, 6, 7, 10, 11, 14, 15],
+        [0, 2, 3, 6, 7, 10, 12, 13, 14, 15],
+      ],
+    ],
+    soft: [
+      [
+        [0, 8],
+        [0, 8, 12],
+      ],
+      [
+        [0, 4, 6, 8, 12, 14],
+        [0, 4, 6, 8, 12, 13, 14],
+      ],
+      [
+        [0, 2, 4, 6, 8, 10, 12, 14],
+        [0, 2, 4, 6, 8, 10, 12, 13, 14, 15],
+      ],
+    ],
+    latin: [
+      [
+        [0, 6, 12],
+        [0, 6, 12, 14],
+      ],
+      [
+        [0, 3, 6, 8, 11, 14],
+        [0, 3, 6, 8, 11, 13, 14, 15],
+      ],
+      [
+        [0, 3, 4, 6, 8, 11, 12, 14],
+        [0, 3, 6, 8, 10, 11, 12, 13, 14, 15],
+      ],
+    ],
+    east: [
+      [[0], [0, 10]],
+      [
+        [0, 4, 8, 12],
+        [0, 4, 8, 12, 14],
+      ],
+      [
+        [0, 2, 4, 6, 8, 10, 12, 14],
+        [0, 2, 4, 6, 8, 10, 12, 14, 15],
+      ],
+    ],
+  };
 
 export interface ArpRecipe extends Register {
   seed: number;
@@ -199,7 +242,7 @@ export function arp(r: ArpRecipe): RobotPatterns {
           const runStart = steps.length - 4;
           const inRun = b === 3 && lv > 0 && i >= runStart;
           const o = inRun ? i - runStart + 1 : (seq[(i + r.seed) % seq.length] as number) + lift;
-          const v = (inRun ? [5, 6, 8, 9][i - runStart] ?? 6 : accent(s, style)) + (r.vel ?? 0);
+          const v = (inRun ? ([5, 6, 8, 9][i - runStart] ?? 6) : accent(s, style)) + (r.vel ?? 0);
           return { s, d: ds[i] as number, v, o };
         });
       });
@@ -213,11 +256,36 @@ export function arp(r: ArpRecipe): RobotPatterns {
 // ---------------------------------------------------------------------------------------------
 
 const LEAD_CELLS: Record<DrumStyle, readonly (readonly number[])[]> = {
-  pop: [[0, 2, 4, 8, 10, 12], [0, 4, 6, 8, 12, 14], [0, 3, 4, 8, 11, 12], [2, 4, 6, 8, 10, 14]],
-  disco: [[2, 4, 6, 10, 12, 14], [2, 6, 8, 10, 14], [0, 2, 6, 10, 12], [2, 3, 6, 10, 11, 14]],
-  soft: [[0, 4, 8, 12], [0, 6, 8, 12], [0, 4, 6, 10, 12], [2, 6, 8, 14]],
-  latin: [[0, 3, 6, 8, 11, 14], [0, 3, 4, 8, 11], [2, 3, 6, 10, 11, 14], [0, 6, 8, 11, 12, 14]],
-  east: [[0, 4, 8, 12], [0, 4, 6, 10, 12], [0, 2, 4, 8, 12], [0, 6, 8, 12, 14]],
+  pop: [
+    [0, 2, 4, 8, 10, 12],
+    [0, 4, 6, 8, 12, 14],
+    [0, 3, 4, 8, 11, 12],
+    [2, 4, 6, 8, 10, 14],
+  ],
+  disco: [
+    [2, 4, 6, 10, 12, 14],
+    [2, 6, 8, 10, 14],
+    [0, 2, 6, 10, 12],
+    [2, 3, 6, 10, 11, 14],
+  ],
+  soft: [
+    [0, 4, 8, 12],
+    [0, 6, 8, 12],
+    [0, 4, 6, 10, 12],
+    [2, 6, 8, 14],
+  ],
+  latin: [
+    [0, 3, 6, 8, 11, 14],
+    [0, 3, 4, 8, 11],
+    [2, 3, 6, 10, 11, 14],
+    [0, 6, 8, 11, 12, 14],
+  ],
+  east: [
+    [0, 4, 8, 12],
+    [0, 4, 6, 10, 12],
+    [0, 2, 4, 8, 12],
+    [0, 6, 8, 12, 14],
+  ],
 };
 
 export interface LeadRecipe extends Register {
@@ -314,8 +382,15 @@ const FILL_TAIL: readonly CompEv[] = [
 const tokenOf = ([s, what, d, v]: CompEv): string => `${s}${what}${d > 1 ? `:${Math.min(d, 16 - s)}` : ''}@${v}`;
 
 /** The three levels of one body bar: the beats only (easy), the part (medium), with ghost strokes (busy). */
-function compLevels(body: readonly CompEv[], tail: readonly CompEv[], ghostCap: number, ghostWhat: string): [CompEv[][], CompEv[][], CompEv[][]] {
-  const easy = body.filter((e) => e[0] % 8 === 0).map((e): CompEv => [e[0], e[1][0] === 'b' || e[1][0] === 'v' || e[1][0] === 'j' ? e[1] : e[1], 8, e[3]]);
+function compLevels(
+  body: readonly CompEv[],
+  tail: readonly CompEv[],
+  ghostCap: number,
+  ghostWhat: string,
+): [CompEv[][], CompEv[][], CompEv[][]] {
+  const easy = body
+    .filter((e) => e[0] % 8 === 0)
+    .map((e): CompEv => [e[0], e[1][0] === 'b' || e[1][0] === 'v' || e[1][0] === 'j' ? e[1] : e[1], 8, e[3]]);
   const l1: CompEv[] = easy.length ? easy : [[0, 'w', 8, 6]];
   const used = new Set(body.map((e) => e[0]));
   const ghosts: CompEv[] = [];
@@ -342,7 +417,16 @@ export interface CompOptions {
 export function comp(table: Record<DrumStyle, readonly CompEv[]>, opts: CompOptions = {}): RobotPatterns {
   return perStyle((style) => {
     const lv = compLevels(table[style], opts.tail ?? FILL_TAIL, opts.ghosts ?? 2, opts.ghostWhat ?? 'v1');
-    return lv.map((bars) => bars.map((b) => [...b].sort((x, y) => x[0] - y[0]).map(tokenOf).join(' ')).join(' | '));
+    return lv.map((bars) =>
+      bars
+        .map((b) =>
+          [...b]
+            .sort((x, y) => x[0] - y[0])
+            .map(tokenOf)
+            .join(' '),
+        )
+        .join(' | '),
+    );
   }) as unknown as RobotPatterns;
 }
 

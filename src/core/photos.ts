@@ -102,6 +102,21 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * A small square crop of a photo, for a face a few dozen pixels wide. A 1024 px photo drawn into a
+ * dancing SVG is resampled on every repaint; this one is decoded once at the size it is shown.
+ */
+export async function photoThumb(url: string, side = 160, quality = 0.85): Promise<string> {
+  const img = await loadImage(url);
+  const canvas = document.createElement('canvas');
+  canvas.width = side;
+  canvas.height = side;
+  const c = canvas.getContext('2d');
+  if (!c) throw new Error('Không có canvas');
+  drawCover(c, img, side, side);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
 /** Draw `img` into a `w`×`h` box like CSS `object-fit: cover`. */
 export function drawCover(
   c: CanvasRenderingContext2D,

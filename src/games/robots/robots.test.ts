@@ -177,7 +177,23 @@ describe('every robot always plays in tune', () => {
   });
 });
 
-const ORIGINAL = new Set(['kick', 'bass', 'piano', 'guitar', 'xylo', 'snare', 'bell', 'shaker', 'flute', 'cowbell', 'tom', 'trumpet', 'sax', 'violin', 'triangle']);
+const ORIGINAL = new Set([
+  'kick',
+  'bass',
+  'piano',
+  'guitar',
+  'xylo',
+  'snare',
+  'bell',
+  'shaker',
+  'flute',
+  'cowbell',
+  'tom',
+  'trumpet',
+  'sax',
+  'violin',
+  'triangle',
+]);
 const SONG_OF = (style: string): Song => SONGS.find((x) => x.style === style)!;
 const volOf = (id: string, song: Song): number => {
   const vol = playerFor(findRobot(id)!).vol;
@@ -411,9 +427,25 @@ describe('no part is monotonous', () => {
   });
 
   it('every percussion part has accents: at least three different strengths in its busy part', () => {
-    for (const id of ['shaker', 'cowbell', 'triangle', 'conga', 'bongo', 'tambourine', 'maracas', 'castanets', 'mo', 'beatbox', 'timpani']) {
+    for (const id of [
+      'shaker',
+      'cowbell',
+      'triangle',
+      'conga',
+      'bongo',
+      'tambourine',
+      'maracas',
+      'castanets',
+      'mo',
+      'beatbox',
+      'timpani',
+    ]) {
       for (const style of DRUM_STYLES) {
-        const vs = new Set(barsOf(id, style, 3).flat().map((h) => h.v ?? DEFAULT_VEL));
+        const vs = new Set(
+          barsOf(id, style, 3)
+            .flat()
+            .map((h) => h.v ?? DEFAULT_VEL),
+        );
         expect(vs.size, `${id} ${style}`).toBeGreaterThanOrEqual(3);
       }
     }
