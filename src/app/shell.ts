@@ -79,6 +79,8 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
     stage,
     audio,
     speak: (text) => speech.speak(text),
+    speakSeq: (parts) => speech.speakSeq(parts),
+    stopSpeech: () => speech.cancel(),
     celebrate: () => celebrate(stage, audio, (t) => speech.speak(t), { confetti: store.settings().confetti }),
     hint,
     addStar: () => {
