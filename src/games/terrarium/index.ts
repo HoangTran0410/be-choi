@@ -1174,6 +1174,7 @@ function start(ctx: GameContext): void {
     // Point at whatever the box needs: food when they are hungry, a new friend
     // otherwise — and the spray whenever the glass has dried out.
     const starving = creatures.filter((cr) => cr.mood === 'hungry').length;
+    ctx.speak(starving > creatures.length / 3 ? 'Các bạn đói rồi, cho ăn nhé.' : 'Bé chạm vào các bạn nhé.');
     replay(starving > creatures.length / 3 ? feed : wet === 0 && Math.random() < 0.4 ? mist : add, 'anim-wiggle');
     const cr = creatures[Math.floor(Math.random() * creatures.length)];
     if (cr) cr.joy = 0.8;

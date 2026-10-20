@@ -105,6 +105,7 @@ function start(ctx: GameContext): void {
     view.replaceChildren(map.el);
     sinceMap = 0;
     ctx.hint.arm(() => {
+      ctx.speak('Bé chạm vào đảo đang lắc nhé.');
       const el = map.node(next);
       if (el) replay(el, 'anim-wiggle');
     }, 9000);

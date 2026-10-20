@@ -15,7 +15,10 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 const ptr = (type: string, x = 0, y = 0) =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  // A finger: the shared drag-and-drop treats a mouse move with no button down as "released outside".
+  Object.assign(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true }), {
+    pointerType: 'touch',
+  });
 
 const tubes = (stage: HTMLElement) => [...stage.querySelectorAll<HTMLElement>('.tubes-tube')];
 const ballsIn = (tube: HTMLElement) => [...tube.querySelectorAll<HTMLElement>('.tubes-ball')];

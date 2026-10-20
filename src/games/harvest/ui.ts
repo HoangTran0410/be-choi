@@ -1,5 +1,7 @@
 /** Small DOM helpers shared by the farm's screens. */
 import { h } from '../../core/dom';
+import type { Target } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import type { Photo } from '../../core/photos';
 import type { Env, Pt } from './env';
 import { centerOf } from './env';
@@ -8,8 +10,10 @@ export interface PressOptions {
   /** Picture that follows the finger while dragging. */
   ghost: string;
   onTap(): void;
-  /** Called while dragging, with the finger position. */
-  onMove?(p: Pt): void;
+  /** Places that react to a carried picture passing over them (measured once at pick-up). */
+  targets?(): Target[];
+  /** The carried picture came over target `id`. */
+  onHover?(id: string): void;
   /** Called on release after a drag. */
   onDrop?(p: Pt): void;
 }
@@ -19,63 +23,27 @@ export const DRAG_SLOP = 12;
 
 /**
  * One finger, two meanings: a short press is a tap, a press that travels is a drag with a picture
- * under the finger. Listeners live on the element itself (nothing on window/document to clean up).
+ * under the finger. The pointer work (capture, slop, the light copy moved by `transform` once per
+ * frame, cleanup) is the shared `core/dragdrop`; this only says what the farm does with it.
  */
 export function pressOrDrag(env: Env, el: HTMLElement, o: PressOptions): void {
-  let id: number | null = null;
-  let start: Pt = { x: 0, y: 0 };
-  let ghost: HTMLElement | null = null;
-
-  const place = (p: Pt): void => {
-    if (ghost) ghost.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-  };
-  const drop = (): void => {
-    ghost?.remove();
-    ghost = null;
-    el.classList.remove('dragging');
-  };
-
-  el.addEventListener('pointerdown', (e) => {
-    if (id !== null || (e as PointerEvent).isPrimary === false) return;
-    id = (e as PointerEvent).pointerId ?? 0;
-    start = { x: e.clientX, y: e.clientY };
-    try {
-      el.setPointerCapture(id);
-    } catch {
-      /* jsdom, or the pointer is already gone */
-    }
-    e.preventDefault();
+  const dd = createDragDrop<true>({
+    layer: env.layer,
+    slop: DRAG_SLOP,
+    targets: () => o.targets?.() ?? [],
+    // The place under the finger (the watering can's plots) is reported as it changes, once a frame.
+    resolve: (p, targets) => pickTarget(p, targets, { tolerance: 0 }),
+    ghost: () => h('div', { class: 'hv-ghost' }, o.ghost),
+    onTap: () => o.onTap(),
+    onHover: (id) => {
+      if (id !== null) o.onHover?.(id);
+    },
+    onDrop: (_src, _hit, _el, p) => {
+      o.onDrop?.(p);
+    },
+    ctx: env.ctx,
   });
-  el.addEventListener('pointermove', (e) => {
-    if (id === null || ((e as PointerEvent).pointerId ?? 0) !== id) return;
-    const p = { x: e.clientX, y: e.clientY };
-    if (!ghost && Math.hypot(p.x - start.x, p.y - start.y) > DRAG_SLOP) {
-      ghost = h('div', { class: 'hv-ghost' }, o.ghost);
-      env.layer.append(ghost);
-      el.classList.add('dragging');
-    }
-    if (ghost) {
-      place(p);
-      o.onMove?.(p);
-    }
-  });
-  const end = (e: Event, cancelled: boolean): void => {
-    if (id === null || ((e as PointerEvent).pointerId ?? 0) !== id) return;
-    id = null;
-    const p = { x: (e as PointerEvent).clientX, y: (e as PointerEvent).clientY };
-    const dragged = ghost !== null;
-    drop();
-    try {
-      el.releasePointerCapture((e as PointerEvent).pointerId);
-    } catch {
-      /* ignore */
-    }
-    if (cancelled) return;
-    if (dragged) o.onDrop?.(p);
-    else o.onTap();
-  };
-  el.addEventListener('pointerup', (e) => end(e, false));
-  el.addEventListener('pointercancel', (e) => end(e, true));
+  dd.attach(el, () => true);
 }
 
 /** Make a tapped element wiggle. */

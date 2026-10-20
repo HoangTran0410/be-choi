@@ -460,6 +460,7 @@ export function createGame(ctx: GameContext): void {
   function armHint(): void {
     if (scene?.world === 'pond') return;
     ctx.hint.arm(() => {
+      ctx.speak('Bé chạm vào chỗ đang lắc nhé.');
       if (save.egg) return hud.nudge('egg');
       const open = save.quests.active.map((s) => ({ s, q: questById(s.id) })).find((e) => e.q && e.s.got < e.q.n);
       const target = open?.q ? toolFor(open.q) : null;

@@ -723,7 +723,8 @@
     0 0 0 4px #f59e0b,
     0 4px 0 rgba(20, 83, 45, 0.3);
 }
-.hv-chip.dragging {
+.hv-chip.dragging,
+.hv-chip.is-carried {
   opacity: 0.45;
 }
 .hv-chip-e {
