@@ -108,7 +108,7 @@ describe('Ban nhạc robot', () => {
     ctx.cleanup();
   });
 
-  it('the song button cycles the three songs and remembers them for the goal', () => {
+  it('the song button cycles the five songs and remembers them for the goal', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const root = ctx.stage.querySelector<HTMLElement>('.rb')!;
@@ -120,10 +120,19 @@ describe('Ban nhạc robot', () => {
     vi.spyOn(performance, 'now').mockReturnValue(now + 1000);
     tap(btn);
     expect(root.dataset.song).toBe('calm');
+    vi.spyOn(performance, 'now').mockReturnValue(now + 2000);
+    tap(btn);
+    expect(root.dataset.song).toBe('latin');
+    vi.spyOn(performance, 'now').mockReturnValue(now + 3000);
+    tap(btn);
+    expect(root.dataset.song).toBe('east');
+    vi.spyOn(performance, 'now').mockReturnValue(now + 4000);
+    tap(btn);
+    expect(root.dataset.song).toBe('fun');
     expect(ctx.sequenced).toEqual([]);
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY)!);
     expect(saved.v).toBe(1);
-    expect(saved.tried.sort()).toEqual(['calm', 'disco']);
+    expect(saved.tried.sort()).toEqual(['calm', 'disco', 'east', 'fun', 'latin']);
     ctx.cleanup();
   });
 

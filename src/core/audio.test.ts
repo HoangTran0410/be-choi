@@ -170,7 +170,7 @@ describe('scheduling ahead with delay', () => {
       createWaveShaper = node;
       createOscillator = () => ({ ...node(), type: '', start: (t: number) => starts.push(t), stop() {} });
       createBuffer = (_c: number, len: number) => ({ getChannelData: () => new Float32Array(len) });
-      createBufferSource = () => ({ ...node(), buffer: null, start: (t: number) => starts.push(t) });
+      createBufferSource = () => ({ ...node(), buffer: null, playbackRate: { value: 1 }, start: (t: number) => starts.push(t), stop() {} });
       resume = () => Promise.resolve();
     };
   }
@@ -199,6 +199,19 @@ describe('scheduling ahead with delay', () => {
     starts.length = 0;
     a.drum('hat');
     expect(Math.max(...starts)).toBe(10);
+  });
+
+  it('a world instrument starts `delay` seconds from now, and a damped one is stopped when its length is up', () => {
+    const a = createAudio();
+    a.unlock();
+    a.inst('marimba', 440, 0.8);
+    expect(starts).toEqual([10]);
+    starts.length = 0;
+    a.inst('marimba', 440, 0.8, 0.6, 0.25, true, 0.5);
+    expect(starts).toEqual([10.25]);
+    starts.length = 0;
+    a.inst('kalimba', 330, 0.8, undefined, Number.NaN);
+    expect(starts).toEqual([10]);
   });
 
   it('a delay does not leak into the next call, and bad delays count as 0', () => {
