@@ -68,6 +68,7 @@ const GAMES = [
   'museum',
   'learn',
   'build',
+  'brain',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },

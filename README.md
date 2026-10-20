@@ -17,12 +17,15 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Thế giới nhỏ của bé (bể cá · biển · rừng nhỏ · ao câu, một sổ bạn bè) · 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🧩 **Suy nghĩ** | 🧱 Xưởng xếp hình · 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
+| 🧩 **Suy nghĩ** | 🧠 Trí nhớ & suy nghĩ · 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
 
 Vài trò nổi bật:
 
 - **🧱 Xưởng xếp hình** — một xưởng, ba cách chơi, đổi qua lại không cần thoát: *Ghép tranh* (tranh con vật, cảnh vật và ảnh gia đình; mảnh nam châm hút vào đúng chỗ, xong thì tranh "sống dậy"), *Xếp theo bóng* (kéo khối màu vào cái bóng đen, càng lên cao càng mất đường kẻ gợi ý; xong thì ảnh gia đình hiện qua hình bóng), *Xây tự do* (xây gạch theo bản vẽ từng bước hoặc tuỳ thích, bấm 📸 cất vào Tủ trưng bày). Mỗi lần xong được sao; sao mở thêm tranh, khối, bản vẽ mới và làm các mảnh ghép khó dần. Gộp từ Ghép tranh, Xếp khối và Xếp gạch (ba game cũ vẫn chơi được ở cuối trang).
+- **🧠 Trí nhớ & suy nghĩ** — một "đảo kho báu" có 5 trạm trong cùng một khung: lật thẻ tìm đôi (có cả ảnh gia đình của bé nếu bố mẹ đã thêm), xếp bi màu, nhớ dãy hình/màu/con vật có tiếng, tìm đồ biến mất, tìm khác biệt. Độ khó tự tăng khi bé làm tốt liên tiếp và nhẹ đi khi bé vấp; mỗi 3 ⭐ mở trạm/đảo/bạn đồng hành/đồ nghề mới. Không thua, không đếm giờ; tiến độ được lưu. Các game lẻ cũ (Lật thẻ, Xếp bi màu…) vẫn chơi được ở nhóm "Game lẻ".
+
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
 - **🌦️ Bé tạo cảnh** — 47 âm thanh nền (mưa, tuyết, sóng biển, thác nước, vườn ong, hội chợ, vũ trụ…) trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, tuyết phủ đồi, pháo hoa có đuôi, đu quay quay, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
 - **📺 Xem nhạc** — chọn video nhạc êm, lofi, thiên nhiên (danh sách của iFocus); bố mẹ dán thêm link YouTube được. Cần có mạng.

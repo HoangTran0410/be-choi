@@ -52,6 +52,7 @@ import { meta as catband } from '../games/catband/meta';
 import { meta as museum } from '../games/museum/meta';
 import { meta as learn } from '../games/learn/meta';
 import { meta as build } from '../games/build/meta';
+import { meta as brain } from '../games/brain/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -113,6 +114,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...museum, load: () => import('../games/museum/index') },
   { ...learn, load: () => import('../games/learn/index') },
   { ...build, load: () => import('../games/build/index') },
+  { ...brain, load: () => import('../games/brain/index') },
 ];
 
 /**
