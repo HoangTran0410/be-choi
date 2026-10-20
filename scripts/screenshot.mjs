@@ -63,6 +63,7 @@ const GAMES = [
   'dressup',
   'mask',
   'robots',
+  'habitat',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },

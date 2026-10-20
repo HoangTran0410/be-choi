@@ -12,7 +12,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay · 🤖 Ban nhạc robot |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
-| 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
+| 🌊 **Thế giới nhỏ** | 🐠 Thế giới nhỏ của bé (bể cá · biển · rừng nhỏ · ao câu, một sổ bạn bè) · 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
 
 Vài trò nổi bật:
@@ -20,6 +20,7 @@ Vài trò nổi bật:
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
 - **🌦️ Bé tạo cảnh** — 47 âm thanh nền (mưa, tuyết, sóng biển, thác nước, vườn ong, hội chợ, vũ trụ…) trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, tuyết phủ đồi, pháo hoa có đuôi, đu quay quay, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
 - **📺 Xem nhạc** — chọn video nhạc êm, lofi, thiên nhiên (danh sách của iFocus); bố mẹ dán thêm link YouTube được. Cần có mạng.
+- **🐠 Thế giới nhỏ của bé** — Bể cá, Bể cạn và Câu cá gộp làm một: bốn thế giới (bể nước ngọt, biển, rừng nhỏ, ao câu) dùng chung một hàng nút (thêm bạn · trang trí · cho ăn · đèn ngày/đêm · câu cá/xịt nước) và một **sổ bạn bè** 25 loài (hình mờ khi chưa gặp). Bạn mới đến từ câu cá, nhiệm vụ nhỏ không chữ (ba nhiệm vụ mỗi lúc → sao → mở loài, đồ trang trí, thế giới mới) hoặc quả trứng nở sau vài lần cho ăn; thú không bao giờ chết. Ảnh gia đình (ba mẹ thêm ở 👪) treo lên kính như tranh, làm ảnh nền, hoặc làm "khách đến xem". Tự nhận bể/hộp của Bể cá/Bể cạn cũ (chỉ đọc, không sửa); các game cũ vẫn chơi được ở nhóm "Game lẻ".
 - **🐠 Bể cá / 🦎 Bể cạn** — bể của riêng bé, tự sống, nhớ giữa các lần chơi. Bắt, thả, cho ăn, bật đèn đêm.
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
 - **🎭 Biến hình** — bật camera trước như một chiếc gương, bé đội mặt nạ gấu, mèo, thỏ, khủng long… lên mặt; bấm nút to để đổi mặt nạ và nghe tiếng con vật. Mặt nạ đi theo mặt bé nếu trình duyệt có `FaceDetector`, không thì nằm giữa màn hình để bé tự đưa mặt vào. Không có camera thì chơi với gương hoạt hình.

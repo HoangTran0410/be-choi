@@ -3,6 +3,7 @@ import { readSave as readTank } from '../games/aquarium/logic';
 import { readSave as readDrive } from '../games/drive/logic';
 import { readSave as readViv } from '../games/terrarium/logic';
 import {
+  aliasKey,
   loadVersioned,
   parseVersioned,
   readJson,
@@ -126,5 +127,33 @@ describe('saves written by earlier versions still load', () => {
     expect(readDrive(JSON.stringify({ v: 1, vehicle: 'tractor', night: true }))).toEqual({ v: 1, vehicle: 'tractor', night: true });
     expect(readDrive(JSON.stringify({ vehicle: 'tractor' }))).toEqual({ v: 1, vehicle: 'tractor', night: false });
     expect(readDrive(JSON.stringify({ v: 1, vehicle: 'nope' }))).toBeNull();
+  });
+});
+
+describe('aliasKey', () => {
+  it('redirects reads and writes, leaves the original key alone, and tells the listener', () => {
+    const store = memory({ old: 'OLD' });
+    const heard: string[] = [];
+    const release = aliasKey('old', 'new', (raw) => heard.push(raw));
+    expect(readRaw('old', store)).toBeNull();
+    writeRaw('old', 'X', store);
+    expect(store.data.new).toBe('X');
+    expect(store.data.old).toBe('OLD');
+    expect(readRaw('old', store)).toBe('X');
+    expect(heard).toEqual(['X']);
+    removeRaw('old', store);
+    expect(store.data.new).toBeUndefined();
+    expect(store.data.old).toBe('OLD');
+    release();
+    expect(readRaw('old', store)).toBe('OLD');
+  });
+  it('a stale release does not drop a newer alias', () => {
+    const store = memory();
+    const first = aliasKey('k', 'a');
+    const second = aliasKey('k', 'b');
+    first();
+    writeRaw('k', '1', store);
+    expect(store.data.b).toBe('1');
+    second();
   });
 });
