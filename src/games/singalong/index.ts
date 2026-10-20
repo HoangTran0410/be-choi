@@ -42,7 +42,8 @@ function start(ctx: GameContext): void {
   const stage = createStage(ctx);
   const audience = createAudience(ctx);
   let alive = true;
-  let current: ModeId = 'song';
+  /** The mode in front, or null on the opening screen where the child picks one. */
+  let current: ModeId | null = null;
   let photos: Photo[] = [];
   /** Bumped on every mode change, so a show that ends after the child left it does not pop up over the new one. */
   let epoch = 0;
@@ -51,6 +52,7 @@ function start(ctx: GameContext): void {
   let askedMic = false;
 
   const root = h('div', { class: 'sa' });
+  const inner = h('div', { class: 'sa-in', 'data-view': 'menu' });
   const bubble = h('div', { class: 'sa-bubble', 'aria-live': 'polite' });
   const body = h('div', { class: 'sa-body' });
   const micBtn = h('button', { class: 'btn-round sa-mic', type: 'button', 'aria-label': 'Bật micro' }, '🎤');
@@ -59,7 +61,7 @@ function start(ctx: GameContext): void {
     bubble.textContent = text;
     replay(bubble, 'anim-bounce');
   });
-  const hud = createHud(ctx, (id) => switchTo(id));
+  const hud = createHud(ctx, (id) => switchTo(id), goBack);
 
   // ---- the modes ----
   const env: Env = {
@@ -88,14 +90,17 @@ function start(ctx: GameContext): void {
     body.append(panel);
   }
 
-  root.append(
+  inner.append(
     stage.back,
-    hud.el,
+    hud.top,
+    hud.modes,
     h('div', { class: 'sa-panel' }, bubble, body),
-    h('div', { class: 'sa-singer-row' }, micBtn, stage.singer, wardrobeBtn),
+    h('div', { class: 'sa-singer-row' }, stage.singer, micBtn),
     audience.el,
     stage.fx,
   );
+  hud.top.prepend(wardrobeBtn);
+  root.append(inner);
   ctx.stage.append(root);
 
   function mode(id: ModeId): Mode {
@@ -107,22 +112,37 @@ function start(ctx: GameContext): void {
     return m;
   }
 
-  function switchTo(id: ModeId, first = false): void {
+  function switchTo(id: ModeId | null, first = false): void {
     if (!first && id === current) return;
     epoch++;
     closeResults?.();
     closeResults = null;
-    if (!first) {
+    if (current) {
       modes.get(current)?.leave();
       panels.get(current)?.setAttribute('hidden', '');
     }
     current = id;
-    root.dataset.mode = id;
-    panels.get(id)?.removeAttribute('hidden');
+    if (id) root.dataset.mode = id;
+    else delete root.dataset.mode;
+    inner.dataset.view = id ? 'play' : 'menu';
     hud.setMode(id);
     ctx.audio.pop();
     ctx.hint.touch();
-    mode(id).enter();
+    if (id) {
+      panels.get(id)?.removeAttribute('hidden');
+      mode(id).enter();
+    } else {
+      narrator.say('Chọn một trò chơi nhé.');
+    }
+  }
+
+  /** Back: a song under way stops first; from a mode's shelf the child returns to the four big cards. */
+  function goBack(): void {
+    if (!current) return;
+    ctx.hint.touch();
+    if (modes.get(current)?.back?.()) return;
+    ctx.audio.tick();
+    switchTo(null);
   }
 
   async function finish(stats: ShowStats): Promise<void> {
@@ -140,7 +160,7 @@ function start(ctx: GameContext): void {
     if (mine !== epoch) return;
     narrator.say(gifts.length > 0 ? `Bé được ${result.stars} sao! Có quà mới nè!` : `Hay quá! Bé được ${result.stars} sao!`);
     await new Promise<void>((resolve) => {
-      const close = showResults(ctx, root, { ...result, gifts, total: after }, () => {
+      const close = showResults(ctx, inner, { ...result, gifts, total: after }, () => {
         closeResults = null;
         resolve();
       });
@@ -182,7 +202,7 @@ function start(ctx: GameContext): void {
     voice.press();
     ctx.hint.touch();
     stage.wave();
-    modes.get(current)?.hit?.();
+    if (current) modes.get(current)?.hit?.();
   });
   const letGo = (): void => voice.release();
   singer.addEventListener('pointerup', letGo);
@@ -235,7 +255,7 @@ function start(ctx: GameContext): void {
       ctx.hint.touch();
       closeWardrobe?.();
       closeWardrobe = openWardrobe(ctx, {
-        parent: root,
+        parent: inner,
         progress,
         photos,
         onChange: refreshLook,
@@ -248,11 +268,15 @@ function start(ctx: GameContext): void {
   voice.onFrame((f) => {
     stage.react(f);
     audience.react(f);
-    modes.get(current)?.frame?.(f);
+    if (current) modes.get(current)?.frame?.(f);
   });
 
   ctx.hint.arm(() => {
-    modes.get(current)?.nudge?.();
+    if (current) modes.get(current)?.nudge?.();
+    else {
+      for (const c of hud.modes.children) replay(c, 'anim-wiggle');
+      narrator.say('Bé chạm vào một trò chơi nhé.');
+    }
     if (!voice.micOn && !voice.micRefused) replay(micBtn, 'anim-wiggle');
   });
 
@@ -261,13 +285,13 @@ function start(ctx: GameContext): void {
     root.removeEventListener('pointerup', firstTouch);
     closeResults?.();
     closeWardrobe?.();
-    modes.get(current)?.leave();
+    if (current) modes.get(current)?.leave();
     narrator.stop();
   });
 
   refreshLook();
   showMic();
-  switchTo('song', true);
+  switchTo(null, true);
 }
 
 const game: GameModule = { ...meta, start };

@@ -41,20 +41,14 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
   const timers = env.timers();
   let effect: Effect = EFFECTS[0] as Effect;
   const used = new Set<string>();
-  const fxBtns = new Map<string, HTMLButtonElement>();
-  const fxRow = h('div', { class: 'sa-fxrow', role: 'group', 'aria-label': 'Hiệu ứng ánh sáng' });
-  for (const e of EFFECTS) {
-    const btn = h('button', { class: 'sa-fx-btn', type: 'button', 'data-fx': e.id, 'aria-label': e.name }, e.icon);
-    makeTappable(btn, () => choose(e, true), { ctx: env.ctx });
-    fxBtns.set(e.id, btn);
-    fxRow.append(btn);
-  }
+  // One big button changes the lights: a tap goes on to the next style, so there is never a row of four to choose from.
+  const fxBtn = h('button', { class: 'sa-fx-btn', type: 'button', 'aria-label': 'Đổi ánh sáng' }, effect.icon);
+  makeTappable(fxBtn, () => choose(EFFECTS[(EFFECTS.indexOf(effect) + 1) % EFFECTS.length] as Effect, true), { ctx: env.ctx });
   const grid = h('div', { class: 'sa-songs' });
   const nowIcon = h('span', { class: 'sa-now-icon' }, '🎶');
   const nowTitle = h('span', { class: 'sa-now-title' });
-  const stop = h('button', { class: 'btn-round sa-stop', type: 'button', 'aria-label': 'Dừng biểu diễn' }, '⏹');
-  const now = h('div', { class: 'sa-now', hidden: true }, nowIcon, nowTitle, stop);
-  panel.append(fxRow, grid, now);
+  const now = h('div', { class: 'sa-now', hidden: true }, h('div', { class: 'sa-now-song' }, nowIcon, nowTitle), fxBtn);
+  panel.append(grid, now);
 
   let phase: 'pick' | 'play' = 'pick';
   let cancelSong: (() => void) | null = null;
@@ -67,7 +61,9 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
   function choose(e: Effect, burst: boolean): void {
     effect = e;
     used.add(e.id);
-    for (const [id, btn] of fxBtns) btn.classList.toggle('sa-fx-on', id === e.id);
+    fxBtn.textContent = e.icon;
+    fxBtn.dataset.fx = e.id;
+    replay(fxBtn, 'sa-fx-pop');
     env.stage.setLights(e.lights);
     if (burst) {
       env.touch();
@@ -127,7 +123,7 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
     if (env.alive() && phase === 'play') {
       used.clear();
       showPicker();
-      env.say('Chọn bài khác nhé. Bé thử đổi ánh sáng nữa!');
+      env.say('Chọn bài khác nhé!');
     }
   }
 
@@ -155,22 +151,11 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
     });
   }
 
-  makeTappable(
-    stop,
-    () => {
-      env.ctx.audio.tick();
-      abort();
-      showPicker();
-      env.say('Chọn bài khác nhé!');
-    },
-    { ctx: env.ctx },
-  );
-
   return {
     enter() {
       choose(effect, false);
       showPicker();
-      env.say('Chọn ánh sáng và một bài hát. Cả dàn thú sẽ chơi nhạc cho bé biểu diễn.', { speak: true });
+      env.say('Chọn một bài hát. Cả dàn thú sẽ chơi nhạc cho bé biểu diễn.', { speak: true });
     },
     leave() {
       abort();
@@ -180,11 +165,19 @@ export function createPerformMode(env: Env, panel: HTMLElement): Mode {
     frame(f) {
       if (playing && tracker) tracker.feed({ active: f.active, onset: f.onset, band: f.band }, FRAME_MS);
     },
+    back() {
+      if (phase !== 'play') return false;
+      env.ctx.audio.tick();
+      abort();
+      showPicker();
+      env.say('Chọn bài khác nhé!');
+      return true;
+    },
     nudge() {
       if (phase === 'pick') {
-        replay(fxRow, 'anim-wiggle');
+        for (const c of grid.children) replay(c, 'anim-wiggle');
         env.say('Bé chọn một bài hát nhé.', { speak: true });
-      }
+      } else replay(fxBtn, 'anim-wiggle');
     },
   };
 }

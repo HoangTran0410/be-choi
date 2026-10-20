@@ -1,6 +1,5 @@
 import { h, replay } from '../../../core/dom';
 import { hasLyrics, noteFreq, phraseAt, schedule, type Phrase, type SongNote, type SungSong } from '../../../core/music';
-import { makeTappable } from '../../../core/tap';
 import { REPERTOIRE } from '../catalog';
 import { createTracker, type ShowTracker } from '../show';
 import { FRAME_MS } from '../voice';
@@ -27,8 +26,7 @@ export function createSongMode(env: Env, panel: HTMLElement): Mode {
   const emoji = h('span', { class: 'sa-lyric-emoji' }, '🎵');
   const words = h('div', { class: 'sa-words' });
   const count = h('div', { class: 'sa-count', hidden: true, 'aria-hidden': 'true' });
-  const stop = h('button', { class: 'btn-round sa-stop', type: 'button', 'aria-label': 'Chọn bài khác' }, '⏹');
-  const sing = h('div', { class: 'sa-sing', hidden: true }, h('div', { class: 'sa-lyric' }, emoji, words), count, stop);
+  const sing = h('div', { class: 'sa-sing', hidden: true }, h('div', { class: 'sa-lyric' }, emoji, words), count);
   panel.append(grid, sing);
 
   let phase: 'pick' | 'play' = 'pick';
@@ -117,17 +115,6 @@ export function createSongMode(env: Env, panel: HTMLElement): Mode {
     });
   }
 
-  makeTappable(
-    stop,
-    () => {
-      env.ctx.audio.tick();
-      abort();
-      showPicker();
-      env.say('Chọn bài khác nhé!');
-    },
-    { ctx: env.ctx },
-  );
-
   return {
     enter() {
       showPicker();
@@ -140,6 +127,14 @@ export function createSongMode(env: Env, panel: HTMLElement): Mode {
     frame(f) {
       panel.classList.toggle('sa-voice', f.active && phase === 'play');
       if (tracker && counting) tracker.feed({ active: f.active, onset: f.onset, band: f.band }, FRAME_MS);
+    },
+    back() {
+      if (phase !== 'play') return false;
+      env.ctx.audio.tick();
+      abort();
+      showPicker();
+      env.say('Chọn bài khác nhé!');
+      return true;
     },
     nudge() {
       if (phase === 'pick') {

@@ -28,7 +28,7 @@ type State = 'ready' | 'listening' | 'choir';
  */
 export function createEchoMode(env: Env, panel: HTMLElement): Mode {
   const timers = env.timers();
-  const partEls: HTMLButtonElement[] = [];
+  const partEls: HTMLElement[] = [];
   const choirRow = h('div', { class: 'sa-choir' });
   const go = h('button', { class: 'sa-echo-go', type: 'button', 'aria-label': 'Bắt đầu hát' }, '🎤');
   const bars = h('div', { class: 'sa-bars', 'aria-hidden': 'true' }, ...Array.from({ length: BARS }, () => h('span', { class: 'sa-bar' })));
@@ -57,22 +57,12 @@ export function createEchoMode(env: Env, panel: HTMLElement): Mode {
     partEls.length = 0;
     CHOIR.forEach((part, i) => {
       const locked = i >= size;
+      // The choir is for looking at, not for pressing: the one button of this game is the microphone.
       const el = h(
-        'button',
-        { class: `sa-part${locked ? ' sa-locked' : ''}`, type: 'button', 'aria-label': part.name },
+        'span',
+        { class: `sa-part${locked ? ' sa-locked' : ''}`, 'aria-label': locked ? 'Chưa mở' : part.name },
         h('span', { class: 'sa-part-e' }, locked ? '❔' : part.emoji),
-        locked ? h('span', { class: 'sa-part-lock' }, `🔒${part.at}`) : null,
       );
-      makeTappable(el, () => {
-        env.touch();
-        if (locked) {
-          env.ctx.audio.boing();
-          env.say('Hát thêm vài lần nữa, bạn này sẽ vào hát cùng.');
-          return;
-        }
-        env.ctx.audio.fx(part.fx);
-        replay(el, 'sa-sing-part');
-      });
       partEls.push(el);
       choirRow.append(el);
     });
@@ -101,7 +91,9 @@ export function createEchoMode(env: Env, panel: HTMLElement): Mode {
   }
 
   function sayReady(): void {
-    env.say(env.voice.micOn ? 'Bé hát một câu nhé. Chạm vào micro rồi hát.' : 'Chạm trống rồi gõ nhịp. Các bạn thú sẽ gõ theo.', { speak: true });
+    env.say(env.voice.micOn ? 'Bé hát một câu nhé. Chạm vào micro rồi hát.' : 'Chạm trống rồi gõ nhịp. Các bạn thú sẽ gõ theo.', {
+      speak: true,
+    });
   }
 
   // ---- listening ----

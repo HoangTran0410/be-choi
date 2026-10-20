@@ -29,7 +29,6 @@ export function showResults(
     ? h(
         'div',
         { class: 'sa-res-gifts' },
-        h('div', { class: 'sa-res-new' }, 'Quà mới!'),
         ...info.gifts.map((g) =>
           h('div', { class: 'sa-res-gift' }, h('span', { class: 'sa-res-gift-e' }, g.emoji), h('span', { class: 'sa-res-gift-n' }, g.name)),
         ),
@@ -38,13 +37,11 @@ export function showResults(
   const go = h('button', { class: 'sa-res-go btn-round', type: 'button', 'aria-label': 'Hát tiếp' }, '▶️');
   const card = h(
     'div',
-    { class: 'sa-res' },
+    { class: 'sa-res', role: 'dialog', 'aria-label': 'Hay quá!' },
     h(
       'div',
       { class: 'sa-res-card' },
-      h('div', { class: 'sa-res-title' }, 'Hay quá!'),
-      stars,
-      h('div', { class: 'sa-res-tickets' }, `+${info.tickets} 🎟️`),
+      h('div', { class: 'sa-res-main' }, stars, h('div', { class: 'sa-res-tickets' }, `+${info.tickets} 🎟️`)),
       gifts,
       go,
     ),
