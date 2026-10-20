@@ -112,13 +112,14 @@ describe('habitat game', () => {
     tile.dispatchEvent(ptr('pointerup'));
   };
   const goTo = (world: string): void => {
-    press(q('.hb-world-btn'));
+    press(q('.hb-menu-btn'));
+    choose('.hb-world-btn');
     choose(`[data-world="${world}"]`);
     for (const el of ctx.stage.querySelectorAll<HTMLElement>('.aquarium, .terrarium, .fishing')) size(el, 420, 760);
     vi.advanceTimersByTime(100);
   };
 
-  it('opens on the fresh-water tank with the same five buttons, three errands and a book', () => {
+  it('opens on the fresh-water tank with the same five buttons, one errand and a menu', () => {
     mount();
     expect(q('.aquarium')).not.toBeNull();
     const tools = [...ctx.stage.querySelectorAll<HTMLElement>('.hb-tool')].map((b) => b.dataset.tool);
@@ -128,7 +129,8 @@ describe('habitat game', () => {
       expect(b.getAttribute('aria-label') ?? '').not.toBe('');
       expect(b.textContent ?? '').not.toMatch(/[a-zA-Z]{3,}/);
     }
-    expect(ctx.stage.querySelectorAll('.hb-chip').length).toBe(3);
+    // One errand at a time on screen.
+    expect(ctx.stage.querySelectorAll('.hb-chip').length).toBe(1);
     expect(q('.hb-badge').textContent).toBe('2/25');
     expect(ctx.stage.querySelector('.hb-egg')?.hasAttribute('hidden')).toBe(true);
   });
@@ -153,7 +155,8 @@ describe('habitat game', () => {
 
   it('keeps a world shut until it is earned', () => {
     mount();
-    press(q('.hb-world-btn'));
+    press(q('.hb-menu-btn'));
+    choose('.hb-world-btn');
     choose('[data-world="sea"]');
     expect(q('.hb-world-overlay')).not.toBeNull();
     expect(q('.aquarium.hb-water-fresh')).not.toBeNull();
@@ -258,7 +261,8 @@ describe('habitat game', () => {
 
   it('shows a shape, not a friend, for someone not met yet, and says so gently', () => {
     mount();
-    press(q('.hb-book-btn'));
+    press(q('.hb-menu-btn'));
+    choose('.hb-book-btn');
     vi.advanceTimersByTime(SETTLE);
     q('.hb-tile.hb-locked').dispatchEvent(ptr('pointerup'));
     expect(ctx.stage.querySelector('.hb-overlay')).not.toBeNull();

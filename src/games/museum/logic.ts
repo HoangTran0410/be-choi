@@ -193,6 +193,18 @@ function roomHeight(w: number, s: number, columns: number, counts: readonly numb
   return Math.max(col[0]!, col[1]!) + MARGIN;
 }
 
+/**
+ * One cabinet open on its own: the biggest tile (72…140 px) that lets `n` tiles fill a `w` x `hh`
+ * area without scrolling. Falls back to 72 (the area may then scroll) when even that does not fit.
+ */
+export function shelfLayout(w: number, hh: number, n: number): { tile: number; scroll: boolean } {
+  for (let s = 140; s >= TILE_MIN; s -= 4) {
+    const perRow = Math.max(1, Math.floor((w + GAP) / (s + GAP)));
+    if (Math.ceil(n / perRow) * (s + GAP) - GAP <= hh) return { tile: s, scroll: false };
+  }
+  return { tile: TILE_MIN, scroll: true };
+}
+
 /** Pick the biggest tile size (72…96 px) that lets the whole room show; otherwise 72 and scroll. */
 export function roomLayout(w: number, h: number, counts: readonly number[]): RoomLayout {
   const columns = w >= 700 ? 2 : 1;

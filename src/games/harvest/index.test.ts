@@ -87,6 +87,8 @@ describe('harvest: one farm, three places', () => {
     expect(qa(ctx, '.hv-seed').length).toBe(3);
     expect(q(ctx, '.hv-can')).toBeTruthy();
     expect(qa(ctx, '.hv-tab').length).toBe(3);
+    // Nothing to sell yet: the market tab stays out of sight.
+    expect(qa(ctx, '.hv-tab').filter((t) => !(t as HTMLElement).hidden).length).toBe(2);
     expect(q(ctx, '.hv-garden').classList.contains('on')).toBe(true);
     // The starting basket already has something to feed the animals.
     expect(count(ctx, 'carrot')).toBe(2);

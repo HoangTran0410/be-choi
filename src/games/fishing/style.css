@@ -17,6 +17,7 @@
   left: 2.5vmin;
   top: 2.5vmin;
   min-width: calc(var(--tap) * 1.1);
+  min-height: max(56px, var(--tap));
   padding: 0.6vmin 2vmin;
   border-radius: calc(var(--tap) * 0.4);
   display: grid;

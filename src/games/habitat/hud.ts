@@ -11,8 +11,8 @@ import type { WorldDef } from './worlds';
 export type Tool = 'add' | 'decor' | 'feed' | 'night' | 'special';
 
 export interface HudHandlers {
-  onWorld(): void;
-  onBook(): void;
+  /** The one corner button: opens the choice between the worlds and the book. */
+  onMenu(): void;
   onTool(tool: Tool): void;
   onChip(q: QuestDef): void;
   onEgg(): void;
@@ -52,16 +52,15 @@ export function createHud(onCleanup: (fn: () => void) => void, on: HudHandlers):
     makeTappable(el, fn, { ctx: { onCleanup } });
   };
 
-  const worldBtn = h('button', { class: 'hb-btn hb-world-btn', type: 'button', 'aria-label': 'đổi thế giới' }, '🐠');
-  const bookBtn = h(
+  const worldBtn = h(
     'button',
-    { class: 'hb-btn hb-book-btn', type: 'button', 'aria-label': 'sổ bạn bè' },
-    h('span', { class: 'hb-btn-icon' }, '📖'),
+    { class: 'hb-btn hb-menu-btn', type: 'button', 'aria-label': 'thế giới và sổ bạn bè' },
+    h('span', { class: 'hb-btn-icon' }, '🐠'),
     h('span', { class: 'hb-badge' }),
   );
-  tap(worldBtn, on.onWorld);
-  tap(bookBtn, on.onBook);
-  const top = h('div', { class: 'hb-top' }, worldBtn, bookBtn);
+  const bookBtn = worldBtn;
+  tap(worldBtn, on.onMenu);
+  const top = h('div', { class: 'hb-top' }, worldBtn);
 
   const chipBox = h('div', { class: 'hb-quests', 'aria-label': 'nhiệm vụ' });
 
@@ -85,7 +84,8 @@ export function createHud(onCleanup: (fn: () => void) => void, on: HudHandlers):
   return {
     el,
     setWorld(world) {
-      worldBtn.textContent = world.icon;
+      const icon = worldBtn.querySelector('.hb-btn-icon');
+      if (icon) icon.textContent = world.icon;
       el.dataset.world = world.id;
     },
     setMode(mode) {
@@ -106,7 +106,8 @@ export function createHud(onCleanup: (fn: () => void) => void, on: HudHandlers):
     },
     setChips(slots) {
       chipBox.replaceChildren();
-      for (const slot of slots) {
+      // Only the errand being done now: one picture, not a row of them.
+      for (const slot of slots.slice(0, 1)) {
         const q = questById(slot.id);
         if (!q) continue;
         const pips = h('span', { class: 'hb-pips', 'aria-hidden': 'true' });

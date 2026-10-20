@@ -58,8 +58,19 @@ export function createHud(env: Env): Hud {
 export function createBasket(env: Env): Hud {
   const { state, ctx } = env;
   const chips = new Map<string, HTMLElement>();
-  const empty = h('div', { class: 'hv-empty', 'aria-hidden': 'true' }, '🧺');
-  const el = h('div', { class: 'hv-basket' }, empty);
+  const total = h('b', { class: 'hv-kho-n' }, '0');
+  // One button for the whole store; the separate items sit in a tray that opens above/beside it.
+  const kho = h('button', { class: 'hv-kho', type: 'button', 'aria-label': 'kho' }, h('span', { class: 'hv-kho-e' }, '🧺'), total);
+  const tray = h('div', { class: 'hv-kho-tray' });
+  const el = h('div', { class: 'hv-basket' }, kho, tray);
+  makeTappable(
+    kho,
+    () => {
+      ctx.audio.pop(1.1);
+      setClass(el, 'open', !el.classList.contains('open'));
+    },
+    { ctx, feedback: false },
+  );
 
   const make = (id: string, emoji: string): HTMLElement => {
     const chip = h(
@@ -109,15 +120,13 @@ export function createBasket(env: Env): Hud {
       if (changed) {
         // Keep the catalogue order whatever order things arrived in.
         const ordered = ITEMS.map((i) => chips.get(i.id)).filter((c): c is HTMLElement => !!c);
-        el.replaceChildren(...ordered);
+        tray.replaceChildren(...ordered);
       }
-      setClass(el, 'many', chips.size > 4);
-      setClass(el, 'lots', chips.size > 8);
-      if (chips.size === 0) {
-        if (!empty.isConnected) el.replaceChildren(empty);
-      } else if (empty.isConnected) {
-        empty.remove();
-      }
+      let sum = 0;
+      for (const item of ITEMS) sum += Math.max(0, stockOf(state, item.id));
+      setText(total, String(Math.min(99, sum)));
+      setClass(el, 'empty', chips.size === 0);
+      if (chips.size === 0) el.classList.remove('open');
     },
   };
 }
@@ -131,6 +140,13 @@ const TAB_INFO: Record<Tab, { emoji: string; label: string }> = {
   garden: { emoji: '🌱', label: 'Vườn' },
   barn: { emoji: '🐔', label: 'Chuồng' },
   market: { emoji: '🏪', label: 'Chợ' },
+};
+
+/** The market tab appears once the child has picked something; until then there is nothing to sell. */
+const TAB_SHOWN: Record<Tab, (env: Env) => boolean> = {
+  garden: () => true,
+  barn: () => true,
+  market: (env) => env.state.xp > 0 || env.state.served > 0,
 };
 
 export function createTabs(env: Env): Tabs {
@@ -160,6 +176,7 @@ export function createTabs(env: Env): Tabs {
         const badge = b.querySelector('.hv-badge')!;
         setText(badge, n > 0 ? String(n) : '');
         setClass(b, 'has-badge', n > 0 && tab !== env.tab);
+        b.hidden = !TAB_SHOWN[tab](env) && tab !== env.tab;
       }
     },
   };
