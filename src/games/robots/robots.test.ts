@@ -43,9 +43,9 @@ function* allHits(): Generator<{ id: string; song: (typeof SONGS)[number]; level
 }
 
 describe('the robots', () => {
-  it('has 14–16 robots, 5 of them on the shelf at the start', () => {
-    expect(ROBOTS.length).toBeGreaterThanOrEqual(14);
-    expect(ROBOTS.length).toBeLessThanOrEqual(16);
+  it('has 40 or more robots, 5 of them on the shelf at the start', () => {
+    expect(ROBOTS.length).toBeGreaterThanOrEqual(40);
+    expect(ROBOTS.length).toBeLessThanOrEqual(44);
     expect(STARTERS.length).toBe(5);
     for (const id of STARTERS) expect(findRobot(id)).toBeDefined();
   });
@@ -177,6 +177,7 @@ describe('every robot always plays in tune', () => {
   });
 });
 
+const ORIGINAL = new Set(['kick', 'bass', 'piano', 'guitar', 'xylo', 'snare', 'bell', 'shaker', 'flute', 'cowbell', 'tom', 'trumpet', 'sax', 'violin', 'triangle']);
 const SONG_OF = (style: string): Song => SONGS.find((x) => x.style === style)!;
 const volOf = (id: string, song: Song): number => {
   const vol = playerFor(findRobot(id)!).vol;
@@ -199,6 +200,8 @@ describe('the music is rich', () => {
     let varied = 0;
     for (const r of tonalRobots) {
       const voices = new Set(SONGS.map((s) => playerFor(r).voice!(s.id)));
+      // The first robots change instrument with the song; the later ones ARE their instrument in every song.
+      if (!ORIGINAL.has(r.id)) continue;
       expect(voices.size, r.id).toBeGreaterThanOrEqual(2);
       if (voices.size >= 3) varied++;
     }
@@ -221,15 +224,14 @@ describe('the music is rich', () => {
     expect(world.length).toBeGreaterThanOrEqual(14);
   });
 
-  it('no two tonal robots play the same instrument in the same song', () => {
+  it('no more than two tonal robots share an instrument in a song, and the two sit in different registers or roles', () => {
     for (const song of SONGS) {
-      const seen = new Map<string, string>();
+      const seen = new Map<string, string[]>();
       for (const r of tonalRobots) {
         const v = playerFor(r).voice!(song.id);
-        const other = seen.get(v);
-        expect(other, `${song.id}: ${r.id} and ${other} both play ${v}`).toBeUndefined();
-        seen.set(v, r.id);
+        seen.set(v, [...(seen.get(v) ?? []), r.id]);
       }
+      for (const [v, ids] of seen) expect(ids.length, `${song.id}: ${ids.join(', ')} all play ${v}`).toBeLessThanOrEqual(2);
     }
   });
 
@@ -373,6 +375,98 @@ describe('the music is rich', () => {
     expect(latin.some((s) => s % 4 !== 0)).toBe(true);
     const east = barsOf('kick', SONG_OF('east').style, 3).flat();
     expect(east.every((h) => (h.v ?? 1) <= 0.9)).toBe(true);
+  });
+});
+
+describe('no part is monotonous', () => {
+  /** Distinct sounds in a part: a note's pitch, or a drum with its velocity and tuning. */
+  function sounds(id: string, song: Song, level: 1 | 2 | 3): Set<string> {
+    const out = new Set<string>();
+    const bars = barsOf(id, song.style, level);
+    for (let bar = 0; bar < BARS; bar++) {
+      for (const h of bars[bar % bars.length] ?? []) {
+        if (h.drum) out.add(`${h.drum}${h.p ? `~${((pitchOf(song, bar, { ...h.p, oct: 0 }) % 12) + 12) % 12}${h.p.oct}` : ''}`);
+        else if (h.p) out.add(String(pitchOf(song, bar, h.p)));
+      }
+    }
+    return out;
+  }
+
+  it('the parts that used to repeat two or three notes now vary: bell, shaker, cowbell, triangle and every newcomer', () => {
+    const quiet = new Set(['gong', 'tom']);
+    for (const r of ROBOTS) {
+      if (ORIGINAL.has(r.id) && !['bell', 'shaker', 'cowbell', 'triangle'].includes(r.id)) continue;
+      if (quiet.has(r.id)) continue;
+      for (const song of SONGS) {
+        const n2 = sounds(r.id, song, 2).size;
+        const n3 = sounds(r.id, song, 3).size;
+        // a drum robot may have few drums but then it has tunings and accents (checked below)
+        const min = r.role === 'beat' ? 2 : 4;
+        expect(n2, `${r.id} ${song.id} L2 has ${n2} different sounds`).toBeGreaterThanOrEqual(min);
+        expect(n3, `${r.id} ${song.id} L3 has ${n3} different sounds`).toBeGreaterThanOrEqual(min);
+      }
+    }
+  });
+
+  it('every percussion part has accents: at least three different strengths in its busy part', () => {
+    for (const id of ['shaker', 'cowbell', 'triangle', 'conga', 'bongo', 'tambourine', 'maracas', 'castanets', 'mo', 'beatbox', 'timpani']) {
+      for (const style of DRUM_STYLES) {
+        const vs = new Set(barsOf(id, style, 3).flat().map((h) => h.v ?? DEFAULT_VEL));
+        expect(vs.size, `${id} ${style}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('easy, medium and busy are three different parts, and the fourth bar of every part answers the first', () => {
+    for (const r of ROBOTS) {
+      for (const style of DRUM_STYLES) {
+        const parts = LEVELS.map((l) => JSON.stringify(barsOf(r.id, style, l)));
+        expect(new Set(parts).size, `${r.id} ${style}`).toBe(3);
+        if (ORIGINAL.has(r.id) && !['bell', 'shaker', 'cowbell', 'triangle'].includes(r.id)) continue;
+        for (const l of [2, 3] as const) {
+          const bars = barsOf(r.id, style, l);
+          if (bars.length === 4) expect(JSON.stringify(bars[3]), `${r.id} ${style} L${l}: no fill`).not.toBe(JSON.stringify(bars[0]));
+        }
+      }
+    }
+  });
+
+  it('the tuned drums really have more than one tone, where a world instrument plays them', () => {
+    for (const id of ['conga', 'bongo', 'timpani', 'tambourine', 'maracas', 'castanets', 'shaker', 'cowbell', 'triangle']) {
+      for (const style of DRUM_STYLES) {
+        const tones = new Set(
+          barsOf(id, style, 3)
+            .flat()
+            .filter((h) => h.tune && h.p)
+            .map((h) => `${(h.p as { i: number }).i}/${(h.p as { oct: number }).oct}`),
+        );
+        expect(tones.size, `${id} ${style}`).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('keeps the voices at once low: no robot sounds more than eight notes at the same instant, and the new parts stay under the old busiest', () => {
+    for (const r of ROBOTS) {
+      for (const style of DRUM_STYLES) {
+        for (const level of LEVELS) {
+          for (const bar of barsOf(r.id, style, level)) {
+            for (let step = 0; step < STEPS_PER_BAR; step++) {
+              const ringing = bar.filter((h) => h.p && !h.drum && h.s <= step && step < h.s + Math.max(h.d, 1)).length;
+              expect(ringing, `${r.id} ${style} L${level} step ${step}`).toBeLessThanOrEqual(8);
+            }
+          }
+        }
+      }
+    }
+    // The busiest old parts (the piano comping and guitar strum, 110 notes in four bars) set the ceiling.
+    for (const r of ROBOTS) {
+      for (const style of DRUM_STYLES) {
+        const bars = barsOf(r.id, style, 3);
+        let n = 0;
+        for (let bar = 0; bar < BARS; bar++) n += (bars[bar % bars.length] ?? []).length;
+        expect(n, `${r.id} ${style}`).toBeLessThanOrEqual(112);
+      }
+    }
   });
 });
 

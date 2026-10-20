@@ -27,7 +27,33 @@ export type PropKind =
   | 'violin'
   | 'shaker'
   | 'cowbell'
-  | 'triangle';
+  | 'triangle'
+  | 'marimba'
+  | 'kalimba'
+  | 'vibraphone'
+  | 'steelpan'
+  | 'handpan'
+  | 'chime'
+  | 'trung'
+  | 'harp'
+  | 'tranh'
+  | 'ukulele'
+  | 'banjo'
+  | 'cello'
+  | 'harmonica'
+  | 'accordion'
+  | 'organ'
+  | 'panpipe'
+  | 'tuba'
+  | 'conga'
+  | 'bongo'
+  | 'tambourine'
+  | 'maracas'
+  | 'castanets'
+  | 'mo'
+  | 'beatbox'
+  | 'timpani'
+  | 'gong';
 
 export interface Look {
   head: HeadShape;
@@ -63,6 +89,15 @@ const SHOULDER_L = { x: 34, y: 80 };
 const SHOULDER_R = { x: 86, y: 80 };
 const NECK = { x: 60, y: 62 };
 const PROP_PIVOT = { x: 60, y: 100 };
+
+/** `color` mixed with white by `amount` (0 … 1): the light tint of a robot's belly and ears. */
+export function tint(color: string, amount: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(color);
+  if (!m) return color;
+  const n = parseInt(m[1] as string, 16);
+  const c = (v: number) => Math.round(v + (255 - v) * amount).toString(16).padStart(2, '0');
+  return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`;
+}
 
 /** `color` darkened by `amount` (0 … 1). */
 export function shade(color: string, amount: number): string {
@@ -234,7 +269,7 @@ const drumBody = (x: number, y: number, w: number, h: number, color: string, dar
   `<path d="M${x + 2} ${y + 4}L${x + w * 0.25} ${y + h - 3}L${x + w * 0.5} ${y + 4}L${x + w * 0.75} ${y + h - 3}L${x + w - 2} ${y + 4}" fill="none" stroke="#fff" stroke-width="2" opacity=".75" stroke-linejoin="round"/>` +
   `<ellipse cx="${x + w / 2}" cy="${y}" rx="${w / 2}" ry="${Math.max(4, h * 0.2)}" fill="#f8fafc" stroke="${dark}" stroke-width="2.5"/>`;
 
-const PROPS: Record<PropKind, PropArt> = {
+const BASE_PROPS: Partial<Record<PropKind, PropArt>> = {
   kick: {
     rest: [-12, -12],
     held: ['stick', 'stick'],
@@ -357,6 +392,220 @@ const PROPS: Record<PropKind, PropArt> = {
       `<line x1="60" y1="98" x2="60" y2="88" stroke="#64748b" stroke-width="2"/>`,
   },
 };
+
+// ---- the newer instruments -----------------------------------------------------------------
+
+const barRow = (n: number, x0: number, w: number, fill: (i: number) => string, stroke: string, y0 = 104, shrink = 3): string =>
+  Array.from({ length: n }, (_, i) => `<rect x="${(x0 + i * (w + 2)).toFixed(1)}" y="${y0 + i * 1.4}" width="${w}" height="${28 - i * shrink}" rx="3" fill="${fill(i)}" stroke="${stroke}" stroke-width="1.6"/>`).join('');
+
+const tubeRow = (n: number, x0: number, step: number, y0: number, len: (i: number) => number, color: string, w = 4): string =>
+  Array.from({ length: n }, (_, i) => `<rect x="${(x0 + i * step).toFixed(1)}" y="${y0}" width="${w}" height="${len(i).toFixed(1)}" rx="${w / 2}" fill="${color}" stroke="${INK}" stroke-width="1.2"/>`).join('');
+
+const cymbalDisc = (cx: number, cy: number, r: number, fill: string, stroke: string): string =>
+  `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2.4"/><circle cx="${cx}" cy="${cy}" r="${r * 0.55}" fill="none" stroke="${stroke}" stroke-width="1.4" opacity=".6"/><circle cx="${cx}" cy="${cy}" r="${r * 0.18}" fill="${stroke}"/>`;
+
+const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
+  marimba: {
+    rest: [-18, -18],
+    held: ['stick', 'stick'],
+    draw: (_c, d) =>
+      tubeRow(6, 27, 12.4, 128, (i) => 10 - i * 1.2, '#92400e', 6) +
+      barRow(6, 24, 10, (i) => ['#b45309', '#c2410c', '#d97706', '#ea580c', '#9a3412', '#b45309'][i] as string, d),
+  },
+  kalimba: {
+    rest: [-30, -30],
+    held: ['none', 'none'],
+    draw: (_c, d) =>
+      `<rect x="34" y="104" width="52" height="30" rx="8" fill="#d6a35c" stroke="${WOOD_DARK}" stroke-width="2.6"/>` +
+      Array.from({ length: 7 }, (_, i) => `<rect x="${39 + i * 6.4}" y="${100 - (4 - Math.abs(i - 3)) * 1.6}" width="3.6" height="${22 + (4 - Math.abs(i - 3)) * 1.6}" rx="1.5" fill="${METAL}" stroke="${d}" stroke-width="1"/>`).join('') +
+      `<circle cx="60" cy="124" r="4.5" fill="${WOOD_DARK}"/>`,
+  },
+  vibraphone: {
+    rest: [-18, -18],
+    held: ['stick', 'stick'],
+    draw: (_c, d) =>
+      tubeRow(6, 27, 12.4, 126, (i) => 12 - i, '#94a3b8', 6) +
+      barRow(6, 24, 10, () => METAL, d) +
+      `<line x1="22" y1="133" x2="98" y2="133" stroke="${d}" stroke-width="3"/>`,
+  },
+  steelpan: {
+    rest: [-20, -20],
+    held: ['stick', 'stick'],
+    draw: (_c, d) =>
+      `<path d="M30 112L36 136H84L90 112Z" fill="#475569" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>` +
+      `<ellipse cx="60" cy="112" rx="30" ry="10" fill="#e2e8f0" stroke="${d}" stroke-width="2.6"/>` +
+      [[46, 112], [60, 108], [74, 112], [53, 115], [67, 115]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5.5" ry="2.8" fill="none" stroke="#64748b" stroke-width="1.6"/>`).join(''),
+  },
+  handpan: {
+    rest: [-32, -32],
+    held: ['none', 'none'],
+    draw: (c, d) =>
+      `<ellipse cx="60" cy="122" rx="34" ry="14" fill="#a8a29e" stroke="${d}" stroke-width="2.6"/>` +
+      `<ellipse cx="60" cy="118" rx="30" ry="11" fill="#d6d3d1" stroke="${d}" stroke-width="2"/>` +
+      `<ellipse cx="60" cy="118" rx="7" ry="3.4" fill="${c}" stroke="${d}" stroke-width="1.6"/>` +
+      [[44, 117], [76, 117], [52, 123], [68, 123], [60, 111]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5" ry="2.4" fill="none" stroke="${d}" stroke-width="1.4"/>`).join(''),
+  },
+  chime: {
+    rest: [30, 30],
+    held: ['bell', 'bell'],
+    draw: (_c, d) =>
+      `<rect x="26" y="90" width="68" height="6" rx="3" fill="${WOOD_DARK}"/>` +
+      Array.from({ length: 6 }, (_, i) => `<line x1="${32 + i * 11.2}" y1="96" x2="${32 + i * 11.2}" y2="${106 + (i % 3) * 5}" stroke="${d}" stroke-width="1"/><rect x="${30 + i * 11.2}" y="${106 + (i % 3) * 5}" width="4" height="${16 + ((i * 7) % 5) * 3}" rx="2" fill="#a7f3d0" stroke="${d}" stroke-width="1.4"/>`).join(''),
+  },
+  trung: {
+    rest: [-18, -18],
+    held: ['stick', 'stick'],
+    draw: () =>
+      `<rect x="22" y="106" width="76" height="5" rx="2.5" fill="${WOOD_DARK}"/><rect x="22" y="122" width="76" height="5" rx="2.5" fill="${WOOD_DARK}"/>` +
+      Array.from({ length: 7 }, (_, i) => `<rect x="${24 + i * 10.4}" y="${100 + i * 1.4}" width="8" height="${32 - i * 2.4}" rx="3" fill="#84cc16" stroke="#365314" stroke-width="1.6"/><line x1="${24 + i * 10.4}" y1="${112 + i}" x2="${32 + i * 10.4}" y2="${112 + i}" stroke="#365314" stroke-width="1.4"/>`).join(''),
+  },
+  harp: {
+    rest: [-40, -40],
+    held: ['none', 'none'],
+    draw: (c, d) =>
+      `<path d="M92 56C102 56 104 66 98 74L58 134H92" fill="none" stroke="${WOOD_DARK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>` +
+      `<path d="M92 56C102 56 104 66 98 74L58 134H92" fill="none" stroke="${c}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>` +
+      Array.from({ length: 6 }, (_, i) => `<line x1="${94 - i * 4.4}" y1="${70 + i * 10}" x2="${94 - i * 4.4 + 0.1}" y2="134" stroke="${d}" stroke-width="1.3"/>`).join(''),
+  },
+  tranh: {
+    rest: [-40, -30],
+    held: ['none', 'none'],
+    draw: (c, d) =>
+      `<path d="M12 128L106 100V116L12 140Z" fill="${c}" stroke="${d}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      Array.from({ length: 8 }, (_, i) => `<line x1="${16 + i * 11}" y1="${128 - i * 3.6}" x2="${20 + i * 11}" y2="${120 - i * 3.6}" stroke="#fef3c7" stroke-width="1.2"/>`).join('') +
+      Array.from({ length: 5 }, (_, i) => `<polygon points="${24 + i * 17},${126 - i * 5.4} ${28 + i * 17},${126 - i * 5.4} ${26 + i * 17},${120 - i * 5.4}" fill="${WOOD}" stroke="${d}" stroke-width="1"/>`).join(''),
+  },
+  ukulele: {
+    rest: [-50, -28],
+    held: ['none', 'none'],
+    draw: (c, d, a) =>
+      `<line x1="62" y1="104" x2="100" y2="72" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round"/>` +
+      `<rect x="95" y="62" width="9" height="11" rx="2.5" transform="rotate(40 100 68)" fill="${d}"/>` +
+      `<circle cx="52" cy="122" r="13" fill="${c}" stroke="${d}" stroke-width="2.5"/><circle cx="58" cy="108" r="9" fill="${c}" stroke="${d}" stroke-width="2.5"/>` +
+      `<circle cx="54" cy="116" r="5" fill="${INK}"/><circle cx="54" cy="116" r="7" fill="none" stroke="${a}" stroke-width="1.6"/>`,
+  },
+  banjo: {
+    rest: [-52, -28],
+    held: ['none', 'none'],
+    draw: (_c, d, a) =>
+      `<line x1="70" y1="108" x2="108" y2="70" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round"/>` +
+      `<rect x="102" y="60" width="9" height="11" rx="2.5" transform="rotate(45 107 66)" fill="${d}"/>` +
+      `<circle cx="52" cy="118" r="21" fill="#f8fafc" stroke="${d}" stroke-width="3"/><circle cx="52" cy="118" r="15" fill="none" stroke="${a}" stroke-width="1.6"/>` +
+      `<line x1="40" y1="122" x2="68" y2="112" stroke="${INK}" stroke-width="1.6"/><rect x="46" y="116" width="10" height="3" fill="${d}"/>`,
+  },
+  cello: {
+    rest: [-52, -8],
+    held: ['none', 'bow'],
+    draw: (c, d) =>
+      `<line x1="40" y1="104" x2="40" y2="48" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round"/>` +
+      `<rect x="35" y="42" width="10" height="9" rx="3" fill="${d}"/>` +
+      `<path d="M24 112C20 102 30 96 38 100C42 96 52 98 54 108C60 112 58 124 50 128C54 138 28 140 26 130C18 126 20 116 24 112Z" fill="#b45309" stroke="${WOOD_DARK}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      `<path d="M31 112q2 5 0 10M43 112q-2 5 0 10" fill="none" stroke="${INK}" stroke-width="1.6"/><line x1="38" y1="106" x2="38" y2="132" stroke="${c}" stroke-width="1.6" opacity=".8"/>`,
+  },
+  harmonica: {
+    rest: [-62, -48],
+    held: ['none', 'none'],
+    front: true,
+    draw: (_c, d) =>
+      `<rect x="40" y="54" width="40" height="12" rx="3" fill="#cbd5e1" stroke="${d}" stroke-width="2.2"/>` +
+      Array.from({ length: 8 }, (_, i) => `<rect x="${43 + i * 4.4}" y="58" width="2.6" height="4" rx="1" fill="${INK}"/>`).join('') +
+      `<rect x="38" y="52" width="4" height="16" rx="2" fill="#64748b"/><rect x="78" y="52" width="4" height="16" rx="2" fill="#64748b"/>`,
+  },
+  accordion: {
+    rest: [-30, -30],
+    held: ['none', 'none'],
+    draw: (c, d, a) =>
+      `<rect x="20" y="100" width="18" height="34" rx="4" fill="${d}" stroke="${INK}" stroke-width="2"/><rect x="82" y="100" width="18" height="34" rx="4" fill="${d}" stroke="${INK}" stroke-width="2"/>` +
+      `<rect x="38" y="102" width="44" height="30" fill="${a}" stroke="${INK}" stroke-width="1.6"/>` +
+      Array.from({ length: 7 }, (_, i) => `<line x1="${42 + i * 6}" y1="102" x2="${42 + i * 6}" y2="132" stroke="${c}" stroke-width="2.6"/>`).join('') +
+      Array.from({ length: 3 }, (_, i) => `<circle cx="29" cy="${108 + i * 9}" r="2.6" fill="#fde047"/>`).join('') +
+      Array.from({ length: 3 }, (_, i) => `<circle cx="91" cy="${108 + i * 9}" r="2.6" fill="#f8fafc"/>`).join(''),
+  },
+  organ: {
+    rest: [-28, -28],
+    held: ['none', 'none'],
+    draw: (c, d) =>
+      Array.from({ length: 5 }, (_, i) => `<rect x="${28 + i * 13}" y="${86 + (i % 2) * 4}" width="9" height="${22 - (i % 2) * 4}" rx="3" fill="#cbd5e1" stroke="${d}" stroke-width="1.6"/>`).join('') +
+      `<rect x="20" y="106" width="80" height="22" rx="4" fill="#fff" stroke="${d}" stroke-width="2.5"/>` +
+      Array.from({ length: 7 }, (_, i) => `<line x1="${30 + i * 10}" y1="106" x2="${30 + i * 10}" y2="126" stroke="${INK}" stroke-width="1" opacity=".5"/>`).join('') +
+      [0, 1, 3, 4, 5].map((i) => `<rect x="${24 + i * 10 + 6}" y="106" width="7" height="11" rx="1.5" fill="${INK}"/>`).join('') +
+      `<rect x="18" y="126" width="84" height="6" rx="3" fill="${c}" stroke="${d}" stroke-width="1.4"/>`,
+  },
+  panpipe: {
+    rest: [-62, -50],
+    held: ['none', 'none'],
+    front: true,
+    draw: (_c, d) =>
+      Array.from({ length: 6 }, (_, i) => `<rect x="${38 + i * 7.6}" y="52" width="6" height="${30 - i * 3.4}" rx="3" fill="#d9f99d" stroke="${d}" stroke-width="1.6"/>`).join('') +
+      `<rect x="36" y="64" width="50" height="4" rx="2" fill="${WOOD_DARK}"/>`,
+  },
+  tuba: {
+    rest: [-44, -44],
+    held: ['none', 'none'],
+    draw: (_c, d) =>
+      `<circle cx="52" cy="112" r="22" fill="none" stroke="#f59e0b" stroke-width="8"/><circle cx="52" cy="112" r="22" fill="none" stroke="${d}" stroke-width="1.4" opacity=".5"/>` +
+      `<path d="M52 90V62" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/><path d="M72 112L98 88L110 100L84 130Z" fill="#fbbf24" stroke="#b45309" stroke-width="2.4" stroke-linejoin="round"/>` +
+      `<circle cx="44" cy="104" r="3" fill="#b45309"/><circle cx="52" cy="98" r="3" fill="#b45309"/>`,
+  },
+  conga: {
+    rest: [-22, -22],
+    held: ['stick', 'stick'],
+    draw: (c, d) => drumBody(40, 98, 40, 42, c, d) + `<rect x="40" y="108" width="40" height="5" fill="${d}" opacity=".5"/>`,
+  },
+  bongo: {
+    rest: [-22, -22],
+    held: ['stick', 'stick'],
+    draw: (c, d) => drumBody(28, 108, 30, 26, c, d) + drumBody(62, 108, 30, 26, c, d) + `<rect x="54" y="116" width="12" height="5" rx="2" fill="${d}"/>`,
+  },
+  tambourine: {
+    rest: [30, 30],
+    held: ['bell', 'bell'],
+    draw: (c, d) => cymbalDisc(60, 118, 22, '#fff7ed', d) + `<circle cx="60" cy="118" r="22" fill="none" stroke="${c}" stroke-width="4" stroke-dasharray="6 5"/>`,
+  },
+  maracas: {
+    rest: [48, 48],
+    held: ['maraca', 'maraca'],
+    draw: () => star(20, 118, 5, '#fde047') + star(100, 120, 5, '#fb7185') + star(60, 130, 4, '#a7f3d0'),
+  },
+  castanets: {
+    rest: [20, 20],
+    held: ['none', 'none'],
+    draw: (c, d) =>
+      `<circle cx="42" cy="112" r="12" fill="#b45309" stroke="${d}" stroke-width="2.4"/><circle cx="78" cy="112" r="12" fill="#b45309" stroke="${d}" stroke-width="2.4"/>` +
+      `<path d="M42 112L78 112" stroke="${c}" stroke-width="3"/><circle cx="42" cy="112" r="3.4" fill="#fde68a"/><circle cx="78" cy="112" r="3.4" fill="#fde68a"/>`,
+  },
+  mo: {
+    rest: [-10, -24],
+    held: ['none', 'stick'],
+    draw: (_c, d) =>
+      `<path d="M34 118C34 100 86 100 86 118C86 134 34 134 34 118Z" fill="#d97706" stroke="${WOOD_DARK}" stroke-width="2.8"/>` +
+      `<path d="M42 120H78" stroke="${WOOD_DARK}" stroke-width="3" stroke-linecap="round"/><circle cx="46" cy="112" r="2.6" fill="${d}"/>`,
+  },
+  beatbox: {
+    rest: [-60, -20],
+    held: ['none', 'none'],
+    front: true,
+    draw: (c, d) =>
+      `<rect x="26" y="102" width="40" height="32" rx="6" fill="${INK}" stroke="${d}" stroke-width="2.4"/><circle cx="46" cy="122" r="9" fill="${c}" stroke="#94a3b8" stroke-width="2"/><circle cx="46" cy="122" r="3" fill="#94a3b8"/>` +
+      `<rect x="54" y="52" width="7" height="14" rx="3.5" fill="#cbd5e1" stroke="${INK}" stroke-width="1.6"/><line x1="58" y1="66" x2="58" y2="82" stroke="${INK}" stroke-width="2"/>`,
+  },
+  timpani: {
+    rest: [-18, -18],
+    held: ['stick', 'stick'],
+    draw: (c, d) =>
+      `<path d="M28 112C28 140 92 140 92 112Z" fill="#b45309" stroke="${d}" stroke-width="2.8" stroke-linejoin="round"/>` +
+      `<ellipse cx="60" cy="112" rx="32" ry="8" fill="#f8fafc" stroke="${d}" stroke-width="2.6"/><path d="M60 138V146M46 136L42 146M74 136L78 146" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+      `<circle cx="60" cy="112" r="3" fill="${c}"/>`,
+  },
+  gong: {
+    rest: [-8, -26],
+    held: ['none', 'stick'],
+    draw: (c) =>
+      `<path d="M26 142V88H94V142" fill="none" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+      cymbalDisc(60, 112, 20, '#fbbf24', '#b45309') + `<circle cx="60" cy="112" r="20" fill="none" stroke="${c}" stroke-width="1.6" opacity=".7"/>`,
+  },
+};
+const PROPS = { ...BASE_PROPS, ...NEW_PROPS } as Record<PropKind, PropArt>;
 
 /** What the instrument a robot holds needs to know about its arms. */
 export function restOf(prop: PropKind): readonly [number, number] {

@@ -36,6 +36,24 @@ export interface Quest {
 }
 
 const roleOn = (v: View, pick: (id: string) => boolean): boolean => v.robots.some(pick);
+/** How many robots on the stage fit. */
+const countOn = (v: View, pick: (id: string) => boolean): number => v.robots.filter(pick).length;
+/** A row of `n` pictures that light up one by one as more robots of a kind stand on the stage. */
+const rowOf = (v: View, icon: string, n: number, pick: (id: string) => boolean): Part[] =>
+  Array.from({ length: n }, (_, i) => ({ icon, done: countOn(v, pick) > i }));
+const roleIs =
+  (role: string) =>
+  (id: string): boolean =>
+    findRobot(id)?.role === role;
+const groupIs =
+  (group: string) =>
+  (id: string): boolean =>
+    findRobot(id)?.group === group;
+/** Tuned instruments that play notes, struck with sticks and mallets. */
+const mallet = (id: string): boolean => {
+  const r = findRobot(id);
+  return !!r && r.group === 'gõ' && r.role !== 'beat';
+};
 
 export const QUESTS: readonly Quest[] = [
   {
@@ -55,10 +73,22 @@ export const QUESTS: readonly Quest[] = [
     parts: (v) => [0, 1, 2, 3].map((i) => ({ icon: '🤖', done: v.robots.length > i })),
   },
   {
+    id: 'rhythm',
+    sticker: '🥇',
+    reward: ['conga', 'tambourine', 'ukulele', 'marimba', 'bongo'],
+    parts: (v) => rowOf(v, '🥁', 3, roleIs('beat')),
+  },
+  {
     id: 'songs',
     sticker: '🎁',
     reward: ['cowbell', 'tom'],
     parts: (v) => SONGS.map((s) => ({ icon: s.icon, done: v.tried.has(s.id) })),
+  },
+  {
+    id: 'strings',
+    sticker: '🎼',
+    reward: ['harp', 'banjo', 'castanets'],
+    parts: (v) => rowOf(v, '🎸', 3, groupIs('gảy')),
   },
   {
     id: 'groups',
@@ -72,10 +102,52 @@ export const QUESTS: readonly Quest[] = [
     ],
   },
   {
+    id: 'sparkle',
+    sticker: '✨',
+    reward: ['kalimba', 'vibraphone', 'chime'],
+    parts: (v) => rowOf(v, '🔔', 3, mallet),
+  },
+  {
     id: 'full',
     sticker: '🎉',
     reward: ['sax', 'violin'],
     parts: (v) => Array.from({ length: CAPACITY }, (_, i) => ({ icon: '🤖', done: v.robots.length > i })),
+  },
+  {
+    id: 'winds',
+    sticker: '🌟',
+    reward: ['harmonica', 'panpipe', 'tuba'],
+    parts: (v) => rowOf(v, '🎺', 3, groupIs('thổi')),
+  },
+  {
+    id: 'chords',
+    sticker: '💎',
+    reward: ['accordion', 'organ', 'cello'],
+    parts: (v) => rowOf(v, '🎹', 3, roleIs('chord')),
+  },
+  {
+    id: 'roles',
+    sticker: '🧩',
+    reward: ['steelpan', 'handpan', 'trung'],
+    parts: (v) => (['beat', 'bass', 'chord', 'melody', 'color'] as const).map((role) => ({
+      icon: { beat: '🥁', bass: '🎸', chord: '🎹', melody: '🎵', color: '🔔' }[role],
+      done: roleOn(v, roleIs(role)),
+    })),
+  },
+  {
+    id: 'tour',
+    sticker: '🌍',
+    reward: ['tranh', 'maracas', 'mo'],
+    parts: (v) => [0, 1, 2].map((i) => ({ icon: '🎪', done: v.fullIn.size > i })),
+  },
+  {
+    id: 'band',
+    sticker: '🎪',
+    reward: ['beatbox', 'timpani', 'gong'],
+    parts: (v) => (['gõ', 'gảy', 'thổi', 'kéo', 'phím'] as const).map((g) => ({
+      icon: { gõ: '🥁', gảy: '🎸', thổi: '🎺', kéo: '🎻', phím: '🎹' }[g],
+      done: roleOn(v, groupIs(g)),
+    })),
   },
   {
     id: 'grand',

@@ -81,17 +81,20 @@ describe('quests', () => {
   });
 
   it('every quest can be finished with what is on the shelf at that point (nothing is locked behind itself)', () => {
-    // Playing the quests in listed order, the shelf always has enough for the next one.
+    // Playing the quests in listed order, a child can always pick at most eight robots from the shelf
+    // that light every picture of the next goal. (A greedy pick: add the robot that lights the most.)
     const done = new Set<string>();
+    const all = SONGS.map((s) => s.id);
     for (const q of QUESTS) {
       const shelf = unlockedIds(done);
-      const robots = shelf.slice(0, 8);
-      const all = SONGS.map((s) => s.id);
-      const v = view(robots, all, all);
-      // The quest to do next is satisfiable by some choice from the shelf...
-      const best = q.id === 'groups' ? [shelf.find((r) => findRobot(r)!.group === 'gõ'), shelf.find((r) => findRobot(r)!.group === 'gảy'), shelf.find((r) => findRobot(r)!.group === 'thổi'), shelf.find((r) => findRobot(r)!.group === 'phím')].filter(Boolean) as string[] : robots;
-      expect(q.parts(view(best, all, all)).every((p) => p.done), `${q.id} unreachable with ${shelf.length} robots`).toBe(true);
-      void v;
+      const pick: string[] = [];
+      const lit = (robots: string[]): number => q.parts(view(robots, all, all)).filter((p) => p.done).length;
+      while (pick.length < 8 && lit(pick) < q.parts(view([], all, all)).length) {
+        const next = shelf.filter((r) => !pick.includes(r)).sort((x, y) => lit([...pick, y]) - lit([...pick, x]))[0];
+        if (!next || lit([...pick, next]) <= lit(pick)) break;
+        pick.push(next);
+      }
+      expect(q.parts(view(pick, all, all)).every((p) => p.done), `${q.id} unreachable with ${shelf.length} robots`).toBe(true);
       done.add(q.id);
     }
   });
