@@ -37,6 +37,8 @@ export interface Speech {
    */
   speakSeq(parts: SpeechPart[]): Promise<boolean>;
   cancel(): void;
+  /** True while something is being said (a spoken line or a running sequence). */
+  speaking?(): boolean;
 }
 
 export const SEQ_RATE = 0.75;
@@ -199,6 +201,14 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
         };
         step(0);
       });
+    },
+    speaking() {
+      if (stopSeq !== null) return true;
+      try {
+        return synth?.speaking ?? false;
+      } catch {
+        return false;
+      }
     },
     cancel() {
       abortSeq();

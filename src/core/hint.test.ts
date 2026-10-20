@@ -5,7 +5,7 @@ describe('hint', () => {
   it('fires repeatedly, restarts on touch, stops on clear', () => {
     vi.useFakeTimers();
     const fn = vi.fn();
-    const hint = createHint();
+    const hint = createHint({ stretch: false });
     hint.touch(); // no-op when not armed
     hint.arm(fn, 1000);
     vi.advanceTimersByTime(999);
@@ -27,7 +27,7 @@ describe('hint', () => {
   it('uses 6000 ms by default', () => {
     vi.useFakeTimers();
     const fn = vi.fn();
-    const hint = createHint();
+    const hint = createHint({ stretch: false });
     hint.arm(fn);
     vi.advanceTimersByTime(5999);
     expect(fn).not.toHaveBeenCalled();

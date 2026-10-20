@@ -1,6 +1,6 @@
 import { celebrate } from '../core/celebrate';
 import { h } from '../core/dom';
-import { createHint } from '../core/hint';
+import { createHint, gateSpeech } from '../core/hint';
 import { onHold } from '../core/hold';
 import type { GameContext } from '../core/types';
 import { requestWake } from '../core/wake';
@@ -70,17 +70,35 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
   }
 
   // Any interaction on the stage counts as activity for the idle hint.
-  const touch = () => hint.touch();
+  // The voice rules (core/hint.ts) need to know when the child last pressed, so speech that
+  // answers a touch is never held back while automatic speech is kept rare.
+  const gate = gateSpeech({
+    hint,
+    speak: (text, opts) => speech.speak(text, opts),
+    speakSeq: (parts) => speech.speakSeq(parts),
+    stopSpeech: () => speech.cancel(),
+    busy: () => speech.speaking?.() ?? false,
+  });
+  cleanups.push(gate.dispose);
+  const touch = () => {
+    gate.touched();
+    hint.touch();
+  };
+  const touchEnd = () => gate.touched();
   stage.addEventListener('pointerdown', touch, { capture: true });
-  cleanups.push(() => stage.removeEventListener('pointerdown', touch, { capture: true }));
+  stage.addEventListener('pointerup', touchEnd, { capture: true });
+  cleanups.push(() => {
+    stage.removeEventListener('pointerdown', touch, { capture: true });
+    stage.removeEventListener('pointerup', touchEnd, { capture: true });
+  });
   cleanups.push(requestWake());
 
   const ctx: GameContext = {
     stage,
     audio,
-    speak: (text, opts) => speech.speak(text, opts),
-    speakSeq: (parts) => speech.speakSeq(parts),
-    stopSpeech: () => speech.cancel(),
+    speak: gate.speak,
+    speakSeq: gate.speakSeq,
+    stopSpeech: gate.stopSpeech,
     celebrate: () => celebrate(stage, audio, (t) => speech.speak(t), { confetti: store.settings().confetti }),
     hint,
     addStar: () => {

@@ -3,7 +3,7 @@
  * and assert on the DOM without audio, speech, or a real shell.
  */
 import type { AudioEngine } from './audio';
-import { createHint } from './hint';
+import { createHint, gateSpeech, type SpeechGate } from './hint';
 import { createPhotoStore } from './photos';
 import type { GameContext } from './types';
 
@@ -41,9 +41,20 @@ export interface FakeContext extends GameContext {
   celebrations: number;
   /** Run the game's cleanups and remove the stage from the document. */
   cleanup(): void;
+  /** Only with `{ quiet: true }`: a press on the stage (what the shell does on pointerdown). */
+  tap(): void;
 }
 
-export function fakeContext(): FakeContext {
+export interface FakeContextOptions {
+  /**
+   * Run the real voice rules of the shell (`gateSpeech`) and the stretching idle hint, as in the app.
+   * Default false: the hint fires every `ms` and every line of speech is recorded, which suits
+   * tests of a single game.
+   */
+  quiet?: boolean;
+}
+
+export function fakeContext(opts: FakeContextOptions = {}): FakeContext {
   const stage = document.createElement('div');
   stage.className = 'stage';
   document.body.append(stage);
@@ -51,7 +62,7 @@ export function fakeContext(): FakeContext {
   const ctx: FakeContext = {
     stage,
     audio: fakeAudio(),
-    hint: createHint(),
+    hint: createHint({ stretch: opts.quiet === true }),
     spoken: [],
     sequenced: [],
     stars: 0,
@@ -81,12 +92,25 @@ export function fakeContext(): FakeContext {
     },
     photos: createPhotoStore(async () => 'data:image/jpeg;base64,'),
     stickers: () => [],
+    tap() {
+      gate?.touched();
+      ctx.hint.touch();
+    },
     cleanup() {
       ctx.hint.clear();
+      gate?.dispose();
       for (const fn of cleanups.reverse()) fn();
       stage.remove();
     },
   };
+  let gate: SpeechGate | null = null;
+  if (opts.quiet) {
+    const raw = { speak: ctx.speak, speakSeq: ctx.speakSeq, stopSpeech: ctx.stopSpeech };
+    gate = gateSpeech({ hint: ctx.hint, ...raw });
+    ctx.speak = gate.speak;
+    ctx.speakSeq = gate.speakSeq;
+    ctx.stopSpeech = gate.stopSpeech;
+  }
   return ctx;
 }
 
