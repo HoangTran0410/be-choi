@@ -82,7 +82,7 @@ interface Sink {
 const sc = (n: number): number => Math.round(n * 1000) / 1000;
 const SKIN: Rings = { n: 2, from: 0.12, to: 0.95, clip: true, color: '#64748b', w: 4, ms: 620, gap: 110 };
 const WATER: Rings = { n: 3, from: 0.15, to: 1.8, clip: false, color: '#0ea5e9', w: 3, ms: 900, gap: 150 };
-const WAVE: Rings = { n: 3, from: 0.3, to: 1.55, clip: false, color: '#d97706', w: 5, ms: 1500, gap: 260 };
+const WAVE: Rings = { n: 2, from: 0.3, to: 1.55, clip: false, color: '#d97706', w: 5, ms: 1500, gap: 300 };
 const SHINE: Rings = { n: 1, from: 0.5, to: 1.3, clip: false, color: '#f59e0b', w: 3, ms: 900, gap: 0 };
 
 function motionFor(board: Board, zone: Zone): Motion | null {
@@ -505,7 +505,7 @@ export function createFx(env: FxEnv): Fx {
         { duration: spec.ms, delay: i * spec.gap, easing: 'cubic-bezier(.15,.6,.3,1)', fill: 'both' },
       );
     }
-    trim(layer, 30);
+    trim(layer, 18);
     layer.append(host);
     env.later(() => host.remove(), spec.ms + n * spec.gap + 60);
   }
@@ -564,7 +564,7 @@ export function createFx(env: FxEnv): Fx {
       '<line x1="0" y1="0" x2="46" y2="-70" stroke="#92400e" stroke-width="7" stroke-linecap="round"/><circle cx="0" cy="0" r="12" fill="#f97316" stroke="#7c2d12" stroke-width="3"/>';
     g.append(inner);
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     inner.animate(
       [
         { transform: 'translate(22px,-34px) rotate(16deg)', opacity: 0, offset: 0 },
@@ -582,7 +582,7 @@ export function createFx(env: FxEnv): Fx {
     g.setAttribute('fill', '#ffffff');
     g.setAttribute('opacity', '0');
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     fly(g, [{ opacity: 0.6 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' });
   }
 
@@ -635,7 +635,7 @@ export function createFx(env: FxEnv): Fx {
     const dist = Math.hypot(mx(b) - mx(a), my(b) - my(a)) || 1;
     line.setAttribute('stroke-dasharray', `${r1(dist * 0.35)} ${r1(dist * 2)}`);
     layer.append(line);
-    trim(layer, 30);
+    trim(layer, 18);
     const ms = Math.abs(to - from) * gap + 140;
     fly(
       line,
@@ -814,7 +814,7 @@ export function createFx(env: FxEnv): Fx {
       opacity: 0,
     });
     layer.append(c);
-    trim(layer, 30);
+    trim(layer, 18);
     const dx = (Math.random() - 0.5) * 30;
     fly(
       c,
@@ -841,7 +841,7 @@ export function createFx(env: FxEnv): Fx {
     inner.innerHTML = noteGlyph(NOTE_COLORS[breathN++ % NOTE_COLORS.length]!);
     g.append(inner);
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     const drift = 70 + Math.random() * 40;
     const side = (Math.random() - 0.5) * 36;
     const dx = sx * drift + (sx === 0 ? side : 0);
@@ -874,7 +874,7 @@ export function createFx(env: FxEnv): Fx {
     });
     g.append(p);
     layer.append(g);
-    trim(layer, 30);
+    trim(layer, 18);
     fly(
       p,
       [
