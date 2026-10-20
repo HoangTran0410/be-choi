@@ -237,6 +237,8 @@ const STAND_IN: Readonly<Record<Exclude<FxKind, SynthFx>, SynthFx>> = {
  * missing fundamental back by itself; the untouched low end still goes out to the
  * dry path, so a real speaker still thumps.
  */
+/** Gain after the compressor and exciter that brings the levelled sounds up to the house level (+3 dB). */
+const MAKEUP = 1.4125;
 /** The dip at the master that takes the sting out of 2-5 kHz: where, and how deep (dB). */
 const SOFTEN_HZ = 3400;
 const SOFTEN_DB = -2.5;
@@ -410,20 +412,25 @@ export function createAudio(): AudioEngine {
         comp.ratio.value = 3;
         comp.attack.value = 0.003;
         comp.release.value = 0.2;
-        // A ceiling behind the compressor. 3:1 above -12 dB still lets a drum roll, a full
-        // orchestra bar or a stack of chords past 0 dBFS (measured: +3 dB over, in the
-        // orchestra and the jam beats), and a phone speaker or its DAC then clips them
-        // into a rasp. Fast attack, a ratio high enough to be a wall, and the compressor's
-        // own look-ahead keep the peaks out without the pumping of a slow limiter; the
-        // knee is hard because nothing below the ceiling should be touched.
+        // The house level (scripts/lib/loudness-common.mjs) is reached here, after the compressor
+        // and the bass exciter, not by trimming every sound hotter before them: driven 3 dB harder,
+        // the exciter's saturation and the compressor thickened the kick into a dull thump that
+        // ducked the band (measured: a held chord dipped 4.7 dB under each kick, and 2-5 kHz rose
+        // 1.5 dB with it), and that is what made a guitar sound harsh.
+        const makeup = ctx.createGain();
+        makeup.gain.value = MAKEUP;
+        // A safety ceiling at the very end, for the rare stack of hits that would clip a speaker.
+        // Hard knee and a slow release so it neither pumps nor rasps; the sounds are levelled with
+        // headroom under it (BY_EAR_DB), so it only acts on the rare stack of hits.
         const limit = ctx.createDynamicsCompressor();
-        limit.threshold.value = -4.5;
+        limit.threshold.value = -1.5;
         limit.knee.value = 0;
         limit.ratio.value = 20;
         limit.attack.value = 0.001;
-        limit.release.value = 0.1;
+        limit.release.value = 0.25;
         limit.connect(ctx.destination);
-        comp.connect(limit);
+        makeup.connect(limit);
+        comp.connect(makeup);
         // Small speakers are sharpest at 2-5 kHz and a child's ear is most tender there.
         // A broad dip of a couple of dB keeps whistles, chirps and cymbals from stinging
         // without taking the top off them (the lowpass above already trims the hiss).

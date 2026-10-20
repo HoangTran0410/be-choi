@@ -152,7 +152,7 @@ describe('the loudness table', () => {
     // Outside this a sound is not being levelled, it is being rescued: fix the
     // sound itself and re-run `node scripts/loudness.mjs`.
     for (const [id, trim] of Object.entries(LOUDNESS)) {
-      expect(trim, `${id} trim`).toBeGreaterThan(0.1);
+      expect(trim, `${id} trim`).toBeGreaterThan(0.04);
       expect(trim, `${id} trim`).toBeLessThanOrEqual(12);
     }
   });

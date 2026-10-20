@@ -19,7 +19,7 @@
  * by measuring and correcting a few times rather than by one division.
  */
 import { writeFileSync } from 'node:fs';
-import { A_GAIN, A_WEIGHT, DAMPING, INTENT_DB, PASSES, PEAK_CEILING, TARGET_DB, TRIM_MAX, TRIM_MIN, withPage } from './lib/loudness-common.mjs';
+import { A_GAIN, A_WEIGHT, BY_EAR_DB, DAMPING, INTENT_DB, PASSES, PEAK_CEILING, TARGET_DB, TRIM_MAX, TRIM_MIN, withPage } from './lib/loudness-common.mjs';
 
 /** How far a sound may end up from where it is meant to be, in dB. */
 const TOLERANCE = 3;
@@ -185,7 +185,7 @@ async function levelInPage(cfg) {
 await withPage(PORT, async (page) => {
   const { before, after } = await page.evaluate(levelInPage, {
     target: TARGET_DB,
-    intent: INTENT_DB,
+    intent: { ...INTENT_DB, ...BY_EAR_DB },
     passes: PASSES,
     damping: DAMPING,
     trimMin: TRIM_MIN,

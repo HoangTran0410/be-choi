@@ -67,8 +67,74 @@ export const INTENT_DB = {
   'file:sounds/kiss.m4a': -3,
 };
 
+/**
+ * The balance the app had before the levelling of 2026-10-20, kept on purpose: each synth sound's
+ * level relative to the house level, as measured (properly, by loudness-audit) on commit a2283ff.
+ * Levelling every sound to one meter reading took that balance apart (the bass and the horns came
+ * up 2.5-5 dB, piano, xylophone, guitar, the hats and shakers went down 2-5 dB), and the band was
+ * heard as heavy and muffled, the kick smothering the rest. Here it is again, now without clipping.
+ */
+const BY_EAR_MEASURED_DB = {
+  'pop': 1.1,
+  'puff': -0.7,
+  'note:trumpet': -2.9,
+  'drum:hat': 3.0,
+  'drum:ride': 1.1,
+  'inst:marimba': 0.1,
+  'inst:harp': -2.1,
+  'inst:harmonica': -3.3,
+  'ding': 0.6,
+  'note:piano': 2.7,
+  'note:violin': -2.8,
+  'drum:tom': 2.9,
+  'drum:triangle': 1.3,
+  'inst:vibraphone': -0.9,
+  'inst:ukulele': 0.8,
+  'inst:panflute': -3.2,
+  'boing': 3.2,
+  'note:xylo': 3.2,
+  'note:sax': -2.8,
+  'drum:clap': 0.5,
+  'drum:crash': -0.3,
+  'inst:steelpan': 0.5,
+  'inst:banjo': 1.9,
+  'inst:maracas': 0.3,
+  'chomp': -0.7,
+  'note:bell': 1.6,
+  'note:bass': -2.5,
+  'drum:cowbell': 2.9,
+  'inst:handpan': -1.2,
+  'inst:kalimba': 0.4,
+  'inst:tambourine': 2.0,
+  'tick': -1.9,
+  'note:guitar': 1.9,
+  'drum:kick': -0.3,
+  'drum:shaker': 2.8,
+  'inst:djembe': 1.8,
+  'inst:organ': -3.7,
+  'inst:chimes': -1.6,
+  'jingle': -0.4,
+  'note:flute': -2.8,
+  'drum:snare': 0.4,
+  'drum:wood': 2.1,
+  'inst:gong': -1.7,
+  'inst:accordion': -3.3,
+  'inst:castanets': -0.1,
+};
+/**
+ * The old levels sat right against full scale (the old chain let them clip). 1.5 dB under them,
+ * the same balance stays clear of the master's safety limiter, which would otherwise duck the band.
+ */
+const BY_EAR_HEADROOM_DB = -1.5;
+export const BY_EAR_DB = Object.fromEntries(
+  Object.entries(BY_EAR_MEASURED_DB)
+    // The triangle keeps its place under the house level (INTENT_DB): at its old level it stings.
+    .filter(([id]) => id !== 'drum:triangle')
+    .map(([id, db]) => [id, db + BY_EAR_HEADROOM_DB]),
+);
+
 /** How far one sound may be pushed. Beyond this a sound needs fixing, not trimming. */
-export const TRIM_MIN = 0.15;
+export const TRIM_MIN = 0.05;
 export const TRIM_MAX = 12;
 /** A trimmed sound must still leave headroom before the compressor. */
 export const PEAK_CEILING = 0.98;

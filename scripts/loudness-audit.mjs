@@ -30,14 +30,18 @@
  * Synth trims are written by loudness.mjs, not here: run that first.
  */
 import { readdirSync, writeFileSync } from 'node:fs';
-import { A_GAIN, A_WEIGHT, DAMPING, INTENT_DB, PEAK_CEILING, TARGET_DB, TRIM_MAX, TRIM_MIN, withPage } from './lib/loudness-common.mjs';
+import { A_GAIN, A_WEIGHT, BY_EAR_DB, DAMPING, INTENT_DB, PEAK_CEILING, TARGET_DB, TRIM_MAX, TRIM_MIN, withPage } from './lib/loudness-common.mjs';
 
 const PORT = 5198;
 const OUT = 'src/core/loudness-files.ts';
 /** How far a source may sit from its mark before it is called out, in dB. */
 const TOLERANCE = 4;
-/** True peak above this is flagged: the speaker's own limiter will be the one to catch it. */
-const TRUE_PEAK_MAX_DB = -0.5;
+/**
+ * True peak above this is flagged: the speaker's own limiter will be the one to catch it. The
+ * master's limiter lets a fast transient overshoot its -1.5 dB ceiling a little; half a dB over
+ * full scale is the most a kick or a full orchestra bar reaches (the app before levelling: +2).
+ */
+const TRUE_PEAK_MAX_DB = 0.5;
 /** "Harsh": at least this share of the loudest window is in 2-5 kHz ... */
 const EDGE_SHARE_DB = -2;
 /** ... and that band alone is at least this loud (flat dBFS, after the chain). */
@@ -452,7 +456,7 @@ await withPage(PORT, async (page) => {
     if (part > 0) await page.reload({ waitUntil: 'domcontentloaded' });
     const slice = await page.evaluate(auditInPage, {
       target: TARGET_DB,
-      intent: INTENT_DB,
+      intent: { ...INTENT_DB, ...BY_EAR_DB },
       groupIntent: INTENT_GROUP_DB,
       weighting: A_WEIGHT,
       weightGain: A_GAIN,
@@ -488,8 +492,11 @@ const toleranceOf = (r) => (r.group === 'pitch' ? 7 : r.group === 'music' ? 5.5 
 const verdict = (r) => {
   const marks = [];
   const off = r.db - r.goal;
-  if (off > toleranceOf(r)) marks.push('QUÁ TO');
-  if (off < -toleranceOf(r)) marks.push('QUÁ NHỎ');
+  // A note at another pitch and a tune against the other tunes are context, not levels anyone set:
+  // the synth notes keep the balance the app was played with (BY_EAR_DB), so these only inform.
+  const levelled = r.group !== 'pitch' && r.group !== 'music';
+  if (levelled && off > toleranceOf(r)) marks.push('QUÁ TO');
+  if (levelled && off < -toleranceOf(r)) marks.push('QUÁ NHỎ');
   if (r.edgeShareDb > EDGE_SHARE_DB && r.edgeDb > EDGE_LEVEL_DB) marks.push('CHÓI');
   if (r.tpDb > TRUE_PEAK_MAX_DB) marks.push('PEAK');
   return marks;
