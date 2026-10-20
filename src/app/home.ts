@@ -2,7 +2,7 @@ import { h } from '../core/dom';
 import { onHold } from '../core/hold';
 import type { AppDeps } from './deps';
 import type { Skill } from '../core/types';
-import { GAMES, type GameEntry } from './registry';
+import { GAMES, isLegacy, type GameEntry } from './registry';
 import { hrefFor } from './router';
 import { suitsAge } from './ages';
 import { buzz } from './haptics';
@@ -69,11 +69,14 @@ export function todaysGames(deps: AppDeps, now: Date = new Date()): GameEntry[] 
     const games = saved.ids.map((id) => GAMES.find((g) => g.id === id));
     if (games.length > 0 && games.every((g): g is GameEntry => g !== undefined)) return games;
   }
-  const picks = pickToday(GAMES, {
-    dateKey: key,
-    recent: deps.store.recentPlays(),
-    allow: (g) => suitsAge(g, deps.store.settings().age),
-  });
+  const picks = pickToday(
+    GAMES.filter((g) => !isLegacy(g.id)),
+    {
+      dateKey: key,
+      recent: deps.store.recentPlays(),
+      allow: (g) => suitsAge(g, deps.store.settings().age),
+    },
+  );
   deps.store.setTodayPicks(
     key,
     picks.map((g) => g.id),
@@ -217,7 +220,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
       );
     blocks.push(
       ...SECTIONS.map((section) => {
-        const games = GAMES.filter((g) => suitsAge(g, age) && !placed.has(g.id) && section.skills.includes(g.skill));
+        const games = GAMES.filter((g) => suitsAge(g, age) && !isLegacy(g.id) && !placed.has(g.id) && section.skills.includes(g.skill));
         games.forEach((g) => placed.add(g.id));
         if (games.length === 0) return null;
         return h(
@@ -228,8 +231,19 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
         );
       }),
     );
-    const rest = GAMES.filter((g) => suitsAge(g, age) && !placed.has(g.id));
+    const rest = GAMES.filter((g) => suitsAge(g, age) && !isLegacy(g.id) && !placed.has(g.id));
     if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map(tileOf))));
+    // Games folded into a newer all-in-one game: still here, but last.
+    const legacy = GAMES.filter((g) => suitsAge(g, age) && isLegacy(g.id));
+    if (legacy.length)
+      blocks.push(
+        h(
+          'section',
+          { class: 'section section-regular section-legacy' },
+          heading('🗂️', 'Game lẻ'),
+          h('div', { class: 'grid' }, ...legacy.map(tileOf)),
+        ),
+      );
     // The favourites row growing or shrinking above pushes everything below it: move
     // the scroll by the same amount, so the tile under the child's finger stays put.
     const anchor = grid.querySelector('.section-regular');

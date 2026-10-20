@@ -103,6 +103,59 @@ export const GAMES: readonly GameEntry[] = [
   { ...mask, load: () => import('../games/mask/index') },
 ];
 
+/**
+ * Games folded into a newer all-in-one game. They stay playable, but the home screen lists
+ * them last, so the newer games come first.
+ */
+export const LEGACY_IDS: ReadonlySet<string> = new Set([
+  'piano',
+  'xylo',
+  'drums',
+  'band',
+  'orchestra',
+  'jam',
+  'simon',
+  'sing',
+  'parrot',
+  'birdsong',
+  'letters',
+  'count',
+  'sounds',
+  'soundbook',
+  'shadows',
+  'colors',
+  'sizes',
+  'shapes',
+  'sortout',
+  'pattern',
+  'memory',
+  'tubes',
+  'jigsaw',
+  'blocks',
+  'bricks',
+  'feed',
+  'wash',
+  'teeth',
+  'dressup',
+  'bedtime',
+  'feelings',
+  'cooking',
+  'birthday',
+  'aquarium',
+  'terrarium',
+  'fishing',
+  'farm',
+  'garden',
+  'paint',
+  'trace',
+  'bubbles',
+  'peekaboo',
+]);
+
+export function isLegacy(id: string): boolean {
+  return LEGACY_IDS.has(id);
+}
+
 export function findGame(id: string): GameEntry | undefined {
   return GAMES.find((g) => g.id === id);
 }
