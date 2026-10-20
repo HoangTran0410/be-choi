@@ -5,6 +5,7 @@
  */
 import { LOUDNESS } from './loudness';
 import { SFX_TAKES, sfxUrl } from './sfx';
+import { VOICE_HZ } from './voicepitch';
 
 export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax' | 'bass';
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
@@ -126,6 +127,14 @@ export interface AudioEngine {
   puff(): void;
   /** Sound effect / animal voice. */
   fx(kind: FxKind): void;
+  /**
+   * A recorded voice retuned to sing at `hz` (a recorded take played faster or
+   * slower, see src/core/voicepitch.ts), so a cat can meow a note of a tune. Falls
+   * back to a synthesized voice at that pitch while the recording has not loaded
+   * or when the voice has no measured pitch (any voice but the meow then plays untuned). `gain` scales the level (default 1);
+   * `maxDur` caps the length in seconds (a low meow is stretched, default 1.1).
+   */
+  pitched(kind: FxKind, hz: number, opts?: { gain?: number; maxDur?: number }): void;
   /** Resolves once the voices requested so far are decoded (or known to be missing). */
   ready(): Promise<void>;
   /**
@@ -287,6 +296,8 @@ export function createAudio(): AudioEngine {
    * downgrade rather than silence.
    */
   const takes = new Map<FxKind, AudioBuffer[]>();
+  /** The measured pitch of a decoded take, when it has one (see voicepitch.ts). */
+  const takeHz = new WeakMap<AudioBuffer, number>();
   /** One load per voice, started the first time it is asked for. */
   const loading = new Map<FxKind, Promise<void>>();
 
@@ -313,6 +324,8 @@ export function createAudio(): AudioEngine {
             const list = takes.get(kind);
             if (list) list.push(buf);
             else takes.set(kind, [buf]);
+            const hz = VOICE_HZ[kind]?.[i];
+            if (hz) takeHz.set(buf, hz);
           })
           .catch(() => undefined),
       );
@@ -999,6 +1012,56 @@ export function createAudio(): AudioEngine {
     }
   }
 
+  /** A synthesized "mee-ow" sung at `hz`: the stand-in for a retuned recording. */
+  function synthMeowAt(hz: number, gain: number): void {
+    at('fx:meow', () => {
+      const f = Math.max(80, hz);
+      const g = 0.22 * gain;
+      const vib = { hz: 6, depth: f * 0.02 };
+      tone('sawtooth', f * 0.9, 0.28, { gain: g, attack: 0.04, slideTo: f * 1.1, filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 }, vibrato: vib });
+      tone('sawtooth', f * 1.1, 0.4, { gain: g, attack: 0.01, at: 0.28, slideTo: f * 0.8, filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 }, vibrato: vib });
+      tone('sine', f * 0.9, 0.28, { gain: 0.12 * gain, attack: 0.04, slideTo: f * 1.1 });
+      tone('sine', f * 1.1, 0.4, { gain: 0.12 * gain, attack: 0.01, at: 0.28, slideTo: f * 0.8 });
+    });
+  }
+
+  function pitched(kind: FxKind, hz: number, opts: { gain?: number; maxDur?: number } = {}): void {
+    const gain = opts.gain ?? 1;
+    const maxDur = opts.maxDur ?? 1.1;
+    const list = takes.get(kind)?.filter((b) => takeHz.has(b)) ?? [];
+    const c = getCtx();
+    if (!c || !master || !(hz > 0)) return;
+    const buf = list.length ? list[Math.floor(Math.random() * list.length)] : undefined;
+    const base = buf ? takeHz.get(buf) : undefined;
+    if (!buf || !base) {
+      void loadVoice(kind);
+      // A meow can be sung from scratch; any other voice cannot be retuned, so it just plays.
+      if (kind === 'meow') synthMeowAt(hz, gain);
+      else fx(kind);
+      return;
+    }
+    try {
+      const rate = Math.min(4, Math.max(0.25, hz / base));
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = rate;
+      const g = c.createGain();
+      const level = LOUDNESS.sample * gain;
+      const len = Math.min(maxDur, buf.duration / rate);
+      const t0 = c.currentTime;
+      g.gain.setValueAtTime(level, t0);
+      if (len < buf.duration / rate) {
+        g.gain.setValueAtTime(level, t0 + len - 0.12);
+        g.gain.linearRampToValueAtTime(0, t0 + len);
+      }
+      src.connect(g).connect(master);
+      src.start(t0);
+      src.stop(t0 + len + 0.02);
+    } catch {
+      /* closed context: stay silent */
+    }
+  }
+
   /** Decoded recordings by URL. A failed decode stays failed: no refetch per tap. */
   const clips = new Map<string, Promise<AudioBuffer | null>>();
 
@@ -1194,6 +1257,7 @@ export function createAudio(): AudioEngine {
     note,
     drum,
     fx,
+    pitched,
     ready() {
       return Promise.all([...loading.values()]).then(() => undefined);
     },

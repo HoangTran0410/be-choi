@@ -1,0 +1,542 @@
+/*
+ * Dàn mèo hát: a bar of three band buttons on top, a strip with the cat's name or
+ * the song's progress, eight cats on a shelf (2 × 4 upright, 1 × 8 sideways), a bar
+ * of three mode buttons below. Everything is sized in fractions of the stage, every
+ * button is at least 72 px each way, and the page never scrolls (only the song list
+ * does, inside itself).
+ */
+.catband {
+  --cb-gap: 1.6vmin;
+  --cb-beat: 536ms;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cb-gap);
+  padding: var(--cb-gap);
+  overflow: hidden;
+  touch-action: none;
+  background: linear-gradient(180deg, #fde2e4 0%, #fbcfe8 55%, #e9d5ff 100%);
+  color: #4a1d3f;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ------------------------------------------------------------- buttons */
+.cb-bar {
+  flex: none;
+  display: flex;
+  gap: var(--cb-gap);
+}
+.cb-btn {
+  flex: 1 1 0;
+  min-width: 72px;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
+  color: inherit;
+  font: inherit;
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.1),
+    0 3px 8px rgba(120, 40, 100, 0.15);
+  touch-action: none;
+  transition:
+    transform 0.1s,
+    background 0.2s;
+}
+.cb-btn.is-tapped {
+  transform: scale(0.94);
+}
+.cb-btn.cb-on {
+  background: #fff;
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.08),
+    0 0 0 4px #f472b6,
+    0 3px 8px rgba(120, 40, 100, 0.2);
+}
+.cb-emoji {
+  font-size: clamp(26px, 6.5vmin, 44px);
+  line-height: 1;
+  pointer-events: none;
+}
+.cb-label {
+  font-size: clamp(13px, 3.2vmin, 19px);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  pointer-events: none;
+}
+.cb-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ------------------------------------------------------------- caption */
+.cb-caption {
+  position: relative;
+  flex: none;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.55);
+}
+.cb-progress {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cb-progress-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #fde68a, #f9a8d4);
+  transition: width 0.3s ease-out;
+}
+.cb-caption-text {
+  position: relative;
+  padding: 6px 14px;
+  font-size: clamp(16px, 3.8vmin, 24px);
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.15;
+}
+
+/* --------------------------------------------------------------- stage */
+.cb-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  /* Upright: two cats a row, four rows, the smallest (highest) cats on top like a staircase. */
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: var(--cb-gap);
+}
+.cb-cell {
+  grid-row: calc(4 - var(--row, 0));
+}
+@media (min-aspect-ratio: 1/1) {
+  .cb-stage {
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: 1fr;
+  }
+  .cb-cell {
+    grid-row: 1;
+  }
+}
+
+.cb-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 72px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  container-type: size;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.cb-cell:focus:not(:focus-visible) {
+  outline: none;
+}
+/* The shelf board under each cat. */
+.cb-board {
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  bottom: 0;
+  height: 30%;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff7ed, #fed7aa);
+  box-shadow: inset 0 -5px 0 rgba(180, 83, 9, 0.18);
+  pointer-events: none;
+}
+.cb-cat {
+  position: relative;
+  z-index: 1;
+  /* A bigger cat for a lower voice: --s runs from 1 down to 0.72. */
+  height: calc(var(--s, 1) * 22vmin);
+  aspect-ratio: 100 / 112;
+  margin-bottom: 7%;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+@supports (width: 1cqw) {
+  .cb-cat {
+    height: min(calc(var(--s, 1) * 78cqh), calc(var(--s, 1) * 112cqw * 0.96));
+  }
+}
+.cb-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 3px 2px rgba(80, 20, 60, 0.2));
+}
+.cb-dot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+  pointer-events: none;
+}
+.cb-lit .cb-dot {
+  transform: scale(1.6);
+}
+
+/* Face: shut mouth and round eyes at rest; open mouth and happy eyes when singing. */
+.cb-mouth-open,
+.cb-eyes-happy {
+  display: none;
+}
+.cb-sing .cb-mouth-open,
+.cb-sing .cb-eyes-happy {
+  display: inline;
+}
+.cb-sing .cb-mouth-shut,
+.cb-sing .cb-eyes-open {
+  display: none;
+}
+
+/* A hop whenever a cat sings. */
+.cb-hop {
+  animation: cb-hop 0.38s ease-out;
+}
+@keyframes cb-hop {
+  0% {
+    transform: scale(1, 1);
+  }
+  25% {
+    transform: translateY(-9%) scale(0.94, 1.1);
+  }
+  55% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+/* A cat that has just arrived. */
+.cb-new {
+  animation: cb-new 0.9s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes cb-new {
+  0% {
+    transform: scale(0.1) rotate(-20deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* The band is playing: every cat sways a little, each a beat apart. */
+.cb-playing .cb-cat svg {
+  animation: cb-sway var(--beat, 536ms) ease-in-out infinite alternate;
+  animation-delay: calc(var(--i, 0) * -70ms);
+  transform-origin: 50% 100%;
+}
+@keyframes cb-sway {
+  from {
+    transform: rotate(-2.2deg);
+  }
+  to {
+    transform: rotate(2.2deg);
+  }
+}
+.cb-low.cb-playing .cb-cat svg {
+  animation: none;
+}
+.cb-low .cb-cat svg {
+  filter: none;
+}
+
+/* While a tune is being followed, the cats that are not lit step back. */
+.cb-guiding .cb-cell:not(.cb-lit) .cb-cat {
+  opacity: 0.62;
+  filter: saturate(0.7);
+}
+
+/* The lit cat in a song. */
+.cb-lit::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  width: min(92%, 100cqh);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff7ae 0%, #fde047 62%, rgba(253, 224, 71, 0.4) 100%);
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 26px 10px rgba(250, 204, 21, 0.85);
+  animation: cb-glow 0.9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.cb-lit .cb-cat {
+  animation: cb-bounce 0.9s ease-in-out infinite;
+}
+@keyframes cb-glow {
+  from {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+@keyframes cb-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7%);
+  }
+}
+.cb-low .cb-lit::before,
+.cb-low .cb-lit .cb-cat {
+  animation: none;
+}
+.cb-nudge {
+  animation: cb-nudge 0.5s ease-out;
+}
+@keyframes cb-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px) rotate(-3deg);
+  }
+  75% {
+    transform: translateX(6px) rotate(3deg);
+  }
+}
+
+/* ------------------------------------------------------ floating notes */
+.cb-floaty {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.cb-glyph {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: clamp(24px, 6vmin, 40px);
+  font-weight: 900;
+  text-shadow: 0 2px 0 #fff;
+  will-change: transform, opacity;
+}
+
+/* ---------------------------------------------------------- song picker */
+.cb-picker {
+  position: absolute;
+  left: var(--cb-gap);
+  right: var(--cb-gap);
+  /* Below the caption strip, above the mode bar. */
+  top: calc(var(--cb-gap) * 2 + 76px + 40px);
+  bottom: calc(var(--cb-gap) * 2 + 76px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cb-gap);
+  padding: var(--cb-gap);
+  border-radius: calc(var(--radius) + 4px);
+  background: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 6px 22px rgba(120, 40, 100, 0.25);
+  z-index: 3;
+}
+.cb-picker[hidden] {
+  display: none;
+}
+.cb-picker-head {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.cb-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fef3c7;
+  font-weight: 800;
+  font-size: clamp(14px, 3.2vmin, 19px);
+}
+.cb-chip-soft {
+  background: #f3e8ff;
+}
+.cb-songs {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: minmax(80px, 1fr);
+  gap: var(--cb-gap);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+@media (min-aspect-ratio: 1/1) {
+  .cb-songs {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+.cb-song {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: #fce7f3;
+  color: inherit;
+  font: inherit;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08);
+  touch-action: pan-y;
+}
+.cb-song.is-tapped {
+  transform: scale(0.95);
+}
+.cb-song.cb-locked {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+.cb-song-icon {
+  font-size: clamp(28px, 7vmin, 46px);
+  line-height: 1;
+  pointer-events: none;
+}
+.cb-song-title {
+  font-size: clamp(13px, 3.2vmin, 18px);
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+.cb-song-need {
+  font-size: clamp(12px, 3vmin, 16px);
+  font-weight: 800;
+  pointer-events: none;
+}
+
+/*
+ * Sideways, the two button bars share one row under the cats (4 + 3 buttons), so
+ * the cats keep the height. The strip and the buttons shrink; no button goes under 72 px.
+ */
+@media (min-aspect-ratio: 1/1) {
+  .catband {
+    display: grid;
+    grid-template-columns: 4fr 3fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'caption caption'
+      'stage stage'
+      'styles modes';
+  }
+  .cb-caption {
+    grid-area: caption;
+    min-height: 36px;
+  }
+  .cb-caption-text {
+    padding: 3px 12px;
+  }
+  .cb-stage {
+    grid-area: stage;
+  }
+  .cb-styles {
+    grid-area: styles;
+  }
+  .cb-modes {
+    grid-area: modes;
+  }
+  .cb-btn {
+    min-height: 72px;
+    padding: 2px 4px;
+  }
+  .cb-emoji {
+    font-size: clamp(24px, 6vh, 36px);
+  }
+  .cb-picker {
+    top: calc(var(--cb-gap) * 2 + 36px);
+    bottom: calc(var(--cb-gap) * 2 + 72px);
+  }
+}
+
+/* A big sideways screen (tablet): two rows of four, the high cats on top, so they are not tiny. */
+@media (min-aspect-ratio: 1/1) and (min-width: 700px) and (min-height: 600px) {
+  .cb-stage {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+  .cb-cell {
+    grid-row: calc(2 - var(--row4, 0));
+  }
+}
+.cb-stop.cb-on {
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.1),
+    0 3px 8px rgba(120, 40, 100, 0.15);
+}
+
+/* A family photo worn as the cat's face (round, over the head); it opens its mouth to sing. */
+.cb-face {
+  position: absolute;
+  left: 18%;
+  top: 19%;
+  width: 64%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+.cb-face-mouth {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  width: 34%;
+  height: 24%;
+  transform: translateX(-50%) scaleY(0);
+  border-radius: 50%;
+  background: #7f1d1d;
+  border: 2px solid #fff;
+  transition: transform 0.08s;
+}
+.cb-sing .cb-face-mouth {
+  transform: translateX(-50%) scaleY(1);
+}
+.cb-memory {
+  grid-column: 1 / -1;
+  background: #e0f2fe;
+  flex-direction: row;
+  gap: 12px;
+}
