@@ -426,6 +426,96 @@ function gongTable(): Record<DrumStyle, [Ev[][], Ev[][], Ev[][]]> {
 
 const gong = notes({ lo: 43, hi: 62, center: 48 }, gongTable());
 
+// ---------------------------------------------------------------------------------------------
+// More drums: hi-hat, hand claps, soft cymbal, djembe, taiko, cajón (built from the existing drum sounds)
+// ---------------------------------------------------------------------------------------------
+
+/** Chũm chọe nhỏ: closed hat strokes, the open (ride) sound on the off-beats. */
+const hihat = perc({
+  kinds: { A: 'H', a: 'H', g: 'H', u: 'R' },
+  body: {
+    pop: 'A.g.a.g.A.g.a.gu',
+    disco: 'A.u.g.u.A.u.g.u.',
+    soft: 'A...g...a...g...',
+    latin: 'A.gAg.a.A.gAg.a.',
+    east: 'A...g.a.A...g...',
+  },
+  dense: 'odd',
+  tail: 'gaug',
+});
+
+/** Vỗ tay: claps on two and four, light claps in between. */
+const clap = perc({
+  kinds: { A: 'P', a: 'P', g: 'P', u: 'W' },
+  body: {
+    pop: '..u.A.u...u.A.g.',
+    disco: '....A..g..u.A.g.',
+    soft: '....A.....u.a...',
+    latin: '..g.A.ug..g.A.ag',
+    east: '....A.....g.A.u.',
+  },
+  dense: 'quarter',
+  tail: 'gaga',
+});
+
+/** Chũm chọe: a soft crash on the first beat of a bar, a quiet ride shimmer around it. */
+const cymbal = perc({
+  kinds: { A: 'C', a: 'R', g: 'R', u: 'R' },
+  body: {
+    pop: 'A...u...a...u...',
+    disco: 'A.u.a.u.a.u.a.u.',
+    soft: 'A...........a...',
+    latin: 'A..u..a.a..u..a.',
+    east: 'A.......a...u...',
+  },
+  dense: 'quarter',
+  tail: 'uaua',
+  vel: -2,
+});
+
+/** Trống djembe: a deep bass tone, open tones and slaps (a different phrasing from the conga). */
+const djembe = perc({
+  kinds: { A: 'M', a: 'M', g: 'M', u: 'M' },
+  tune: { A: [0, -1], a: [2, 0], g: [1, 1], u: [0, 0] },
+  body: {
+    pop: 'A.gu.aA.A.gu.a.g',
+    disco: 'A.u.a.g.A.u.a.gu',
+    soft: 'A...u...a..g..u.',
+    latin: 'A.gaA.u.gAga.u.g',
+    east: 'A..u.a..A.g.u...',
+  },
+  dense: 'odd',
+  tail: 'gaug',
+});
+
+/** Trống taiko: huge slow "don", with the small drum answering. */
+const taiko = perc({
+  kinds: { A: 'K', a: 'M', g: 'M', u: 'K' },
+  body: {
+    pop: 'A.......a.a.A...',
+    disco: 'A...a...A.g.a.A.',
+    soft: 'A.......a.......',
+    latin: 'A..a..g.A..a.a..',
+    east: 'A.......g...a.A.',
+  },
+  dense: 'quarter',
+  tail: 'gagu',
+});
+
+/** Trống hộp cajón: a bass thump on the beat, slaps in between. */
+const cajon = perc({
+  kinds: { A: 'K', a: 'S', g: 'S', u: 'K' },
+  body: {
+    pop: 'A...a.g.A.u.a.g.',
+    disco: 'A...a...A.g.a.u.',
+    soft: 'A...g.......a.g.',
+    latin: 'A..g..a.A.u.g.a.',
+    east: 'A.....a.u...g.a.',
+  },
+  dense: 'quarter',
+  tail: 'gaga',
+});
+
 export const NEW_PATTERNS: Record<string, RobotPatterns> = {
   // rebuilt
   bell,
@@ -469,4 +559,10 @@ export const NEW_PATTERNS: Record<string, RobotPatterns> = {
   beatbox,
   timpani,
   gong,
+  hihat,
+  clap,
+  cymbal,
+  djembe,
+  taiko,
+  cajon,
 };

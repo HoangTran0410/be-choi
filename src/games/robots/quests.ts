@@ -69,7 +69,7 @@ export const QUESTS: readonly Quest[] = [
   {
     id: 'four',
     sticker: '🌈',
-    reward: ['shaker', 'flute'],
+    reward: ['shaker', 'flute', 'clap'],
     parts: (v) => [0, 1, 2, 3].map((i) => ({ icon: '🤖', done: v.robots.length > i })),
   },
   {
@@ -81,7 +81,7 @@ export const QUESTS: readonly Quest[] = [
   {
     id: 'songs',
     sticker: '🎁',
-    reward: ['cowbell', 'tom'],
+    reward: ['cowbell', 'tom', 'hihat'],
     parts: (v) => SONGS.map((s) => ({ icon: s.icon, done: v.tried.has(s.id) })),
   },
   {
@@ -104,7 +104,7 @@ export const QUESTS: readonly Quest[] = [
   {
     id: 'sparkle',
     sticker: '✨',
-    reward: ['kalimba', 'vibraphone', 'chime'],
+    reward: ['kalimba', 'vibraphone', 'chime', 'cymbal'],
     parts: (v) => rowOf(v, '🔔', 3, mallet),
   },
   {
@@ -138,13 +138,13 @@ export const QUESTS: readonly Quest[] = [
   {
     id: 'tour',
     sticker: '🌍',
-    reward: ['tranh', 'maracas', 'mo'],
+    reward: ['tranh', 'maracas', 'mo', 'djembe'],
     parts: (v) => [0, 1, 2].map((i) => ({ icon: '🎪', done: v.fullIn.size > i })),
   },
   {
     id: 'band',
     sticker: '🎪',
-    reward: ['beatbox', 'timpani', 'gong'],
+    reward: ['beatbox', 'timpani', 'gong', 'taiko'],
     parts: (v) =>
       (['gõ', 'gảy', 'thổi', 'kéo', 'phím'] as const).map((g) => ({
         icon: { gõ: '🥁', gảy: '🎸', thổi: '🎺', kéo: '🎻', phím: '🎹' }[g],
@@ -154,7 +154,7 @@ export const QUESTS: readonly Quest[] = [
   {
     id: 'grand',
     sticker: '👑',
-    reward: ['triangle'],
+    reward: ['triangle', 'cajon'],
     parts: (v) => SONGS.map((s) => ({ icon: s.icon, done: v.fullIn.has(s.id) })),
   },
 ];

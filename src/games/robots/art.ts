@@ -53,7 +53,13 @@ export type PropKind =
   | 'mo'
   | 'beatbox'
   | 'timpani'
-  | 'gong';
+  | 'gong'
+  | 'hihat'
+  | 'clap'
+  | 'cymbal'
+  | 'djembe'
+  | 'taiko'
+  | 'cajon';
 
 export interface Look {
   head: HeadShape;
@@ -679,6 +685,60 @@ const NEW_PROPS: Partial<Record<PropKind, PropArt>> = {
       `<path d="M26 142V88H94V142" fill="none" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
       cymbalDisc(60, 112, 20, '#fbbf24', '#b45309') +
       `<circle cx="60" cy="112" r="20" fill="none" stroke="${c}" stroke-width="1.6" opacity=".7"/>`,
+  },
+  hihat: {
+    rest: [-14, -26],
+    held: ['none', 'stick'],
+    draw: (_c, d) =>
+      `<line x1="60" y1="148" x2="60" y2="108" stroke="#64748b" stroke-width="3.4" stroke-linecap="round"/><path d="M50 148H70M54 148L46 144M66 148L74 144" stroke="#64748b" stroke-width="2.6" stroke-linecap="round" fill="none"/>` +
+      `<ellipse cx="60" cy="118" rx="26" ry="5.5" fill="#d4a017" stroke="#92400e" stroke-width="2.2"/>` +
+      `<ellipse cx="60" cy="109" rx="26" ry="5.5" fill="#fde047" stroke="#b45309" stroke-width="2.2"/><ellipse cx="60" cy="108" rx="9" ry="2" fill="#fef9c3" opacity=".8"/>` +
+      `<circle cx="60" cy="103" r="2.6" fill="${d}"/>`,
+  },
+  clap: {
+    rest: [-48, -48],
+    held: ['none', 'none'],
+    front: true,
+    draw: (c, d, a) =>
+      `<path d="M30 118C22 110 28 98 38 100L58 108C62 112 62 120 56 124L40 130C36 132 32 130 30 126Z" fill="${c}" stroke="${d}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      `<path d="M90 118C98 110 92 98 82 100L62 108C58 112 58 120 64 124L80 130C84 132 88 130 90 126Z" fill="${a}" stroke="${d}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      `<path d="M60 90V80M46 94L40 86M74 94L80 86" stroke="#fb923c" stroke-width="3.4" stroke-linecap="round"/>` +
+      star(60, 70, 5, '#fde047'),
+  },
+  cymbal: {
+    rest: [-12, -28],
+    held: ['none', 'stick'],
+    draw: (_c, d) =>
+      `<line x1="60" y1="148" x2="60" y2="104" stroke="#64748b" stroke-width="3.4" stroke-linecap="round"/><path d="M48 148H72M52 148L44 143M68 148L76 143" stroke="#64748b" stroke-width="2.6" stroke-linecap="round" fill="none"/>` +
+      `<g transform="rotate(-10 60 104)"><ellipse cx="60" cy="104" rx="34" ry="8" fill="#fbbf24" stroke="#b45309" stroke-width="2.6"/><ellipse cx="60" cy="102" rx="22" ry="4.6" fill="none" stroke="#b45309" stroke-width="1.4" opacity=".6"/><ellipse cx="60" cy="102" rx="6" ry="2.6" fill="#b45309"/></g>` +
+      `<circle cx="60" cy="112" r="2.4" fill="${d}"/>`,
+  },
+  djembe: {
+    rest: [-24, -24],
+    held: ['none', 'none'],
+    draw: (c, d, a) =>
+      `<path d="M32 100H88C86 114 74 118 72 126C70 132 80 138 84 144H36C40 138 50 132 48 126C46 118 34 114 32 100Z" fill="${c}" stroke="${d}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      `<ellipse cx="60" cy="100" rx="28" ry="6.5" fill="#f5e6c8" stroke="${d}" stroke-width="2.6"/>` +
+      `<path d="M36 108L44 114L52 108L60 114L68 108L76 114L84 108" fill="none" stroke="${a}" stroke-width="2.4" stroke-linejoin="round"/>` +
+      `<path d="M44 136L52 142L60 136L68 142L76 136" fill="none" stroke="${a}" stroke-width="2.4" stroke-linejoin="round"/>`,
+  },
+  taiko: {
+    rest: [-20, -20],
+    held: ['stick', 'stick'],
+    draw: (c, d, a) =>
+      `<path d="M30 148L36 136M90 148L84 136" stroke="${WOOD_DARK}" stroke-width="5" stroke-linecap="round"/>` +
+      `<path d="M24 118C24 100 96 100 96 118C96 136 24 136 24 118Z" fill="${c}" stroke="${d}" stroke-width="2.8"/>` +
+      `<ellipse cx="60" cy="112" rx="36" ry="9" fill="#f5e6c8" stroke="${d}" stroke-width="2.8"/><circle cx="60" cy="112" r="9" fill="none" stroke="${c}" stroke-width="3"/>` +
+      Array.from({ length: 6 }, (_, i) => `<circle cx="${34 + i * 10.4}" cy="${125 + (i % 2) * 2}" r="2.2" fill="${a}"/>`).join(''),
+  },
+  cajon: {
+    rest: [-24, -24],
+    held: ['none', 'none'],
+    draw: (c, d, a) =>
+      `<path d="M36 100H84L88 142H32Z" fill="${c}" stroke="${d}" stroke-width="2.8" stroke-linejoin="round"/>` +
+      `<path d="M36 100L44 94H76L84 100Z" fill="${a}" stroke="${d}" stroke-width="2.4" stroke-linejoin="round"/>` +
+      `<circle cx="60" cy="122" r="9" fill="${INK}" stroke="${d}" stroke-width="2.2"/><circle cx="60" cy="122" r="4" fill="#475569"/>` +
+      `<path d="M36 112H84M35 132H85" stroke="${d}" stroke-width="1.6" opacity=".45"/>`,
   },
 };
 const PROPS = { ...BASE_PROPS, ...NEW_PROPS } as Record<PropKind, PropArt>;

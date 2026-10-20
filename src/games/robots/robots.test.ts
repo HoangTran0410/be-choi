@@ -45,7 +45,7 @@ function* allHits(): Generator<{ id: string; song: (typeof SONGS)[number]; level
 describe('the robots', () => {
   it('has 40 or more robots, 5 of them on the shelf at the start', () => {
     expect(ROBOTS.length).toBeGreaterThanOrEqual(40);
-    expect(ROBOTS.length).toBeLessThanOrEqual(44);
+    expect(ROBOTS.length).toBeLessThanOrEqual(48);
     expect(STARTERS.length).toBe(5);
     for (const id of STARTERS) expect(findRobot(id)).toBeDefined();
   });

@@ -75,6 +75,12 @@ const BASE_DB = {
   beatbox: -24.5,
   timpani: -26,
   gong: -28,
+  hihat: -32,
+  clap: -31,
+  cymbal: -33,
+  djembe: -28,
+  taiko: -26,
+  cajon: -27,
 };
 const TARGET_DB = Object.fromEntries(Object.entries(BASE_DB).map(([id, db]) => [id, db + HOUSE_SHIFT_DB]));
 const TOLERANCE = 2;

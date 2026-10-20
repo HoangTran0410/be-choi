@@ -80,6 +80,7 @@ hoặc chưa ai nghe/nhìn trên máy thật. **Chưa ai thử trên iPad thật
   khi bé chạm cũng chờ tên game đọc xong (`whenFree` không xét `lastTouchAt`); (c) góc phụ huynh chỉ vẽ lại danh sách
   giọng sau 800 ms, không nghe `voiceschanged`; (d) `refreshShelf` giữa lúc kéo robot sẽ huỷ cú kéo (chưa rõ có xảy ra);
   (e) `dragdrop` không đo lại `corner` khi resize; (f) utterance không được giữ tham chiếu (Chrome có thể GC, mất `onend`).
+- Ban nhạc robot: thêm 6 robot gõ (chũm chọe nhỏ `hihat`, vỗ tay `clap`, chũm chọe `cymbal`, trống `djembe`, `taiko`, `cajon`; 41 → 47). Dùng lại tiếng synth có sẵn (hat/ride, clap, crash nhẹ, djembe qua `perc`, kick/tom/snare), mẫu trong `parts.ts`, hình trong `art.ts`, mở khoá thêm vào phần thưởng 6 nhiệm vụ cũ (id nhiệm vụ không đổi). `mix.ts` đã sinh lại. **Chưa nghe bằng tai.**
 - Playwright trên máy này cần `npx playwright install chromium` (đã cài).
 
 ## Lệnh hay dùng
