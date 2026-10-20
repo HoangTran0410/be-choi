@@ -7,8 +7,14 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { chromium } from 'playwright';
 
-/** House level, in A-weighted dBFS momentary. Sits near the middle of the untrimmed set. */
-export const TARGET_DB = -22;
+/**
+ * House level, in A-weighted dBFS momentary. It was -22 while the old script measured each
+ * sound in the first moments of a fresh context (some 10 dB low), so the app then really played
+ * hotter than this; measured properly at -22, the music came out 4.4 dB and the synth 1.9 dB
+ * quieter than the app had been, and it was heard as too quiet. -19 brings it back, and the
+ * master limiter now keeps it from clipping as the old levels did.
+ */
+export const TARGET_DB = -19;
 
 /**
  * A-weighting as three biquads: a double pole at 20.6 Hz, single poles at 107.7 and
@@ -44,6 +50,21 @@ export const INTENT_DB = {
   'note:trumpet': 2,
   jingle: 2,
   'fx:cheer': 2,
+  // Bright, thin sounds (birds, squeaks, a kettle, a triangle) are sharpest exactly where a
+  // tablet speaker and a small child's ear are most sensitive (2-5 kHz). At the house level
+  // the audit calls them harsh; a few dB under it they still carry.
+  'fx:chirp': -3,
+  'fx:penguin': -3,
+  'fx:squeak': -3,
+  'fx:cluck': -3,
+  'fx:parrot': -3,
+  // A frog's croak is all attack: at the house level its peak reaches the ceiling.
+  'fx:frog': -1.5,
+  'drum:triangle': -3,
+  'file:sounds/bird.m4a': -3,
+  'file:sfx/chirp-0.m4a': -3,
+  'file:sounds/kettle.m4a': -3,
+  'file:sounds/kiss.m4a': -3,
 };
 
 /** How far one sound may be pushed. Beyond this a sound needs fixing, not trimming. */

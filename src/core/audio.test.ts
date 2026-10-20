@@ -87,16 +87,18 @@ describe('recorded voices load lazily', () => {
     expect(urls).toEqual([]);
   });
 
-  it('first tap plays the synth and fetches only that voice; the next tap plays the recording', async () => {
+  it('first tap fetches only that voice and plays the recording when it lands, never a synth stand-in', async () => {
     const a = createAudio();
     a.unlock();
     a.fx('meow');
     expect(urls.length).toBe(SFX_TAKES.meow);
     expect(urls.every((u) => u.includes('sfx/meow-'))).toBe(true);
-    expect(played).toBe(0); // the synth uses oscillators, not a decoded buffer
+    expect(played).toBe(0);
     await a.ready();
+    await Promise.resolve();
+    expect(played).toBe(1); // the first tap, answered by the real voice
     a.fx('meow');
-    expect(played).toBe(1);
+    expect(played).toBe(2);
     a.fx('meow');
     expect(urls.length).toBe(SFX_TAKES.meow); // never fetched twice
   });

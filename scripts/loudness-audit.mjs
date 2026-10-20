@@ -255,6 +255,18 @@ async function auditInPage(cfg) {
   const sources = [];
   const add = (id, group, seconds, play, extra = {}) => sources.push({ id, group, seconds, play, ...extra });
 
+  // The synth's own voice of a kind that also has recordings: with nothing to fetch, fx() plays it
+  // at once (the recordings are measured on their own, below).
+  const synthOnly = (play) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = undefined;
+    try {
+      play();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  };
+
   const synth = [
     ['pop', (a) => a.pop()],
     ['ding', (a) => a.ding()],
@@ -265,7 +277,7 @@ async function auditInPage(cfg) {
     ['puff', (a) => a.puff()],
     ...TIMBRES.map((t) => [`note:${t}`, (a) => a.note(440, 0.5, t)]),
     ...DRUMS.map((d) => [`drum:${d}`, (a) => a.drum(d)]),
-    ...FX.map((f) => [`fx:${f}`, (a) => a.fx(f)]),
+    ...FX.map((f) => [`fx:${f}`, (a) => synthOnly(() => a.fx(f))]),
     ...WORLD.map((i) => [`inst:${i}`, (a) => a.inst(i, INSTRUMENT_REF[i], 1)]),
   ];
   for (const [id, fn] of synth) add(id, 'synth', 4, fn);

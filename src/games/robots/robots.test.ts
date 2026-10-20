@@ -366,7 +366,9 @@ describe('the music is rich', () => {
           peak = Math.max(peak, e);
         }
       }
-      expect(peak, `${song.id} peak step energy`).toBeLessThanOrEqual(9);
+      // The levels in mix.ts rose by 3 dB with the house level (scripts/lib/loudness-common.mjs), so
+      // the budget did too (9 × 1.41); the clipping itself is measured by robots-mix.mjs --check.
+      expect(peak, `${song.id} peak step energy`).toBeLessThanOrEqual(12.7);
     }
   });
 

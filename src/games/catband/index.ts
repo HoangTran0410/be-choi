@@ -80,6 +80,8 @@ interface Particle {
  */
 function start(ctx: GameContext): void {
   let alive = true;
+  // Render the cats' notes ahead (off the main thread), so the first tap is a cat and not a wait.
+  ctx.audio.preloadFx(['meow']);
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const later = (ms: number, fn: () => void): void => {
     const id = setTimeout(() => {

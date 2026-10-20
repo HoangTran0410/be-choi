@@ -417,7 +417,7 @@ export function createAudio(): AudioEngine {
         // own look-ahead keep the peaks out without the pumping of a slow limiter; the
         // knee is hard because nothing below the ceiling should be touched.
         const limit = ctx.createDynamicsCompressor();
-        limit.threshold.value = -3;
+        limit.threshold.value = -4.5;
         limit.knee.value = 0;
         limit.ratio.value = 20;
         limit.attack.value = 0.001;
@@ -1136,6 +1136,10 @@ export function createAudio(): AudioEngine {
     });
   }
 
+  /** How long after a tap its sound may still come, when it had to be loaded or rendered first (s). */
+  const LATE_TAP_S = 0.25;
+  /** The same for a recording still being fetched: a cow that moos a second late is still the cow (s). */
+  const LATE_LOAD_S = 1.5;
   /** How late a note rendered off the main thread may still start (s). */
   const LATE_NOTE_S = 0.03;
   /** OfflineAudioContext where it exists: offline renders (the level scripts) render notes in place. */
@@ -1282,7 +1286,6 @@ export function createAudio(): AudioEngine {
   const sung = new Map<string, AudioBuffer>();
   const SUNG_KEPT = 48;
 
-  const sungPending = new Set<string>();
   let catScaleWarmed = false;
 
   function catKey(hz: number, dur: number): string {
@@ -1297,18 +1300,21 @@ export function createAudio(): AudioEngine {
     return buf;
   }
 
-  /** Start rendering a cat note on the worker. False when there is no worker (the caller renders it). */
-  function requestCat(c: Ctx, hz: number, dur: number): boolean {
+  /** The cat notes being rendered on the worker, so a note asked for twice shares one job. */
+  const catJobs = new Map<string, Promise<AudioBuffer | null>>();
+  /** Start rendering a cat note on the worker. Null when there is no worker (the caller renders it). */
+  function requestCat(c: Ctx, hz: number, dur: number): Promise<AudioBuffer | null> | null {
     const key = catKey(hz, dur);
-    if (sungPending.has(key)) return worker != null;
+    const running = catJobs.get(key);
+    if (running) return running;
     const job = renderOffThread({ kind: 'cat', hz, sampleRate: c.sampleRate, dur });
-    if (!job) return false;
-    sungPending.add(key);
-    void job.then((data) => {
-      sungPending.delete(key);
-      if (data) keepCat(key, c, data);
+    if (!job) return null;
+    const done = job.then((data) => {
+      catJobs.delete(key);
+      return data ? keepCat(key, c, data) : null;
     });
-    return true;
+    catJobs.set(key, done);
+    return done;
   }
 
   /**
@@ -1316,7 +1322,7 @@ export function createAudio(): AudioEngine {
    * behind it, because a tune is about to want them all.
    */
   function warmCatScale(c: Ctx): void {
-    if (catScaleWarmed) return;
+    if (catScaleWarmed || worker === null) return;
     catScaleWarmed = true;
     for (const name of SCALE_C) requestCat(c, noteFreq(name) * 2, 0.7);
   }
@@ -1333,16 +1339,30 @@ export function createAudio(): AudioEngine {
       let buf = sung.get(key);
       if (buf) sung.delete(key);
       else {
-        if (requestCat(c, hz, dur)) {
-          // Being rendered on the worker: this first note is a plain sung tone.
-          at('cat', () => tone('sawtooth', hz, Math.min(dur, 0.6), { gain: 0.25 * gain, attack: 0.03, sustain: true, release: 0.15, filter: { type: 'bandpass', freq: 1300, q: 1.5 } }));
-          warmCatScale(c);
+        warmCatScale(c);
+        // Already on its way from the worker (the scale is rendered ahead): sing it as soon as it lands,
+        // if that is still close enough to the tap to feel like its answer. Never a stand-in voice.
+        const pending = catJobs.get(key);
+        if (pending) {
+          const asked = c.currentTime;
+          void pending.then((ready) => {
+            if (ready && c.currentTime - asked < LATE_TAP_S) playCat(c, ready, gain);
+          });
           return;
         }
         buf = keepCat(key, c, renderCatNote(hz, { sampleRate: c.sampleRate, dur }));
       }
       sung.set(key, buf);
       while (sung.size > SUNG_KEPT) sung.delete(sung.keys().next().value as string);
+      playCat(c, buf, gain);
+    } catch {
+      /* closed context: stay silent */
+    }
+  }
+
+  function playCat(c: Ctx, buf: AudioBuffer, gain: number): void {
+    if (!master) return;
+    try {
       const src = c.createBufferSource();
       src.buffer = buf;
       const g = c.createGain();
@@ -1509,12 +1529,23 @@ export function createAudio(): AudioEngine {
 
   function fx(kind: FxKind): void {
     at(`fx:${kind}`, () => {
-      if (!playTake(kind)) {
-        // Not landed yet (or not recorded): the synth answers this tap, and the
-        // recording is fetched so the next one is the real voice.
-        void loadVoice(kind);
+      if (playTake(kind)) return;
+      // Kinds with no recording are the synth's own; so is every voice where nothing can be fetched.
+      if (!(SFX_TAKES[kind] ?? 0) || typeof fetch !== 'function') {
         playFx(kind);
+        return;
       }
+      // Not landed yet: the real voice answers as soon as it is decoded, if that is still soon
+      // enough to belong to the tap. A synth stand-in sounded like a different animal. Only a
+      // recording that cannot load at all (offline, missing) falls back to the synth.
+      const c = getCtx();
+      const asked = c?.currentTime ?? 0;
+      void loadVoice(kind).then(() => {
+        if ((c?.currentTime ?? 0) - asked > LATE_LOAD_S) return;
+        at(`fx:${kind}`, () => {
+          if (!playTake(kind)) playFx(kind);
+        });
+      });
     });
   }
 
@@ -1599,7 +1630,12 @@ export function createAudio(): AudioEngine {
       return Promise.all([...loading.values()]).then(() => undefined);
     },
     preloadFx(kinds) {
-      for (const kind of kinds) void loadVoice(kind);
+      for (const kind of kinds) {
+        if (kind === 'meow') {
+          const c = getCtx();
+          if (c) warmCatScale(c);
+        } else void loadVoice(kind);
+      }
     },
     clip,
     loop,

@@ -36,6 +36,9 @@ async function levelInPage(cfg) {
   // The engine renders computed notes on a worker in the app; here they must be the real
   // samples, in this thread, or the numbers would be those of the stand-in tone.
   Object.defineProperty(globalThis, 'Worker', { value: undefined, configurable: true, writable: true });
+  // Levelled here is the synth's own voice for every kind; the recordings have their trims in
+  // loudness-files.ts. With nothing to fetch, fx() plays the synth at once instead of waiting.
+  Object.defineProperty(globalThis, 'fetch', { value: undefined, configurable: true, writable: true });
   const SR = 48000;
   const SECONDS = 4;
   const SETTLE = 1;

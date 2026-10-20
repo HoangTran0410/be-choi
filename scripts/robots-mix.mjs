@@ -29,8 +29,10 @@ const check = process.argv.includes('--check');
 const soloOnly = process.argv.includes('--solo-only');
 const wavDir = process.argv.includes('--wav') ? process.argv[process.argv.indexOf('--wav') + 1] : null;
 
-/** Where each robot should sit when it plays alone, in A-weighted dBFS (momentary). */
-const TARGET_DB = {
+/** The whole band moves with the house level (scripts/lib/loudness-common.mjs: -22 → -19). */
+const HOUSE_SHIFT_DB = 3;
+/** Where each robot should sit when it plays alone, in A-weighted dBFS (momentary), before HOUSE_SHIFT_DB. */
+const BASE_DB = {
   kick: -22.5,
   bass: -25,
   piano: -29,
@@ -74,6 +76,7 @@ const TARGET_DB = {
   timpani: -26,
   gong: -28,
 };
+const TARGET_DB = Object.fromEntries(Object.entries(BASE_DB).map(([id, db]) => [id, db + HOUSE_SHIFT_DB]));
 const TOLERANCE = 2;
 const PEAK_CEILING = 0.95;
 const SONGS = ['fun', 'disco', 'calm', 'latin', 'east'];
