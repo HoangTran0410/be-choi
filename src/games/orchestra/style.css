@@ -137,11 +137,6 @@
     0 4px 0 rgba(0, 0, 0, 0.12),
     0 0 0 4px #fff;
 }
-.orchestra-stop {
-  margin-left: 3vmin;
-  background: #fecaca;
-  font-size: calc(var(--tap) * 0.45);
-}
 
 /* Star: floats up from the middle of the band. */
 .orchestra-star {

@@ -1,7 +1,7 @@
 /*
  * Music stage: a kit strip on top (4 kit buttons, the voice button, three
  * dancing animals), a 4 × 3 grid of pads (3 × 4 in portrait) that takes every
- * spare pixel, and a bottom bar with beats, tempo, ⏺ and the loop dots. Every
+ * spare pixel, and a bottom bar with the drum-machine button (beats and speed in its panel), ⏺ and the loop dots. Every
  * size is a viewport fraction or a clamp, so 390 × 844, 844 × 390 and
  * 1024 × 768 all fit without scrolling; the bar wraps onto two rows when the
  * screen is narrow.
@@ -11,7 +11,7 @@
   /* Kit, beat, tempo and ⏺ buttons. */
   --jam-btn: clamp(56px, 11vmin, 88px);
   /* Loop dots and ✖: a little smaller, never under a finger. */
-  --jam-dot: max(48px, calc(var(--jam-btn) * 0.8));
+  --jam-dot: max(56px, calc(var(--jam-btn) * 0.8));
   /* One quarter-note beat; set from the tempo by the game. */
   --jam-beat: 545ms;
   position: absolute;
@@ -28,11 +28,9 @@
 /* ---- round buttons ---- */
 .jam-kit,
 .jam-voice,
-.jam-beat,
-.jam-tempo,
+.jam-machine,
 .jam-rec,
-.jam-layer,
-.jam-clear {
+.jam-layer {
   position: relative;
   flex: none;
   width: var(--jam-btn);
@@ -55,14 +53,13 @@
 }
 .jam-kit:active,
 .jam-voice:active,
-.jam-beat:active,
-.jam-tempo:active,
+.jam-machine:active,
 .jam-rec:active,
 .jam-layer:active {
   transform: scale(0.92);
 }
 .jam-kit.active,
-.jam-beat.active {
+.jam-machine.active {
   background: #fde68a;
   box-shadow:
     0 3px 0 var(--btn-shadow),
@@ -175,12 +172,6 @@
   gap: var(--jam-gap);
   row-gap: calc(var(--jam-gap) * 0.8);
 }
-.jam-beat[data-id='stop'] {
-  font-size: calc(var(--jam-btn) * 0.42);
-}
-.jam-tempo {
-  margin-left: calc(var(--jam-gap) * 1.5);
-}
 .jam-rec {
   background: #fee2e2;
   color: #dc2626;
@@ -231,8 +222,7 @@
   margin-left: calc(var(--jam-gap) * 1.5);
   min-height: var(--jam-dot);
 }
-.jam-layer,
-.jam-clear {
+.jam-layer {
   width: var(--jam-dot);
   height: var(--jam-dot);
   font-size: calc(var(--jam-dot) * 0.5);
@@ -249,13 +239,8 @@
   opacity: 0.45;
   filter: grayscale(1);
 }
-.jam-clear {
-  background: var(--surface);
-  color: #9f1239;
-  font-size: calc(var(--jam-dot) * 0.4);
-}
-.jam-layers.jam-empty .jam-clear {
-  opacity: 0.3;
+.jam-layers[hidden] {
+  display: none;
 }
 
 /* ---- count-in ---- */

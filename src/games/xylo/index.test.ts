@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
-import { fitsScale, noteFreq, SONGS } from '../../core/music';
+import { noteFreq, SONGS } from '../../core/music';
 import { advance, BARS, expectedBar, REC_MAX_MS, serializeRec } from './logic';
 import game from './index';
 
@@ -26,6 +26,12 @@ function click(el: Element): void {
   el.dispatchEvent(new Event('pointerdown', { bubbles: true }));
 }
 
+/** Open the song panel and choose the nth song. */
+function pickSong(ctx: ReturnType<typeof fakeContext>, n: number): void {
+  click(ctx.stage.querySelector('.xylo-pick')!);
+  ctx.stage.querySelectorAll<HTMLElement>('.pp-tile')[n]?.dispatchEvent(new Event('pointerup', { bubbles: true }));
+}
+
 const hadElementFromPoint = typeof document.elementFromPoint === 'function';
 
 describe('xylo game', () => {
@@ -43,7 +49,8 @@ describe('xylo game', () => {
     game.start(ctx);
     const bars = ctx.stage.querySelectorAll<HTMLElement>('.xylo-bar');
     expect(bars.length).toBe(8);
-    expect(ctx.stage.querySelectorAll('.xylo-song').length).toBe(SONGS.filter(fitsScale).length);
+    expect(ctx.stage.querySelectorAll('.xylo-pick').length).toBe(1);
+    expect(ctx.stage.querySelectorAll('.xylo-song').length).toBe(0);
     expect(ctx.stage.querySelectorAll('.xylo-play').length).toBe(1);
     expect(ctx.stage.querySelectorAll('.xylo-rec').length).toBe(1);
     expect(ctx.stage.querySelectorAll('.xylo-glow').length).toBe(0);
@@ -104,11 +111,11 @@ describe('xylo game', () => {
     game.start(ctx);
     const song = SONGS[0]!;
     const bars = ctx.stage.querySelectorAll<HTMLElement>('.xylo-bar');
-    const songBtn = ctx.stage.querySelector<HTMLElement>('.xylo-song')!;
+    const songBtn = ctx.stage.querySelector<HTMLElement>('.xylo-pick')!;
 
-    click(songBtn);
+    pickSong(ctx, 0);
     expect(ctx.spoken).toContain(song.title);
-    expect(songBtn.classList.contains('active')).toBe(true);
+    expect(songBtn.textContent).toBe(song.icon);
     let exp = expectedBar(song, 0)!;
     let glowing = ctx.stage.querySelectorAll<HTMLElement>('.xylo-glow');
     expect(glowing.length).toBe(1);
@@ -166,7 +173,7 @@ describe('xylo game', () => {
     game.start(ctx);
     vi.advanceTimersByTime(7000);
     expect(ctx.stage.querySelector('.anim-wiggle')).toBeNull();
-    click(ctx.stage.querySelector('.xylo-song')!);
+    pickSong(ctx, 0);
     vi.advanceTimersByTime(6100);
     const face = ctx.stage.querySelector('.xylo-glow .xylo-bar-face')!;
     expect(face.classList.contains('anim-wiggle')).toBe(true);
@@ -211,7 +218,7 @@ describe('xylo game', () => {
 
     // Selecting a song stops playback; playback never moves the song-mode glow.
     click(play);
-    click(ctx.stage.querySelector('.xylo-song')!);
+    pickSong(ctx, 0);
     expect(play.textContent).toBe('▶');
     click(play);
     const glow = ctx.stage.querySelector('.xylo-glow');

@@ -7,6 +7,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import {
   BRUSHES,
+  DEFAULT_SIZE,
   DEFAULT_TOOL,
   PALETTE,
   SAVE_MAX_PX,
@@ -33,8 +34,7 @@ interface Point {
 }
 
 const STAMP_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
-const SIZE_NAMES: readonly string[] = ['cỡ nhỏ', 'cỡ vừa', 'cỡ to'];
-/** Buttons per toolbar group: in landscape each group is one run of a column. */
+/** Buttons per colour group: in landscape each group is one run of a column. */
 const GROUP_SIZE = 4;
 /** Give up on a line drawing that takes longer than this; the photo stays. */
 const LINE_ART_TIMEOUT_MS = 10_000;
@@ -58,12 +58,6 @@ function group(cls: string, ...buttons: HTMLElement[]): HTMLDivElement {
   const el = h('div', { class: `paint-group ${cls}` }, ...buttons);
   el.style.gridRow = `span ${Math.max(1, buttons.length)}`;
   return el;
-}
-
-function chunk<T>(items: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
 }
 
 /**
@@ -291,60 +285,41 @@ function start(ctx: GameContext): void {
     return btn;
   });
 
-  const sizes = BRUSHES.map((size, i) => {
-    const btn = h(
-      'button',
-      { class: 'paint-btn paint-size', 'aria-label': SIZE_NAMES[i] ?? 'cỡ bút', 'data-size': size },
-      h('span', { class: 'paint-size-dot', style: `--paint-dot:${size}px` }),
-    );
-    makeTappable(
-      btn,
-      () => {
-        select(nextTool(tool, { size }));
-      },
-      { cooldownMs: 0, ctx },
-    );
-    return btn;
-  });
-
-  // The toolbar carries the handful of everyday stamps. Everything the child has
-  // unlocked lives behind the 🎁 button: forty-odd of them along the toolbar
-  // would leave no paper to draw on.
-  const stamps = STAMPS.map((emoji) => {
-    const btn = h('button', { class: 'paint-btn paint-stamp', 'aria-label': `dán hình ${emoji}`, 'data-emoji': emoji }, emoji);
-    makeTappable(
-      btn,
-      () => {
-        select(nextTool(tool, { emoji }));
-      },
-      { cooldownMs: 0, ctx },
-    );
-    return btn;
-  });
+  // One button for the brush size: each tap goes to the next size and the dot grows.
+  const sizeBtn = h(
+    'button',
+    { class: 'paint-btn paint-size', 'aria-label': 'đổi cỡ bút' },
+    h('span', { class: 'paint-size-dot' }),
+  );
+  makeTappable(
+    sizeBtn,
+    () => {
+      const i = BRUSHES.indexOf(tool.size);
+      const size = BRUSHES[(i + 1) % BRUSHES.length] ?? DEFAULT_SIZE;
+      select(nextTool(tool, { size }));
+    },
+    { cooldownMs: 0, ctx },
+  );
 
   /**
-   * Every sticker the child has earned, behind one button. Before this they went
-   * to the album and stopped there: the toolbar took the first eight and the
-   * rest were collected and never seen, which made collecting them pointless.
+   * Every stamp (the everyday ones and each sticker the child has earned) behind
+   * one button that shows the stamp in hand. Tapping opens the panel of them.
    */
-  const owned = ctx.stickers();
-  const allStamps = stampList(owned);
-  const moreBtn = h('button', { class: 'paint-btn paint-stamp-more', 'aria-label': 'chọn hình dán', hidden: owned.length === 0 }, '🎁');
+  const allStamps = stampList(ctx.stickers());
+  const stampBtn = h('button', { class: 'paint-btn paint-stamp', 'aria-label': 'chọn hình dán' }, STAMPS[0] ?? '⭐');
   let closeStickers: (() => void) | null = null;
-  moreBtn.addEventListener('pointerup', (e) => {
+  stampBtn.addEventListener('pointerup', (e) => {
     e.preventDefault();
     ctx.audio.tick();
+    closeStickers?.();
     const choices: PickerChoice[] = allStamps.map((emoji) => ({ id: emoji, emoji, label: `hình dán ${emoji}` }));
     closeStickers = showPhotoPicker(root, choices, (choice) => {
       closeStickers = null;
       if (!choice?.emoji) return;
-      moreBtn.textContent = choice.emoji;
       select(nextTool(tool, { emoji: choice.emoji }));
     });
   });
   ctx.onCleanup(() => closeStickers?.());
-
-  const stampButtons = [...stamps, moreBtn];
 
   const eraser = h('button', { class: 'paint-btn paint-eraser', 'aria-label': 'cục tẩy' }, '🧹');
   makeTappable(
@@ -361,17 +336,14 @@ function start(ctx: GameContext): void {
   tools.append(
     group('paint-group-colors', ...swatches.slice(0, GROUP_SIZE)),
     group('paint-group-colors', ...swatches.slice(GROUP_SIZE)),
-    group('paint-group-sizes', ...sizes),
-    ...chunk(stampButtons, GROUP_SIZE).map((run) => group('paint-group-stamps', ...run)),
-    group('paint-group-actions', eraser, trash),
+    group('paint-group-actions', sizeBtn, stampBtn, eraser, trash),
   );
 
   function render(): void {
     for (const b of swatches) b.classList.toggle('selected', tool.kind === 'brush' && b.dataset.color === tool.color);
-    for (const b of sizes) b.classList.toggle('selected', Number(b.dataset.size) === tool.size);
-    for (const b of stamps) b.classList.toggle('selected', tool.kind === 'stamp' && b.dataset.emoji === tool.emoji);
-    // Lit when the stamp in hand came from the collection rather than the toolbar.
-    moreBtn.classList.toggle('selected', tool.kind === 'stamp' && !STAMPS.includes(tool.emoji));
+    sizeBtn.style.setProperty('--paint-dot', `${tool.size}px`);
+    if (tool.kind === 'stamp') stampBtn.textContent = tool.emoji;
+    stampBtn.classList.toggle('selected', tool.kind === 'stamp');
     eraser.classList.toggle('selected', tool.kind === 'eraser');
   }
 

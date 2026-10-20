@@ -1,6 +1,7 @@
 import type { Timbre } from '../../core/audio';
 import { h, randInt, replay } from '../../core/dom';
 import { onHold } from '../../core/hold';
+import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import { noteFreq } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -33,7 +34,7 @@ const ECHO_MS = 100;
 const STAR_MS = 900;
 /** After the first loop, every this many pad hits earns a star. */
 const HITS_PER_STAR = 100;
-/** Long-press on ✖ to wipe every loop. */
+/** Long-press on a loop dot to wipe every loop. */
 const CLEAR_HOLD_MS = 700;
 /** Tempo index of 🙂 (factor 1). */
 const TEMPO_NORMAL = 1;
@@ -43,10 +44,10 @@ type Rec = { phase: 'count'; left: number } | { phase: 'rec'; startStep: number;
 /**
  * Music stage: four kits of twelve multi-touch pads (drums, pentatonic notes
  * with six voices, animal voices, silly effects), three backing beats with a
- * soft bass line, a tempo button, and a one-bar looper. Tap ⏺, count 1·2·3·4
+ * soft bass line and a tempo (both behind the 🥁 button), and a one-bar looper. Tap ⏺, count 1·2·3·4
  * with the wood block, play for one bar, and the loop starts stacking under
  * whatever the child plays next — up to four layers, each mutable, all wiped
- * by holding ✖. First loop earns a star, then every hundred hits.
+ * by holding a loop dot. First loop earns a star, then every hundred hits.
  */
 function start(ctx: GameContext): void {
   const firstKit = KITS[0];
@@ -74,6 +75,8 @@ function start(ctx: GameContext): void {
   const flashes = new Map<string, ReturnType<typeof setTimeout>>();
   /** Pad index under each active pointer; -1 when the finger is down but off the pads. */
   const active = new Map<number, number>();
+  /** Disposers of the long-press on each loop dot. */
+  const dotHolds: Array<() => void> = [];
 
   // ---- DOM ----
   const root = h('div', { class: 'jam' });
@@ -102,29 +105,12 @@ function start(ctx: GameContext): void {
   }
 
   const bar = h('div', { class: 'jam-bar' });
-  const beatBtns = new Map<string, HTMLButtonElement>();
-  const stopBtn = h(
-    'button',
-    { class: 'jam-beat', type: 'button', 'data-id': 'stop', 'aria-label': 'Tắt nhịp', 'aria-pressed': 'true' },
-    '⏹',
-  );
-  beatBtns.set('stop', stopBtn);
-  bar.append(stopBtn);
-  for (const b of BEATS) {
-    const btn = h(
-      'button',
-      { class: 'jam-beat', type: 'button', 'data-id': b.id, 'aria-label': `Nhịp ${b.name}`, 'aria-pressed': 'false' },
-      b.emoji,
-    );
-    beatBtns.set(b.id, btn);
-    bar.append(btn);
-  }
-  const tempoBtn = h('button', { class: 'jam-tempo', type: 'button', 'aria-label': 'Nhanh chậm' }, TEMPO_EMOJIS[tempoIdx] ?? '🙂');
+  // One "drum machine" button: the backing beats and the speed live in its panel.
+  const machineBtn = h('button', { class: 'jam-machine', type: 'button', 'aria-label': 'Máy nhịp' }, '🥁');
   const recBtn = h('button', { class: 'jam-rec', type: 'button', 'aria-label': 'Thu một vòng', 'aria-pressed': 'false' }, '⏺');
-  const layersEl = h('div', { class: 'jam-layers jam-empty' });
-  const clearBtn = h('button', { class: 'jam-clear', type: 'button', 'aria-label': 'Giữ để xoá hết' }, '✖');
-  layersEl.append(clearBtn);
-  bar.append(tempoBtn, recBtn, layersEl);
+  // Loop dots: tap one to mute it; hold one to wipe every loop. Empty (hidden) until a loop is recorded.
+  const layersEl = h('div', { class: 'jam-layers jam-empty', hidden: true });
+  bar.append(machineBtn, recBtn, layersEl);
 
   const countEl = h('div', { class: 'jam-count', 'aria-hidden': 'true', hidden: true });
 
@@ -200,6 +186,8 @@ function start(ctx: GameContext): void {
   }
 
   function renderLayers(): void {
+    for (const off of dotHolds) off();
+    dotHolds.length = 0;
     for (const dot of layersEl.querySelectorAll('.jam-layer')) dot.remove();
     for (const layer of layers) {
       const k = KITS.find((x) => x.id === layer.kit);
@@ -214,20 +202,36 @@ function start(ctx: GameContext): void {
         },
         k?.emoji ?? '🎵',
       );
-      layersEl.insertBefore(dot, clearBtn);
+      layersEl.append(dot);
+      dotHolds.push(onHold(dot, CLEAR_HOLD_MS, clearLayers));
     }
     layersEl.classList.toggle('jam-empty', layers.length === 0);
+    layersEl.hidden = layers.length === 0;
     const full = layers.length >= MAX_LAYERS;
     recBtn.classList.toggle('jam-full', full);
     recBtn.setAttribute('aria-disabled', String(full));
   }
 
   function setBeatButtons(): void {
-    for (const [id, btn] of beatBtns) {
-      const on = beat ? id === beat.id : id === 'stop';
-      btn.classList.toggle('active', on);
-      btn.setAttribute('aria-pressed', String(on));
-    }
+    machineBtn.textContent = beat ? beat.emoji : '🥁';
+    machineBtn.classList.toggle('active', beat !== null);
+  }
+
+  let closePanel: (() => void) | null = null;
+  function openMachine(): void {
+    closePanel?.();
+    const choices: PickerChoice[] = [
+      { id: 'beat:stop', emoji: '⏹', label: 'Tắt nhịp' },
+      ...BEATS.map((b) => ({ id: `beat:${b.id}`, emoji: b.emoji, label: `Nhịp ${b.name}` })),
+      ...TEMPO_EMOJIS.map((emoji, i) => ({ id: `tempo:${i}`, emoji, label: 'Nhanh chậm' })),
+    ];
+    closePanel = showPhotoPicker(root, choices, (choice) => {
+      closePanel = null;
+      if (!choice) return;
+      const [kind, value = ''] = choice.id.split(':');
+      if (kind === 'tempo') setTempo(Number(value));
+      else setBeat(BEATS.find((b) => b.id === value) ?? null);
+    });
   }
 
   function star(): void {
@@ -398,10 +402,9 @@ function start(ctx: GameContext): void {
     syncClock(true);
   }
 
-  function cycleTempo(): void {
-    tempoIdx = (tempoIdx + 1) % TEMPO_FACTORS.length;
-    tempoBtn.textContent = TEMPO_EMOJIS[tempoIdx] ?? '🙂';
-    replay(tempoBtn, 'jam-pop');
+  function setTempo(i: number): void {
+    if (!Number.isInteger(i) || i < 0 || i >= TEMPO_FACTORS.length) return;
+    tempoIdx = i;
     syncClock(true);
   }
 
@@ -424,11 +427,14 @@ function start(ctx: GameContext): void {
     syncClock();
   }
 
-  function toggleMute(id: number): void {
+  /** Flip a loop in place: rebuilding the dots here would drop a long-press in progress on it. */
+  function toggleMute(id: number, dot: HTMLElement): void {
     const layer = layers.find((l) => l.id === id);
     if (!layer) return;
     layer.muted = !layer.muted;
-    renderLayers();
+    dot.classList.toggle('muted', layer.muted);
+    dot.setAttribute('aria-label', layer.muted ? 'Bật vòng' : 'Tắt vòng');
+    dot.setAttribute('aria-pressed', String(!layer.muted));
   }
 
   function clearLayers(): void {
@@ -503,17 +509,10 @@ function start(ctx: GameContext): void {
 
   function onBarDown(e: Event): void {
     if (!(e.target instanceof Element)) return;
-    const beatEl = e.target.closest<HTMLElement>('.jam-beat');
-    if (beatEl) {
+    if (e.target.closest('.jam-machine')) {
       e.preventDefault();
       ctx.audio.tick();
-      setBeat(BEATS.find((b) => b.id === beatEl.dataset.id) ?? null);
-      return;
-    }
-    if (e.target.closest('.jam-tempo')) {
-      e.preventDefault();
-      ctx.audio.tick();
-      cycleTempo();
+      openMachine();
       return;
     }
     if (e.target.closest('.jam-rec')) {
@@ -526,9 +525,9 @@ function start(ctx: GameContext): void {
     if (dot) {
       e.preventDefault();
       ctx.audio.tick();
-      toggleMute(Number(dot.dataset.id));
+      toggleMute(Number(dot.dataset.id), dot);
     }
-    // ✖ is handled by the long-press helper.
+    // Holding a dot is handled by the long-press helper.
   }
 
   grid.addEventListener('pointerdown', onPadDown);
@@ -538,7 +537,6 @@ function start(ctx: GameContext): void {
   window.addEventListener('blur', releaseAll);
   kitsBar.addEventListener('pointerdown', onKitsDown);
   bar.addEventListener('pointerdown', onBarDown);
-  const disposeHold = onHold(clearBtn, CLEAR_HOLD_MS, clearLayers);
 
   renderKit();
   renderLayers();
@@ -569,7 +567,8 @@ function start(ctx: GameContext): void {
     alive = false;
     stopClock();
     clearTimers();
-    disposeHold();
+    for (const off of dotHolds) off();
+    closePanel?.();
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
