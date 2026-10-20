@@ -42,7 +42,7 @@ export interface DndOptions {
 /** How far a finger may wander and still be tapping (px). */
 export const TAP_SLOP = 12;
 /** How long a still finger on a stage robot takes to count as a hold (ms). */
-export const HOLD_MS = 700;
+export const HOLD_MS = 1200;
 
 const SHELF = 'shelf';
 const STAGE = 'stage';

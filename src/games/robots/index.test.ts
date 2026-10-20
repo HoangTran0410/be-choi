@@ -1,3 +1,4 @@
+import { HOLD_MS } from './dnd';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { fakeContext } from '../../core/testing';
 import { resetFrameLoop } from '../../core/frame';
@@ -99,7 +100,7 @@ describe('Ban nhạc robot', () => {
     expect(lit()).toBe(1);
     // hold
     ev(bot, 'pointerdown');
-    vi.advanceTimersByTime(800);
+    vi.advanceTimersByTime(HOLD_MS + 100);
     ev(bot, 'pointerup');
     expect(slot(ctx.stage, 0).classList.contains('has-bot')).toBe(false);
     expect(ctx.stage.querySelector('.rb-away .rb-bot')).not.toBeNull();
