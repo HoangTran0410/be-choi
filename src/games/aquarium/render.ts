@@ -1,5 +1,6 @@
 import { SHAKE_SECONDS } from './logic';
-import { drawBubbles, drawCreature, drawPlant, drawSand, drawWater } from './draw';
+import { drawBubbles, drawCreature, drawPlant } from './draw';
+import { drawSandCached, drawVignetteCached, drawWaterCached } from './layers';
 import { drawDecor } from './furniture';
 import {
   drawCaustics,
@@ -39,7 +40,7 @@ export function draw(g: CanvasRenderingContext2D, s: State, light: Light): void 
   // rather than one per animal: with a tank full of fish that is a few hundred
   // throwaway objects a second.
   const view = { tank, clock: s.clock };
-  drawWater(g, tank);
+  drawWaterCached(g, tank, dpr, light.water);
   // The sun does not shine at night.
   if (dusk < 0.98) {
     g.save();
@@ -53,7 +54,7 @@ export function draw(g: CanvasRenderingContext2D, s: State, light: Light): void 
   // the whole tank, which is a lot of dirt to put on the water for one castle.
   g.fillStyle = 'rgba(125,211,252,0.13)';
   g.fillRect(0, 0, tank.w, tank.h);
-  drawSand(g, tank, s.sand, s.rocks);
+  drawSandCached(g, tank, s.sand, s.rocks, dpr, light.sand);
   drawSandCaustics(g, s, light);
   // Every plant goes behind the animals: a weed in front of a fish for no reason
   // reads as a mistake. What belongs in front is the near layer, in the corners.
@@ -77,4 +78,5 @@ export function draw(g: CanvasRenderingContext2D, s: State, light: Light): void 
   }
   drawNight(g, s, light);
   drawSurface(g, s);
+  drawVignetteCached(g, tank, dpr, light.vignette);
 }

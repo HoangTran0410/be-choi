@@ -1257,7 +1257,6 @@ export function drawDrops(g: CanvasRenderingContext2D, drops: readonly Drop[]): 
  */
 export function drawGlass(g: CanvasRenderingContext2D, viv: Vivarium): void {
   g.save();
-  g.globalCompositeOperation = 'screen';
   const sheen = g.createLinearGradient(0, viv.h, viv.w * 0.75, 0);
   sheen.addColorStop(0, 'rgba(255,255,255,0)');
   sheen.addColorStop(0.45, 'rgba(255,255,255,0.09)');
