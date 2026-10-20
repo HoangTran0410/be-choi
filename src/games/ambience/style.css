@@ -125,8 +125,7 @@
 
 /* ---- the tray: shelves, then the switches on the chosen shelf ---- */
 .amb-tray {
-  /* Seven shelves must fit across the narrowest phone standing up. */
-  --tab: max(56px, min(calc(var(--tap) * 0.72), 12vw));
+  --tab: max(56px, min(calc(var(--tap) * 0.9), 16vw));
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -134,29 +133,6 @@
   padding: 1.6vmin 2vmin calc(1.6vmin + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.18);
-}
-@media (orientation: portrait) {
-  .amb-tray {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-.amb-tabs {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.2vmin;
-  justify-content: center;
-}
-/* Sideways the shelves stack two rows deep, so the switches beside them keep their size. */
-@media (orientation: landscape) {
-  .amb-tray {
-    --tab: max(56px, min(calc(var(--tap) * 0.62), 11vh));
-  }
-  .amb-tabs {
-    display: grid;
-    grid-template-columns: repeat(4, var(--tab));
-  }
 }
 .amb-tab {
   --size: var(--tab);
@@ -199,7 +175,7 @@
 }
 .amb-tile {
   /* Beside the shelf buttons (two rows of four, sideways), seven switches still fit on a phone on its side. */
-  --size: min(var(--tap), calc((100vw - 4 * var(--tab) - 28vmin) / 7));
+  --size: max(56px, min(var(--tap), calc((100vw - var(--tab) - 16vmin) / 4)));
   position: relative;
   flex: 0 1 var(--size);
   width: var(--size);
@@ -213,14 +189,6 @@
   transition:
     background 0.2s,
     box-shadow 0.2s;
-}
-@media (orientation: portrait) {
-  .amb-tile {
-    --size: min(var(--tap), calc((100vw - 14vmin) / 4));
-  }
-  .amb-tiles {
-    flex-wrap: wrap;
-  }
 }
 .amb-face {
   font-size: calc(var(--size) * 0.56);

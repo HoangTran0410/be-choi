@@ -28,12 +28,19 @@ function mount() {
 const cards = (ctx: ReturnType<typeof fakeContext>) => [...ctx.stage.querySelectorAll<HTMLElement>('.vd-card')];
 const iframe = (ctx: ReturnType<typeof fakeContext>) => ctx.stage.querySelector('iframe');
 
+/** Press the next-shelf arrow until the shelf icon shows `id`. */
+function flipTo(ctx: ReturnType<typeof fakeContext>, id: string): void {
+  const next = ctx.stage.querySelector<HTMLElement>('.vd-arrow-next')!;
+  for (let i = 0; i < 20 && ctx.stage.querySelector('.vd-shelficon')!.getAttribute('data-shelf') !== id; i++) next.dispatchEvent(ptr());
+}
+
 function setOnline(value: boolean): void {
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => value });
 }
 
 function addLink(ctx: ReturnType<typeof fakeContext>, text: string): void {
-  ctx.stage.querySelector<HTMLElement>('.vd-plus')!.dispatchEvent(ptr('pointerup'));
+  ctx.stage.querySelector<HTMLElement>('.vd-plus')!.dispatchEvent(ptr());
+  vi.advanceTimersByTime(1100);
   const input = ctx.stage.querySelector<HTMLInputElement>('.vd-input')!;
   input.value = text;
   ctx.stage.querySelector<HTMLFormElement>('.vd-box')!.requestSubmit();
@@ -54,9 +61,9 @@ describe('videos game', () => {
     setOnline(true);
   });
 
-  it('opens on the first shelf, a card with a picture for every video, and a tab per shelf', () => {
+  it('opens on the first shelf, a card with a picture for every video, and two shelf arrows', () => {
     const ctx = mount();
-    expect(ctx.stage.querySelectorAll('.vd-tab').length).toBe(SHELVES.length);
+    expect(ctx.stage.querySelectorAll('.vd-arrow').length).toBe(2);
     expect(cards(ctx).length).toBe(SHELVES[0]!.videos.length);
     const first = SHELVES[0]!.videos[0]!;
     expect(cards(ctx)[0]!.querySelector('img')!.getAttribute('src')).toBe(`https://i.ytimg.com/vi/${first.id}/mqdefault.jpg`);
@@ -387,11 +394,11 @@ describe('videos game', () => {
   it('switches shelves from the tabs and remembers the shelf for next time', () => {
     const ctx = mount();
     const shelf = SHELVES[2]!;
-    ctx.stage.querySelector<HTMLElement>(`.vd-tab[data-shelf="${shelf.id}"]`)!.dispatchEvent(ptr());
+    flipTo(ctx, shelf.id);
     expect(cards(ctx).length).toBe(shelf.videos.length);
     ctx.cleanup();
     const again = mount();
-    expect(again.stage.querySelector('.vd-tab-on')!.getAttribute('data-shelf')).toBe(shelf.id);
+    expect(again.stage.querySelector('.vd-shelficon')!.getAttribute('data-shelf')).toBe(shelf.id);
     again.cleanup();
   });
 
@@ -419,7 +426,7 @@ describe('videos game', () => {
     const ctx = mount();
     addLink(ctx, `https://youtu.be/${ID}?si=abc`);
     expect(ctx.stage.querySelector('.vd-add')).toBeNull();
-    expect(ctx.stage.querySelector('.vd-tab-on')!.getAttribute('data-shelf')).toBe('mine');
+    expect(ctx.stage.querySelector('.vd-shelficon')!.getAttribute('data-shelf')).toBe('mine');
     expect(cards(ctx).map((c) => c.dataset.key)).toEqual([`${ID}|`]);
     expect(JSON.parse(localStorage.getItem(CUSTOM_KEY)!)).toEqual([{ video: ID, title: 'Video của bé' }]);
 
@@ -434,7 +441,7 @@ describe('videos game', () => {
     ctx.cleanup();
 
     const again = mount();
-    again.stage.querySelector<HTMLElement>('.vd-tab[data-shelf="mine"]')!.dispatchEvent(ptr());
+    flipTo(again, 'mine');
     expect(cards(again)[0]!.textContent).toContain('Baby Shark');
     again.cleanup();
   });
@@ -454,7 +461,7 @@ describe('videos game', () => {
     expect(ctx.stage.querySelector('.vd-error')!.textContent).toBe('Link này không phải video YouTube.');
     expect(ctx.stage.querySelector('.vd-add')).not.toBeNull();
     expect(localStorage.getItem(CUSTOM_KEY)).toBeNull();
-    expect(ctx.stage.querySelector('.vd-tab[data-shelf="mine"]')).toBeNull();
+    expect([...ctx.stage.querySelectorAll('.vd-shelficon')].some((e) => e.getAttribute('data-shelf') === 'mine')).toBe(false);
     ctx.cleanup();
   });
 
@@ -473,7 +480,7 @@ describe('videos game', () => {
     vi.advanceTimersByTime(1000);
     expect(JSON.parse(localStorage.getItem(CUSTOM_KEY)!)).toEqual([]);
     // Nothing left on it, so the shelf goes and the first one shows.
-    expect(ctx.stage.querySelector('.vd-tab[data-shelf="mine"]')).toBeNull();
+    expect([...ctx.stage.querySelectorAll('.vd-shelficon')].some((e) => e.getAttribute('data-shelf') === 'mine')).toBe(false);
     expect(cards(ctx).length).toBe(SHELVES[0]!.videos.length);
     ctx.cleanup();
   });

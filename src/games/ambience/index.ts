@@ -10,6 +10,21 @@ import './style.css';
 import { sayText } from '../../core/say';
 
 const SAVE_KEY = 'be-choi:ambience';
+/** Switches shown at once: a shelf of seven is split into pages this size or smaller. */
+const PER_PAGE = 4;
+
+interface Group {
+  shelf: Shelf;
+  items: Ambient[];
+}
+
+/** Every shelf cut into pages of at most PER_PAGE switches, evenly (7 becomes 4 + 3). */
+const GROUPS: Group[] = SHELVES.flatMap((shelf) => {
+  const pages = Math.ceil(shelf.items.length / PER_PAGE);
+  const size = Math.ceil(shelf.items.length / pages);
+  return Array.from({ length: pages }, (_, i) => ({ shelf, items: shelf.items.slice(i * size, (i + 1) * size) }));
+});
+
 /** Mixing this many at once for the first time earns a star. */
 const STAR_AT = 3;
 
@@ -49,6 +64,7 @@ function start(ctx: GameContext): void {
   let alive = true;
   const saved = load();
   let shelf: Shelf = SHELVES.find((s) => s.id === saved.shelf) ?? SHELVES[0]!;
+  let group = Math.max(0, GROUPS.findIndex((g) => g.shelf === shelf));
   let on: string[] = [];
   let starred = false;
   const playing = new Map<string, Loop>();
@@ -65,7 +81,8 @@ function start(ctx: GameContext): void {
   );
   const picker = h('div', { class: 'amb-picker', hidden: true });
   let backdrop = saved.backdrop;
-  const tabs = h('nav', { class: 'amb-tabs' });
+  // One button turns the page of switches; its face shows which kind comes up.
+  const tabs = h('button', { class: 'amb-tab amb-tab-on', type: 'button', 'aria-label': 'đổi nhóm âm thanh' });
   const tiles = h('div', { class: 'amb-tiles' });
   const root = h(
     'div',
@@ -87,10 +104,7 @@ function start(ctx: GameContext): void {
       el.classList.toggle('amb-loading', loading.has(id));
       el.setAttribute('aria-pressed', String(on.includes(id)));
     }
-    for (const el of tabs.querySelectorAll<HTMLElement>('.amb-tab')) {
-      const s = SHELVES.find((x) => x.id === el.dataset.shelf);
-      el.classList.toggle('amb-tab-lit', !!s?.items.some((a) => on.includes(a.id)));
-    }
+    tabs.classList.toggle('amb-tab-lit', GROUPS.some((g, i) => i !== group && g.items.some((a) => on.includes(a.id))));
     hush.classList.toggle('amb-hush-shown', on.length > 0);
     scene.setOn(on);
     save({ on, shelf: shelf.id, backdrop });
@@ -150,28 +164,20 @@ function start(ctx: GameContext): void {
     paint();
   }
 
-  function showShelf(s: Shelf): void {
-    shelf = s;
-    tabs.replaceChildren(
-      ...SHELVES.map((x) => {
-        const b = h(
-          'button',
-          { class: `amb-tab${x === s ? ' amb-tab-on' : ''}`, type: 'button', 'aria-label': x.name, 'data-shelf': x.id },
-          x.icon,
-        );
-        b.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          ctx.hint.touch();
-          if (x !== shelf) {
-            ctx.audio.tick();
-            showShelf(x);
-          }
-        });
-        return b;
-      }),
-    );
+  tabs.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    ctx.hint.touch();
+    ctx.audio.tick();
+    showGroup((group + 1) % GROUPS.length);
+  });
+
+  function showGroup(i: number): void {
+    group = i;
+    const g = GROUPS[i]!;
+    shelf = g.shelf;
+    tabs.textContent = g.shelf.icon;
     tiles.replaceChildren(
-      ...s.items.map((amb) => {
+      ...g.items.map((amb) => {
         const b = h(
           'button',
           { class: 'amb-tile', type: 'button', 'aria-label': amb.name, 'data-id': amb.id },
@@ -278,7 +284,7 @@ function start(ctx: GameContext): void {
     ctx.audio.pop(1 + Math.random() * 0.5);
   });
 
-  showShelf(shelf);
+  showGroup(group);
   if (backdrop) useBackdrop(backdrop);
   // Whatever was playing last time starts again.
   on = saved.on.slice(-MAX_ON);

@@ -45,9 +45,9 @@
 .sb-tabs {
   flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: min(1.6vmin, 2vw);
+  align-items: center;
+  gap: min(4vmin, 6vw);
   padding: 2.2vmin 2vmin 0.6vmin;
   z-index: 2;
 }
@@ -67,6 +67,14 @@
   transition:
     transform 0.15s,
     background 0.15s;
+}
+.sb-arrow {
+  font-size: calc(var(--size) * 0.4);
+  touch-action: none;
+}
+.sb-pageicon {
+  pointer-events: none;
+  --size: max(64px, min(calc(var(--tap) * 1), 16vw));
 }
 .sb-tab-on {
   background: #fff;
