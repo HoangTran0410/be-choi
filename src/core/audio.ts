@@ -148,6 +148,12 @@ export interface AudioEngine {
    * Returns a handle that can damp it early (a hand on a gong), or null when silent.
    */
   inst(id: InstrumentId, freq?: number, vel?: number, dur?: number, delay?: number, damp?: boolean, gain?: number): InstVoice | null;
+  /**
+   * The audio clock in seconds, as every `delay` given in this task is measured from (0 when
+   * silent). A sequencer that keeps its grid on this clock and passes `delay = target - clock()`
+   * gets every note exactly on the grid, however the clock steps or the main thread stalls.
+   */
+  clock?(): number;
   /** A soft breath of air (blowing out a candle). */
   puff(): void;
   /** Sound effect / animal voice. */
@@ -471,6 +477,29 @@ export function createAudio(): AudioEngine {
   /** Seconds to push the sound being built into the future (see `note`/`drum`'s `delay`). */
   let shift = 0;
 
+  /**
+   * The audio clock moves in steps (a render quantum: 2.7 ms in Chrome, often more on
+   * iOS). Reading `currentTime` afresh for each note let two notes meant for the same
+   * instant land a step apart (measured in the robot band: notes asked for 0.1 ms apart
+   * started 2.7-5.3 ms apart). So one read serves a whole task: every note a game
+   * schedules in one go is measured from the same instant. See also `clock()`.
+   */
+  let taskNow = -1;
+  function nowOf(c: Ctx): number {
+    if (taskNow < 0) {
+      taskNow = c.currentTime;
+      queueMicrotask(() => {
+        taskNow = -1;
+      });
+    }
+    return taskNow;
+  }
+
+  /** When the sound being built starts: now, or `shift` seconds after the instant this task began measuring from. */
+  function startTime(c: Ctx): number {
+    return shift > 0 ? Math.max(c.currentTime, nowOf(c) + shift) : c.currentTime;
+  }
+
   function at<T>(id: SoundId, play: () => T, delay = 0, vel = 1): T {
     trim = (LOUDNESS[id] ?? 1) * (Number.isFinite(vel) ? Math.min(1.5, Math.max(0, vel)) : 1);
     shift = Number.isFinite(delay) && delay > 0 ? delay : 0;
@@ -500,7 +529,7 @@ export function createAudio(): AudioEngine {
     const c = getCtx();
     if (!c || !master || freq <= 0) return;
     try {
-      const t0 = c.currentTime + shift + (opts.at ?? 0);
+      const t0 = startTime(c) + (opts.at ?? 0);
       const osc = c.createOscillator();
       const g = c.createGain();
       osc.type = type;
@@ -558,7 +587,7 @@ export function createAudio(): AudioEngine {
     const c = getCtx();
     if (!c || !master) return;
     try {
-      const t0 = c.currentTime + shift + (opts.at ?? 0);
+      const t0 = startTime(c) + (opts.at ?? 0);
       const len = Math.max(1, Math.floor(c.sampleRate * dur));
       const buf = c.createBuffer(1, len, c.sampleRate);
       const data = buf.getChannelData(0);
@@ -605,7 +634,7 @@ export function createAudio(): AudioEngine {
       const g = c.createGain();
       g.gain.value = gain * trim;
       src.connect(g).connect(master);
-      src.start(c.currentTime + shift);
+      src.start(startTime(c));
     } catch {
       /* silent */
     }
@@ -1157,7 +1186,7 @@ export function createAudio(): AudioEngine {
       const g = c.createGain();
       g.gain.value = trim * (0.95 + Math.random() * 0.1);
       src.connect(g).connect(master);
-      const t0 = c.currentTime + shift;
+      const t0 = startTime(c);
       src.start(t0);
       if (damp && dur && dur > 0) {
         // A struck note rings on; let it go when its written length is up so chords stay clean.
@@ -1460,6 +1489,10 @@ export function createAudio(): AudioEngine {
   return {
     get enabled() {
       return enabled;
+    },
+    clock() {
+      const c = getCtx();
+      return c ? nowOf(c) : 0;
     },
     unlock,
     setEnabled(on) {

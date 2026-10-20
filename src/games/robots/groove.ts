@@ -412,6 +412,8 @@ export interface GrooveAudio {
   note(freq: number, dur?: number, timbre?: Timbre, delay?: number, vel?: number): void;
   drum(kind: DrumKind, delay?: number, vel?: number): void;
   inst?(id: InstrumentId, freq?: number, vel?: number, dur?: number, delay?: number, damp?: boolean, gain?: number): unknown;
+  /** The audio clock the delays are measured from (see core/audio `clock`). */
+  clock?(): number;
 }
 
 export interface GrooveDeps {
@@ -467,6 +469,11 @@ const MIN_STRUCK_S = 0.45;
  * every song with eight busy robots through the real audio chain and keeping the peak below 0.9.
  */
 export const BAND_GAIN = 0.4;
+/** How far the audio clock may wander from where the grid expects it before the grid is re-anchored (s). */
+const ANCHOR_SLACK_S = 0.05;
+/** The part of that wander each step takes back. */
+const ANCHOR_PULL = 0.002;
+
 /** Seconds between the notes of one chord. */
 const STRUM_S = 0.011;
 
@@ -489,11 +496,30 @@ export function createGroove(deps: GrooveDeps): Groove {
   let queue: StepEvent[] = [];
   let last: StepEvent | null = null;
 
+  /**
+   * Where the wall clock (the grid, the visuals) sits on the audio clock. Notes are placed on
+   * the audio clock from this one mapping, so the beat is exact to the sample: measuring each
+   * step from a fresh read of both clocks let it wobble by the audio clock's step (a few ms).
+   * The two clocks drift apart a little over a long session: each step pulls the mapping a tiny
+   * part of the way back (too little for the clock's steps to be heard), and a real jump (a
+   * suspended context) re-anchors it.
+   */
+  let anchor: { audio: number; wall: number } | null = null;
+  function delayTo(t: number): number {
+    const wall = deps.now();
+    const audio = deps.audio.clock?.() ?? 0;
+    if (!(audio > 0)) return Math.max(0, (t - wall) / 1000);
+    const off = anchor ? anchor.audio + (wall - anchor.wall) / 1000 - audio : Infinity;
+    if (!anchor || Math.abs(off) > ANCHOR_SLACK_S) anchor = { audio, wall };
+    else anchor.audio -= off * ANCHOR_PULL;
+    return Math.max(0, anchor.audio + (t - anchor.wall) / 1000 - audio);
+  }
+
   function playStep(idx: number, t: number, restart: boolean): StepEvent {
     const ms = stepMs(song);
     const inBar = idx % STEPS_PER_BAR;
     const bar = Math.floor(idx / STEPS_PER_BAR) % BARS;
-    const delayS = Math.max(0, (t - deps.now()) / 1000);
+    const delayS = delayTo(t);
     const hits: PlayedHit[] = [];
     for (const [slot, sp] of slots) {
       if (idx < sp.from) continue;

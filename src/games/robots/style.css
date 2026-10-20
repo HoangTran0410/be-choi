@@ -105,19 +105,22 @@
 .rb-song-icon {
   font-size: calc(var(--tap) * 0.5);
   line-height: 1;
+  /* Room under it for the pips. */
+  margin-bottom: 14%;
 }
+/* One pip per song, kept well inside the round button: near its bottom edge the circle is too narrow for five. */
 .rb-pips {
   position: absolute;
-  bottom: 8px;
+  bottom: 17%;
   left: 0;
   right: 0;
   display: flex;
   justify-content: center;
-  gap: 5px;
+  gap: 3px;
 }
 .rb-pips i {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #1e1b4b;
   opacity: 0.25;
@@ -166,9 +169,6 @@
   }
   .rb-song-icon {
     font-size: 26px;
-  }
-  .rb-pips {
-    bottom: 4px;
   }
   .rb .rb-grid {
     padding-top: 72px !important;
