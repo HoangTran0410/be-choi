@@ -77,6 +77,8 @@ export interface Stage {
   /** Make the seats say "put someone here" (a robot on the shelf is picked). */
   canDrop(on: boolean): void;
   setHolding(slot: number, on: boolean): void;
+  /** The seat a carried robot would land on if let go now (`null`: none). */
+  setOver(slot: number | null): void;
   setSong(id: SongId): void;
   /** A family photo as the robot's face (`null` = the usual face). */
   setFace(slot: number, url: string | null): void;
@@ -127,11 +129,21 @@ export function bandsFor(hit: PlayedHit): number[] {
   return spread(c, 1);
 }
 
+/** Write a style only when it changed: an unchanged value still costs a style recalculation. */
+function put(el: HTMLElement, prop: 'transform' | 'opacity', value: string): void {
+  const key = `_${prop}` as const;
+  const holder = el as HTMLElement & { _transform?: string; _opacity?: string };
+  if (holder[key] === value) return;
+  holder[key] = value;
+  el.style[prop] = value;
+}
+
 export function createStage(): Stage {
   const slotEls: HTMLElement[] = [];
   const figs: Array<Figure | null> = Array.from({ length: CAPACITY }, () => null);
   const leaving: Leaving[] = [];
   const notes: Note[] = [];
+  const notePool: HTMLElement[] = [];
   let finale = false;
   let eqTick = 0;
 
@@ -186,21 +198,51 @@ export function createStage(): Stage {
     const s = slotEls[slot] as HTMLElement;
     s.classList.toggle('has-bot', !!f);
     s.style.setProperty('--c', f ? f.def.color : 'transparent');
-    if (f) s.dataset.robot = f.def.id;
-    else delete s.dataset.robot;
+    if (f) {
+      s.dataset.robot = f.def.id;
+      s.dataset.name = f.def.name;
+    } else {
+      delete s.dataset.robot;
+      delete s.dataset.name;
+    }
+  }
+
+  /** Where the stage and its seats are, measured when needed and again only after a resize. */
+  let geo: { er: DOMRect; slots: DOMRect[] } | null = null;
+  const forget = (): void => {
+    geo = null;
+  };
+  window.addEventListener('resize', forget);
+  window.addEventListener('orientationchange', forget);
+  const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(forget) : null;
+  watcher?.observe(el);
+
+  function measure(): { er: DOMRect; slots: DOMRect[] } {
+    if (!geo) geo = { er: el.getBoundingClientRect(), slots: slotEls.map((s) => s.getBoundingClientRect()) };
+    return geo;
+  }
+
+  /** Floating notes are reused, never created and thrown away while the music plays. */
+  function takeNote(): HTMLElement {
+    const free = notePool.pop();
+    if (free) return free;
+    const span = h('span', { class: 'rb-note' });
+    fx.append(span);
+    return span;
   }
 
   function spawnNote(f: Figure, hit: PlayedHit, low: boolean): void {
     const cap = low ? MAX_NOTES_LOW : MAX_NOTES;
     if (notes.length >= cap) return;
-    const slotEl = slotEls[f.slot] as HTMLElement;
-    const sr = slotEl.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
+    const g = measure();
+    const sr = g.slots[f.slot];
+    if (!sr) return;
     const glyph = hit.drum ? '✦' : Math.random() < 0.5 ? '♪' : '♫';
-    const span = h('span', { class: 'rb-note', style: `color:${f.def.color}` }, glyph);
-    fx.append(span);
-    const x = sr.left - er.left + sr.width * (0.3 + Math.random() * 0.4);
-    const y = sr.top - er.top + sr.height * 0.3;
+    const span = takeNote();
+    span.textContent = glyph;
+    span.style.color = f.def.color;
+    const x = sr.left - g.er.left + sr.width * (0.3 + Math.random() * 0.4);
+    const y = sr.top - g.er.top + sr.height * 0.3;
     notes.push({
       el: span,
       x,
@@ -229,7 +271,7 @@ export function createStage(): Stage {
     f.waiting = (f2.startsAt(f.slot) ?? 0) > f2.activeIdx;
     f.pulse = Math.max(0, f.pulse - f2.dt / 260);
     f.el.classList.toggle('waiting', f.waiting);
-    f.glow.style.opacity = f.pulse > 0.02 ? String(Math.round(f.pulse * 100) / 100) : '0';
+    put(f.glow, 'opacity', f.pulse > 0.02 ? String(Math.round(f.pulse * 100) / 100) : '0');
     let y = 0;
     let rot = 0;
     let sx = 1;
@@ -250,7 +292,7 @@ export function createStage(): Stage {
       sy = p.sy;
       setPose(f.rig, p);
     }
-    f.el.style.transform = `translateY(${(-y * 100).toFixed(1)}%) rotate(${rot.toFixed(1)}deg) scale(${sx.toFixed(3)},${sy.toFixed(3)})`;
+    put(f.el, 'transform', `translateY(${(-y * 100).toFixed(1)}%) rotate(${rot.toFixed(1)}deg) scale(${sx.toFixed(3)},${sy.toFixed(3)})`);
   }
 
   function updateNotes(dt: number): void {
@@ -259,7 +301,8 @@ export function createStage(): Stage {
       n.life += dt;
       const k = n.life / n.max;
       if (k >= 1) {
-        n.el.remove();
+        n.el.style.opacity = '0';
+        notePool.push(n.el);
         notes.splice(i, 1);
         continue;
       }
@@ -352,6 +395,9 @@ export function createStage(): Stage {
     canDrop(on) {
       el.classList.toggle('can-drop', on);
     },
+    setOver(slot) {
+      slotEls.forEach((s, i) => s.classList.toggle('over', i === slot));
+    },
     setHolding(slot, on) {
       slotEls[slot]?.classList.toggle('holding', on);
     },
@@ -401,11 +447,11 @@ export function createStage(): Stage {
       beams.forEach((b, i) => {
         const on = playing > 0 && (i < Math.ceil(playing / 3) || finale);
         const angle = 18 * Math.sin(sweepBase + i * 2.1) * (finale ? 1.6 : 1);
-        b.style.transform = `rotate(${angle.toFixed(1)}deg)`;
-        b.style.opacity = on ? String(Math.round((0.18 + 0.5 * power + 0.18 * thump) * 100) / 100) : '0';
+        put(b, 'transform', `rotate(${angle.toFixed(1)}deg)`);
+        put(b, 'opacity', on ? String(Math.round((0.18 + 0.5 * power + 0.18 * thump) * 100) / 100) : '0');
       });
-      if (hasBackdrop) backdrop.style.opacity = String(Math.round((0.1 + 0.3 * power + 0.15 * thump * (playing > 0 ? 1 : 0)) * 100) / 100);
-      floor.style.opacity = String(Math.round((0.12 + 0.55 * power + 0.2 * thump * (playing > 0 ? 1 : 0)) * 100) / 100);
+      if (hasBackdrop) put(backdrop, 'opacity', String(Math.round((0.1 + 0.3 * power + 0.15 * thump * (playing > 0 ? 1 : 0)) * 100) / 100));
+      put(floor, 'opacity', String(Math.round((0.12 + 0.55 * power + 0.2 * thump * (playing > 0 ? 1 : 0)) * 100) / 100));
       // Equaliser.
       const decay = f.dt / 520;
       for (let i = 0; i < BARS_IN_EQ; i++) {
@@ -413,13 +459,18 @@ export function createStage(): Stage {
         eqLevel[i] = v;
         const idle = n > 0 ? 0.1 + 0.07 * Math.sin(f.now / 260 + i * 0.8) + 0.08 * thump * power : 0.05;
         const show = Math.min(1, Math.max(v, idle));
-        (bars[i] as HTMLElement).style.transform = `scaleY(${show.toFixed(2)})`;
+        put(bars[i] as HTMLElement, 'transform', `scaleY(${show.toFixed(2)})`);
       }
     },
     dispose() {
       for (const f of figs) f?.el.remove();
       for (const n of notes) n.el.remove();
       notes.length = 0;
+      for (const n of notePool) n.remove();
+      notePool.length = 0;
+      window.removeEventListener('resize', forget);
+      window.removeEventListener('orientationchange', forget);
+      watcher?.disconnect();
       leaving.length = 0;
       el.remove();
     },

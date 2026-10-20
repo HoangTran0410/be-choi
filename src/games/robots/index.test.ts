@@ -18,10 +18,25 @@ describe('Ban nhạc robot', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
+    localStorage.setItem('be-choi:robots:hello', '1'); // already welcomed: the tests below expect silence
   });
   afterEach(() => {
     resetFrameLoop();
     vi.useRealTimers();
+  });
+
+  it('welcomes a first-time child with one short sentence, and never again', () => {
+    localStorage.clear();
+    const ctx = fakeContext();
+    game.start(ctx);
+    vi.advanceTimersByTime(2000);
+    expect(ctx.sequenced).toEqual(['Kéo robot lên sân khấu nhé!']);
+    ctx.cleanup();
+    const again = fakeContext();
+    game.start(again);
+    vi.advanceTimersByTime(2000);
+    expect(again.sequenced).toEqual([]);
+    again.cleanup();
   });
 
   it('starts with an empty stage of 8 seats and 5 robots on the shelf', () => {
@@ -33,7 +48,7 @@ describe('Ban nhạc robot', () => {
     ctx.cleanup();
   });
 
-  it('tap a robot, tap a seat: it stands there, plays on the next beat in time, and names itself slowly', () => {
+  it('tap a robot, tap a seat: it stands there and plays on the next beat in time, without a word', () => {
     const ctx = fakeContext();
     const drum = vi.spyOn(ctx.audio, 'drum');
     game.start(ctx);
@@ -42,11 +57,11 @@ describe('Ban nhạc robot', () => {
     tap(slot(ctx.stage, 2));
     expect(slot(ctx.stage, 2).classList.contains('has-bot')).toBe(true);
     expect(item(ctx.stage, 'kick').classList.contains('on-stage')).toBe(true);
-    expect(ctx.sequenced[0]).toBe('Trống cái.');
+    expect(ctx.sequenced).toEqual([]);
     vi.advanceTimersByTime(3000);
     expect(drum).toHaveBeenCalled();
     expect(drum.mock.calls[0]![0]).toBe('kick');
-    expect(ctx.sequenced).toContain('Bé có một bạn robot rồi.');
+    expect(ctx.sequenced).toEqual([]);
     ctx.cleanup();
   });
 
@@ -62,7 +77,10 @@ describe('Ban nhạc robot', () => {
       vi.advanceTimersByTime(4000);
     }
     expect(ctx.stage.querySelectorAll('.rb-slot.has-bot').length).toBe(2);
-    expect(ctx.sequenced.some((t) => t.includes('Đàn bass'))).toBe(true);
+    expect(ctx.sequenced).toEqual([]);
+    // The name is written, not said.
+    expect(item(ctx.stage, 'bass').querySelector('.rb-label')!.textContent).toBe('đàn bass');
+    expect(slot(ctx.stage, 1).dataset.name).toBe('đàn bass');
     ctx.cleanup();
   });
 
@@ -101,7 +119,7 @@ describe('Ban nhạc robot', () => {
     vi.spyOn(performance, 'now').mockReturnValue(now + 1000);
     tap(btn);
     expect(root.dataset.song).toBe('calm');
-    expect(ctx.sequenced).toContain('Nhạc êm.');
+    expect(ctx.sequenced).toEqual([]);
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY)!);
     expect(saved.v).toBe(1);
     expect(saved.tried.sort()).toEqual(['calm', 'disco']);
@@ -139,17 +157,17 @@ describe('Ban nhạc robot', () => {
     });
     await vi.advanceTimersByTimeAsync(8000);
     expect(ctx.celebrations).toBe(1);
-    expect(ctx.sequenced).toContain('Tám bạn robot rồi.');
+    expect(ctx.sequenced).toEqual(['Đủ cả ban nhạc rồi!']);
     ctx.cleanup();
   });
 
-  it('gives a gentle hint about what is missing, with a shelf robot wobbling', () => {
+  it('gives a gentle hint about what is missing: a shelf robot wobbles, nobody talks', () => {
     const ctx = fakeContext();
     game.start(ctx);
     tap(item(ctx.stage, 'kick'));
     tap(slot(ctx.stage, 0));
     vi.advanceTimersByTime(10000);
-    expect(ctx.sequenced).toContain('Thiếu tiếng bass nè!');
+    expect(ctx.sequenced).toEqual([]);
     expect(item(ctx.stage, 'bass').classList.contains('nudge')).toBe(true);
     ctx.cleanup();
   });

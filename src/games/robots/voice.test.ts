@@ -1,59 +1,48 @@
 import { describe, it, expect } from 'vitest';
 import type { SpeechPart } from '../../core/speech';
-import { ROBOTS, findRobot } from './robots';
-import { FACTS, countWord, createNarrator, fullLines, hintLines, newRobotLines, placedLines } from './voice';
+import { QUIET_MS, createNarrator, createSparseVoice, fullLines, newRobotLines, welcomeLines } from './voice';
 
 describe('voice lines', () => {
-  it('counts out loud in Vietnamese', () => {
-    expect([1, 2, 3, 4, 5, 6, 7, 8].map(countWord)).toEqual(['một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám']);
-    expect(countWord(0)).toBe('không');
-    expect(countWord(99)).toBe('tám');
-  });
-
-  it('says the name slowly on its own first, then one more thing, a bit faster', () => {
-    const kick = findRobot('kick')!;
-    for (let nth = 0; nth < FACTS.length; nth++) {
-      const lines = placedLines(kick, 2, nth);
-      expect(lines.length).toBe(2);
-      expect(lines[0]!.text).toBe('Trống cái.');
-      expect(lines[0]!.rate).toBeLessThanOrEqual(0.65);
-      expect(lines[0]!.gap).toBeGreaterThanOrEqual(700);
-      expect(lines[1]!.rate).toBeLessThan(0.9);
+  it('has only three short lines, one for each big moment', () => {
+    for (const lines of [welcomeLines(), fullLines(), newRobotLines()]) {
+      expect(lines).toHaveLength(1);
+      expect(lines[0]!.text.split(' ').length).toBeLessThanOrEqual(6);
+      expect(lines[0]!.rate).toBeLessThanOrEqual(0.85);
     }
-  });
-
-  it('rotates through the count, the colour and how it is played', () => {
-    const bass = findRobot('bass')!;
-    const texts = FACTS.map((_, nth) => placedLines(bass, 3, nth)[1]!.text);
-    expect(texts).toEqual(['Ba bạn robot rồi.', 'Bạn đàn bass màu xanh dương.', 'Đàn bass là nhạc cụ gảy.']);
-    expect(placedLines(bass, 1, 0)[1]!.text).toBe('Bé có một bạn robot rồi.');
-    expect(placedLines(bass, 8, 0)[1]!.text).toBe('Tám bạn robot rồi.');
-    // Never throws for odd counters.
-    expect(() => placedLines(bass, 3, -4)).not.toThrow();
-  });
-
-  it('speaks about every robot without holes: name, colour and group words are all Vietnamese words', () => {
-    for (const r of ROBOTS) {
-      for (let nth = 0; nth < FACTS.length; nth++) {
-        for (const l of placedLines(r, 4, nth)) {
-          expect(l.text.length).toBeGreaterThan(3);
-          expect(l.text).not.toMatch(/undefined|NaN/);
-        }
-      }
-    }
-    expect(placedLines(findRobot('piano')!, 2, 2)[1]!.text).toBe('Đàn piano là nhạc cụ bấm phím.');
-    expect(placedLines(findRobot('flute')!, 2, 2)[1]!.text).toBe('Sáo là nhạc cụ thổi.');
-    expect(placedLines(findRobot('violin')!, 2, 2)[1]!.text).toBe('Đàn vi-ô-lông là nhạc cụ kéo.');
-  });
-
-  it('has hints that name what is missing, with no wrong answer', () => {
-    expect(hintLines('bass')[0]!.text).toBe('Thiếu tiếng bass nè!');
-    expect(hintLines('beat')[0]!.text).toContain('nhịp');
-    expect(hintLines('chord')[0]!.text).toContain('đệm');
-    expect(hintLines('melody')[0]!.text).toContain('giai điệu');
-    expect(hintLines('empty')[0]!.text).toContain('Kéo');
+    expect(welcomeLines()[0]!.text).toContain('Kéo');
     expect(fullLines()[0]!.text).toContain('cả ban');
     expect(newRobotLines()[0]!.text).toContain('mới');
+  });
+});
+
+describe('sparse voice', () => {
+  it('lets one moment speak, then keeps quiet for a while', () => {
+    let t = 1000;
+    const v = createSparseVoice(() => t);
+    expect(v.allow('full')).toBe(true);
+    t += 1000;
+    expect(v.allow('unlock')).toBe(false);
+    t += QUIET_MS;
+    expect(v.allow('unlock')).toBe(true);
+  });
+
+  it('says hello at most once', () => {
+    let t = 0;
+    const v = createSparseVoice(() => t);
+    expect(v.allow('welcome')).toBe(true);
+    t += QUIET_MS * 3;
+    expect(v.allow('welcome')).toBe(false);
+    expect(v.allow('full')).toBe(true);
+  });
+
+  it('a refused moment does not restart the quiet time', () => {
+    let t = 0;
+    const v = createSparseVoice(() => t);
+    expect(v.allow('full')).toBe(true);
+    t = QUIET_MS - 1;
+    expect(v.allow('unlock')).toBe(false);
+    t = QUIET_MS;
+    expect(v.allow('unlock')).toBe(true);
   });
 });
 
@@ -71,21 +60,12 @@ describe('narrator', () => {
     return { n, said, stopped: () => stopped };
   }
 
-  it('says the name slowly, a clear gap, then the sentence after it, in one sequence', () => {
+  it('says a line slowly as one sequence', () => {
     const { n, said } = setup();
-    n.say(placedLines(findRobot('kick')!, 1, 0));
+    n.say(fullLines());
     expect(said).toHaveLength(1);
-    expect(said[0]!.map((p) => p.text)).toEqual(['Trống cái.', 'Bé có một bạn robot rồi.']);
-    expect(said[0]![0]!.rate).toBeLessThanOrEqual(0.7);
-    expect(said[0]![0]!.pauseAfterMs).toBeGreaterThanOrEqual(600);
-    expect(said[0]![1]!.rate).toBeLessThanOrEqual(0.85);
-  });
-
-  it('every sentence is its own call, so a new one replaces the old', () => {
-    const { n, said } = setup();
-    n.say(placedLines(findRobot('kick')!, 1, 0));
-    n.say(placedLines(findRobot('bass')!, 2, 0));
-    expect(said).toHaveLength(2);
+    expect(said[0]!.map((p) => p.text)).toEqual(['Đủ cả ban nhạc rồi!']);
+    expect(said[0]![0]!.rate).toBeLessThanOrEqual(0.85);
   });
 
   it('stop silences the voice; nothing to say says nothing', () => {

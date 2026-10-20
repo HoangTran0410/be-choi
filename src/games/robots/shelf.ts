@@ -59,6 +59,7 @@ export function createShelf(): Shelf {
           'div',
           { class: 'rb-item', role: 'listitem', 'data-robot': def.id, 'aria-label': def.name, style: `--c:${def.color}` },
           picture(def),
+          h('div', { class: 'rb-label', 'aria-hidden': 'true' }, def.name),
           h('div', { class: 'rb-new', 'aria-hidden': 'true' }, '✨'),
         );
         if (fresh?.has(def.id)) item.classList.add('fresh');
