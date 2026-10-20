@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+  tunedFreq,
   BARS,
   BAND_GAIN,
   SONGS,
@@ -552,5 +553,21 @@ describe('the sound of the groove', () => {
     expect(kick[1]!.t - kick[0]!.t).toBeCloseTo(2 * stepMs(calm), 6);
     // ...but the sound of the off-beat is late by the swing.
     expect(when[1]! - when[0]!).toBeCloseTo(2 * stepMs(calm) + calm.swing * stepMs(calm), 4);
+  });
+});
+
+describe('tuned drum hits', () => {
+  it('parses 4M~2^ as a drum hit on chord tone 2, an octave up', () => {
+    const [bar] = parseBars('4M~2^@7');
+    expect(bar![0]).toMatchObject({ s: 4, drum: 'tom', tune: true, p: { k: 'chord', i: 2, oct: 1 }, v: 0.78 });
+    expect(parseBars('4M')[0]![0]!.tune).toBeUndefined();
+  });
+
+  it("retunes a chord tone into the instrument's own register, and the octave shift moves it", () => {
+    const f = tunedFreq('djembe', 60);
+    expect(f).toBeGreaterThan(210);
+    expect(f).toBeLessThan(430);
+    expect(tunedFreq('djembe', 72)).toBe(f);
+    expect(tunedFreq('djembe', 60, 1)).toBeCloseTo(f * 2, 1);
   });
 });

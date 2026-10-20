@@ -6,6 +6,7 @@
  * measures them. Nobody listens here: it is arithmetic, and it does not replace a parent's ears.
  *
  *   node scripts/robots-mix.mjs            level every robot in every song (writes src/games/robots/mix.ts)
+ *   node scripts/robots-mix.mjs --solo-only  level the robots alone, without the full-stage renders (quicker)
  *   node scripts/robots-mix.mjs --check    measure only; fail on a full stage that clips or a robot that is off level
  *   node scripts/robots-mix.mjs --wav DIR  also write each full-stage render to DIR as a WAV to listen to
  *
@@ -24,6 +25,8 @@ import { chromium } from 'playwright';
 const PORT = 5188;
 const OUT = 'src/games/robots/mix.ts';
 const check = process.argv.includes('--check');
+/** Level the robots only, without rendering the full stages (a quicker run for tuning). */
+const soloOnly = process.argv.includes('--solo-only');
 const wavDir = process.argv.includes('--wav') ? process.argv[process.argv.indexOf('--wav') + 1] : null;
 
 /** Where each robot should sit when it plays alone, in A-weighted dBFS (momentary). */
@@ -43,6 +46,33 @@ const TARGET_DB = {
   sax: -26,
   violin: -28,
   triangle: -32,
+  // the newer robots: leads sit with the flute, chords with the guitar, sparkle and shakes in the back
+  marimba: -26,
+  kalimba: -30,
+  vibraphone: -30,
+  steelpan: -26,
+  handpan: -29,
+  chime: -32,
+  trung: -26,
+  harp: -29,
+  tranh: -28,
+  ukulele: -29,
+  banjo: -29,
+  cello: -27,
+  harmonica: -26,
+  accordion: -29,
+  organ: -30,
+  panpipe: -27,
+  tuba: -26,
+  conga: -28,
+  bongo: -29,
+  tambourine: -31,
+  maracas: -31,
+  castanets: -30,
+  mo: -30,
+  beatbox: -24.5,
+  timpani: -26,
+  gong: -28,
 };
 const TOLERANCE = 2;
 const PEAK_CEILING = 0.95;
@@ -53,6 +83,10 @@ const STAGES = {
   rhythm: ['kick', 'bass', 'piano', 'guitar', 'xylo', 'snare', 'flute', 'shaker'],
   brass: ['kick', 'bass', 'guitar', 'trumpet', 'sax', 'violin', 'tom', 'cowbell'],
   sparkle: ['kick', 'bass', 'piano', 'xylo', 'bell', 'snare', 'triangle', 'violin'],
+  // the newer robots, in three bands that can happen: a village band, a world orchestra, a sparkly one
+  village: ['kick', 'bass', 'ukulele', 'marimba', 'kalimba', 'conga', 'tambourine', 'harmonica'],
+  world: ['timpani', 'tuba', 'accordion', 'harp', 'steelpan', 'castanets', 'cello', 'chime'],
+  dream: ['beatbox', 'bass', 'organ', 'trung', 'vibraphone', 'maracas', 'panpipe', 'gong'],
 };
 
 /** Runs in the page. */
@@ -152,8 +186,11 @@ async function inPage(cfg) {
   const result = { solo: [], stages: [] };
   for (const song of cfg.songs) {
     for (const id of cfg.robots) {
-      const r = await play({ song, ids: [id], level: 2, bars: 4, vols: { [id]: cfg.vols[id]?.[song] ?? 1 } });
-      result.solo.push({ song, id, ...r });
+      // The engine adds a hair of random level to every hit, so one render is a little noisy: average three.
+      const runs = [];
+      for (let k = 0; k < 3; k++) runs.push(await play({ song, ids: [id], level: 2, bars: 4, vols: { [id]: cfg.vols[id]?.[song] ?? 1 } }));
+      const mean = (key) => runs.reduce((t, x) => t + x[key], 0) / runs.length;
+      result.solo.push({ song, id, ...runs[0], loudDb: mean('loudDb'), meanDb: mean('meanDb') });
     }
     for (const [name, ids] of Object.entries(cfg.stages)) {
       for (const level of [2, 3]) {
@@ -274,7 +311,8 @@ try {
   const passes = check ? 1 : 3;
   let last;
   for (let pass = 0; pass < passes; pass++) {
-    last = await page.evaluate(inPage, { songs: SONGS, robots, stages: STAGES, vols, wav: pass === passes - 1 && Boolean(wavDir) });
+    // The full stages are only measured on the last pass; the passes before only level the robots.
+    last = await page.evaluate(inPage, { songs: SONGS, robots, stages: pass === passes - 1 && !soloOnly ? STAGES : {}, vols, wav: pass === passes - 1 && Boolean(wavDir) });
     if (check) break;
     if (pass === passes - 1) break;
     const next = {};
@@ -297,7 +335,7 @@ try {
       worst = Math.max(worst, Math.abs(off));
       return `${r.song} ${r.loudDb.toFixed(1)}${Math.abs(off) > TOLERANCE ? '!' : ' '}`;
     });
-    console.log(`${id.padEnd(9)} want ${String(TARGET_DB[id]).padStart(4)}   ${cells.join('   ')}`);
+    console.log(`${id.padEnd(10)} want ${String(TARGET_DB[id]).padStart(4)}   ${cells.join('   ')}`);
   }
   console.log(`worst robot ${worst.toFixed(1)} dB off its target`);
 

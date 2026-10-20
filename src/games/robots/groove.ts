@@ -10,7 +10,7 @@
  *    main thread is busy drawing. Robots join on the next bar so they always land on the beat.
  */
 import type { DrumKind, Timbre } from '../../core/audio';
-import { INSTRUMENT_IDS, type InstrumentId } from '../../core/instruments';
+import { INSTRUMENT_IDS, INSTRUMENT_REF, type InstrumentId } from '../../core/instruments';
 
 export const STEPS_PER_BAR = 16;
 export const BARS = 4;
@@ -153,6 +153,13 @@ export interface Hit {
   d: number;
   drum?: DrumKind;
   p?: Pitch;
+  /**
+   * A drum hit that also names a chord tone (`4M~2`): when a world instrument stands in for the drum
+   * (djembe for a tom, tambourine for a shaker …) it is played at that tone, in the instrument's own
+   * register (the octave nearest its natural pitch, shifted by `p.oct`), so a conga has a high and a
+   * low and a shaker a bright and a dark shake. The plain synth drum ignores it.
+   */
+  tune?: boolean;
   /** How hard it is played, 0 … 1 (a missing value means the default mezzo-forte). */
   v?: number;
 }
@@ -263,6 +270,13 @@ export function midiFreq(midi: number): number {
   return Math.round(440 * Math.pow(2, (midi - 69) / 12) * 100) / 100;
 }
 
+/** The pitch class of `midi` in the octave nearest the instrument's own natural pitch, `oct` octaves higher. */
+export function tunedFreq(id: InstrumentId, midi: number, oct = 0): number {
+  const f0 = midiFreq(midi);
+  const shift = Math.round(Math.log2(INSTRUMENT_REF[id] / f0)) + oct;
+  return Math.round(f0 * Math.pow(2, shift) * 100) / 100;
+}
+
 // ---------------------------------------------------------------------------------------------
 // The pattern language
 // ---------------------------------------------------------------------------------------------
@@ -283,7 +297,7 @@ const DRUM_LETTER: Record<string, DrumKind> = {
   C: 'crash',
 };
 
-const TOKEN = /^(\d{1,2})([KSHMPWBXRAC]|[csb]-?\d|[vj]\d|[tuwye])(?::(\d+(?:\.\d+)?))?([\^_]*)(?:@([1-9]))?$/;
+const TOKEN = /^(\d{1,2})([KSHMPWBXRAC](?:~\d)?|[csb]-?\d|[vj]\d|[tuwye])(?::(\d+(?:\.\d+)?))?([\^_]*)(?:@([1-9]))?$/;
 
 /**
  * Parse a pattern. Bars are separated by `|` (1, 2 or 4 of them: bar n of the loop plays
@@ -294,6 +308,7 @@ const TOKEN = /^(\d{1,2})([KSHMPWBXRAC]|[csb]-?\d|[vj]\d|[tuwye])(?::(\d+(?:\.\d
  *   `0w:8`  voice-led triad        `0y:8`    voice-led chord with its colour tone
  *   `2v1:2` one voice of that triad (`j0`…`j3` of the four-note chord)
  *   `4S@9`  a loud hit, `@2` a ghost note (the default is 7)
+ *   `4M~2`  a drum hit tuned to chord tone 2 where a world instrument plays the drum (`^` / `_` an octave up / down)
  * Throws on anything it cannot read, so a typo shows up in the tests rather than as silence.
  */
 export function parseBars(text: string): Bars {
@@ -313,9 +328,10 @@ export function parseBars(text: string): Bars {
         if (v !== undefined) h.v = v;
         hits.push(h);
       };
-      const drum = DRUM_LETTER[what];
+      const drum = /^[A-Z]/.test(what) ? DRUM_LETTER[what[0] as string] : undefined;
       if (drum) {
-        add({ s, d: 1, drum });
+        if (what.length > 1) add({ s, d: 1, drum, tune: true, p: { k: 'chord', i: Number(what.slice(2)), oct: ups } });
+        else add({ s, d: 1, drum });
       } else if (what === 't' || what === 'u') {
         for (let i = 0; i < 3; i++) add({ s, d, p: { k: 'chord', i, oct: ups } });
       } else if (what === 'w' || what === 'y') {
@@ -495,7 +511,10 @@ export function createGroove(deps: GrooveDeps): Groove {
         let late = late0;
         if (h.drum) {
           const world = deps.audio.inst ? sp.player.perc?.(song.id, h.drum) : undefined;
-          if (world) deps.audio.inst?.(world, undefined, hard, undefined, late, false, vol * BAND_GAIN);
+          if (world) {
+            const freq = h.tune && h.p ? tunedFreq(world, pitchOf(song, bar, { ...h.p, oct: 0 }), h.p.oct) : undefined;
+            deps.audio.inst?.(world, freq, hard, undefined, late, false, vol * BAND_GAIN);
+          }
           else deps.audio.drum(h.drum, late, mix);
           hits.push({ slot, drum: h.drum });
         } else if (h.p) {
