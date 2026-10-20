@@ -13,11 +13,12 @@ describe('letters logic', () => {
       expect(x.emoji.length).toBeGreaterThan(0);
     }
   });
-  it('gives every letter three different, familiar words that really start with it', () => {
+  it('gives every letter four or five different, familiar words that really start with it', () => {
     const emojis: string[] = [];
     for (const l of LETTERS) {
-      expect(l.words.length, l.label).toBe(3);
-      expect(new Set(l.words.map((x) => x.word)).size, l.label).toBe(3);
+      expect(l.words.length, l.label).toBeGreaterThanOrEqual(4);
+      expect(l.words.length, l.label).toBeLessThanOrEqual(5);
+      expect(new Set(l.words.map((x) => x.word)).size, l.label).toBe(l.words.length);
       for (const x of l.words) {
         expect(initialOf(x.word), `${l.label}: ${x.word}`).toBe(l.label);
         emojis.push(x.emoji);

@@ -3,8 +3,9 @@ import type { GameContext, GameModule } from '../../core/types';
 import type { SpeechPart } from '../../core/speech';
 import { makeTappable } from '../../core/tap';
 import { tapOnRelease } from './release';
+import { dragScroll } from './dragscroll';
 import { meta } from './meta';
-import { DIGITS, isDigit, lowerOf, pageDone, pages, splitWord, type Countable, type Glyph, type Word } from './logic';
+import { ALL, DIGITS, STAR_EVERY_TILES, isDigit, lowerOf, splitWord, type Countable, type Glyph, type Word } from './logic';
 import { buildCountRound, buildFindRound, easeStreak, levelFor, record, ROUNDS_PER_STAR, type CountRound, type LetterRound, type Mastery, type PictureRound } from './quiz';
 import { loadMastery, saveMastery } from './progress';
 import './style.css';
@@ -106,7 +107,7 @@ function countField(ctx: GameContext, count: number, item: Countable, names: rea
 const NUMBER_WORDS = DIGITS.map((d) => d.name);
 
 function start(ctx: GameContext): void {
-  const all = pages();
+  const all = ALL;
   let alive = true;
   /** Bumped whenever the screen changes, so late timers and speech callbacks do nothing. */
   let gen = 0;
@@ -115,7 +116,6 @@ function start(ctx: GameContext): void {
   let streak = 0;
   /** Right answers towards the next star. */
   let correct = 0;
-  let page = 0;
   let lastKey: string | undefined;
 
   const modeBar = h('nav', { class: 'letters-modes', 'aria-label': 'Chọn cách chơi' });
@@ -187,24 +187,29 @@ function start(ctx: GameContext): void {
   }
 
   // ---- Nghe & học ----
-  function showLearn(): void {
-    const glyphs = all[page % all.length]!;
-    const touched = new Set<number>();
-    const g = gen;
-    const grid = h('div', { class: `letters-grid${isDigit(glyphs[0]!) ? ' digits' : ''}` });
-    const dots = h('div', { class: 'letters-dots' });
-    main.replaceChildren(grid, dots);
-    const renderDots = (): void =>
-      dots.replaceChildren(...glyphs.map((_, i) => h('span', { class: `letters-dot${touched.has(i) ? ' on' : ''}` })));
+  /** One board, letters then digits; opened tiles are remembered while the game stays open. */
+  const touched = new Set<number>();
+  /** Stars already given for opened tiles (one per STAR_EVERY_TILES). */
+  let rewarded = 0;
+  let tilesEls: HTMLElement[] = [];
 
-    const tiles = glyphs.map((glyph, i) => {
+  function showLearn(): void {
+    const board = h('div', { class: 'letters-board' });
+    const grid = h('div', { class: 'letters-grid', tabindex: 0, 'aria-label': 'Bảng chữ và số' });
+    const more = h('div', { class: 'letters-more', 'aria-hidden': 'true' });
+    board.append(grid, more);
+    main.replaceChildren(board);
+    dragScroll(grid, ctx);
+
+    const lettersCount = all.findIndex((x) => isDigit(x));
+    tilesEls = all.map((glyph, i) => {
       const tile = h(
         'button',
-        { class: 'letter-tile', type: 'button', 'aria-label': glyph.label },
+        { class: `letter-tile${isDigit(glyph) ? ' digit' : ''}${touched.has(i) ? ' seen' : ''}`, type: 'button', 'aria-label': isDigit(glyph) ? `Số ${glyph.label}` : `Chữ ${glyph.label}` },
         letterFace(glyph),
         h('span', { class: 'letter-pic' }, isDigit(glyph) ? glyph.emoji : glyph.words[0]!.emoji),
       );
-      tile.style.setProperty('--hue', String(((page * 7 + i) * 37) % 360));
+      tile.style.setProperty('--hue', String((i * 37) % 360));
       // On release, not on press: a swipe that starts on a tile scrolls the board instead of opening it.
       tapOnRelease(
         tile,
@@ -212,59 +217,67 @@ function start(ctx: GameContext): void {
           ctx.hint.touch();
           ctx.audio.pop(1 + (i % 5) * 0.1);
           navigator.vibrate?.(10);
-          openFocus(glyphs, i, touched, () => {
-            tile.classList.add('seen');
-            renderDots();
-          });
+          openFocus(i);
         },
         ctx,
       );
       return tile;
     });
-    grid.replaceChildren(...tiles);
-    renderDots();
-    // scrolling the board by wheel or finger counts as activity too
-    grid.addEventListener('scroll', () => ctx.hint.touch(), { passive: true });
+    const divider = h('div', { class: 'letters-divider' }, 'Số');
+    grid.replaceChildren(...tilesEls.slice(0, lettersCount), divider, ...tilesEls.slice(lettersCount));
 
-    const finish = async (): Promise<void> => {
-      ctx.hint.clear();
-      await wait(600);
-      if (!current(g)) return;
-      await ctx.celebrate();
-      if (!current(g)) return;
-      ctx.addStar();
-      page++;
-      gen++;
-      showLearn();
+    // A soft fade at the bottom says "there is more"; it goes away at the very end.
+    const updateMore = (): void => {
+      const left = grid.scrollHeight - grid.clientHeight - grid.scrollTop;
+      board.classList.toggle('at-end', left < 8);
     };
-    pendingFinish = () => {
-      if (pageDone(touched, glyphs.length)) void finish();
-    };
-    ctx.hint.arm(() => {
-      const next = tiles.find((_, i) => !touched.has(i));
-      if (next) {
-        next.scrollIntoView?.({ block: 'nearest' });
-        replay(next, 'anim-wiggle');
-      }
-      void ctx.speakSeq([say('Bé chạm vào một chữ nhé', TALK_RATE, 0)]);
-    });
+    grid.addEventListener(
+      'scroll',
+      () => {
+        ctx.hint.touch();
+        updateMore();
+      },
+      { passive: true },
+    );
+    updateMore();
+    requestAnimationFrame?.(updateMore);
+
+    armLearnHint();
   }
-  let pendingFinish: (() => void) | null = null;
 
-  /** Big letter in the middle: its name, then its three pictures one after another. */
-  function openFocus(glyphs: Glyph[], index: number, touched: Set<number>, onSeen: () => void): void {
-    ctx.hint.clear();
-    const glyph = glyphs[index]!;
+  function markSeen(index: number): void {
     touched.add(index);
-    onSeen();
+    tilesEls[index]?.classList.add('seen');
+  }
+
+  /** Every STAR_EVERY_TILES newly opened tiles: a celebration and a star. */
+  async function maybeReward(): Promise<void> {
+    if (touched.size < (rewarded + 1) * STAR_EVERY_TILES) return;
+    rewarded++;
+    const g = gen;
+    ctx.hint.clear();
+    await wait(600);
+    if (!current(g)) return;
+    await ctx.celebrate();
+    if (!current(g)) return;
+    ctx.addStar();
+    if (mode === 'learn' && focus.hidden) armLearnHint();
+  }
+
+  /** Big letter in the middle: its name, then its pictures one after another. */
+  function openFocus(index: number): void {
+    ctx.hint.clear();
+    const glyphs = all;
+    const glyph = glyphs[index]!;
+    markSeen(index);
     focus.hidden = false;
     focus.className = `letters-focus${isDigit(glyph) ? ' digits' : ''}`;
-    focus.style.setProperty('--hue', String((index * 37 + page * 59) % 360));
+    focus.style.setProperty('--hue', String((index * 37) % 360));
 
     const face = h('button', { class: 'focus-letter', type: 'button', 'aria-label': `Chữ ${glyph.label}` }, letterFace(glyph));
     const nav = h('div', { class: 'focus-nav' });
     const body = h('div', { class: 'focus-body' });
-    const goto = (to: number): void => openFocus(glyphs, (to + glyphs.length) % glyphs.length, touched, onSeen);
+    const goto = (to: number): void => openFocus((to + glyphs.length) % glyphs.length);
 
     const mkNav = (cls: string, text: string, label: string, fn: () => void): HTMLElement => {
       const b = h('button', { class: `focus-btn ${cls}`, type: 'button', 'aria-label': label }, text);
@@ -355,7 +368,7 @@ function start(ctx: GameContext): void {
     focus.replaceChildren();
     if (mode !== 'learn') return;
     armLearnHint();
-    if (speakNext) pendingFinish?.();
+    if (speakNext) void maybeReward();
   }
 
   function armLearnHint(): void {
