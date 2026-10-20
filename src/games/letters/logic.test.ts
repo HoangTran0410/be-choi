@@ -13,11 +13,12 @@ describe('letters logic', () => {
       expect(x.emoji.length).toBeGreaterThan(0);
     }
   });
-  it('gives every letter three different, familiar words that really start with it', () => {
+  it('gives every letter four or five different, familiar words that really start with it', () => {
     const emojis: string[] = [];
     for (const l of LETTERS) {
-      expect(l.words.length, l.label).toBe(3);
-      expect(new Set(l.words.map((x) => x.word)).size, l.label).toBe(3);
+      expect(l.words.length, l.label).toBeGreaterThanOrEqual(4);
+      expect(l.words.length, l.label).toBeLessThanOrEqual(5);
+      expect(new Set(l.words.map((x) => x.word)).size, l.label).toBe(l.words.length);
       for (const x of l.words) {
         expect(initialOf(x.word), `${l.label}: ${x.word}`).toBe(l.label);
         emojis.push(x.emoji);
@@ -25,6 +26,15 @@ describe('letters logic', () => {
     }
     // no picture is used for two different words
     expect(new Set(emojis).size).toBe(emojis.length);
+  });
+  it('no word starts with a two-letter sound (ch, kh, nh, th, tr …) that belongs to another letter', () => {
+    for (const l of LETTERS) {
+      for (const x of l.words) {
+        const t = x.word.normalize('NFC').toLowerCase();
+        if (l.label === 'Q') continue;
+        expect(/^(ch|gh|gi|kh|ng|nh|ph|qu|th|tr)/.test(t), `${l.label}: ${x.word}`).toBe(false);
+      }
+    }
   });
   it('reads the usual names for the marked vowels', () => {
     const by = (c: string) => LETTERS.find((l) => l.label === c)!;

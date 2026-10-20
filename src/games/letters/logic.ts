@@ -20,13 +20,13 @@ export interface Glyph {
 
 const w = (word: string, emoji: string): Word => ({ word, emoji });
 
-const letter = (label: string, name: string, sound: string, words: [Word, Word, Word]): Glyph => ({
+const letter = (label: string, name: string, sound: string, words: Word[]): Glyph => ({
   label,
   kind: 'letter',
   name,
   sound,
   words,
-  emoji: words[0].emoji,
+  emoji: words[0]!.emoji,
 });
 
 /**
@@ -40,35 +40,35 @@ const letter = (label: string, name: string, sound: string, words: [Word, Word, 
  * `sound` field is the beginning of the word, said on its own ("bờ… bóng").
  */
 export const LETTERS: readonly Glyph[] = [
-  letter('A', 'a', 'a', [w('áo', '👕'), w('anh trai', '👦'), w('ao', '🏞️')]),
-  letter('Ă', 'á', 'á', [w('ăn cơm', '🍚'), w('ăn kem', '🍦'), w('ăng ten', '📡')]),
-  letter('Â', 'ớ', 'ớ', [w('ấm trà', '🫖'), w('âm nhạc', '🎵'), w('ấm áp', '🧣')]),
-  letter('B', 'bê', 'bờ', [w('bóng', '⚽'), w('bò', '🐄'), w('bánh', '🍰')]),
-  letter('C', 'xê', 'cờ', [w('cá', '🐟'), w('cà rốt', '🥕'), w('cua', '🦀')]),
-  letter('D', 'dê', 'dờ', [w('dê', '🐐'), w('dưa hấu', '🍉'), w('dép', '🩴')]),
-  letter('Đ', 'đê', 'đờ', [w('đèn', '💡'), w('đồng hồ', '⏰'), w('đu quay', '🎡')]),
-  letter('E', 'e', 'e', [w('em bé', '👶'), w('em gái', '👧'), w('em trai', '🧒')]),
-  letter('Ê', 'ê', 'ê', [w('ếch', '🐸'), w('ê ke', '📐'), w('êm ái', '🛋️')]),
-  letter('G', 'giê', 'gờ', [w('gà', '🐔'), w('gấu', '🐻'), w('gối', '🛏️')]),
-  letter('H', 'hát', 'hờ', [w('hoa', '🌸'), w('hổ', '🐯'), w('hộp', '📦')]),
-  letter('I', 'i', 'i', [w('ỉn', '🐷'), w('im lặng', '🤫'), w('in', '🖨️')]),
-  letter('K', 'ca', 'cờ', [w('kẹo', '🍬'), w('kéo', '✂️'), w('kiến', '🐜')]),
-  letter('L', 'e lờ', 'lờ', [w('lá', '🍃'), w('lửa', '🔥'), w('lạc đà', '🐪')]),
-  letter('M', 'em mờ', 'mờ', [w('mèo', '🐱'), w('mưa', '🌧️'), w('mũ', '🧢')]),
-  letter('N', 'en nờ', 'nờ', [w('nơ', '🎀'), w('nến', '🕯️'), w('nho', '🍇')]),
-  letter('O', 'o', 'o', [w('ong', '🐝'), w('oẳn tù tì', '✌️'), w('ong mật', '🍯')]),
-  letter('Ô', 'ô', 'ô', [w('ô tô', '🚗'), w('ốc sên', '🐌'), w('ô che mưa', '☂️')]),
-  letter('Ơ', 'ơ', 'ơ', [w('ớt', '🌶️'), w('ớt chuông', '🫑'), w('ơ kìa', '😮')]),
-  letter('P', 'pê', 'pờ', [w('pin', '🔋'), w('pizza', '🍕'), w('pi a nô', '🎹')]),
-  letter('Q', 'quy', 'quờ', [w('quả cam', '🍊'), w('quần', '👖'), w('quà', '🎁')]),
-  letter('R', 'e rờ', 'rờ', [w('rùa', '🐢'), w('rau', '🥬'), w('rồng', '🐉')]),
-  letter('S', 'ét xì', 'sờ', [w('sao', '⭐'), w('sư tử', '🦁'), w('sữa', '🥛')]),
-  letter('T', 'tê', 'tờ', [w('táo', '🍎'), w('tàu hoả', '🚂'), w('ti vi', '📺')]),
-  letter('U', 'u', 'u', [w('ú oà', '🙈'), w('ủng', '👢'), w('uống nước', '🥤')]),
-  letter('Ư', 'ư', 'ư', [w('ức gà', '🍗'), w('ước mơ', '🌠'), w('ưng', '🦅')]),
-  letter('V', 'vê', 'vờ', [w('vịt', '🦆'), w('voi', '🐘'), w('vẹt', '🦜')]),
-  letter('X', 'ích xì', 'xờ', [w('xe đạp', '🚲'), w('xô', '🪣'), w('xúc xích', '🌭')]),
-  letter('Y', 'i dài', 'i', [w('yến', '🐦'), w('yêu', '❤️'), w('yoga', '🧘')]),
+  letter('A', 'a', 'a', [w('áo', '👕'), w('anh trai', '👦'), w('ao', '🏞️'), w('ánh trăng', '🌙'), w('áo khoác', '🧥')]),
+  letter('Ă', 'á', 'á', [w('ăn cơm', '🍚'), w('ăn kem', '🍦'), w('ăng ten', '📡'), w('ăn chuối', '🍌'), w('ăn bánh mì', '🥖')]),
+  letter('Â', 'ớ', 'ớ', [w('ấm trà', '🫖'), w('âm nhạc', '🎵'), w('ấm áp', '🧣'), w('ấp trứng', '🐣')]),
+  letter('B', 'bê', 'bờ', [w('bóng', '⚽'), w('bò', '🐄'), w('bánh', '🍰'), w('bướm', '🦋'), w('bơ', '🥑')]),
+  letter('C', 'xê', 'cờ', [w('cá', '🐟'), w('cà rốt', '🥕'), w('cua', '🦀'), w('cáo', '🦊'), w('cây', '🌳')]),
+  letter('D', 'dê', 'dờ', [w('dê', '🐐'), w('dưa hấu', '🍉'), w('dép', '🩴'), w('dâu tây', '🍓'), w('dế', '🦗')]),
+  letter('Đ', 'đê', 'đờ', [w('đèn', '💡'), w('đồng hồ', '⏰'), w('đu quay', '🎡'), w('đàn', '🎸'), w('đôi giày', '👟')]),
+  letter('E', 'e', 'e', [w('em bé', '👶'), w('em gái', '👧'), w('em trai', '🧒'), w('em bé ngủ', '😴'), w('em bé cười', '😄')]),
+  letter('Ê', 'ê', 'ê', [w('ếch', '🐸'), w('ê ke', '📐'), w('êm ái', '🛋️'), w('ếch xanh', '💚')]),
+  letter('G', 'giê', 'gờ', [w('gà', '🐔'), w('gấu', '🐻'), w('gối', '🛏️'), w('gạo', '🌾'), w('găng tay', '🧤')]),
+  letter('H', 'hát', 'hờ', [w('hoa', '🌸'), w('hổ', '🐯'), w('hộp', '📦'), w('hươu cao cổ', '🦒'), w('hà mã', '🦛')]),
+  letter('I', 'i', 'i', [w('ỉn', '🐷'), w('im lặng', '🤫'), w('in', '🖨️'), w('ít', '🤏')]),
+  letter('K', 'ca', 'cờ', [w('kẹo', '🍬'), w('kéo', '✂️'), w('kiến', '🐜'), w('kem', '🍨'), w('kính', '👓')]),
+  letter('L', 'e lờ', 'lờ', [w('lá', '🍃'), w('lửa', '🔥'), w('lạc đà', '🐪'), w('lê', '🍐'), w('loa', '🔊')]),
+  letter('M', 'em mờ', 'mờ', [w('mèo', '🐱'), w('mưa', '🌧️'), w('mũ', '🧢'), w('mặt trời', '☀️'), w('mắt', '👀')]),
+  letter('N', 'en nờ', 'nờ', [w('nơ', '🎀'), w('nến', '🕯️'), w('nấm', '🍄'), w('nón', '👒'), w('nồi', '🍲')]),
+  letter('O', 'o', 'o', [w('ong', '🐝'), w('oẳn tù tì', '✌️'), w('ong mật', '🍯'), w('oanh', '🕊️')]),
+  letter('Ô', 'ô', 'ô', [w('ô tô', '🚗'), w('ốc sên', '🐌'), w('ô che mưa', '☂️'), w('ông', '👴'), w('ổi', '🍏')]),
+  letter('Ơ', 'ơ', 'ơ', [w('ớt', '🌶️'), w('ớt chuông', '🫑'), w('ơ kìa', '😮'), w('ở nhà', '🏠')]),
+  letter('P', 'pê', 'pờ', [w('pin', '🔋'), w('pizza', '🍕'), w('pi a nô', '🎹'), w('pi gia ma', '🛌'), w('pô ni', '🐴')]),
+  letter('Q', 'quy', 'quờ', [w('quả cam', '🍊'), w('quần', '👖'), w('quà', '🎁'), w('quả nho', '🍇'), w('quả dứa', '🍍')]),
+  letter('R', 'e rờ', 'rờ', [w('rùa', '🐢'), w('rau', '🥬'), w('rồng', '🐉'), w('rắn', '🐍'), w('răng', '🦷')]),
+  letter('S', 'ét xì', 'sờ', [w('sao', '⭐'), w('sư tử', '🦁'), w('sữa', '🥛'), w('sóc', '🐿️'), w('sách', '📖')]),
+  letter('T', 'tê', 'tờ', [w('táo', '🍎'), w('tàu hoả', '🚂'), w('ti vi', '📺'), w('tay', '✋'), w('tai', '👂')]),
+  letter('U', 'u', 'u', [w('ú oà', '🙈'), w('ủng', '👢'), w('uống nước', '🥤'), w('uống thuốc', '💊')]),
+  letter('Ư', 'ư', 'ư', [w('ức gà', '🍗'), w('ước mơ', '🌠'), w('ưng', '🦅'), w('ừ', '👍'), w('ướt', '💦')]),
+  letter('V', 'vê', 'vờ', [w('vịt', '🦆'), w('voi', '🐘'), w('vẹt', '🦜'), w('vỏ sò', '🐚'), w('váy', '👗')]),
+  letter('X', 'ích xì', 'xờ', [w('xe đạp', '🚲'), w('xô', '🪣'), w('xúc xích', '🌭'), w('xe buýt', '🚌'), w('xe hơi', '🚙')]),
+  letter('Y', 'i dài', 'i', [w('yến', '🐦'), w('yêu', '❤️'), w('yoga', '🧘'), w('yô yô', '🪀')]),
 ];
 
 const NUMBER_NAMES = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
@@ -115,6 +115,12 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
 export function pages(): Glyph[][] {
   return [...chunk(LETTERS, PAGE_SIZE), [...DIGITS]];
 }
+
+/** Letters then digits, in the order of the board. */
+export const ALL: Glyph[] = [...LETTERS, ...DIGITS];
+
+/** Every this many newly opened tiles earn a celebration and a star. */
+export const STAR_EVERY_TILES = 10;
 
 export function isDigit(glyph: Glyph): boolean {
   return glyph.kind === 'digit';

@@ -6,6 +6,7 @@ import { initialOf } from './logic';
 const tap = (el: Element | null | undefined): void => {
   expect(el).toBeTruthy();
   el!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  el!.dispatchEvent(new Event('pointerup', { bubbles: true }));
 };
 const q = (ctx: { stage: HTMLElement }, sel: string): Element | null => ctx.stage.querySelector(sel);
 const qa = (ctx: { stage: HTMLElement }, sel: string): Element[] => [...ctx.stage.querySelectorAll(sel)];
@@ -21,13 +22,14 @@ describe('letters game', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const tiles = qa(ctx, '.letter-tile');
-    expect(tiles.length).toBe(10);
-    // 3 big mode buttons, each at least 72px by style (checked in css) and present
+    // one single board: 29 letters and 10 digits, no pages
+    expect(tiles.length).toBe(39);
+    expect(qa(ctx, '.letters-grid').length).toBe(1);
     expect(qa(ctx, '.mode-btn').length).toBe(3);
     tap(tiles[3]);
     expect(ctx.sequenced.slice(0, 4)).toEqual(['bê', 'bóng', 'bò', 'bánh']);
     const cards = qa(ctx, '.word-card');
-    expect(cards.length).toBe(3);
+    expect(cards.length).toBe(5);
     expect(cards.every((c) => !c.classList.contains('hidden'))).toBe(true);
     expect(q(ctx, '.word-card .first')!.textContent).toBe('b');
     // tapping one picture says the opening sound then the word
@@ -35,15 +37,16 @@ describe('letters game', () => {
     expect(ctx.sequenced.slice(-2)).toEqual(['bờ', 'bò']);
     // tapping the same letter again is harmless
     expect(ctx.celebrations).toBe(0);
-    // touching all ten, in any order, with the close button between them
-    for (const t of [...tiles].reverse()) {
+    // every ten tiles opened (any order) is a celebration and a star; the board stays the same
+    for (const t of tiles.slice(0, 10)) {
       tap(t);
       tap(q(ctx, '.focus-btn.close'));
     }
     await flush();
     expect(ctx.celebrations).toBe(1);
     expect(ctx.stars).toBe(1);
-    expect(q(ctx, '.letter-tile .cap')!.textContent).toBe('H');
+    expect(tiles.slice(0, 10).every((t) => t.classList.contains('seen'))).toBe(true);
+    expect(qa(ctx, '.letter-tile').length).toBe(39);
     ctx.cleanup();
   });
 
@@ -52,26 +55,23 @@ describe('letters game', () => {
     game.start(ctx);
     tap(qa(ctx, '.letter-tile')[0]);
     tap(q(ctx, '.focus-btn.next'));
-    expect(ctx.sequenced.slice(-4)).toEqual(['á', 'ăn cơm', 'ăn kem', 'ăng ten']);
+    expect(ctx.sequenced.slice(-6)).toEqual(['á', 'ăn cơm', 'ăn kem', 'ăng ten', 'ăn chuối', 'ăn bánh mì']);
     tap(q(ctx, '.focus-btn.prev'));
-    expect(ctx.sequenced[ctx.sequenced.length - 4]).toBe('a');
+    expect(ctx.sequenced[ctx.sequenced.length - 6]).toBe('a');
     ctx.cleanup();
   });
 
   it('digits are counted out loud with the pictures appearing one by one', async () => {
     const ctx = fakeContext();
     game.start(ctx);
-    for (let page = 0; page < 3; page++) {
-      for (const t of qa(ctx, '.letter-tile')) {
-        tap(t);
-        tap(q(ctx, '.focus-btn.close'));
-      }
+    const tiles = qa(ctx, '.letter-tile');
+    for (const t of tiles.slice(0, 30)) {
+      tap(t);
+      tap(q(ctx, '.focus-btn.close'));
       await flush();
     }
     expect(ctx.stars).toBe(3);
-    const tiles = qa(ctx, '.letter-tile');
-    expect(tiles.length).toBe(10);
-    tap(tiles[3]);
+    tap(tiles[29 + 3]);
     expect(ctx.sequenced.slice(-5)).toEqual(['ba', 'một', 'hai', 'ba', 'ba']);
     const items = qa(ctx, '.count-item');
     expect(items.length).toBe(3);
@@ -132,6 +132,33 @@ describe('letters game', () => {
     await vi.advanceTimersByTimeAsync(4000);
     expect(ctx.stars).toBe(0);
     expect(q(ctx, '.quiz-star.on')).toBeTruthy();
+    ctx.cleanup();
+  });
+
+  it('a swipe that starts on a tile scrolls the board and does not open the letter', () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    tap(qa(ctx, '.mode-btn')[0]);
+    const tile = qa(ctx, '.letter-tile')[0]!;
+    const ev = (type: string, y: number): Event => Object.assign(new Event(type, { bubbles: true }), { clientX: 10, clientY: y });
+    tile.dispatchEvent(ev('pointerdown', 100));
+    tile.dispatchEvent(ev('pointerup', 160));
+    expect(q(ctx, '.letters-focus')!.hasAttribute('hidden')).toBe(true);
+    expect(ctx.sequenced.length).toBe(0);
+    ctx.cleanup();
+  });
+
+  it('nudges a child who sits still, on the board and in front of the pictures', async () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    tap(qa(ctx, '.mode-btn')[0]);
+    ctx.sequenced.length = 0;
+    await vi.advanceTimersByTimeAsync(6100);
+    expect(ctx.sequenced).toContain('Bé chạm vào một chữ nhé');
+    tap(qa(ctx, '.letter-tile')[3]);
+    ctx.sequenced.length = 0;
+    await vi.advanceTimersByTimeAsync(6100);
+    expect(ctx.sequenced).toContain('Bé chạm vào hình để nghe nhé');
     ctx.cleanup();
   });
 
