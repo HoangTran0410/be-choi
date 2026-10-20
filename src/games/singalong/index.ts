@@ -49,8 +49,6 @@ function start(ctx: GameContext): void {
   let closeResults: (() => void) | null = null;
   let closeWardrobe: (() => void) | null = null;
   let askedMic = false;
-  /** The shell is still speaking the introduction: say nothing over it. */
-  const hushUntil = Date.now() + 3500;
 
   const root = h('div', { class: 'sa' });
   const bubble = h('div', { class: 'sa-bubble', 'aria-live': 'polite' });
@@ -70,8 +68,9 @@ function start(ctx: GameContext): void {
     stage,
     audience,
     progress,
-    // Text only unless a mode asks for `speak`: nothing is spoken over the music on a tap.
-    say: (text, opts) => narrator.say(text, { quiet: !opts?.speak || opts.quiet === true || Date.now() < hushUntil }),
+    // Text only unless a mode asks for `speak` (its instructions, a song's title, a reminder): nothing is
+    // spoken over the music. While the shell reads the game's title the voice gate holds an opening line back.
+    say: (text, opts) => narrator.say(text, { quiet: !opts?.speak || opts.quiet === true }),
     timers() {
       const t = createTimers();
       ctx.onCleanup(t.clear);

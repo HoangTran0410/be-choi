@@ -26,7 +26,7 @@ export function fillSongCards<S extends Song>(env: Env, grid: HTMLElement, songs
       env.touch();
       if (locked) {
         env.ctx.audio.boing();
-        env.say(`Hát thêm vài bài nữa là mở bài này nhé. Còn ${need - env.progress.get().tickets} vé.`);
+        env.say(`Hát thêm vài bài nữa là mở bài này nhé. Còn ${need - env.progress.get().tickets} vé.`, { speak: true });
         return;
       }
       env.ctx.audio.pop();

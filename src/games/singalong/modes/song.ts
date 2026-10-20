@@ -99,7 +99,7 @@ export function createSongMode(env: Env, panel: HTMLElement): Mode {
     grid.hidden = true;
     sing.hidden = false;
     showPhrase(0);
-    env.say(`${song.title}. Mình cùng hát nhé!`);
+    env.say(`${song.title}. Mình cùng hát nhé!`, { speak: true });
     count.hidden = true;
     COUNT_IN.forEach((text, i) => {
       const at = Math.max(COUNT_IN_FROM_MS, INTRO_MS - (COUNT_IN.length - i) * beatMs);
@@ -131,7 +131,7 @@ export function createSongMode(env: Env, panel: HTMLElement): Mode {
   return {
     enter() {
       showPicker();
-      env.say('Chọn một bài hát nhé. Bé hát theo lời, lời sẽ sáng lên.');
+      env.say('Chọn một bài hát nhé. Bé hát theo lời, lời sẽ sáng lên.', { speak: true });
     },
     leave() {
       abort();
@@ -142,7 +142,10 @@ export function createSongMode(env: Env, panel: HTMLElement): Mode {
       if (tracker && counting) tracker.feed({ active: f.active, onset: f.onset, band: f.band }, FRAME_MS);
     },
     nudge() {
-      if (phase === 'pick') for (const c of grid.children) replay(c, 'anim-wiggle');
+      if (phase === 'pick') {
+        for (const c of grid.children) replay(c, 'anim-wiggle');
+        env.say('Bé chạm vào một bài hát nhé.', { speak: true });
+      }
     },
   };
 }

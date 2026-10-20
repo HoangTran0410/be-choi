@@ -74,7 +74,9 @@ interface Particle {
  * child picks. Leave them alone a while and the cats join in by themselves, only
  * ever on notes that belong to the chord. In the song mode a tune lights its cats
  * one by one and waits for the child; the whole band sings it when it is done.
- * Nothing is spoken when a cat is touched: the point is to hear the music.
+ * The voice never answers a cat's touch (the point is to hear the music): it greets on
+ * opening and, when the child sits still, says a short reminder now and then (the gate in
+ * core/hint.ts keeps those rare).
  */
 function start(ctx: GameContext): void {
   let alive = true;
@@ -111,6 +113,8 @@ function start(ctx: GameContext): void {
   /** "Nhớ giai điệu": the cats sing a phrase, the child sings it back. */
   let mem: { seq: number[]; pos: number; len: number; rounds: number; listening: boolean } | null = null;
   let scaleUp = true;
+  /** The count-up scale is being sung until this time: the voice keeps out of it. */
+  let scaleUntil = 0;
   let tapCount = 0;
   const taps = new Array<number>(CAT_COUNT).fill(0);
 
@@ -125,7 +129,8 @@ function start(ctx: GameContext): void {
   const modeBar = h('div', { class: 'cb-bar cb-modes' });
   const picker = h('div', { class: 'cb-picker', hidden: true });
   const floaty = h('div', { class: 'cb-floaty' });
-  root.append(styleBar, caption, shelf, modeBar, picker, floaty);
+  const mid = h('div', { class: 'cb-mid' }, shelf, picker);
+  root.append(styleBar, caption, mid, modeBar, floaty);
   ctx.stage.append(root);
 
   const cells: HTMLElement[] = [];
@@ -242,9 +247,9 @@ function start(ctx: GameContext): void {
   };
 
   /**
-   * The game is for listening: the voice never talks over the cats or the band. It
-   * speaks only at a big moment (the first time in, a new cat or song, a song
-   * finished), a few words each, never when a cat is tapped or a mode is chosen.
+   * The game is for listening: the voice never talks when a cat is tapped or a mode is
+   * chosen. It speaks on opening, at a big moment (a new cat or song, a song finished)
+   * and as a rare reminder when the child is idle.
    */
   function say(text: string): void {
     void sayText(ctx, text);
@@ -255,6 +260,7 @@ function start(ctx: GameContext): void {
   function applyPhotos(list: Photo[]): void {
     photoList = list;
     photoBtn.hidden = list.length === 0;
+    root.style.setProperty('--cb-modes', String(list.length === 0 ? 3 : 4));
     // A photo a parent removed leaves its cat with the cat's own face.
     const faces: Record<string, string> = {};
     for (const [seat, id] of Object.entries(save.faces)) if (list.some((p) => p.id === id)) faces[seat] = id;
@@ -294,6 +300,14 @@ function start(ctx: GameContext): void {
   /* ----------------------------------------------------- floating notes */
 
   const particles: Particle[] = [];
+  /** Where the root and the cats are on screen; forgotten when the screen changes shape. */
+  let layout: { left: number; top: number; cells: DOMRect[] } | null = null;
+  const forgetLayout = (): void => {
+    layout = null;
+  };
+  const watch = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(forgetLayout) : null;
+  watch?.observe(root);
+  window.addEventListener('resize', forgetLayout);
   let stopFrames: (() => void) | null = null;
 
   function spawnGlyph(cat: number): void {
@@ -301,8 +315,13 @@ function start(ctx: GameContext): void {
     if (!cell) return;
     const max = perf.low ? 3 : 9;
     while (particles.length >= max) particles.shift()?.el.remove();
-    const rootBox = root.getBoundingClientRect();
-    const box = cell.getBoundingClientRect();
+    // Measured once per layout, not per note: reading a box right after a class change forces a reflow.
+    if (!layout) {
+      const r = root.getBoundingClientRect();
+      layout = { left: r.left, top: r.top, cells: cells.map((c) => c.getBoundingClientRect()) };
+    }
+    const rootBox = layout;
+    const box = layout.cells[cat] as DOMRect;
     const el = h('span', { class: 'cb-glyph' }, GLYPHS[Math.floor(Math.random() * GLYPHS.length)] ?? '♪');
     el.style.color = NOTE_COLORS[cat] ?? '#f59e0b';
     floaty.append(el);
@@ -341,6 +360,16 @@ function start(ctx: GameContext): void {
 
   /* ----------------------------------------------------------- singing */
 
+  /**
+   * Restart the hop without a forced reflow: two names for one animation, swapped each time
+   * (`replay` would read offsetWidth, a layout, for every note of every cat).
+   */
+  function hop(el: HTMLElement): void {
+    const second = el.classList.contains('cb-hop');
+    el.classList.toggle('cb-hop', !second);
+    el.classList.toggle('cb-hop-b', second);
+  }
+
   /** Cat `cat` meows its note (a little off for a flat). `soft` is a cat singing along on its own. */
   function sing(cat: number, semis = 0, soft = false): void {
     ctx.audio.pitched('meow', catHz(cat, semis), soft ? { gain: 0.6 } : undefined);
@@ -353,7 +382,7 @@ function start(ctx: GameContext): void {
       singTimers[cat] = null;
       cell.classList.remove('cb-sing');
     }, SING_MS);
-    replay(holders[cat] as HTMLElement, 'cb-hop');
+    hop(holders[cat] as HTMLElement);
     spawnGlyph(cat);
   }
 
@@ -490,7 +519,13 @@ function start(ctx: GameContext): void {
   /* ------------------------------------------------- idle: they sing along */
 
   function onIdle(): void {
-    if (!alive || !touched || finale) return;
+    if (!alive || finale) return;
+    if (!touched) {
+      // Nobody has touched a cat yet: a cat hops and the voice says what to do (the gate keeps it rare).
+      replay(cells[CAT_COUNT - 1] as HTMLElement, 'cb-nudge');
+      say('Bé chạm vào mèo nhé.');
+      return;
+    }
     if (mem) {
       if (!mem.listening) playMemory(true);
       return;
@@ -500,10 +535,12 @@ function start(ctx: GameContext): void {
       const lit = guide.lit;
       if (lit !== null) {
         replay(cells[lit] as HTMLElement, 'cb-nudge');
+        say('Chạm vào mèo đang sáng nhé.');
       }
       return;
     }
     if (mode !== 'free') return;
+    if (seq.now() >= scaleUntil) say('Bé chạm vào mèo nhé.');
     if (!playing && !musicOff) startBacking();
     if (harmonyBars === 0) setCaption('🎶 Mèo hát bè theo nhạc!');
     harmonyBars = HARMONY_BARS;
@@ -779,6 +816,7 @@ function start(ctx: GameContext): void {
     scaleUp = !scaleUp;
     setCaption(up ? '🪜 Từ mèo to đến mèo nhỏ' : '🪜 Từ mèo nhỏ đến mèo to');
     const base = seq.now() + 250;
+    scaleUntil = base + CAT_COUNT * SCALE_STEP_MS + 200;
     order.forEach((cat, k) => {
       seq.at(
         base + k * SCALE_STEP_MS,
@@ -808,7 +846,7 @@ function start(ctx: GameContext): void {
   const offPerf = onPerfChange(lowCls);
 
   // The one welcome, for a child who has not finished a song yet.
-  if (save.stars === 0) later(700, () => say('Chạm vào mèo nhé.'));
+  later(700, () => say(save.stars === 0 ? 'Chạm vào mèo nhé.' : 'Chào bé! Chạm vào mèo để mèo hát nhé.'));
   syncButtons();
 
   ctx.onCleanup(() => {
@@ -819,6 +857,8 @@ function start(ctx: GameContext): void {
     closePicker = null;
     stopFrames?.();
     stopFrames = null;
+    watch?.disconnect();
+    window.removeEventListener('resize', forgetLayout);
     seq.stop();
     ctx.hint.clear();
     for (const id of timers) clearTimeout(id);

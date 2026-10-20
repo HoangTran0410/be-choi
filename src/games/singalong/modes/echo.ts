@@ -101,7 +101,7 @@ export function createEchoMode(env: Env, panel: HTMLElement): Mode {
   }
 
   function sayReady(): void {
-    env.say(env.voice.micOn ? 'Bé hát một câu nhé. Chạm vào micro rồi hát.' : 'Chạm trống rồi gõ nhịp. Các bạn thú sẽ gõ theo.');
+    env.say(env.voice.micOn ? 'Bé hát một câu nhé. Chạm vào micro rồi hát.' : 'Chạm trống rồi gõ nhịp. Các bạn thú sẽ gõ theo.', { speak: true });
   }
 
   // ---- listening ----
@@ -267,7 +267,10 @@ export function createEchoMode(env: Env, panel: HTMLElement): Mode {
       if (state === 'ready' && !env.voice.micOn) begin();
     },
     nudge() {
-      if (state === 'ready') replay(go, 'anim-wiggle');
+      if (state === 'ready') {
+        replay(go, 'anim-wiggle');
+        sayReady();
+      }
     },
   };
 }

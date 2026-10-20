@@ -157,7 +157,7 @@ export function createBirdMode(env: Env, panel: HTMLElement): Mode {
     enter() {
       resetWorld();
       draw();
-      env.say(env.voice.micOn ? 'Hát to lên, chim sẽ bay lên cao. Hát đều, chim vào vòng sáng.' : 'Giữ tay lên bầu trời, chim sẽ bay lên.');
+      env.say(env.voice.micOn ? 'Hát to lên, chim sẽ bay lên cao. Hát đều, chim vào vòng sáng.' : 'Giữ tay lên bầu trời, chim sẽ bay lên.', { speak: true });
       startLoop();
     },
     leave() {
@@ -174,6 +174,7 @@ export function createBirdMode(env: Env, panel: HTMLElement): Mode {
     },
     nudge() {
       replay(bird, 'anim-wiggle');
+      env.say('Giữ tay lên bầu trời, chim sẽ bay lên.', { speak: true });
     },
   };
 }
