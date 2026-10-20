@@ -1,3 +1,4 @@
+import { sayText } from '../../core/say';
 import { h } from '../../core/dom';
 import { perf, startLoop } from '../../core/frame';
 import type { Photo } from '../../core/photos';
@@ -72,7 +73,11 @@ function start(ctx: GameContext): void {
       // Answers to a touch are always spoken; only the stream of drag-by-drag chatter is thinned out.
       if (!text || (!force && now - lastSay < SAY_GAP_MS)) return;
       lastSay = now;
-      ctx.speak(text);
+      void sayText(ctx, text);
+    },
+    sayParts(parts) {
+      lastSay = performance.now();
+      if (parts.length) void ctx.speakSeq(parts);
     },
     dirty() {
       if (dirtyAt < 0) dirtyAt = performance.now();

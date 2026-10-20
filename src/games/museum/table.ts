@@ -1,5 +1,6 @@
 import { h } from '../../core/dom';
-import { findEntry, groupOf, sayGroup, sayName, thumbSvg } from './catalog';
+import { sayText, sayWord } from '../../core/say';
+import { findEntry, groupOf, nameParts, thumbSvg } from './catalog';
 import { createInstrument } from './instruments';
 import { placeOf, addStamp, createMissions, hasStamp, MISSIONS, type MissionId } from './logic';
 import { button, timers, type Deps, type View } from './ui';
@@ -73,7 +74,7 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
   }
 
   function say(): void {
-    ctx.speak(`${sayName(en!)} ${sayGroup(group)}`);
+    void ctx.speakSeq(nameParts(en!, group));
   }
 
   function award(): void {
@@ -83,7 +84,7 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
     overlay.hidden = false;
     overlay.innerHTML = `<div class="mu-stamp"><span class="mu-stamp-art">${thumbSvg(en!.kind)}</span><span class="mu-stamp-star">⭐</span></div>`;
     ctx.audio.jingle();
-    ctx.speak(`Giỏi quá! Bé được một tem, ${en!.say}.`);
+    void sayWord(ctx, en!.say, ['Giỏi quá!', 'Bé được một tem nhé.']);
     void ctx.celebrate().then(() => undefined);
     t.later(() => {
       overlay.hidden = true;
@@ -108,7 +109,7 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
       void p.offsetWidth;
       p.classList.add('anim-wiggle');
     }
-    ctx.speak(PILL[next].cue);
+    void sayText(ctx, PILL[next].cue);
   }, HINT_MS);
 
   // Say the name, slowly, once the screen has settled.

@@ -1,4 +1,5 @@
 import { h } from '../../core/dom';
+import { sayLines } from '../../core/say';
 import { ENTRIES, entriesOf, GROUPS } from './catalog';
 import { BAND_NEEDS, bandOpen, hasStamp, roomLayout, stampsLeft } from './logic';
 import { button, dragScroll, tile, timers, watchSize, wiggle, type Deps, type View } from './ui';
@@ -44,7 +45,7 @@ export function mountRoom(host: HTMLElement, { ctx, album, go }: Deps): View {
       else {
         wiggle(door);
         ctx.audio.boing();
-        ctx.speak(`Sưu tầm thêm ${stampsLeft(album)} tem nữa, bé sẽ mở được phòng hoà tấu nhé.`);
+        void sayLines(ctx, [`Sưu tầm thêm ${stampsLeft(album)} tem nữa`, 'bé sẽ mở được phòng hoà tấu nhé']);
       }
     },
   );

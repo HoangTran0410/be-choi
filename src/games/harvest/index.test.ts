@@ -152,7 +152,7 @@ describe('harvest: one farm, three places', () => {
     go(ctx, 'barn');
     await wait(300);
     tap(qa(ctx, '.hv-pen')[0]!);
-    expect(ctx.spoken.at(-1)).toContain('đói');
+    expect(ctx.sequenced.join(' ')).toContain('đói');
     expect(q(ctx, '.hv-garden').classList.contains('on')).toBe(true);
     ctx.cleanup();
   });
@@ -165,20 +165,20 @@ describe('harvest: one farm, three places', () => {
     go(ctx, 'market');
     expect(qa(ctx, '.hv-slot').length).toBe(2);
     expect(q(ctx, '.hv-num').textContent).toBe('2');
-    expect(ctx.spoken.some((t) => t.includes('muốn, hai, cà rốt'))).toBe(true);
+    expect(ctx.sequenced.join('|')).toMatch(/muốn\|hai\|cà rốt/);
     // Something the customer does not want is only a soft "not now".
     await wait(300);
     tap(chip(ctx, 'carrot')!);
     await wait(300);
     expect(count(ctx, 'carrot')).toBe(2);
-    expect(ctx.spoken).toContain('một cà rốt.');
+    expect(ctx.sequenced.slice(-2)).toEqual(['một', 'cà rốt']);
     tap(chip(ctx, 'carrot')!);
     await wait(300);
-    expect(ctx.spoken).toContain('hai cà rốt.');
+    expect(ctx.sequenced.slice(-2)).toEqual(['hai', 'cà rốt']);
     await wait(900);
     expect(ctx.stars).toBe(1);
     expect(ctx.celebrations).toBe(1);
-    expect(ctx.spoken).toContain('Cảm ơn bé!');
+    expect(ctx.sequenced).toContain('Cảm ơn bé!');
     await wait(2600);
     expect(qa(ctx, '.hv-slot').length).toBeGreaterThanOrEqual(1);
     ctx.cleanup();
@@ -195,7 +195,7 @@ describe('harvest: one farm, three places', () => {
     await wait(300);
     expect(count(ctx, 'corn')).toBe(1);
     expect(ctx.stars).toBe(0);
-    expect(ctx.spoken.at(-1)).toContain('chưa cần');
+    expect(ctx.sequenced.join(' ')).toContain('chưa cần');
     ctx.cleanup();
   });
 
@@ -213,7 +213,7 @@ describe('harvest: one farm, three places', () => {
     go(ctx, 'market');
     await wait(1000);
     expect(q(ctx, '.hv-face img')).toBeTruthy();
-    expect(ctx.spoken.some((t) => t.startsWith('Người thân muốn'))).toBe(true);
+    expect(ctx.sequenced.some((t) => t.startsWith('Người thân muốn'))).toBe(true);
     ctx.cleanup();
   });
 

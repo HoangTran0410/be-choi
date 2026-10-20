@@ -32,13 +32,22 @@ export function modeInfo(id: ModeId): ModeInfo {
   return MODES.find((m) => m.id === id) ?? MODES[0]!;
 }
 
-/** "màu đỏ" → "Màu… đỏ." : a pause after the first word so the voice goes slowly. */
+/**
+ * "màu đỏ" → "Màu đỏ." : a capital and a full stop, so the shared slow voice (core/say) reads it
+ * as one short part (one or two words are read extra slowly, as a name).
+ */
 export function slow(text: string): string {
   const t = text.trim();
   if (!t) return '';
-  const cap = t[0]!.toUpperCase() + t.slice(1);
-  const i = cap.indexOf(' ');
-  return i < 0 ? `${cap}.` : `${cap.slice(0, i)}… ${cap.slice(i + 1)}.`;
+  return `${t[0]!.toUpperCase()}${t.slice(1)}.`;
+}
+
+/**
+ * A lead-in and then the name, each its own sentence so the voice stops between them:
+ * named('Vẽ theo', 'con mèo') → "Vẽ theo. Con mèo."
+ */
+export function named(lead: string, name: string): string {
+  return `${slow(lead)} ${slow(name)}`.trim();
 }
 
 /* ------------------------------------------------------------------ colours */
@@ -113,13 +122,83 @@ const it = (emoji: string, name: string): StampItem => ({ emoji, name });
 
 /** Seven themed sets of six stamps. Using a stamp for the first time collects it. */
 export const THEMES: readonly Theme[] = [
-  { id: 'pets', icon: '🐶', name: 'bạn thú', at: 0, items: [it('🐶', 'con chó'), it('🐱', 'con mèo'), it('🐰', 'con thỏ'), it('🐻', 'con gấu'), it('🐼', 'gấu trúc'), it('🐸', 'con ếch')] },
-  { id: 'nature', icon: '🌸', name: 'thiên nhiên', at: 0, items: [it('🌸', 'bông hoa'), it('🌻', 'hoa hướng dương'), it('🌳', 'cái cây'), it('🍄', 'cây nấm'), it('🦋', 'con bướm'), it('🐞', 'con bọ rùa')] },
-  { id: 'food', icon: '🍎', name: 'món ngon', at: 2, items: [it('🍎', 'quả táo'), it('🍌', 'quả chuối'), it('🍓', 'quả dâu'), it('🍦', 'cây kem'), it('🍪', 'bánh quy'), it('🍕', 'bánh pizza')] },
-  { id: 'vehicles', icon: '🚗', name: 'xe cộ', at: 4, items: [it('🚗', 'xe hơi'), it('🚌', 'xe buýt'), it('🚒', 'xe cứu hoả'), it('🚂', 'tàu hoả'), it('✈️', 'máy bay'), it('🚀', 'tên lửa')] },
-  { id: 'sea', icon: '🐠', name: 'biển xanh', at: 6, items: [it('🐠', 'con cá'), it('🐙', 'bạch tuộc'), it('🐳', 'cá voi'), it('🐬', 'cá heo'), it('🦀', 'con cua'), it('🐚', 'vỏ sò')] },
-  { id: 'fun', icon: '🎈', name: 'vui nhộn', at: 8, items: [it('🎈', 'bóng bay'), it('🎁', 'hộp quà'), it('🎂', 'bánh sinh nhật'), it('🎵', 'nốt nhạc'), it('⭐', 'ngôi sao'), it('❤️', 'trái tim')] },
-  { id: 'sky', icon: '🌈', name: 'bầu trời', at: 10, items: [it('🌈', 'cầu vồng'), it('☀️', 'mặt trời'), it('🌙', 'mặt trăng'), it('☁️', 'đám mây'), it('🪁', 'con diều'), it('🚁', 'trực thăng')] },
+  {
+    id: 'pets',
+    icon: '🐶',
+    name: 'bạn thú',
+    at: 0,
+    items: [it('🐶', 'con chó'), it('🐱', 'con mèo'), it('🐰', 'con thỏ'), it('🐻', 'con gấu'), it('🐼', 'gấu trúc'), it('🐸', 'con ếch')],
+  },
+  {
+    id: 'nature',
+    icon: '🌸',
+    name: 'thiên nhiên',
+    at: 0,
+    items: [
+      it('🌸', 'bông hoa'),
+      it('🌻', 'hoa hướng dương'),
+      it('🌳', 'cái cây'),
+      it('🍄', 'cây nấm'),
+      it('🦋', 'con bướm'),
+      it('🐞', 'con bọ rùa'),
+    ],
+  },
+  {
+    id: 'food',
+    icon: '🍎',
+    name: 'món ngon',
+    at: 2,
+    items: [
+      it('🍎', 'quả táo'),
+      it('🍌', 'quả chuối'),
+      it('🍓', 'quả dâu'),
+      it('🍦', 'cây kem'),
+      it('🍪', 'bánh quy'),
+      it('🍕', 'bánh pizza'),
+    ],
+  },
+  {
+    id: 'vehicles',
+    icon: '🚗',
+    name: 'xe cộ',
+    at: 4,
+    items: [it('🚗', 'xe hơi'), it('🚌', 'xe buýt'), it('🚒', 'xe cứu hoả'), it('🚂', 'tàu hoả'), it('✈️', 'máy bay'), it('🚀', 'tên lửa')],
+  },
+  {
+    id: 'sea',
+    icon: '🐠',
+    name: 'biển xanh',
+    at: 6,
+    items: [it('🐠', 'con cá'), it('🐙', 'bạch tuộc'), it('🐳', 'cá voi'), it('🐬', 'cá heo'), it('🦀', 'con cua'), it('🐚', 'vỏ sò')],
+  },
+  {
+    id: 'fun',
+    icon: '🎈',
+    name: 'vui nhộn',
+    at: 8,
+    items: [
+      it('🎈', 'bóng bay'),
+      it('🎁', 'hộp quà'),
+      it('🎂', 'bánh sinh nhật'),
+      it('🎵', 'nốt nhạc'),
+      it('⭐', 'ngôi sao'),
+      it('❤️', 'trái tim'),
+    ],
+  },
+  {
+    id: 'sky',
+    icon: '🌈',
+    name: 'bầu trời',
+    at: 10,
+    items: [
+      it('🌈', 'cầu vồng'),
+      it('☀️', 'mặt trời'),
+      it('🌙', 'mặt trăng'),
+      it('☁️', 'đám mây'),
+      it('🪁', 'con diều'),
+      it('🚁', 'trực thăng'),
+    ],
+  },
 ];
 
 export function unlockedThemes(made: number): Theme[] {
@@ -165,7 +244,12 @@ export function pictureCount(made: number, total: number): number {
  * unlocks come last in the library, so older ones come first); once all are seen, any
  * unlocked one except the picture just drawn.
  */
-export function pickNextPicture(unlocked: readonly string[], seen: ReadonlySet<string>, current: string | null, rng: () => number = Math.random): string | null {
+export function pickNextPicture(
+  unlocked: readonly string[],
+  seen: ReadonlySet<string>,
+  current: string | null,
+  rng: () => number = Math.random,
+): string | null {
   if (unlocked.length === 0) return null;
   const fresh = unlocked.find((id) => !seen.has(id));
   if (fresh) return fresh;

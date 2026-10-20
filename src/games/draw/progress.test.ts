@@ -7,6 +7,7 @@ import {
   nextMilestone,
   pickNextPicture,
   pictureCount,
+  named,
   slow,
   stampName,
   themeComplete,
@@ -19,9 +20,10 @@ import {
 } from './progress';
 
 describe('slow voice text', () => {
-  it('pauses after the first word', () => {
-    expect(slow('màu đỏ')).toBe('Màu… đỏ.');
-    expect(slow('ông mặt trời')).toBe('Ông… mặt trời.');
+  it('is a capitalised sentence with a full stop; named() puts the name in a sentence of its own', () => {
+    expect(slow('màu đỏ')).toBe('Màu đỏ.');
+    expect(slow('ông mặt trời')).toBe('Ông mặt trời.');
+    expect(named('vẽ theo', 'con mèo')).toBe('Vẽ theo. Con mèo.');
     expect(slow('Tập')).toBe('Tập.');
     expect(slow('  ')).toBe('');
   });
@@ -37,7 +39,12 @@ describe('unlocks by pictures finished', () => {
   it('only ever adds', () => {
     let prev = { c: 0, b: 0, t: 0, p: 0 };
     for (let n = 0; n <= 20; n++) {
-      const now = { c: unlockedColors(n).length, b: unlockedBrushes(n).length, t: unlockedThemes(n).length, p: pictureCount(n, PICTURES.length) };
+      const now = {
+        c: unlockedColors(n).length,
+        b: unlockedBrushes(n).length,
+        t: unlockedThemes(n).length,
+        p: pictureCount(n, PICTURES.length),
+      };
       expect(now.c).toBeGreaterThanOrEqual(prev.c);
       expect(now.b).toBeGreaterThanOrEqual(prev.b);
       expect(now.t).toBeGreaterThanOrEqual(prev.t);

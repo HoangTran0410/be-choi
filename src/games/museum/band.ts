@@ -1,5 +1,6 @@
 import { h } from '../../core/dom';
-import { bandVoices, ENTRIES, findEntry, sayName, thumbSvg, type Entry } from './catalog';
+import { sayLines, sayText } from '../../core/say';
+import { bandVoices, ENTRIES, findEntry, nameParts, thumbSvg, type Entry } from './catalog';
 import { createInstrument } from './instruments';
 import type { InstrumentHandle } from './instruments/types';
 import { sound } from './instruments/voices';
@@ -91,7 +92,7 @@ export function mountBand(host: HTMLElement, deps: Deps): View {
       offNote = inst.onNote(() => {
         touches++;
       });
-      ctx.speak(sayName(en));
+      void ctx.speakSeq(nameParts(en));
     } else field.replaceChildren();
     paintSlots();
   }
@@ -131,7 +132,7 @@ export function mountBand(host: HTMLElement, deps: Deps): View {
   }
   function lockedTip(): void {
     ctx.audio.boing();
-    ctx.speak('Bé sưu tầm tem nhạc cụ này trước nhé.');
+    void sayText(ctx, 'Bé sưu tầm tem nhạc cụ này trước nhé.');
   }
   function choose(id: string | null): void {
     const slot = pickerSlot;
@@ -207,7 +208,7 @@ export function mountBand(host: HTMLElement, deps: Deps): View {
   function nextTrack(): void {
     const open = TRACKS.filter((x) => trackOpen(x, album.stamps.length));
     if (open.length <= 1) {
-      ctx.speak('Sưu tầm thêm tem, bé sẽ có bài nhạc mới nhé.');
+      void sayLines(ctx, ['Sưu tầm thêm tem', 'bé sẽ có bài nhạc mới nhé']);
       return;
     }
     const i = open.findIndex((x) => x.id === album.track);
@@ -226,7 +227,7 @@ export function mountBand(host: HTMLElement, deps: Deps): View {
       save();
       ctx.addStar();
       void ctx.celebrate();
-      ctx.speak('Dàn nhạc của bé hay quá!');
+      void sayText(ctx, 'Dàn nhạc của bé hay quá!');
     } else t.later(checkConcert, 15000);
   }
   t.later(checkConcert, CONCERT_MS);

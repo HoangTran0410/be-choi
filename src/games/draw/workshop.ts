@@ -4,6 +4,7 @@
  * owns the screens and what happens when a picture is finished; each mode owns its paper.
  */
 import { h } from '../../core/dom';
+import { speakText } from '../../core/say';
 import type { GameContext } from '../../core/types';
 import { PICTURES } from '../trace/pictures';
 import { openCollection } from './collection';
@@ -46,7 +47,7 @@ export function createWorkshop(ctx: GameContext, gallery: Gallery = createGaller
   const root = h('div', { class: 'dr at-hub' }, hud, field, tools);
   ctx.stage.append(root);
 
-  const say = (text: string): void => ctx.speak(text);
+  const say = (text: string): void => speakText(ctx, text);
 
   /* ----------------------------------------------------------- wallpaper */
   function applyWallpaper(): void {

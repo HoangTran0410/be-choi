@@ -63,7 +63,7 @@ describe('museum: the room', () => {
   it('a locked door explains itself kindly and does not open', () => {
     game.start(ctx);
     click(ctx.stage.querySelector('.mu-door'));
-    expect(ctx.spoken.at(-1)).toContain('tem');
+    expect(ctx.sequenced.join(' ')).toContain('tem');
     expect(ctx.stage.querySelector('.mu-band')).toBeNull();
   });
 
@@ -83,7 +83,7 @@ describe('museum: a table', () => {
     expect(ctx.stage.querySelector('.inst svg')).not.toBeNull();
     expect(ctx.stage.querySelectorAll('.mu-pill').length).toBe(4);
     vi.advanceTimersByTime(500);
-    expect(ctx.spoken.join(' ')).toContain('đàn, ma, rim, ba');
+    expect(ctx.sequenced.join(' ')).toContain('đàn, ma, rim, ba');
     click(ctx.stage.querySelector('.mu-back'));
     expect(ctx.stage.querySelector('.mu-room')).not.toBeNull();
     expect(ctx.stage.querySelector('.mu-table')).toBeNull();
@@ -186,7 +186,7 @@ describe('museum: the orchestra', () => {
     const picker = ctx.stage.querySelector('.mu-picker')!;
     expect(picker.hasAttribute('hidden')).toBe(false);
     click(picker.querySelector('.mu-tile.locked'));
-    expect(ctx.spoken.at(-1)).toContain('tem');
+    expect(ctx.sequenced.join(' ')).toContain('tem');
     expect(picker.hasAttribute('hidden')).toBe(false);
     click(picker.querySelector('.mu-tile[data-id="harp"]'));
     expect(picker.hasAttribute('hidden')).toBe(true);

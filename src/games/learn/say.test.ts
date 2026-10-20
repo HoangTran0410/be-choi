@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GAP_MS, createSayer, estimateMs } from './say';
+import type { SpeechPart } from '../../core/speech';
+import { WORD_RATE } from '../../core/say';
+import { createSayer, partFor, type Voice } from './say';
 import { createScope } from './scope';
 import { exploreTabs } from './explore';
 import { peopleFrom } from './curriculum';
@@ -7,64 +9,96 @@ import { peopleFrom } from './curriculum';
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
+/** A voice that records what it was asked to say and lets the test decide when it is "done". */
+function fakeVoice() {
+  const calls: SpeechPart[][] = [];
+  const resolvers: Array<(ok: boolean) => void> = [];
+  let stops = 0;
+  const voice: Voice = {
+    speakSeq(parts) {
+      // A new sequence cuts the old one off, like the real speech does.
+      resolvers.splice(0).forEach((r) => r(false));
+      calls.push(parts);
+      return new Promise<boolean>((res) => resolvers.push(res));
+    },
+    stopSpeech() {
+      resolvers.splice(0).forEach((r) => r(false));
+      stops++;
+    },
+  };
+  return { voice, calls, stops: () => stops, finish: () => resolvers.splice(0).forEach((r) => r(true)) };
+}
+
 describe('the teacher speaks one short phrase at a time', () => {
-  it('says phrases in order with a pause between, not all at once', async () => {
-    const said: Array<[number, string]> = [];
+  it('says all phrases as one slow sequence with gaps; names slower than sentences', () => {
+    const v = fakeVoice();
     const scope = createScope();
-    const sayer = createSayer((t) => said.push([Date.now(), t]), scope);
-    const t0 = Date.now();
-    sayer.say(['Chữ bê', 'đâu nào?']);
-    expect(said.map((s) => s[1])).toEqual(['Chữ bê']);
-    await vi.advanceTimersByTimeAsync(estimateMs('Chữ bê') + GAP_MS + 5);
-    expect(said.map((s) => s[1])).toEqual(['Chữ bê', 'đâu nào?']);
-    expect(said[1]![0] - t0).toBeGreaterThanOrEqual(estimateMs('Chữ bê') + GAP_MS);
+    const sayer = createSayer(v.voice, scope);
+    sayer.say(['Chữ bê', 'Cái nào bắt đầu bằng chữ này?']);
+    expect(v.calls).toHaveLength(1);
+    const [name, ask] = v.calls[0]!;
+    expect(name).toMatchObject({ text: 'Chữ bê', rate: WORD_RATE });
+    expect(name!.pauseAfterMs).toBeGreaterThanOrEqual(600);
+    expect(ask!.rate).toBeGreaterThan(name!.rate!);
+    expect(ask!.rate).toBeLessThanOrEqual(0.85);
     scope.dispose();
   });
 
-  it('a new sentence drops the old one that was still waiting', async () => {
-    const said: string[] = [];
+  it('a new sentence cuts off the old one: its callbacks never fire', async () => {
+    const v = fakeVoice();
     const scope = createScope();
-    const sayer = createSayer((t) => said.push(t), scope);
-    sayer.say(['một', 'hai', 'ba']);
-    await vi.advanceTimersByTimeAsync(100);
+    const sayer = createSayer(v.voice, scope);
+    const old = vi.fn();
+    sayer.say(['một', 'hai', 'ba'], { onDone: old });
     sayer.say(['Chữ a']);
-    await vi.advanceTimersByTimeAsync(20000);
-    expect(said).toEqual(['một', 'Chữ a']);
+    v.finish();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(old).not.toHaveBeenCalled();
+    expect(v.calls.map((c) => c.map((p) => p.text))).toEqual([['một', 'hai', 'ba'], ['Chữ a']]);
     scope.dispose();
   });
 
-  it('stop() silences what is queued, and leaving clears the timers', async () => {
-    const said: string[] = [];
+  it('stop() silences the voice, and leaving clears the timers', async () => {
+    const v = fakeVoice();
     const scope = createScope();
-    const sayer = createSayer((t) => said.push(t), scope);
+    const sayer = createSayer(v.voice, scope);
     sayer.say(['a', 'b', 'c']);
     sayer.stop();
-    await vi.advanceTimersByTimeAsync(20000);
-    expect(said).toEqual(['a']);
-    sayer.say(['x', 'y']);
+    expect(v.stops()).toBe(1);
+    expect(sayer.busy()).toBe(false);
+    sayer.say(['x', 'y'], { delay: 1000 });
     scope.dispose();
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(20000);
-    expect(said).toEqual(['a', 'x']);
+    expect(v.calls.map((c) => c[0]!.text)).toEqual(['a']);
   });
 
-  it('reports each phrase and when it is all done; a custom gap speeds up counting', async () => {
+  it('waits out a delay, reports each phrase as it starts and when it is all done', async () => {
+    const v = fakeVoice();
     const scope = createScope();
-    const parts: number[] = [];
+    const sayer = createSayer(v.voice, scope);
+    const started: number[] = [];
     let done = false;
-    const sayer = createSayer(() => undefined, scope);
-    sayer.say([{ text: 'một', gap: 100 }, 'hai'], { onPart: (i) => parts.push(i), onDone: () => (done = true) });
+    sayer.say([{ text: 'một', gap: 100 }, 'hai'], { delay: 500, onPart: (i) => started.push(i), onDone: () => (done = true) });
     expect(sayer.busy()).toBe(true);
-    await vi.advanceTimersByTimeAsync(20000);
-    expect(parts).toEqual([0, 1]);
+    expect(v.calls).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(v.calls).toHaveLength(1);
+    expect(v.calls[0]![0]!.pauseAfterMs).toBe(100);
+    v.calls[0]!.forEach((p) => p.onStart?.());
+    expect(started).toEqual([0, 1]);
+    expect(done).toBe(false);
+    v.finish();
+    await vi.advanceTimersByTimeAsync(0);
     expect(done).toBe(true);
     expect(sayer.busy()).toBe(false);
     scope.dispose();
   });
 
-  it('gives longer phrases more time, and commas a breath', () => {
-    expect(estimateMs('Cái nào bắt đầu bằng chữ này?')).toBeGreaterThan(estimateMs('Chữ bê'));
-    expect(estimateMs('một, hai, ba')).toBeGreaterThan(estimateMs('một hai ba'));
+  it('keeps an explicit gap and treats one or two words as a name', () => {
+    expect(partFor({ text: 'bóng', gap: 200 }).pauseAfterMs).toBe(200);
+    expect(partFor('Số ba').rate).toBe(WORD_RATE);
+    expect(partFor('Cái nào bắt đầu bằng chữ này?').rate).toBeGreaterThan(WORD_RATE);
   });
 });
 

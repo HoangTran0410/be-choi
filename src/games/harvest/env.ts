@@ -1,4 +1,5 @@
 /** What every part of the farm (garden, barn, market, HUD) shares. */
+import type { SpeechPart } from '../../core/speech';
 import type { GameContext } from '../../core/types';
 import type { Photo } from '../../core/photos';
 import type { FarmState } from './progress';
@@ -44,6 +45,8 @@ export interface Env {
   low(): boolean;
   /** Say something. Pass `force = false` for chatter that may be skipped if something was just said. */
   say(text: string, force?: boolean): void;
+  /** Say prepared slow parts (a number, then the name, …) as one sequence. */
+  sayParts(parts: SpeechPart[]): void;
   /** Ask for a save soon. */
   dirty(): void;
   /** Add farm xp; handles the "new!" card when a level is reached. */

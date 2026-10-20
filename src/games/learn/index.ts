@@ -30,7 +30,7 @@ function start(ctx: GameContext): void {
 
   const state = loadState();
   const env: Env = { people: [] };
-  const sayer = createSayer((t) => ctx.speak(t), root);
+  const sayer = createSayer(ctx, root);
   const teacher = createTeacher(state.wear);
   const host = h('div', { class: `learn${perf.low ? ' low' : ''}` });
   ctx.stage.append(host);

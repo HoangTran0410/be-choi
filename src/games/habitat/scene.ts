@@ -1,3 +1,4 @@
+import { sayText, sayWord } from '../../core/say';
 import type { GameContext } from '../../core/types';
 import type { DecorId } from './decor';
 import type { WorldId } from './worlds';
@@ -47,7 +48,7 @@ export interface ChildContext extends GameContext {
 export function childContext(
   base: GameContext,
   stage: HTMLElement,
-  listen: { speak?: (text: string) => void; star?: () => void; rate?: (text: string) => number } = {},
+  listen: { speak?: (text: string) => void; star?: () => void; isName?: (text: string) => boolean } = {},
 ): ChildContext {
   const cleanups: Array<() => void> = [];
   let done = false;
@@ -56,8 +57,11 @@ export function childContext(
     stage,
     speak(text, opts) {
       listen.speak?.(text);
-      // Whatever the embedded game says is said at this game's pace, unless it asked for its own.
-      base.speak(text, { rate: opts?.rate ?? listen.rate?.(text) });
+      // Whatever the embedded game says goes through the shared slow voice: a name on its own,
+      // slowly; anything else split into short parts. A newer line cuts the older one off.
+      if (opts?.interrupt === false) base.speak(text, { interrupt: false, rate: opts.rate ?? 0.75 });
+      else if (listen.isName?.(text)) void sayWord(base, text);
+      else void sayText(base, text);
     },
     addStar() {
       listen.star?.();

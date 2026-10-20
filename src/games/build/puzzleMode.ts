@@ -7,6 +7,7 @@ import { artBg, pickArt, pieceHint, puzzleLevel, vehicleVoice, type PuzzleArt } 
 import { pullElement } from './magnet';
 import { renderScene } from './scenes';
 import type { ModeCtl, Workshop } from './types';
+import { speakText } from '../../core/say';
 
 const PICTURE_MIN = 256;
 const PICTURE_MAX = 1024;
@@ -81,7 +82,11 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
   const caption = h('div', { class: 'bw-caption', 'aria-live': 'polite' });
   const area = h('div', { class: 'bw-pz-area' }, board);
   const tray = h('div', { class: 'bw-tray bw-pz-tray' });
-  const source = h('button', { class: 'bw-btn bw-source', type: 'button', 'aria-label': 'Chọn ảnh', hidden: true }, h('span', { class: 'bw-ico' }, '🖼️'));
+  const source = h(
+    'button',
+    { class: 'bw-btn bw-source', type: 'button', 'aria-label': 'Chọn ảnh', hidden: true },
+    h('span', { class: 'bw-ico' }, '🖼️'),
+  );
   makeTappable(source, () => w.choosePhoto(), { ctx, cooldownMs: 300 });
   const el = h('section', { class: 'bw-mode bw-pz' }, area, tray, caption, source);
 
@@ -222,7 +227,7 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
     layout();
 
     const name = art ? art.name : 'bức ảnh của nhà mình';
-    if (active) ctx.speak(isPhoto ? 'Ghép ảnh nhà mình nào' : `Mình ghép ${name} nhé`);
+    if (active) speakText(ctx, isPhoto ? 'Ghép ảnh nhà mình nào' : `Mình ghép ${name} nhé`);
     armHint();
   }
 
@@ -232,7 +237,7 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
       if (!e) return;
       replay(e.item, 'anim-wiggle');
       replay(e.slot, 'anim-wiggle');
-      ctx.speak(pieceHint(e.p.cx, e.p.cy));
+      speakText(ctx, pieceHint(e.p.cx, e.p.cy));
     });
   }
 
@@ -270,21 +275,21 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
     caption.textContent = art ? `${art.emoji} ${art.name}` : '📷';
     caption.classList.add('show');
     if (!isPhoto && art) {
-      ctx.speak(art.name);
+      speakText(ctx, art.name);
       const animal = ANIMALS.find((a) => a.emoji === art.emoji);
       const vehicle = vehicleVoice(art.emoji);
       if (animal) ctx.audio.fx(voiceOf(animal));
       else if (vehicle) ctx.audio.fx(vehicle);
       else ctx.audio.fx('sparkle');
     } else {
-      ctx.speak(`Ảnh đẹp quá! ${name}`);
+      speakText(ctx, `Ảnh đẹp quá! ${name}`);
       ctx.audio.fx('sparkle');
     }
     await ctx.celebrate();
     if (!alive) return;
     const unlocked = w.award('puzzle');
     round++;
-    if (unlocked.length && active) ctx.speak(`Có tranh mới rồi! ${unlocked.join(', ')}`);
+    if (unlocked.length && active) speakText(ctx, `Có tranh mới rồi! ${unlocked.join(', ')}`);
     w.later(() => void play(), unlocked.length ? 1800 : 600);
   }
 

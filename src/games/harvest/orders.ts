@@ -5,6 +5,8 @@
 import { CROPS, cropsAt } from './crops';
 import { speciesAt } from './animals';
 import { numberWord } from '../count/logic';
+import { talkPart, wordPart } from '../../core/say';
+import type { SpeechPart } from '../../core/speech';
 
 export interface Item {
   id: string;
@@ -122,6 +124,21 @@ export function orderPhrase(order: Order, who: string): string {
   const parts = order.wants.filter((w) => w.got < w.n).map((w) => `${numberWord(w.n - w.got)}, ${itemById(w.item)?.name ?? ''}`);
   if (!parts.length) return `${who} cảm ơn bé!`;
   return `${who} muốn, ${parts.join(', và, ')}.`;
+}
+
+/**
+ * The same sentence as slow parts: "Gấu muốn" … "hai" … "cà rốt" … "và" … "một" … "trứng". Each
+ * number and name is its own part, so none runs into the next.
+ */
+export function orderParts(order: Order, who: string): SpeechPart[] {
+  const open = order.wants.filter((w) => w.got < w.n);
+  if (!open.length) return [talkPart(`${who} cảm ơn bé!`, 0)];
+  const parts: SpeechPart[] = [talkPart(`${who} muốn`, 600)];
+  open.forEach((w, i) => {
+    if (i > 0) parts.push(talkPart('và', 400));
+    parts.push(wordPart(numberWord(w.n - w.got), 600), wordPart(itemById(w.item)?.name ?? '', i === open.length - 1 ? 0 : 700));
+  });
+  return parts;
 }
 
 /** Greeting for a family member: the app does not know their name, so it stays warm and general. */

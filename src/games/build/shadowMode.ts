@@ -5,6 +5,7 @@ import { blockPath, blockTransform, congruent, pieceOrder, type Block, type Pict
 import { describeBlock, pickShadow, shadowHasSeams } from './levels';
 import { pullElement } from './magnet';
 import type { ModeCtl, Workshop } from './types';
+import { speakText } from '../../core/say';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const SHADOW = '#334155';
@@ -67,7 +68,11 @@ export function createShadowMode(w: Workshop): ModeCtl {
   const board = h('div', { class: 'bw-sh-board' }, svg);
   const area = h('div', { class: 'bw-sh-area' }, board);
   const tray = h('div', { class: 'bw-tray bw-sh-tray' });
-  const source = h('button', { class: 'bw-btn bw-source', type: 'button', 'aria-label': 'Chọn ảnh', hidden: true }, h('span', { class: 'bw-ico' }, '🖼️'));
+  const source = h(
+    'button',
+    { class: 'bw-btn bw-source', type: 'button', 'aria-label': 'Chọn ảnh', hidden: true },
+    h('span', { class: 'bw-ico' }, '🖼️'),
+  );
   makeTappable(source, () => w.choosePhoto(), { ctx, cooldownMs: 300 });
   const el = h('section', { class: 'bw-mode bw-sh' }, area, tray, caption, source);
 
@@ -117,7 +122,7 @@ export function createShadowMode(w: Workshop): ModeCtl {
     });
     tray.replaceChildren(...pieces);
     layout();
-    if (active) ctx.speak('Bóng đen này là gì nhỉ? Mình xếp thử nhé');
+    if (active) speakText(ctx, 'Bóng đen này là gì nhỉ? Mình xếp thử nhé');
     armHint();
   }
 
@@ -162,7 +167,7 @@ export function createShadowMode(w: Workshop): ModeCtl {
         onStart(node) {
           node.classList.remove('anim-wiggle');
           ctx.hint.touch();
-          ctx.speak(describeBlock(block.shape, block.color));
+          speakText(ctx, describeBlock(block.shape, block.color));
         },
         onMove(node) {
           const n = nearest(node, block);
@@ -208,16 +213,19 @@ export function createShadowMode(w: Workshop): ModeCtl {
     revealPhoto(picture);
     caption.textContent = `Là ${picture.name}!`;
     caption.classList.add('show');
-    ctx.speak(`Là ${picture.name}`);
+    speakText(ctx, `Là ${picture.name}`);
     ctx.audio.fx('sparkle');
     await ctx.celebrate();
     if (!alive) return;
     const unlocked = w.award('shadow');
     round++;
-    if (unlocked.length && active) ctx.speak(`Có bóng mới rồi! ${unlocked.join(', ')}`);
-    w.later(() => {
-      if (alive) play();
-    }, unlocked.length ? 1800 : 700);
+    if (unlocked.length && active) speakText(ctx, `Có bóng mới rồi! ${unlocked.join(', ')}`);
+    w.later(
+      () => {
+        if (alive) play();
+      },
+      unlocked.length ? 1800 : 700,
+    );
   }
 
   /** Family photo clipped to the shape of the shadow. Odd rounds of 'auto' come out as the photo list rotating. */
@@ -228,7 +236,15 @@ export function createShadowMode(w: Workshop): ModeCtl {
     const clip = svgNode('clipPath', { id });
     for (const block of picture.blocks) clip.append(svgNode('path', { d: blockPath(block.shape), transform: blockTransform(block) }));
     defs.append(clip);
-    const img = svgNode('image', { href: photo.url, x: '0', y: '0', width: '100', height: '100', preserveAspectRatio: 'xMidYMid slice', 'clip-path': `url(#${id})` });
+    const img = svgNode('image', {
+      href: photo.url,
+      x: '0',
+      y: '0',
+      width: '100',
+      height: '100',
+      preserveAspectRatio: 'xMidYMid slice',
+      'clip-path': `url(#${id})`,
+    });
     img.setAttribute('class', 'bw-sh-img');
     photoLayer.append(img);
   }
@@ -240,7 +256,7 @@ export function createShadowMode(w: Workshop): ModeCtl {
       replay(piece, 'anim-wiggle');
       const slot = slots[Number(piece.dataset.index)];
       if (!slot) return;
-      ctx.speak(`Thử khối này, ${describeBlock(slot.block.shape, slot.block.color)}`);
+      speakText(ctx, `Thử khối này, ${describeBlock(slot.block.shape, slot.block.color)}`);
       replay(slot.path, 'anim-pulse');
       w.later(() => slot.path.classList.remove('anim-pulse'), 1500);
     });

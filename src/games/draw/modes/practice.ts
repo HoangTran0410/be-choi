@@ -14,7 +14,7 @@ import '../../trace/style.css';
 import { svgToJpeg } from '../art';
 import type { ModeController, ModeEnv } from '../env';
 import { WAY_ICONS, WAY_NAMES } from '../icons';
-import { pickNextPicture, pictureCount, slow } from '../progress';
+import { pickNextPicture, pictureCount, named, slow } from '../progress';
 import { fitPaper } from '../surface';
 import { createScope, makeButton } from '../ui';
 
@@ -72,7 +72,7 @@ export function startPractice(env: ModeEnv): ModeController {
     pressed = false;
     layout();
     placePen(null);
-    if (announce) env.say(slow(`Mình vẽ ${next.name} nhé`));
+    if (announce) env.say(named('Mình vẽ', next.name));
     ctx.hint.arm(() => {
       const at = scene?.hint();
       if (at) {
@@ -164,7 +164,7 @@ export function startPractice(env: ModeEnv): ModeController {
     placePen(null);
     ctx.hint.clear();
     ctx.audio.ding();
-    env.say(slow(`Bé vẽ xong ${done.name} rồi`));
+    env.say(`${slow(done.name)} ${slow('Bé vẽ xong rồi')}`);
     const el = scene?.el;
     void (async () => {
       const thumb = el ? await svgToJpeg(el, done.bg) : null;

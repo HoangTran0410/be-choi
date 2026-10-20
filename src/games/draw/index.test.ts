@@ -19,7 +19,8 @@ function fakeCtx2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
     {
       get: (_t, key) => {
         if (key === 'canvas') return canvas;
-        if (key === 'getImageData') return (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h });
+        if (key === 'getImageData')
+          return (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h });
         return () => undefined;
       },
       set: () => true,
@@ -92,7 +93,7 @@ describe('draw workshop', () => {
       const { door, qa, q, ctx, release } = start();
       door('free');
       expect(q('.dr').dataset.mode).toBe('free');
-      expect(ctx.spoken).toContain('Vẽ tự do.');
+      expect(ctx.sequenced).toContain('Vẽ tự do.');
       for (const cls of ['dr-color', 'dr-brush', 'dr-size', 'dr-stamp', 'dr-eraser']) expect(q(`.dr-tools .${cls}`)).toBeTruthy();
       q('.dr-color').dispatchEvent(ev('pointerdown'));
       const tiles = qa('.dr-tile');
@@ -103,7 +104,7 @@ describe('draw workshop', () => {
       expect(qa('.dr-panel').length).toBe(1);
       // an open one speaks its name slowly and closes the panel
       release(tiles[1]!);
-      expect(ctx.spoken.at(-1)).toBe('Màu… vàng.');
+      expect(ctx.sequenced.at(-1)).toBe('Màu vàng.');
       expect(qa('.dr-panel').length).toBe(0);
     });
 
@@ -114,7 +115,7 @@ describe('draw workshop', () => {
       const tile = qa('.dr-tile')[1]!;
       tile.dispatchEvent(ev('pointerup'));
       expect(qa('.dr-panel').length).toBe(1);
-      expect(ctx.spoken.at(-1)).not.toBe('Màu… vàng.');
+      expect(ctx.sequenced.at(-1)).not.toBe('Màu vàng.');
     });
 
     it('✅ keeps the sheet in the notebook, gives a star, cheers and starts a clean sheet', async () => {
@@ -157,13 +158,20 @@ describe('draw workshop', () => {
     it('leaving the workshop keeps a sheet with enough on it, and drops a scribble', () => {
       const a = start();
       a.door('free');
-      for (let i = 0; i < 4; i++) a.stroke(a.q('.dr-canvas'), [[10, 10 + i], [50, 50]]);
+      for (let i = 0; i < 4; i++)
+        a.stroke(a.q('.dr-canvas'), [
+          [10, 10 + i],
+          [50, 50],
+        ]);
       a.ctx.cleanup();
       live = null;
       expect(parseBook(localStorage.getItem(STORAGE_KEY)).works.length).toBe(1);
       const b = start();
       b.door('free');
-      b.stroke(b.q('.dr-canvas'), [[10, 10], [50, 50]]);
+      b.stroke(b.q('.dr-canvas'), [
+        [10, 10],
+        [50, 50],
+      ]);
       b.ctx.cleanup();
       live = null;
       expect(parseBook(localStorage.getItem(STORAGE_KEY)).works.length).toBe(1);
@@ -176,7 +184,7 @@ describe('draw workshop', () => {
       for (const item of pets.items) {
         q('.dr-stamp').dispatchEvent(ev('pointerdown'));
         release(qa('.dr-tile').find((t) => t.dataset.id === item.emoji)!);
-        expect(ctx.spoken.at(-1)).toMatch(/^[A-ZÀ-Ỹ]/);
+        expect(ctx.sequenced.at(-1)).toMatch(/^[A-ZÀ-Ỹ]/);
         stroke(q('.dr-canvas'), [[50, 50]]);
         stroke(q('.dr-canvas'), [[60, 60]]);
       }
@@ -206,13 +214,13 @@ describe('draw workshop', () => {
       expect(qa('.dr-panel').length).toBe(1);
       release(tiles[2]!);
       expect(qa('.dr-panel').length).toBe(0);
-      expect(ctx.spoken.at(-1)).toMatch(/^Tô… /);
+      expect(ctx.sequenced.at(-2)).toBe('Tô.');
     });
 
     it('finishing a page saves it, then offers the next picture', async () => {
       const { door, q, stroke, ctx } = start();
       door('colour');
-      const first = ctx.spoken.at(-1);
+      const first = ctx.sequenced.at(-1);
       for (let i = 0; i < 3; i++) stroke(q('.dr-canvas'), [[100 + i * 30, 120]]);
       q('.dr-done').dispatchEvent(ev('pointerdown'));
       await flush();
@@ -220,7 +228,7 @@ describe('draw workshop', () => {
       const book = parseBook(localStorage.getItem(STORAGE_KEY));
       expect(book.works[0]?.mode).toBe('colour');
       expect(book.works[0]?.title).toBeTruthy();
-      expect(ctx.spoken.at(-1)).not.toBe(first);
+      expect(ctx.sequenced.at(-1)).not.toBe(first);
     });
   });
 
@@ -229,8 +237,9 @@ describe('draw workshop', () => {
       const { door, q, qa, ctx } = start();
       door('practice');
       expect(qa('.dr-way').length).toBe(3);
-      const said = ctx.spoken.find((s) => s.startsWith('Mình… vẽ')) ?? '';
-      expect(said).toMatch(/nhé\.$/);
+      const lead = ctx.sequenced.indexOf('Mình vẽ.');
+      expect(lead).toBeGreaterThanOrEqual(0);
+      const said = ctx.sequenced[lead + 1] ?? ''; // the name is a part of its own
       const field = q('.dr-practice');
       const shown = PICTURES.find((p) => said.toLowerCase().includes(p.name))!;
       expect(shown).toBeTruthy();
@@ -245,13 +254,13 @@ describe('draw workshop', () => {
         press('pointerup', pts.at(-1)!);
       }
       await flush(50);
-      expect(ctx.spoken.some((s) => s.includes('xong'))).toBe(true);
+      expect(ctx.sequenced.some((s) => s.includes('xong'))).toBe(true);
       expect(ctx.stars).toBe(1);
       const book = parseBook(localStorage.getItem(STORAGE_KEY));
       expect(book.works.length).toBe(1);
       expect(book.works[0]).toMatchObject({ mode: 'practice', title: shown.name });
       // next picture comes up, a different one
-      expect(ctx.spoken.at(-1)).not.toBe(said);
+      expect(ctx.sequenced.at(-1)).not.toBe(said);
     });
 
     it('the three ways can be switched freely', () => {
@@ -268,12 +277,15 @@ describe('draw workshop', () => {
     it('lights the template where the child draws near it, ignores lines elsewhere, and finishes when the strokes are covered', async () => {
       const { door, q, ctx, stroke } = start();
       door('copy');
-      const said = ctx.spoken.at(-1)!;
+      const said = ctx.sequenced.at(-1)!;
       const shown = PICTURES.find((p) => said.toLowerCase().includes(p.name))!;
       expect(shown.id).toBe('sun');
       const canvas = q('.dr-canvas');
       // far from everything: just a line on the paper, nothing happens
-      stroke(canvas, [[2, 2], [4, 4]]);
+      stroke(canvas, [
+        [2, 2],
+        [4, 4],
+      ]);
       expect(ctx.stars).toBe(0);
       const W = 384;
       for (const s of shown.strokes) {
@@ -314,7 +326,7 @@ describe('draw workshop', () => {
       tap(q('.dr-door-book-tile'));
       release(qa('.dr-thumb')[0]!);
       expect(q<HTMLImageElement>('.dr-book-img').src).toContain('P2');
-      expect(ctx.spoken.at(-1)).toBe('Tranh… 2.');
+      expect(ctx.sequenced.at(-1)).toBe('Tranh 2.');
       tap(q('.dr-flip.next'));
       expect(q<HTMLImageElement>('.dr-book-img').src).toContain('P1');
       tap(q('.dr-flip.prev'));
@@ -387,7 +399,11 @@ describe('draw workshop', () => {
     it('a finished picture announces what it unlocked', async () => {
       const { door, q, stroke } = start();
       door('free');
-      for (let i = 0; i < 3; i++) stroke(q('.dr-canvas'), [[10 + i, 10], [80, 80]]);
+      for (let i = 0; i < 3; i++)
+        stroke(q('.dr-canvas'), [
+          [10 + i, 10],
+          [80, 80],
+        ]);
       q('.dr-done').dispatchEvent(ev('pointerdown'));
       await flush();
       expect(document.querySelector('.dr-toast')).not.toBeNull();

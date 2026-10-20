@@ -5,6 +5,7 @@
  * the errands earn. The worlds themselves are the older games' engines.
  */
 import { h } from '../../core/dom';
+import { sayLines, speakText } from '../../core/say';
 import { onPerfChange, perf } from '../../core/frame';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { Photo } from '../../core/photos';
@@ -27,7 +28,6 @@ import { openWorlds } from './worldPicker';
 import { worldById, type Realm, type WorldId } from './worlds';
 
 /** The voice used for names and counting: slower than for everything else. */
-const SLOW = 0.7;
 /** The least gap between two feedings that count as two. */
 const FEED_GAP_MS = 500;
 /** How long an uncollected reward card stays up by itself. */
@@ -52,7 +52,8 @@ export function createGame(ctx: GameContext): void {
     }, ms);
     timers.add(id);
   };
-  const say = (text: string): void => ctx.speak(text, { rate: SLOW });
+  /** Slow, split into short parts; a new line cuts the last one off. */
+  const say = (text: string): void => speakText(ctx, text);
 
   const root = h('div', { class: 'habitat' });
   const sceneHost = h('div', { class: 'hb-scene' });
@@ -67,7 +68,7 @@ export function createGame(ctx: GameContext): void {
     onWorld: () => openWorldPicker(),
     onBook: () => {
       syncLiving();
-      openPanel_(openBook({ host: root, save, audio: ctx.audio, speak: (t, o) => ctx.speak(t, o) }));
+      openPanel_(openBook({ host: root, save, audio: ctx.audio, speak: (t) => speakText(ctx, t) }));
     },
     onTool: (tool) => useTool(tool),
     onChip: (q) => {
@@ -187,8 +188,8 @@ export function createGame(ctx: GameContext): void {
     });
     root.append(card);
     ctx.audio.jingle();
-    if (shown.say[0]) say(shown.say[0]);
-    if (shown.say[1]) later(() => say(shown.say[1]!), 2600);
+    // One sequence: the second line waits for the first instead of cutting it off.
+    void sayLines(ctx, shown.say.filter(Boolean));
     later(close, REVEAL_MS);
   }
 
@@ -229,8 +230,8 @@ export function createGame(ctx: GameContext): void {
       speak: (text: string) => {
         if (NAMES.has(text)) emit({ kind: 'hello' });
       },
-      // Names are said slowest, the rest of what the old games say a little slower than before.
-      rate: (text: string) => (NAMES.has(text) ? SLOW : 0.8),
+      // Names are said slowest, on their own.
+      isName: (text: string) => NAMES.has(text),
     };
     const make = (stage: HTMLElement) => childContext(ctx, stage, listen);
     if (def.engine === 'water') {
@@ -271,7 +272,7 @@ export function createGame(ctx: GameContext): void {
         save,
         current: scene?.world ?? 'fresh',
         audio: ctx.audio,
-        speak: (t, o) => ctx.speak(t, o),
+        speak: (t) => speakText(ctx, t),
         onPick: (id) => go(id),
       }),
     );
@@ -304,7 +305,7 @@ export function createGame(ctx: GameContext): void {
         if (!scene.hasTank) return;
         openPanel_(
           openBook(
-            { host: root, save, audio: ctx.audio, speak: (t, o) => ctx.speak(t, o) },
+            { host: root, save, audio: ctx.audio, speak: (t) => speakText(ctx, t) },
             {
               realms: [currentRealm()],
               onPick: (kind) => {
@@ -322,7 +323,7 @@ export function createGame(ctx: GameContext): void {
             save,
             realm: currentRealm(),
             audio: ctx.audio,
-            speak: (t, o) => ctx.speak(t, o),
+            speak: (t) => speakText(ctx, t),
             hasPhotos: photoList.length > 0,
             onDecor: (id) => {
               if (scene?.addDecor(id)) {
@@ -492,4 +493,3 @@ export function createGame(ctx: GameContext): void {
     root.remove();
   });
 }
-

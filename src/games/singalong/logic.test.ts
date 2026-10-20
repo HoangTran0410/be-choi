@@ -17,7 +17,7 @@ import {
 import { createProgress, freshProgress, readProgress, SAVE_KEY } from './progress';
 import { createTracker, rateShow, THREE_STARS, TWO_STARS } from './show';
 import { bandOf, createAutoStop, createOnset, heightOf, HOLD_LEVEL, HIT_LEVEL, stepTap } from './signal';
-import { pacing, sentences } from './narrator';
+import { createNarrator } from './narrator';
 import { beatMsOf, TEMPO, wordsOf, wordTiming } from './modes/lyrics';
 import { answerLength, ENTRY_GAP_MS, planEntries, relativeRhythm, rhythmLength } from './modes/choir';
 import { inRing, makeRing, nextRingY, RING_GOAL_S, RING_MAX_Y, RING_MIN_Y, stepRing } from './modes/ring';
@@ -232,14 +232,28 @@ describe('signal', () => {
 });
 
 describe('narrator', () => {
-  it('splits a speech into short sentences and keeps the marks', () => {
-    expect(sentences('Chọn một bài. Bé hát nhé!')).toEqual(['Chọn một bài.', 'Bé hát nhé!']);
-    expect(sentences('')).toEqual([]);
-    expect(sentences('Không có dấu chấm')).toEqual(['Không có dấu chấm']);
-  });
-  it('leaves a longer pause after a longer sentence', () => {
-    expect(pacing('Hát nào')).toBeLessThan(pacing('Bé hát thật to cho cả nhà nghe nhé'));
-    expect(pacing('')).toBeGreaterThan(0);
+  it('says a speech as short slow parts, shows it, and stays quiet when asked', () => {
+    const said: string[][] = [];
+    const shown: string[] = [];
+    let stopped = 0;
+    const n = createNarrator(
+      {
+        speakSeq: (parts) => {
+          said.push(parts.map((p) => p.text));
+          return Promise.resolve(true);
+        },
+        stopSpeech: () => stopped++,
+        onCleanup: () => undefined,
+      },
+      (t) => shown.push(t),
+    );
+    n.say('Chọn một bài. Bé hát nhé!');
+    expect(said).toEqual([['Chọn một bài.', 'Bé hát nhé!']]);
+    n.say('Nghe nào…', { quiet: true });
+    expect(said).toHaveLength(1);
+    expect(shown).toEqual(['Chọn một bài. Bé hát nhé!', 'Nghe nào…']);
+    n.stop();
+    expect(stopped).toBe(1);
   });
 });
 

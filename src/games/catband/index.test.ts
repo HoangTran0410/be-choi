@@ -124,11 +124,11 @@ describe('catband game', () => {
     const buttons = picker.querySelectorAll('.cb-song');
     expect(buttons.length).toBe(SONG_UNLOCKS.length + 1); // + Nhớ giai điệu
     expect(picker.querySelectorAll('.cb-locked').length).toBe(SONG_UNLOCKS.filter((s) => s.need > 0).length);
-    ctx.spoken.length = 0;
+    ctx.sequenced.length = 0;
     down(songBtn(ctx, 'birthday'));
     expect(picker.hidden).toBe(false);
     expect(lit(ctx)).toBe(-1);
-    expect(ctx.spoken.length).toBeGreaterThan(0);
+    expect(ctx.sequenced.length).toBeGreaterThan(0);
     ctx.cleanup();
   });
 
@@ -168,7 +168,7 @@ describe('catband game', () => {
     expect(ctx.celebrations).toBe(1);
     expect(JSON.parse(localStorage.getItem(SAVE_KEY) ?? '{}')).toEqual({ stars: 1, faces: {}, v: 2 });
     // A new cat has arrived, and the song list is back.
-    expect(ctx.spoken.some((t) => t.startsWith('Mèo mới'))).toBe(true);
+    expect(ctx.sequenced.some((t) => t.startsWith('Mèo mới'))).toBe(true);
     vi.advanceTimersByTime(8000);
     expect(ctx.stage.querySelector<HTMLElement>('.cb-picker')!.hidden).toBe(false);
     expect(songBtn(ctx, 'row')!.classList.contains('cb-locked')).toBe(false);
@@ -207,15 +207,15 @@ describe('catband game', () => {
     const hz = pitched.mock.calls.map((c) => c[1] as number);
     expect(hz.length).toBe(CAT_COUNT);
     for (let i = 1; i < hz.length; i++) expect(hz[i]!).toBeGreaterThan(hz[i - 1]!);
-    expect(ctx.spoken.slice(0, 8)).toEqual(['một.', 'hai.', 'ba.', 'bốn.', 'năm.', 'sáu.', 'bảy.', 'tám.']);
-    expect(ctx.spoken[8]).toBe('Mèo nhỏ. Tiếng cao.');
+    expect(ctx.sequenced.slice(0, 8)).toEqual(['một.', 'hai.', 'ba.', 'bốn.', 'năm.', 'sáu.', 'bảy.', 'tám.']);
+    expect(ctx.sequenced.slice(8)).toEqual(['Mèo nhỏ.', 'Tiếng cao.']);
     ctx.cleanup();
   });
 
   it('names the cat in a slow, broken-up line the first time it is touched', () => {
     const { ctx } = setup();
     down(cell(ctx, 1));
-    expect(ctx.spoken).toContain('Mèo. Mèo trắng.');
+    expect(ctx.sequenced.slice(0, 2)).toEqual(['Mèo.', 'Mèo trắng.']);
     ctx.cleanup();
   });
 

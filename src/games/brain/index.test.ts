@@ -42,7 +42,7 @@ describe('brain game', () => {
     game.start(ctx);
     tap(q(ctx, '.brain-node[data-station="sequence"]')!);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(ctx.spoken.join(' ')).toContain('ba');
+    expect(ctx.sequenced.join(' ')).toContain('ba');
     expect(q(ctx, '.brain-cards')).toBeNull();
     ctx.cleanup();
   });
@@ -84,7 +84,7 @@ describe('brain game', () => {
     await vi.advanceTimersByTimeAsync(2000);
     // 3 stars: the reward screen first…
     expect(q(ctx, '.brain-overlay.reveal')).not.toBeNull();
-    expect(ctx.spoken.join(' ')).toContain('trạm nhớ dãy');
+    expect(ctx.sequenced.join(' ')).toContain('trạm nhớ dãy');
     tap(q(ctx, '.brain-ok')!);
     // …then the map, with the new station open.
     expect(qa(ctx, '.brain-node')).toHaveLength(5);

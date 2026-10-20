@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import type { SpeechPart } from '../../core/speech';
 import { ROBOTS, findRobot } from './robots';
-import { FACTS, countWord, createNarrator, fullLines, hintLines, lineMs, newRobotLines, placedLines } from './voice';
+import { FACTS, countWord, createNarrator, fullLines, hintLines, newRobotLines, placedLines } from './voice';
 
 describe('voice lines', () => {
   it('counts out loud in Vietnamese', () => {
@@ -58,48 +59,40 @@ describe('voice lines', () => {
 
 describe('narrator', () => {
   function setup() {
-    const spoken: Array<{ text: string; interrupt?: boolean; rate?: number }> = [];
-    const timers: Array<{ fn: () => void; ms: number; id: number }> = [];
-    let id = 0;
+    const said: SpeechPart[][] = [];
+    let stopped = 0;
     const n = createNarrator({
-      speak: (text, opts) => spoken.push({ text, ...opts }),
-      setTimer: (fn, ms) => {
-        timers.push({ fn, ms, id: ++id });
-        return id;
+      speakSeq: (parts) => {
+        said.push(parts);
+        return Promise.resolve(true);
       },
-      clearTimer: (h) => {
-        const i = timers.findIndex((t) => t.id === h);
-        if (i >= 0) timers.splice(i, 1);
-      },
+      stopSpeech: () => stopped++,
     });
-    return { n, spoken, timers };
+    return { n, said, stopped: () => stopped };
   }
 
-  it('speaks the first line at once (cutting off the last thing), and the rest after a breath', () => {
-    const { n, spoken, timers } = setup();
+  it('says the name slowly, a clear gap, then the sentence after it, in one sequence', () => {
+    const { n, said } = setup();
     n.say(placedLines(findRobot('kick')!, 1, 0));
-    expect(spoken).toEqual([{ text: 'Trống cái.', interrupt: true, rate: 0.6 }]);
-    expect(timers.length).toBe(1);
-    expect(timers[0]!.ms).toBeGreaterThanOrEqual(lineMs({ text: 'Trống cái.', rate: 0.6, gap: 0 }) + 900);
-    timers[0]!.fn();
-    expect(spoken[1]).toEqual({ text: 'Bé có một bạn robot rồi.', interrupt: false, rate: 0.7 });
+    expect(said).toHaveLength(1);
+    expect(said[0]!.map((p) => p.text)).toEqual(['Trống cái.', 'Bé có một bạn robot rồi.']);
+    expect(said[0]![0]!.rate).toBeLessThanOrEqual(0.7);
+    expect(said[0]![0]!.pauseAfterMs).toBeGreaterThanOrEqual(600);
+    expect(said[0]![1]!.rate).toBeLessThanOrEqual(0.85);
   });
 
-  it('a new sentence replaces the waiting one', () => {
-    const { n, spoken, timers } = setup();
+  it('every sentence is its own call, so a new one replaces the old', () => {
+    const { n, said } = setup();
     n.say(placedLines(findRobot('kick')!, 1, 0));
     n.say(placedLines(findRobot('bass')!, 2, 0));
-    expect(timers.length).toBe(1);
-    expect(spoken.map((s) => s.text)).toEqual(['Trống cái.', 'Đàn bass.']);
+    expect(said).toHaveLength(2);
   });
 
-  it('stop cancels what is still to come', () => {
-    const { n, timers } = setup();
-    n.say(placedLines(findRobot('kick')!, 1, 0));
+  it('stop silences the voice; nothing to say says nothing', () => {
+    const { n, said, stopped } = setup();
     n.stop();
-    expect(timers.length).toBe(0);
-    const fn = vi.fn();
+    expect(stopped()).toBe(1);
     n.say([]);
-    expect(fn).not.toHaveBeenCalled();
+    expect(said).toHaveLength(0);
   });
 });

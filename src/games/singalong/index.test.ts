@@ -89,6 +89,7 @@ describe('the hall', () => {
   it('keeps the shell’s introduction free of our own voice', async () => {
     game.start(ctx);
     await settle(50);
+    expect(ctx.sequenced).toEqual([]);
     expect(ctx.spoken).toEqual([]);
   });
 
@@ -124,7 +125,7 @@ describe('sing along', () => {
     await tap(q(ctx, `.sa-song[data-song="${song.id}"]`));
     expect(q(ctx, '.sa-sing').hidden).toBe(false);
     expect(all(ctx, '.sa-word').length).toBeGreaterThan(0);
-    await vi.advanceTimersByTimeAsync(1800);
+    await vi.advanceTimersByTimeAsync(2800);
     expect(q(ctx, '.sa-count').hidden).toBe(false);
     await vi.advanceTimersByTimeAsync(120_000);
     expect(ctx.celebrations).toBe(1);

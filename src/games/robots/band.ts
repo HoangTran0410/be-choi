@@ -13,20 +13,11 @@ import { createRig } from './art';
 import { createDnd, type Drop, type Source } from './dnd';
 import { SONGS, createGroove, findSong, midiFreq, pitchOf, stepMs, type Level, type SongId } from './groove';
 import { createLineup } from './lineup';
-import {
-  QUESTS,
-  currentQuest,
-  loadProgress,
-  newlyDone,
-  saveProgress,
-  unlockedIds,
-  type Progress,
-  type Quest,
-} from './quests';
+import { QUESTS, currentQuest, loadProgress, newlyDone, saveProgress, unlockedIds, type Progress, type Quest } from './quests';
 import { barsOf, findRobot, playerFor, type RobotDef, type Role } from './robots';
 import { createShelf } from './shelf';
 import { createStage } from './stage';
-import { byeLines, createNarrator, fullLines, hintLines, lineMs, newRobotLines, placedLines, songLines, type Missing } from './voice';
+import { byeLines, createNarrator, fullLines, hintLines, newRobotLines, placedLines, songLines, type Missing } from './voice';
 
 const HINT_MS = 9000;
 const REWARD_MS = 2800;
@@ -67,11 +58,7 @@ export function mountBand(ctx: GameContext): void {
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (hd) => clearTimeout(hd as ReturnType<typeof setTimeout>),
   });
-  const narrator = createNarrator({
-    speak: (t, o) => ctx.speak(t, o),
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (hd) => clearTimeout(hd as ReturnType<typeof setTimeout>),
-  });
+  const narrator = createNarrator({ speakSeq: (p) => ctx.speakSeq(p), stopSpeech: () => ctx.stopSpeech() });
   let songId: SongId = saved.song;
   groove.setSong(songId);
   stage.setSong(songId);
@@ -391,7 +378,12 @@ export function mountBand(ctx: GameContext): void {
       return;
     }
     showing = true;
-    const card = h('div', { class: 'rb-reward' }, h('div', { class: 'rb-reward-sticker' }, q.sticker), h('div', { class: 'rb-reward-star' }, '⭐'));
+    const card = h(
+      'div',
+      { class: 'rb-reward' },
+      h('div', { class: 'rb-reward-sticker' }, q.sticker),
+      h('div', { class: 'rb-reward-star' }, '⭐'),
+    );
     const row = h('div', { class: 'rb-reward-new' });
     for (const id of q.reward) {
       const def = findRobot(id);
@@ -431,7 +423,8 @@ export function mountBand(ctx: GameContext): void {
   function finale(): void {
     stage.setFinale(true);
     later(() => stage.setFinale(false), FINALE_MS);
-    const lead = lineMs({ text: 'Tám bạn robot rồi. Đủ cả ban nhạc rồi!', rate: 0.7, gap: 900 }) + 1500;
+    // About as long as "Tám bạn robot rồi" and "Đủ cả ban nhạc rồi" take at a slow pace, plus a breath.
+    const lead = 7500;
     later(() => {
       ctx.addStar();
       void ctx.celebrate();

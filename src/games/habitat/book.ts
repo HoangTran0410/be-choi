@@ -25,8 +25,6 @@ export interface BookOptions {
   onPick?: (kind: Kind) => void;
 }
 
-const SLOW = 0.7;
-
 export function owned(save: HabitatSave): number {
   return BOOK.filter((k) => save.owned.includes(k.key)).length;
 }
@@ -46,7 +44,11 @@ export function openBook(deps: BookDeps, opts: BookOptions = {}): Panel {
       'div',
       { class: 'hb-book-head', 'aria-label': `${world.name}: ${have} trên ${kinds.length}` },
       h('span', { class: 'hb-book-icon' }, world.icon),
-      h('span', { class: 'hb-pips', 'aria-hidden': 'true' }, ...kinds.map((k) => h('i', { class: save.owned.includes(k.key) ? 'on' : '' }))),
+      h(
+        'span',
+        { class: 'hb-pips', 'aria-hidden': 'true' },
+        ...kinds.map((k) => h('i', { class: save.owned.includes(k.key) ? 'on' : '' })),
+      ),
     );
     const grid = h('div', { class: 'hb-book-grid' });
     for (const kind of kinds) {
@@ -61,12 +63,12 @@ export function openBook(deps: BookDeps, opts: BookOptions = {}): Panel {
         if (!mine) {
           audio.boing();
           replay(tile, 'anim-wiggle');
-          speak('Bạn này chưa đến. Mình cùng đi tìm nhé!', { rate: SLOW });
+          speak('Bạn này chưa đến. Mình cùng đi tìm nhé!');
           return;
         }
         audio.pop(1.2);
         replay(tile, 'anim-pop');
-        speak(kind.name, { rate: SLOW });
+        speak(kind.name);
         if (opts.onPick) {
           panel?.close();
           opts.onPick(kind);

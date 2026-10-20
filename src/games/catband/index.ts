@@ -3,6 +3,7 @@ import { onFrame, onPerfChange, perf } from '../../core/frame';
 import { findSong, type Song } from '../../core/music';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { Photo } from '../../core/photos';
+import { sayText } from '../../core/say';
 import { makeTappable } from '../../core/tap';
 import type { GameContext, GameModule } from '../../core/types';
 import { catSvg } from './cats';
@@ -140,7 +141,13 @@ function start(ctx: GameContext): void {
     holder.style.setProperty('--s', String(catScale(i)));
     const dot = h('span', { class: 'cb-dot' });
     dot.style.background = NOTE_COLORS[i] ?? '#999';
-    const cell = h('button', { class: 'cb-cell', type: 'button', 'data-cat': i, 'aria-label': designs[i]?.name ?? 'Mèo' }, h('span', { class: 'cb-board' }), holder, dot);
+    const cell = h(
+      'button',
+      { class: 'cb-cell', type: 'button', 'data-cat': i, 'aria-label': designs[i]?.name ?? 'Mèo' },
+      h('span', { class: 'cb-board' }),
+      holder,
+      dot,
+    );
     cell.style.setProperty('--i', String(i));
     cell.style.setProperty('--row', String(i >> 1));
     cell.style.setProperty('--row4', String(i >> 2));
@@ -171,12 +178,22 @@ function start(ctx: GameContext): void {
 
   const styleButtons = new Map<StyleId, HTMLElement>();
   for (const s of STYLES) {
-    const b = h('button', { class: 'cb-btn', type: 'button', 'data-style': s.id, 'aria-label': `Nhạc ${s.name}` }, h('span', { class: 'cb-emoji' }, s.emoji), h('span', { class: 'cb-label' }, s.name));
+    const b = h(
+      'button',
+      { class: 'cb-btn', type: 'button', 'data-style': s.id, 'aria-label': `Nhạc ${s.name}` },
+      h('span', { class: 'cb-emoji' }, s.emoji),
+      h('span', { class: 'cb-label' }, s.name),
+    );
     makeTappable(b, () => pickStyle(s.id), { ctx, cooldownMs: 250 });
     styleButtons.set(s.id, b);
     styleBar.append(b);
   }
-  const stopBtn = h('button', { class: 'cb-btn cb-stop', type: 'button', 'data-act': 'stop', 'aria-label': 'Tắt nhạc' }, h('span', { class: 'cb-emoji' }, '⏹️'), h('span', { class: 'cb-label' }, 'Tắt nhạc'));
+  const stopBtn = h(
+    'button',
+    { class: 'cb-btn cb-stop', type: 'button', 'data-act': 'stop', 'aria-label': 'Tắt nhạc' },
+    h('span', { class: 'cb-emoji' }, '⏹️'),
+    h('span', { class: 'cb-label' }, 'Tắt nhạc'),
+  );
   makeTappable(stopBtn, () => (playing ? stopBacking() : startBacking()), { ctx, cooldownMs: 250 });
   styleBar.append(stopBtn);
 
@@ -187,13 +204,23 @@ function start(ctx: GameContext): void {
     { mode: 'scale', emoji: '🪜', label: 'Đếm mèo', aria: 'Đếm mèo từ thấp đến cao' },
   ];
   for (const m of MODE_DEFS) {
-    const b = h('button', { class: 'cb-btn', type: 'button', 'data-mode': m.mode, 'aria-label': m.aria }, h('span', { class: 'cb-emoji' }, m.emoji), h('span', { class: 'cb-label' }, m.label));
+    const b = h(
+      'button',
+      { class: 'cb-btn', type: 'button', 'data-mode': m.mode, 'aria-label': m.aria },
+      h('span', { class: 'cb-emoji' }, m.emoji),
+      h('span', { class: 'cb-label' }, m.label),
+    );
     makeTappable(b, () => chooseMode(m.mode), { ctx, cooldownMs: 250 });
     modeButtons.set(m.mode, b);
     modeBar.append(b);
   }
 
-  const photoBtn = h('button', { class: 'cb-btn', type: 'button', 'data-act': 'face', 'aria-label': 'Ảnh làm mặt mèo', hidden: true }, h('span', { class: 'cb-emoji' }, '📷'), h('span', { class: 'cb-label' }, 'Mặt mèo'));
+  const photoBtn = h(
+    'button',
+    { class: 'cb-btn', type: 'button', 'data-act': 'face', 'aria-label': 'Ảnh làm mặt mèo', hidden: true },
+    h('span', { class: 'cb-emoji' }, '📷'),
+    h('span', { class: 'cb-label' }, 'Mặt mèo'),
+  );
   makeTappable(photoBtn, () => openFacePicker(), { ctx, cooldownMs: 300 });
   modeBar.append(photoBtn);
 
@@ -205,7 +232,8 @@ function start(ctx: GameContext): void {
     if (label) label.textContent = playing ? 'Tắt nhạc' : 'Bật nhạc';
     if (emoji) emoji.textContent = playing ? '⏹️' : '▶️';
     stopBtn.setAttribute('aria-label', playing ? 'Tắt nhạc' : 'Bật nhạc');
-    for (const [m, b] of modeButtons) b.classList.toggle('cb-on', m === mode && (m !== 'song' || !picker.hidden || guide !== null || finale));
+    for (const [m, b] of modeButtons)
+      b.classList.toggle('cb-on', m === mode && (m !== 'song' || !picker.hidden || guide !== null || finale));
     root.classList.toggle('cb-playing', playing);
     root.style.setProperty('--beat', `${Math.round(60000 / style.bpm)}ms`);
   }
@@ -221,7 +249,7 @@ function start(ctx: GameContext): void {
     const now = Date.now();
     if (!force && now - lastSpeak < SPEAK_GAP_MS) return;
     lastSpeak = now;
-    ctx.speak(text);
+    void sayText(ctx, text);
   }
 
   /* ------------------------------------------------- family photo faces */
@@ -567,7 +595,12 @@ function start(ctx: GameContext): void {
       const open = songUnlocked(entry.id, save.stars);
       const b = h(
         'button',
-        { class: `cb-song${open ? '' : ' cb-locked'}`, type: 'button', 'data-song': entry.id, 'aria-label': open ? s.title : `${s.title}, cần ${entry.need} sao` },
+        {
+          class: `cb-song${open ? '' : ' cb-locked'}`,
+          type: 'button',
+          'data-song': entry.id,
+          'aria-label': open ? s.title : `${s.title}, cần ${entry.need} sao`,
+        },
         h('span', { class: 'cb-song-icon' }, open ? s.icon : '🔒'),
         h('span', { class: 'cb-song-title' }, s.title),
         open ? null : h('span', { class: 'cb-song-need' }, `⭐ ${entry.need}`),
@@ -687,18 +720,26 @@ function start(ctx: GameContext): void {
     seq.clear('mem');
     const base = seq.now() + (again ? 400 : 1800);
     m.seq.forEach((cat, k) => {
-      seq.at(base + k * 760, () => {
-        unlight();
-        cells[cat]?.classList.add('cb-lit');
-        sing(cat);
-      }, 'mem');
+      seq.at(
+        base + k * 760,
+        () => {
+          unlight();
+          cells[cat]?.classList.add('cb-lit');
+          sing(cat);
+        },
+        'mem',
+      );
     });
-    seq.at(base + m.seq.length * 760 + 100, () => {
-      unlight();
-      m.listening = false;
-      setCaption(`🐱 Đến lượt bé! ${m.seq.length} nốt`);
-      say('Đến lượt bé.');
-    }, 'mem');
+    seq.at(
+      base + m.seq.length * 760 + 100,
+      () => {
+        unlight();
+        m.listening = false;
+        setCaption(`🐱 Đến lượt bé! ${m.seq.length} nốt`);
+        say('Đến lượt bé.');
+      },
+      'mem',
+    );
   }
 
   function tapMemory(cat: number): void {

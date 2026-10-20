@@ -36,6 +36,7 @@ import type { Activity, Env } from './env';
 import { createHud } from './hud';
 import { createScope, type Scope } from './scope';
 import { loadProgress, saveProgress } from './store';
+import { speakText } from '../../core/say';
 
 const ACTIVITIES: Record<TaskId, Activity> = { dress, breakfast, teeth, outing, pet, bath, party, comfort, bed };
 
@@ -67,7 +68,7 @@ export function runDay(ctx: GameContext): void {
 
   const kid = createKid({ mood: moodOf(state, plan) });
   const hud = createHud();
-  const say = (t: string): void => ctx.speak(t);
+  const say = (t: string): void => speakText(ctx, t);
 
   // ---- layout ----
   const homeKid = kid.view('big');
@@ -307,7 +308,13 @@ export function runDay(ctx: GameContext): void {
       'div',
       { class: 'reveal' },
       h('div', { class: 'reveal-title' }, fresh.length > 0 ? 'Đồ mới!' : `Xong ngày ${plan.dayNo}!`),
-      h('div', { class: 'reveal-row' }, ...(fresh.length > 0 ? fresh.map((u) => h('span', { class: 'reveal-item' }, u.emoji)) : [h('span', { class: 'reveal-item' }, '🌟')])),
+      h(
+        'div',
+        { class: 'reveal-row' },
+        ...(fresh.length > 0
+          ? fresh.map((u) => h('span', { class: 'reveal-item' }, u.emoji))
+          : [h('span', { class: 'reveal-item' }, '🌟')]),
+      ),
     );
     const next = h('button', { class: 'reveal-next', type: 'button', 'aria-label': 'Ngày mới' }, '▶️');
     const layer = h('div', { class: 'day-reveal' }, card, next);

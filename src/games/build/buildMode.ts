@@ -29,6 +29,7 @@ import {
 import { describeStep, pickBlueprint } from './levels';
 import { workFromBoard } from './store';
 import type { ModeCtl, Workshop } from './types';
+import { sayLines, speakText } from '../../core/say';
 
 /** localStorage key of the free build, so a half-built castle is still there tomorrow. */
 export const FREE_KEY = 'be-choi:build:bricks';
@@ -58,7 +59,10 @@ function brickNode(size: BrickSize, color: string, x = 0, y = 0): HTMLElement {
 }
 
 function signature(board: Board): string {
-  return board.bricks.map((b) => `${b.x},${b.y},${b.w},${b.h},${b.color}`).sort().join('|');
+  return board.bricks
+    .map((b) => `${b.x},${b.y},${b.w},${b.h},${b.color}`)
+    .sort()
+    .join('|');
 }
 
 /**
@@ -238,14 +242,14 @@ export function createBuildMode(w: Workshop): ModeCtl {
         const node = layer.querySelector<HTMLElement>(`[data-id="${wrong.id}"]`);
         if (node) replay(node, 'anim-wiggle');
       }
-      if (say && active) ctx.speak('Thử đổi gạch khác màu nhé');
+      if (say && active) speakText(ctx, 'Thử đổi gạch khác màu nhé');
       return;
     }
     const y = dropY(board, step.x, step.w, step.h) ?? 0;
     next.hidden = false;
     next.style.cssText = `--x:${step.x};--y:${y};--w:${step.w};--h:${step.h};--bw-color:${step.color}`;
     selectColor(step.color, false);
-    if (say && active) ctx.speak(describeStep(step));
+    if (say && active) speakText(ctx, describeStep(step));
   }
 
   function afterChange(): void {
@@ -268,15 +272,18 @@ export function createBuildMode(w: Workshop): ModeCtl {
     // The finished model goes into the cabinet by itself.
     const work = workFromBoard(board, done?.name ?? '', Date.now());
     if (work) w.addWork(work);
-    if (done) ctx.speak(`Bé xây xong ${done.name}`);
+    if (done) speakText(ctx, `Bé xây xong ${done.name}`);
     await ctx.celebrate();
     if (!alive) return;
     const unlocked = w.award('build');
     celebrating = false;
-    if (unlocked.length && active) ctx.speak(`Có bản vẽ mới rồi! ${unlocked.join(', ')}`);
-    w.later(() => {
-      if (alive && sub === 'blueprint') startBlueprint(true);
-    }, unlocked.length ? 1800 : 600);
+    if (unlocked.length && active) speakText(ctx, `Có bản vẽ mới rồi! ${unlocked.join(', ')}`);
+    w.later(
+      () => {
+        if (alive && sub === 'blueprint') startBlueprint(true);
+      },
+      unlocked.length ? 1800 : 600,
+    );
   }
 
   function startBlueprint(announce: boolean): void {
@@ -290,9 +297,9 @@ export function createBuildMode(w: Workshop): ModeCtl {
     syncColors();
     rebuild();
     renderGhost();
-    if (announce && active) ctx.speak(`Mình xây ${m.name} nhé`);
     showStep(false);
-    if (announce && active && step) w.later(() => alive && active && step && ctx.speak(describeStep(step)), 1800);
+    // One sequence, so the first sentence is never cut off by the step's brick.
+    if (announce && active) void sayLines(ctx, step ? [`Mình xây ${m.name} nhé`, describeStep(step)] : [`Mình xây ${m.name} nhé`]);
     armHint();
   }
 
@@ -325,7 +332,7 @@ export function createBuildMode(w: Workshop): ModeCtl {
     syncColors();
     renderGhost();
     rebuild();
-    if (announce && active) ctx.speak('Xây tuỳ thích nhé');
+    if (announce && active) speakText(ctx, 'Xây tuỳ thích nhé');
     armHint();
   }
 
@@ -374,7 +381,13 @@ export function createBuildMode(w: Workshop): ModeCtl {
   pieces.append(...templates);
 
   const colorBtns = BRICK_COLORS.map((c) => {
-    const btn = h('button', { class: 'bw-bk-color', type: 'button', style: `--bw-color:${c}`, 'data-color': c, 'aria-label': colorName(c) });
+    const btn = h('button', {
+      class: 'bw-bk-color',
+      type: 'button',
+      style: `--bw-color:${c}`,
+      'data-color': c,
+      'aria-label': colorName(c),
+    });
     makeTappable(btn, () => selectColor(c, true), { cooldownMs: 0, ctx });
     return btn;
   });
@@ -386,7 +399,7 @@ export function createBuildMode(w: Workshop): ModeCtl {
     if (speak) {
       ctx.hint.touch();
       ctx.audio.tick();
-      ctx.speak(colorName(c));
+      speakText(ctx, colorName(c));
     }
   }
 
@@ -401,7 +414,11 @@ export function createBuildMode(w: Workshop): ModeCtl {
   const toggleBtn = h('button', { class: 'bw-bk-btn', type: 'button', 'aria-label': 'Xây tự do' }, h('span', { class: 'bw-ico' }, '✋'));
   makeTappable(toggleBtn, () => setSub(sub === 'free' ? 'blueprint' : 'free'), { cooldownMs: 300, ctx });
 
-  const skipBtn = h('button', { class: 'bw-bk-btn bw-bk-skip', type: 'button', 'aria-label': 'Bản vẽ khác' }, h('span', { class: 'bw-ico' }, '🔄'));
+  const skipBtn = h(
+    'button',
+    { class: 'bw-bk-btn bw-bk-skip', type: 'button', 'aria-label': 'Bản vẽ khác' },
+    h('span', { class: 'bw-ico' }, '🔄'),
+  );
   makeTappable(
     skipBtn,
     () => {
@@ -412,10 +429,18 @@ export function createBuildMode(w: Workshop): ModeCtl {
     { cooldownMs: 400, ctx },
   );
 
-  const shotBtn = h('button', { class: 'bw-bk-btn bw-bk-shot', type: 'button', 'aria-label': 'Chụp tác phẩm' }, h('span', { class: 'bw-ico' }, '📸'));
+  const shotBtn = h(
+    'button',
+    { class: 'bw-bk-btn bw-bk-shot', type: 'button', 'aria-label': 'Chụp tác phẩm' },
+    h('span', { class: 'bw-ico' }, '📸'),
+  );
   makeTappable(shotBtn, capture, { cooldownMs: 600, ctx });
 
-  const trash = h('button', { class: 'bw-bk-btn bw-bk-trash', type: 'button', 'aria-label': 'Giữ để dọn hết' }, h('span', { class: 'bw-ico' }, '🗑️'));
+  const trash = h(
+    'button',
+    { class: 'bw-bk-btn bw-bk-trash', type: 'button', 'aria-label': 'Giữ để dọn hết' },
+    h('span', { class: 'bw-ico' }, '🗑️'),
+  );
   disposers.push(onHold(trash, 700, clearPlate));
 
   actions.append(toggleBtn, skipBtn, shotBtn, trash);
@@ -431,20 +456,20 @@ export function createBuildMode(w: Workshop): ModeCtl {
     const work = workFromBoard(board, name, Date.now());
     if (!work) {
       ctx.audio.boing();
-      ctx.speak('Mình xây gì đó rồi chụp nhé');
+      speakText(ctx, 'Mình xây gì đó rồi chụp nhé');
       return;
     }
     w.addWork(work);
     replay(flash, 'bw-flash-go');
     ctx.audio.fx('sparkle');
     navigator.vibrate?.(20);
-    ctx.speak('Tách! Đã cất vào tủ rồi');
+    speakText(ctx, 'Tách! Đã cất vào tủ rồi');
     ctx.hint.touch();
     const sig = signature(board);
     if (sub === 'free' && board.bricks.length >= STAR_BRICKS && sig !== lastShot) {
       lastShot = sig;
       const unlocked = w.award('build');
-      if (unlocked.length) w.later(() => alive && active && ctx.speak(`Có bản vẽ mới rồi! ${unlocked.join(', ')}`), 1800);
+      if (unlocked.length) w.later(() => alive && active && speakText(ctx, `Có bản vẽ mới rồi! ${unlocked.join(', ')}`), 3200);
     }
   }
 
@@ -472,7 +497,7 @@ export function createBuildMode(w: Workshop): ModeCtl {
           if (t) replay(t, 'anim-wiggle');
         }
         replay(next, 'anim-pulse');
-        ctx.speak(describeStep(s));
+        speakText(ctx, describeStep(s));
         return;
       }
       const t = templates[Math.floor(Math.random() * templates.length)];

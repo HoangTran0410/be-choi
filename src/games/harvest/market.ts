@@ -1,10 +1,11 @@
 /** The market stall: a customer asks, in pictures, for some of the farm's things. */
 import { h } from '../../core/dom';
+import { wordPart } from '../../core/say';
 import { makeTappable } from '../../core/tap';
 import { numberWord } from '../count/logic';
 import { cropById } from './crops';
 import { elementAt, type Env, type Pt, type View } from './env';
-import { give, isDone, itemById, makeOrder, orderPhrase, PHOTO_WHO, remaining, SHOPPERS, type Order } from './orders';
+import { give, isDone, itemById, makeOrder, orderParts, PHOTO_WHO, remaining, SHOPPERS, type Order } from './orders';
 import { levelFor, stockOf, takeStock, XP_ORDER } from './progress';
 import { pop, setClass, setFrame, wiggle } from './ui';
 
@@ -35,7 +36,7 @@ export function createMarket(env: Env): View {
 
   const announce = (): void => {
     const o = state.order;
-    if (o) env.say(orderPhrase(o, who(o)), true);
+    if (o) env.sayParts(orderParts(o, who(o)));
   };
 
   const newCustomer = (): void => {
@@ -72,7 +73,7 @@ export function createMarket(env: Env): View {
     const target = slotEls().find((s) => s.dataset.item === id && !s.classList.contains('filled')) ?? cust;
     env.fly(item.emoji, id, target);
     ctx.audio.pop(0.9 + w.got * 0.15);
-    env.say(`${numberWord(w.got)} ${item.name}.`, true);
+    env.sayParts([wordPart(numberWord(w.got), 600), wordPart(item.name, 0)]);
     env.stockChanged();
     env.dirty();
     env.later(sync, 380);
@@ -138,7 +139,10 @@ export function createMarket(env: Env): View {
           { class: `hv-slot${filled ? ' filled' : ''}`, type: 'button', 'data-item': w.item, 'aria-label': itemById(w.item)?.name ?? '' },
           h('span', { class: 'hv-slot-e' }, itemById(w.item)?.emoji ?? ''),
         );
-        makeTappable(slot, () => (filled ? env.say(`${numberWord(k + 1)}.`) : deliverOrExplain(w.item)), { ctx, feedback: false });
+        makeTappable(slot, () => (filled ? env.sayParts([wordPart(numberWord(k + 1), 0)]) : deliverOrExplain(w.item)), {
+          ctx,
+          feedback: false,
+        });
         return slot;
       });
       return h('div', { class: 'hv-want' }, h('b', { class: 'hv-num' }, String(w.n)), h('div', { class: 'hv-slots' }, ...slots));

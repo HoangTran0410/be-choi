@@ -206,3 +206,45 @@ export function fakeMic(sampleRate = 44100): FakeMic {
   });
   return fake;
 }
+
+/**
+ * Make `speakSeq` take time like the real thing: each part starts (calling `onStart`) only after
+ * the one before has "been spoken" for `partMs` plus its own pause, a newer `speakSeq` /
+ * `stopSpeech` drops the old sequence (resolving `false`), and `cleanup()` clears the timer.
+ * Use with fake timers for games that show things in step with the voice.
+ */
+export function useTimedSpeech(ctx: FakeContext, partMs = 900): void {
+  let token = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let drop: (() => void) | null = null;
+  const abort = (): void => {
+    token++;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    const d = drop;
+    drop = null;
+    d?.();
+  };
+  ctx.speakSeq = (parts) => {
+    abort();
+    const mine = token;
+    return new Promise<boolean>((resolve) => {
+      drop = () => resolve(false);
+      const step = (i: number): void => {
+        if (mine !== token) return;
+        const p = parts[i];
+        if (!p) {
+          drop = null;
+          resolve(true);
+          return;
+        }
+        ctx.sequenced.push(p.text);
+        p.onStart?.();
+        timer = setTimeout(() => step(i + 1), (p.text ? partMs : 0) + (p.pauseAfterMs ?? 450));
+      };
+      step(0);
+    });
+  };
+  ctx.stopSpeech = abort;
+  ctx.onCleanup(abort);
+}

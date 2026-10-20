@@ -15,7 +15,8 @@ if (!('PointerEvent' in globalThis)) {
   };
 }
 
-const ptr = (type: string, x = 0, y = 0): PointerEvent => new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true, cancelable: true });
+const ptr = (type: string, x = 0, y = 0): PointerEvent =>
+  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true, cancelable: true });
 
 /** jsdom has no canvas backend: a stand-in that keeps what is written and does nothing else. */
 function fake2d(): CanvasRenderingContext2D {
@@ -25,8 +26,10 @@ function fake2d(): CanvasRenderingContext2D {
     get(target, prop: string) {
       if (prop in target) return target[prop];
       if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => gradient;
-      if (prop === 'getImageData') return (_x: number, _y: number, w: number, hgt: number) => ({ data: new Uint8ClampedArray(w * hgt * 4), width: w, height: hgt });
-      if (prop === 'createImageData') return (w: number, hgt: number) => ({ data: new Uint8ClampedArray(w * hgt * 4), width: w, height: hgt });
+      if (prop === 'getImageData')
+        return (_x: number, _y: number, w: number, hgt: number) => ({ data: new Uint8ClampedArray(w * hgt * 4), width: w, height: hgt });
+      if (prop === 'createImageData')
+        return (w: number, hgt: number) => ({ data: new Uint8ClampedArray(w * hgt * 4), width: w, height: hgt });
       return () => undefined;
     },
     set(target, prop: string, value) {
@@ -130,7 +133,7 @@ describe('habitat game', () => {
     expect(ctx.stage.querySelector('.hb-egg')?.hasAttribute('hidden')).toBe(true);
   });
 
-  it('puts the older games\' saves in without touching them', () => {
+  it("puts the older games' saves in without touching them", () => {
     const tank = JSON.stringify({ v: 1, fish: ['koi', 'ray'], decor: [], plants: [] });
     const box = JSON.stringify({ v: 1, pets: ['gecko'], decor: [], plants: [] });
     localStorage.setItem(LEGACY_TANK_KEY, tank);
@@ -154,7 +157,7 @@ describe('habitat game', () => {
     choose('[data-world="sea"]');
     expect(q('.hb-world-overlay')).not.toBeNull();
     expect(q('.aquarium.hb-water-fresh')).not.toBeNull();
-    expect(ctx.spoken.at(-1)).toMatch(/nhiệm vụ/);
+    expect(ctx.sequenced.join(' ')).toMatch(/nhiệm vụ/);
   });
 
   it('moves between all four worlds with the same buttons', () => {
@@ -179,7 +182,7 @@ describe('habitat game', () => {
     expect(q('.fishing')).toBeNull();
   });
 
-  it('leaves nothing of an old world behind when it changes, and the old games\' keys are free again', () => {
+  it("leaves nothing of an old world behind when it changes, and the old games' keys are free again", () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify(richSave()));
     mount();
     goTo('forest');
@@ -211,7 +214,7 @@ describe('habitat game', () => {
     // The newcomer is shown and named once the errand's gift (which came first) has had its turn.
     vi.advanceTimersByTime(6000);
     expect(ctx.stage.querySelector('.hb-reveal')).not.toBeNull();
-    expect(ctx.spoken.some((t) => /Trứng nở/.test(t))).toBe(true);
+    expect(ctx.sequenced.some((t) => /Trứng nở/.test(t))).toBe(true);
   });
 
   it('turns an errand into a star, a gift and a new errand', () => {
@@ -250,7 +253,7 @@ describe('habitat game', () => {
     const fish = JSON.parse(localStorage.getItem(WORLD_KEY.fresh)!).fish as string[];
     expect(fish.length).toBe(before + 1);
     expect(fish.filter((f) => f === 'goldfish').length).toBeGreaterThan(0);
-    expect(ctx.spoken).toContain('cá vàng');
+    expect(ctx.sequenced).toContain('cá vàng');
   });
 
   it('shows a shape, not a friend, for someone not met yet, and says so gently', () => {
@@ -259,7 +262,7 @@ describe('habitat game', () => {
     vi.advanceTimersByTime(SETTLE);
     q('.hb-tile.hb-locked').dispatchEvent(ptr('pointerup'));
     expect(ctx.stage.querySelector('.hb-overlay')).not.toBeNull();
-    expect(ctx.spoken.at(-1)).toMatch(/chưa đến/);
+    expect(ctx.sequenced.join(' ')).toMatch(/chưa đến/);
   });
 
   it('adds furniture the child has opened and not the rest', () => {
@@ -312,7 +315,7 @@ describe('habitat game', () => {
     press(q('.hb-tool-decor'));
     choose('[data-photo="frame"]');
     expect(ctx.stage.querySelector('.hb-decor-overlay')).not.toBeNull();
-    expect(ctx.spoken.at(-1)).toMatch(/ba mẹ/);
+    expect(ctx.sequenced.join(' ')).toMatch(/ba mẹ/);
   });
 
   it('puts every fish landed at the pond into its own tank and the book', () => {

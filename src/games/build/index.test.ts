@@ -21,7 +21,9 @@ const tap = (el: Element): void => {
 
 beforeEach(() => {
   // `performance` is faked too: the tap cooldown reads it.
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame'] });
+  vi.useFakeTimers({
+    toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame'],
+  });
   localStorage.clear();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
 });
@@ -56,7 +58,7 @@ describe('build (Xưởng xếp hình)', () => {
     await vi.advanceTimersByTimeAsync(50);
     expect(visibleModes(ctx)[0]).toContain('bw-sh');
     expect(ctx.stage.querySelectorAll('.bw-sh-piece').length).toBeGreaterThanOrEqual(3);
-    expect(ctx.spoken.some((s) => s.startsWith('Xếp theo bóng'))).toBe(true);
+    expect(ctx.sequenced.some((s) => s.startsWith('Xếp theo bóng'))).toBe(true);
     tap(ctx.stage.querySelector('.bw-tab-build')!);
     await vi.advanceTimersByTimeAsync(50);
     expect(visibleModes(ctx)[0]).toContain('bw-bk');
@@ -83,8 +85,8 @@ describe('build (Xưởng xếp hình)', () => {
     localStorage.setItem('be-choi:build:progress', JSON.stringify({ v: 1, counts: { puzzle: 0, shadow: 0, build: 0 }, mode: 'build' }));
     game.start(ctx);
     await vi.advanceTimersByTimeAsync(2500);
-    expect(ctx.spoken.some((s) => s.startsWith('Mình xây'))).toBe(true);
-    expect(ctx.spoken.some((s) => s.startsWith('Gạch màu'))).toBe(true);
+    expect(ctx.sequenced.some((s) => s.startsWith('Mình xây'))).toBe(true);
+    expect(ctx.sequenced.some((s) => s.startsWith('Gạch màu'))).toBe(true);
     tap(ctx.stage.querySelector('.bw-bk-btn[aria-label="Xây tự do"]')!);
     expect(ctx.stage.querySelector('.bw-bk')?.getAttribute('data-sub')).toBe('free');
     ctx.cleanup();

@@ -3,9 +3,9 @@ import { onPerfChange, perf } from '../../core/frame';
 import type { Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
 import { NUMBERS_VI } from '../../core/content';
+import { sayLines } from '../../core/say';
 import { openBox, showReward } from './collection';
 import { createHud } from './hud';
-import { phraseMs } from './layout';
 import { adapt, MAX_LEVEL, rate, rewardAt, roundRng, stepOf, suggestNext, unlockedStations, type StationId } from './levels';
 import { renderMap } from './map';
 import { meta } from './meta';
@@ -29,23 +29,9 @@ function start(ctx: GameContext): void {
   let photos: Photo[] = [];
 
   /* ---- speech, one phrase at a time ---- */
-  const speechTimers = new Set<ReturnType<typeof setTimeout>>();
   function say(phrases: string | readonly string[]): void {
-    for (const t of speechTimers) clearTimeout(t);
-    speechTimers.clear();
-    const list = (typeof phrases === 'string' ? [phrases] : [...phrases]).filter(Boolean);
-    let at = 0;
-    list.forEach((text, i) => {
-      if (i === 0) ctx.speak(text);
-      else {
-        const t = setTimeout(() => {
-          speechTimers.delete(t);
-          if (alive) ctx.speak(text);
-        }, at);
-        speechTimers.add(t);
-      }
-      at += phraseMs(text);
-    });
+    // One slow sequence: a new line cuts the old one off, names get a long gap after them.
+    void sayLines(ctx, (typeof phrases === 'string' ? [phrases] : [...phrases]).filter(Boolean));
   }
 
   /* ---- frame ---- */
@@ -76,8 +62,7 @@ function start(ctx: GameContext): void {
     alive = false;
     epoch++;
     leaveStation();
-    for (const t of speechTimers) clearTimeout(t);
-    speechTimers.clear();
+    ctx.stopSpeech();
     offPerf();
     offPhotos();
     window.removeEventListener('resize', onResize);
@@ -189,8 +174,7 @@ function start(ctx: GameContext): void {
         for (const fn of resize) resizers.delete(fn);
         resize.clear();
         stop?.();
-        for (const t of speechTimers) clearTimeout(t);
-        speechTimers.clear();
+        ctx.stopSpeech();
         area.remove();
       },
     };
@@ -227,8 +211,8 @@ function start(ctx: GameContext): void {
       }
       if (epoch !== mine) return;
       if (sinceMap >= ROUNDS_BEFORE_MAP) {
-        say(['Mình đi', 'trạm khác', 'nhé!']);
         goMap();
+        say(['Mình đi', 'trạm khác', 'nhé!']);
       } else enter(id);
     });
   }

@@ -9,9 +9,18 @@ import { PICTURES } from '../../trace/pictures';
 import type { Picture } from '../../trace/shapes';
 import { drawPicture, picturePaths } from '../art';
 import type { ModeController, ModeEnv } from '../env';
-import { pickNextPicture, pictureCount, slow } from '../progress';
+import { pickNextPicture, pictureCount, named, slow } from '../progress';
 import { createSurface, type Surface } from '../surface';
-import { brightness, completeAll, makeTemplate, nextToDraw, progressOf, templateDone, touchTemplate, type TemplateState } from '../template';
+import {
+  brightness,
+  completeAll,
+  makeTemplate,
+  nextToDraw,
+  progressOf,
+  templateDone,
+  touchTemplate,
+  type TemplateState,
+} from '../template';
 import { createScope, makeButton } from '../ui';
 import { paintTools } from './paintTools';
 
@@ -83,7 +92,7 @@ export function startCopy(env: ModeEnv): ModeController {
     pen.style.opacity = '0';
     surface.reset(1);
     redraw();
-    if (announce) env.say(slow(`Vẽ theo ${next.name}`));
+    if (announce) env.say(named('Vẽ theo', next.name));
     ctx.hint.arm(showHint, 9000);
   }
 
@@ -126,14 +135,12 @@ export function startCopy(env: ModeEnv): ModeController {
     pen.style.opacity = '0';
     redraw();
     ctx.audio.ding();
-    env.say(slow(`Bé vẽ giống ${pic.name} quá`));
+    env.say(`${slow(pic.name)} ${slow('Bé vẽ giống quá')}`);
     const shot = surface.snapshot();
     const done = pic;
-    void env
-      .commit(shot ? { mode: 'copy', thumb: shot.url, w: shot.w, h: shot.h, title: done.name } : null)
-      .then(() => {
-        if (env.alive()) show(nextPicture(), true);
-      });
+    void env.commit(shot ? { mode: 'copy', thumb: shot.url, w: shot.w, h: shot.h, title: done.name } : null).then(() => {
+      if (env.alive()) show(nextPicture(), true);
+    });
   }
 
   const pictures = makeButton(scope, {

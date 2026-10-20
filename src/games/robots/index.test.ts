@@ -42,24 +42,27 @@ describe('Ban nhạc robot', () => {
     tap(slot(ctx.stage, 2));
     expect(slot(ctx.stage, 2).classList.contains('has-bot')).toBe(true);
     expect(item(ctx.stage, 'kick').classList.contains('on-stage')).toBe(true);
-    expect(ctx.spoken[0]).toBe('Trống cái.');
+    expect(ctx.sequenced[0]).toBe('Trống cái.');
     vi.advanceTimersByTime(3000);
     expect(drum).toHaveBeenCalled();
     expect(drum.mock.calls[0]![0]).toBe('kick');
-    expect(ctx.spoken).toContain('Bé có một bạn robot rồi.');
+    expect(ctx.sequenced).toContain('Bé có một bạn robot rồi.');
     ctx.cleanup();
   });
 
   it('counts the robots and a drop on a taken seat just swaps who stands there', () => {
     const ctx = fakeContext();
     game.start(ctx);
-    for (const [id, s] of [['kick', 0], ['bass', 1]] as const) {
+    for (const [id, s] of [
+      ['kick', 0],
+      ['bass', 1],
+    ] as const) {
       tap(item(ctx.stage, id));
       tap(slot(ctx.stage, s));
       vi.advanceTimersByTime(4000);
     }
     expect(ctx.stage.querySelectorAll('.rb-slot.has-bot').length).toBe(2);
-    expect(ctx.spoken.some((t) => t.includes('Đàn bass'))).toBe(true);
+    expect(ctx.sequenced.some((t) => t.includes('Đàn bass'))).toBe(true);
     ctx.cleanup();
   });
 
@@ -98,7 +101,7 @@ describe('Ban nhạc robot', () => {
     vi.spyOn(performance, 'now').mockReturnValue(now + 1000);
     tap(btn);
     expect(root.dataset.song).toBe('calm');
-    expect(ctx.spoken).toContain('Nhạc êm.');
+    expect(ctx.sequenced).toContain('Nhạc êm.');
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY)!);
     expect(saved.v).toBe(1);
     expect(saved.tried.sort()).toEqual(['calm', 'disco']);
@@ -108,7 +111,11 @@ describe('Ban nhạc robot', () => {
   it('finishing the first goal gives a star and unlocks two robots', () => {
     const ctx = fakeContext();
     game.start(ctx);
-    for (const [id, s] of [['kick', 0], ['piano', 1], ['xylo', 2]] as const) {
+    for (const [id, s] of [
+      ['kick', 0],
+      ['piano', 1],
+      ['xylo', 2],
+    ] as const) {
       tap(item(ctx.stage, id));
       tap(slot(ctx.stage, s));
       vi.advanceTimersByTime(300);
@@ -132,7 +139,7 @@ describe('Ban nhạc robot', () => {
     });
     await vi.advanceTimersByTimeAsync(8000);
     expect(ctx.celebrations).toBe(1);
-    expect(ctx.spoken).toContain('Tám bạn robot rồi.');
+    expect(ctx.sequenced).toContain('Tám bạn robot rồi.');
     ctx.cleanup();
   });
 
@@ -142,7 +149,7 @@ describe('Ban nhạc robot', () => {
     tap(item(ctx.stage, 'kick'));
     tap(slot(ctx.stage, 0));
     vi.advanceTimersByTime(10000);
-    expect(ctx.spoken).toContain('Thiếu tiếng bass nè!');
+    expect(ctx.sequenced).toContain('Thiếu tiếng bass nè!');
     expect(item(ctx.stage, 'bass').classList.contains('nudge')).toBe(true);
     ctx.cleanup();
   });

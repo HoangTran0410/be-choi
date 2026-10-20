@@ -37,7 +37,7 @@ describe('Ngày của bạn nhỏ', () => {
     const tasks = [...ctx.stage.querySelectorAll<HTMLElement>('.task')].map((t) => t.dataset.task);
     expect(tasks).toEqual(['dress', 'breakfast', 'teeth']);
     expect(ctx.stage.querySelector('.home-kid .kid-head')).not.toBeNull();
-    expect(ctx.spoken.length).toBeGreaterThan(0);
+    expect(ctx.sequenced.length).toBeGreaterThan(0);
   });
 
   it('opens every morning job as a scene in the same frame, and the back button returns', async () => {

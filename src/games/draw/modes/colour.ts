@@ -9,7 +9,7 @@ import { PICTURES } from '../../trace/pictures';
 import type { Picture } from '../../trace/shapes';
 import { drawPicture, loadImage, pictureThumbUrl } from '../art';
 import { MIN_STROKES, type ModeController, type ModeEnv } from '../env';
-import { pickNextPicture, pictureCount, slow } from '../progress';
+import { pickNextPicture, pictureCount, named } from '../progress';
 import { createSurface } from '../surface';
 import { createScope, makeButton, type PanelItem } from '../ui';
 import { paintTools } from './paintTools';
@@ -55,7 +55,7 @@ export function startColour(env: ModeEnv): ModeController {
     seen.add(next.id);
     surface.reset(1);
     surface.setOverlay((c, w) => drawPicture(c, next, w, w, { lines: { width: w * 0.03, color: '#3f3f46' } }));
-    env.say(slow(`Tô ${next.name}`));
+    env.say(named('Tô', next.name));
   }
 
   function showLines(lines: Lines): void {

@@ -11,6 +11,7 @@ import { createPuzzleMode } from './puzzleMode';
 import { createShadowMode } from './shadowMode';
 import { addWork, loadGallery, loadProgress, removeWork, saveGallery, saveProgress, type Work } from './store';
 import type { ModeCtl, PhotoChoice, Workshop } from './types';
+import { speakText } from '../../core/say';
 
 const FACTORIES: Record<ModeId, (w: Workshop) => ModeCtl> = {
   puzzle: createPuzzleMode,
@@ -38,7 +39,11 @@ export function startWorkshop(ctx: GameContext): void {
 
   const body = h('div', { class: 'bw-body' });
   const root = h('div', { class: 'bw' }, body);
-  const hud = createHud(ctx, (m) => setMode(m), () => openShelf());
+  const hud = createHud(
+    ctx,
+    (m) => setMode(m),
+    () => openShelf(),
+  );
   root.prepend(hud.el);
   ctx.stage.append(root);
   root.classList.toggle('bw-lite', lite);
@@ -121,7 +126,7 @@ export function startWorkshop(ctx: GameContext): void {
     syncHud();
     if (!first) {
       ctx.audio.pop();
-      ctx.speak(`${MODE_INFO[next].label}. ${MODE_INFO[next].prompt}`);
+      speakText(ctx, `${MODE_INFO[next].label}. ${MODE_INFO[next].prompt}`);
     }
     ctl.enter();
     ctl.relayout();

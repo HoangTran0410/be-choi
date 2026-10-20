@@ -2,11 +2,12 @@
  * What the robots say, and how: slowly, a word or two at a time, with a breath between, so a
  * three-year-old can catch each one. Lines are built here (pure, tested); the narrator spaces them out.
  */
+import type { SpeechPart } from '../../core/speech';
 import { COUNT_WORDS, type RobotDef } from './robots';
 
 export interface Line {
   text: string;
-  /** Speech rate: 0.6 is slow and clear. */
+  /** Speech rate: 0.65 for a name, 0.8 for the sentence after it. */
   rate: number;
   /** Quiet time after this line (ms). */
   gap: number;
@@ -36,21 +37,21 @@ const GROUP_WORDS: Record<RobotDef['group'], string> = {
  * `n` is how many robots are on stage now; `nth` picks which fact to give.
  */
 export function placedLines(robot: RobotDef, n: number, nth: number): Line[] {
-  const name: Line = { text: cap(robot.name) + '.', rate: 0.6, gap: 900 };
+  const name: Line = { text: cap(robot.name) + '.', rate: 0.65, gap: 800 };
   const fact = FACTS[((nth % FACTS.length) + FACTS.length) % FACTS.length] as Fact;
   switch (fact) {
     case 'count':
-      return [name, { text: n === 1 ? 'Bé có một bạn robot rồi.' : `${cap(countWord(n))} bạn robot rồi.`, rate: 0.7, gap: 0 }];
+      return [name, { text: n === 1 ? 'Bé có một bạn robot rồi.' : `${cap(countWord(n))} bạn robot rồi.`, rate: 0.8, gap: 0 }];
     case 'color':
-      return [name, { text: `Bạn ${robot.name} màu ${robot.colorName}.`, rate: 0.7, gap: 0 }];
+      return [name, { text: `Bạn ${robot.name} màu ${robot.colorName}.`, rate: 0.8, gap: 0 }];
     default:
-      return [name, { text: `${cap(robot.name)} là nhạc cụ ${GROUP_WORDS[robot.group]}.`, rate: 0.7, gap: 0 }];
+      return [name, { text: `${cap(robot.name)} là nhạc cụ ${GROUP_WORDS[robot.group]}.`, rate: 0.8, gap: 0 }];
   }
 }
 
 /** The stage is full. */
 export function fullLines(): Line[] {
-  return [{ text: 'Đủ cả ban nhạc rồi!', rate: 0.75, gap: 0 }];
+  return [{ text: 'Đủ cả ban nhạc rồi!', rate: 0.8, gap: 0 }];
 }
 
 export type Missing = 'empty' | 'beat' | 'bass' | 'chord' | 'melody' | 'more';
@@ -65,61 +66,44 @@ export function hintLines(what: Missing): Line[] {
     melody: 'Thiếu giai điệu nè!',
     more: 'Thêm một bạn nữa nhé!',
   };
-  return [{ text: text[what], rate: 0.75, gap: 0 }];
+  return [{ text: text[what], rate: 0.8, gap: 0 }];
 }
 
 const SONG_NAMES = { fun: 'Bài vui.', disco: 'Disco robot.', calm: 'Nhạc êm.' } as const;
 
 /** The name of the song just chosen. */
 export function songLines(id: keyof typeof SONG_NAMES): Line[] {
-  return [{ text: SONG_NAMES[id], rate: 0.7, gap: 0 }];
+  return [{ text: SONG_NAMES[id], rate: 0.8, gap: 0 }];
 }
 
 export function byeLines(): Line[] {
-  return [{ text: 'Tạm biệt!', rate: 0.75, gap: 0 }];
+  return [{ text: 'Tạm biệt!', rate: 0.8, gap: 0 }];
 }
 
 export function newRobotLines(): Line[] {
-  return [{ text: 'Có bạn robot mới!', rate: 0.75, gap: 0 }];
+  return [{ text: 'Có bạn robot mới!', rate: 0.8, gap: 0 }];
 }
 
 export interface Narrator {
-  /** Say these lines, dropping whatever was still waiting to be said. */
+  /** Say these lines, one after another; cuts off whatever was being said. */
   say(lines: readonly Line[]): void;
   stop(): void;
 }
 
 export interface NarratorDeps {
-  speak(text: string, opts?: { interrupt?: boolean; rate?: number }): void;
-  setTimer(fn: () => void, ms: number): unknown;
-  clearTimer(handle: unknown): void;
+  speakSeq(parts: SpeechPart[]): Promise<boolean>;
+  stopSpeech(): void;
 }
 
-/** Roughly how long a line takes at its rate, so the next one is queued after it, not on top of it. */
-export function lineMs(l: Line): number {
-  const words = l.text.split(/\s+/).filter(Boolean).length;
-  return (words * 520) / l.rate;
-}
-
+/** Each line is its own slow part; `gap` is the quiet time after it. The shared voice never overlaps two lines. */
 export function createNarrator(deps: NarratorDeps): Narrator {
-  let timer: unknown = null;
-  const stop = (): void => {
-    if (timer !== null) deps.clearTimer(timer);
-    timer = null;
-  };
   return {
     say(lines) {
-      stop();
-      const run = (i: number): void => {
-        const l = lines[i];
-        if (!l) return;
-        deps.speak(l.text, { interrupt: i === 0, rate: l.rate });
-        if (i + 1 < lines.length) {
-          timer = deps.setTimer(() => run(i + 1), lineMs(l) + l.gap);
-        }
-      };
-      run(0);
+      const parts = lines.filter((l) => l.text.trim()).map((l): SpeechPart => ({ text: l.text, rate: l.rate, pauseAfterMs: l.gap }));
+      if (parts.length) void deps.speakSeq(parts);
     },
-    stop,
+    stop() {
+      deps.stopSpeech();
+    },
   };
 }

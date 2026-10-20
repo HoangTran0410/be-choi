@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeContext, type FakeContext } from '../../core/testing';
+import { fakeContext, useTimedSpeech, type FakeContext } from '../../core/testing';
 import game from './index';
 import { SAVE_KEY } from './progress';
 
@@ -29,6 +29,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
   ctx = fakeContext();
+  useTimedSpeech(ctx);
 });
 afterEach(() => {
   ctx.cleanup();
@@ -64,9 +65,9 @@ describe('map', () => {
   it('greets slowly, after the game intro, in short phrases', async () => {
     game.start(ctx);
     await settle(3000);
-    expect(ctx.spoken).toEqual([]);
+    expect(ctx.sequenced).toEqual([]);
     await settle(3000);
-    expect(ctx.spoken[0]).toBe('Chọn một trạm nhé');
+    expect(ctx.sequenced[0]).toBe('Chọn một trạm nhé');
   });
 
   it('opens the family station once there are two photos to tell apart', async () => {
@@ -123,9 +124,9 @@ describe('a station', () => {
     await settle(100);
     tap(station('letters'));
     await settle(500);
-    const t0 = ctx.spoken.length;
+    const t0 = ctx.sequenced.length;
     await settle(8000);
-    const said = ctx.spoken.slice(t0);
+    const said = ctx.sequenced.slice(t0);
     expect(said.length).toBeGreaterThanOrEqual(2);
     expect(said.every((s) => s.split(' ').length <= 5)).toBe(true);
   });
@@ -136,15 +137,15 @@ describe('a station', () => {
     tap(station('letters'));
     await settle(4000);
     const opts = [...ctx.stage.querySelectorAll('.lq-opt')];
-    const before = ctx.spoken.length;
+    const before = ctx.sequenced.length;
     // Find the wrong one by trying: the right one locks the question, so go through them until one is wrong.
     tap(opts[0]!);
     if (opts[0]!.classList.contains('right')) {
-      expect(ctx.spoken.length).toBeGreaterThanOrEqual(before);
+      expect(ctx.sequenced.length).toBeGreaterThanOrEqual(before);
       return;
     }
     await settle(3000);
-    const said = ctx.spoken.slice(before).join(' | ');
+    const said = ctx.sequenced.slice(before).join(' | ');
     expect(said).toMatch(/Đây là chữ/);
     expect(said).toMatch(/Mình tìm chữ/);
     expect(ctx.stage.querySelector('.lq-opt.right')).toBeNull();
@@ -157,11 +158,11 @@ describe('a station', () => {
     await settle(300);
     tap(ctx.stage.querySelector('.lq-back')!);
     await settle(50);
-    const before = ctx.spoken.length;
+    const before = ctx.sequenced.length;
     await settle(20000);
     expect(ctx.stage.querySelector('.lm')).not.toBeNull();
     // Only the map's own greeting may follow; nothing from the old question.
-    expect(ctx.spoken.slice(before).every((s) => !/Có mấy/.test(s))).toBe(true);
+    expect(ctx.sequenced.slice(before).every((s) => !/Có mấy/.test(s))).toBe(true);
   });
 
   it('plays the sorting station with drag-and-drop: right bin keeps the item, wrong bin does not', async () => {
@@ -179,7 +180,18 @@ describe('a station', () => {
     expect(bins.length).toBeGreaterThanOrEqual(2);
     // jsdom has no layout: give every bin its own box.
     bins.forEach((b, i) => {
-      b.getBoundingClientRect = () => ({ left: i * 300, top: 0, width: 200, height: 200, right: i * 300 + 200, bottom: 200, x: i * 300, y: 0, toJSON: () => ({}) }) as DOMRect;
+      b.getBoundingClientRect = () =>
+        ({
+          left: i * 300,
+          top: 0,
+          width: 200,
+          height: 200,
+          right: i * 300 + 200,
+          bottom: 200,
+          x: i * 300,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
     });
     const items = [...ctx.stage.querySelectorAll<HTMLElement>('.lq-item')];
     for (const el of items) {
@@ -214,18 +226,18 @@ describe('Khám phá', () => {
 
     tap(tiles[3]!); // B
     await settle(300);
-    expect(ctx.spoken.at(-1)).toBe('Chữ bê');
+    expect(ctx.sequenced.at(-1)).toBe('Chữ bê');
     expect(ctx.stage.querySelectorAll('.le-pic.on').length).toBe(0);
     await settle(4000);
     expect(ctx.stage.querySelectorAll('.le-pic.on').length).toBeGreaterThanOrEqual(1);
     await settle(6000);
     expect(ctx.stage.querySelectorAll('.le-pic.on').length).toBe(3);
-    expect(ctx.spoken.slice(-3)).toEqual(['bóng', 'bò', 'bướm']);
+    expect(ctx.sequenced.slice(-3)).toEqual(['bóng', 'bò', 'bướm']);
 
     tap(tiles[0]!); // A cuts in
-    const n = ctx.spoken.length;
+    const n = ctx.sequenced.length;
     await settle(300);
-    expect(ctx.spoken[n]).toBe('Chữ a');
+    expect(ctx.sequenced[n]).toBe('Chữ a');
     expect(ctx.stage.querySelectorAll('.le-pic.on').length).toBe(0);
   });
 
@@ -240,8 +252,8 @@ describe('Khám phá', () => {
     expect(ctx.stage.querySelectorAll('.le-tile').length).toBe(10);
     tap(ctx.stage.querySelectorAll('.le-tile')[2]!);
     await settle(8000);
-    expect(ctx.spoken).toContain('Số ba');
-    expect(ctx.spoken).toContain('hai');
+    expect(ctx.sequenced).toContain('Số ba');
+    expect(ctx.sequenced).toContain('hai');
     expect(ctx.stage.querySelectorAll('.le-pic.on').length).toBe(3);
   });
 
@@ -267,7 +279,7 @@ describe('family station', () => {
     await settle(100);
     tap(station('family'));
     await settle(5000);
-    const asked = ctx.spoken.join(' | ');
+    const asked = ctx.sequenced.join(' | ');
     expect(asked).toMatch(/(Mẹ|Ba|Bà) đâu nào\?|Ai đây nhỉ\?/);
     expect(ctx.stage.querySelectorAll('.lq-opt').length).toBeGreaterThanOrEqual(2);
     expect(ctx.stage.querySelector('.lq-opt .lv-photo, .lq-opt .lv-chip')).not.toBeNull();

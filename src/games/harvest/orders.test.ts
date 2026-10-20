@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/dom';
-import { give, isDone, itemById, ITEMS, itemsAt, makeOrder, missingPieces, orderPhrase, orderSize, remaining } from './orders';
+import { give, isDone, itemById, ITEMS, itemsAt, makeOrder, missingPieces, orderParts, orderPhrase, orderSize, remaining } from './orders';
 
 describe('orders', () => {
   it('has unique items and only offers what the farm can make', () => {
@@ -77,6 +77,11 @@ describe('orders', () => {
       ],
     };
     expect(orderPhrase(o, 'Gấu')).toBe('Gấu muốn, hai, cà rốt, và, một, trứng.');
+    const spoken = orderParts(o, 'Gấu');
+    expect(spoken.map((p) => p.text)).toEqual(['Gấu muốn', 'hai', 'cà rốt', 'và', 'một', 'trứng']);
+    expect(spoken[1]!.rate).toBeLessThanOrEqual(0.7); // the number and the name are slow
+    expect(spoken[2]!.pauseAfterMs).toBeGreaterThanOrEqual(600); // a gap before the next one
+    expect(spoken.at(-1)!.pauseAfterMs).toBe(0);
     o.wants[0]!.got = 2;
     expect(orderPhrase(o, 'Gấu')).toBe('Gấu muốn, một, trứng.');
     o.wants[1]!.got = 1;

@@ -9,7 +9,7 @@ import { fillSongCards } from './songCards';
 import type { Env, Mode } from './types';
 
 /** Wait after the spoken title before the music starts, so the voice is finished (iOS ducks Web Audio while it speaks). */
-const INTRO_MS = 3200;
+const INTRO_MS = 4600;
 const COUNT_IN = ['3', '2', '1'];
 const COUNT_IN_FROM_MS = 1500;
 

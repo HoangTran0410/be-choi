@@ -151,7 +151,7 @@ export function showQuiz(app: App, topic: TopicId, root: HTMLElement, scope: Sco
         el.classList.add('wrong');
         app.teacher.think();
         // No scolding: say what the child tapped, then what we are looking for.
-        app.sayer.say([...(opt.name ? [`Đây là ${opt.name}`] : []), ...cq.again], {
+        app.sayer.say([...(opt.name ? [{ text: 'Đây là', gap: 250 }, opt.name] : []), ...cq.again], {
           onDone: () => {
             if (cq.sound) ctx.audio.fx(cq.sound);
           },
@@ -174,7 +174,7 @@ export function showQuiz(app: App, topic: TopicId, root: HTMLElement, scope: Sco
         slipped.add(item.id);
         ctx.audio.boing();
         app.teacher.think();
-        app.sayer.say([`Đây là ${item.name}`, `Mình bỏ vào ${right.name} nhé`]);
+        app.sayer.say([{ text: 'Đây là', gap: 250 }, item.name, `Mình bỏ vào ${right.name} nhé`]);
       },
       onTap(item) {
         ctx.hint.touch();
