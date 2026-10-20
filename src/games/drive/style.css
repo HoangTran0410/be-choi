@@ -42,8 +42,8 @@
 }
 .drive-night {
   top: 2.5vmin;
-  width: calc(var(--tap) * 0.72);
-  height: calc(var(--tap) * 0.72);
+  width: max(56px, calc(var(--tap) * 0.72));
+  height: max(56px, calc(var(--tap) * 0.72));
   font-size: calc(var(--tap) * 0.36);
 }
 .drive-horn {
@@ -162,8 +162,8 @@
 }
 /* The garage door: whichever vehicle is out is the picture on it. */
 .drive-garage {
-  width: min(calc(var(--tap) * 0.95), 18vw, 16vh);
-  height: min(calc(var(--tap) * 0.95), 18vw, 16vh);
+  width: max(56px, min(calc(var(--tap) * 0.95), 18vw, 16vh));
+  height: max(56px, min(calc(var(--tap) * 0.95), 18vw, 16vh));
   border-radius: 30%;
   display: grid;
   place-items: center;

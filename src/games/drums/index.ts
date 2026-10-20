@@ -1,5 +1,6 @@
 import type { DrumKind } from '../../core/audio';
-import { h } from '../../core/dom';
+import { h, replay } from '../../core/dom';
+import { sayText } from '../../core/say';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { BEAT_STEPS, beatAt, PADS, STAR_EVERY, stepMs, type Pad } from './logic';
@@ -169,6 +170,17 @@ function start(ctx: GameContext): void {
 
   grid.addEventListener('pointerdown', onPadDown);
   beatBtn.addEventListener('pointerdown', onBeatDown);
+
+  // Nothing touched for a while: wiggle a pad and say so once (later hints only wiggle).
+  let nudged = -1;
+  ctx.hint.arm(() => {
+    const pads = [...padEls.values()];
+    const pad = pads[Math.floor(Math.random() * pads.length)]?.firstElementChild;
+    if (pad) replay(pad, 'anim-wiggle');
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, 'Gõ vào trống nào!');
+  });
 
   ctx.onCleanup(() => {
     stopBeat();

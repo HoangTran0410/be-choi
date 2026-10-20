@@ -45,13 +45,14 @@
 .sb-tabs {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: min(1.6vmin, 2vw);
   padding: 2.2vmin 2vmin 0.6vmin;
   z-index: 2;
 }
 .sb-tab {
-  --size: min(calc(var(--tap) * 0.82), 13vw);
+  --size: max(56px, min(calc(var(--tap) * 0.82), 13vw));
   width: var(--size);
   height: var(--size);
   flex: 0 0 auto;

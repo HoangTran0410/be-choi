@@ -7,6 +7,7 @@ import { MODES, fitBox, toPixels, toUnit, type Box, type Mode } from './modes';
 import { PICTURES } from './pictures';
 import { createScene, type Scene, type Step } from './scene';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** Remembered for the whole visit, so a child who likes dot-to-dot keeps getting dot-to-dot. */
 let lastMode: Mode = 'follow';
@@ -94,7 +95,15 @@ function start(ctx: GameContext): void {
     layout();
     placePen(null);
     if (announce) ctx.speak(`Mình vẽ ${pic.name} nhé!`);
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
+      nudge('Kéo ngón tay theo nét nhé!');
       const at = scene?.hint();
       if (at) {
         placePen(at);

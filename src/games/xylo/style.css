@@ -16,13 +16,16 @@
   align-items: center;
   gap: 1.5vmin;
   padding: 1.2vmin 1.5vmin;
-  overflow: hidden;
+  /* Too many songs for a narrow screen: swipe the strip instead of cutting the ends off. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  justify-content: safe center;
 }
 .xylo-song,
 .xylo-play,
 .xylo-rec,
 .xylo-replay {
-  --xylo-btn: clamp(44px, 9vmin, 80px);
+  --xylo-btn: clamp(56px, 9vmin, 80px);
   flex: 0 0 auto;
   width: var(--xylo-btn);
   height: var(--xylo-btn);

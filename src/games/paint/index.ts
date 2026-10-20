@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
 import { onHold } from '../../core/hold';
+import { sayText } from '../../core/say';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import { toLineArt, type Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
@@ -626,6 +627,15 @@ function start(ctx: GameContext): void {
     areaWatch = new ResizeObserver(() => resize());
     areaWatch.observe(area);
   }
+  // Left alone: wiggle a colour and say one nudge (later hints only wiggle).
+  let nudged = -1;
+  ctx.hint.arm(() => {
+    const pick = swatches[Math.floor(Math.random() * swatches.length)];
+    if (pick) replay(pick, 'anim-wiggle');
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, 'Chọn màu rồi vẽ nhé!');
+  });
   ctx.onCleanup(() => {
     disposed = true;
     persist();

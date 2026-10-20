@@ -20,6 +20,7 @@ import {
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 const NOTE_GLYPHS = ['🎵', '🎶'] as const;
 const NOTE_MS = 700;
@@ -152,8 +153,16 @@ function start(ctx: GameContext): void {
     songEls.forEach((el, i) => el.classList.toggle('active', SONGBOOK[i] === s));
     ctx.speak(s.title);
     showExpected();
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
       if (!song) return;
+      nudge('Gõ vào thanh đang lắc nhé!');
       const exp = expectedBar(song, index);
       const face = exp ? faceOf(exp.bar) : null;
       if (face) replay(face, 'anim-wiggle');

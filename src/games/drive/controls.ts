@@ -8,6 +8,7 @@ import { POKE_REACH } from './config';
 import { puff } from './fx';
 import { showLoads } from './errands';
 import { inView, type Drive } from './state';
+import { sayText } from '../../core/say';
 
 /**
  * Keep the vehicle the child took out and whether they left the lights off.
@@ -212,7 +213,15 @@ export function bindControls(d: Drive): void {
     openGarage(d);
   });
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Bấm nút cho xe chạy nhé!');
     replay(fwd, 'anim-wiggle');
     // Roll forward a little on its own, so the child sees what the button would do.
     if (d.steer === 0) d.nudge = d.car.x + d.road.unit * 2;

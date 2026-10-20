@@ -24,6 +24,7 @@ import {
   type LoopEvent,
 } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** A tapped pad squashes for this long. */
 const HIT_MS = 120;
@@ -546,7 +547,15 @@ function start(ctx: GameContext): void {
   root.style.setProperty('--jam-beat', `${curStepMs() * 4}ms`);
 
   // Nothing is spoken here: iOS ducks Web Audio while TTS speaks. The nudge is visual.
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Chạm vào các nút để tạo nhạc nhé!');
     if (!alive) return;
     if (layers.length === 0 && rec === null) {
       replay(recBtn, 'jam-nudge');

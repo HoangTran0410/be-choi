@@ -5,6 +5,7 @@ import { meta } from './meta';
 import { BARS, CRITTERS, findCritter, MAX_RECORD_MS, pushBar, shouldStar, type Critter } from './logic';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 /** How long the animal keeps bouncing after a playback that reports no end. */
 const JUMP_MS = 600;
@@ -276,7 +277,15 @@ function start(ctx: GameContext): void {
   };
   root.addEventListener('pointerup', firstTouch);
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Bé nói gì đó đi!');
     replay(micOff ? row : micBtn, 'anim-wiggle');
   });
 

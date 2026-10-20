@@ -21,6 +21,7 @@ import {
   type Surprise,
 } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 const SPOT_COUNT = 4;
 const FREE_LINE = 'Ai đang trốn ở đây nhỉ?';
@@ -260,7 +261,15 @@ function start(ctx: GameContext): void {
 
   peekLoop();
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Ai đang trốn đây nhỉ?');
     // In a find round the hint points at the animal being looked for.
     const pool = target ? spots.filter((s) => s.item.emoji === target?.emoji) : spots.filter((s) => !isOpen(s));
     const spot = pool[randInt(0, pool.length - 1)];

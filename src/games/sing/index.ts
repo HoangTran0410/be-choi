@@ -11,6 +11,7 @@ import { AUDIENCE, NOTE_EMOJI, pitchBand } from './logic';
 const SONGBOOK: readonly SungSong[] = SONGS.filter(hasLyrics);
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 /**
  * Wait after the spoken title before the music starts: long enough for the child
@@ -296,7 +297,15 @@ function start(ctx: GameContext): void {
 
   // ---- idle nudge ----
   function armHint(): void {
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
+      nudge(root.dataset.phase === 'pick' ? 'Chọn một bài để hát nhé!' : 'Bé hát nhé!');
       if (root.dataset.phase === 'pick') {
         for (const card of picker.children) replay(card, 'anim-wiggle');
       } else if (!mic.listening && !micOff) {

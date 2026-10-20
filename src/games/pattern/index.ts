@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makePatternRound, roundSpeech, STAR_EVERY } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** Pause after the missing slot is filled before the next pattern. */
 const NEXT_MS = 900;
@@ -67,7 +68,15 @@ function start(ctx: GameContext): void {
     tray.replaceChildren(...choices);
     ctx.speak(roundSpeech(r));
 
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
+      nudge('Chọn hình đúng nhé!');
       if (locked) return;
       const correct = choices.find((c) => c.dataset.emoji === r.answer.emoji);
       if (correct) replay(correct, 'anim-wiggle');

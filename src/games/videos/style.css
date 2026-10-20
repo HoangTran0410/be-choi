@@ -11,6 +11,7 @@
 .vd-tabs {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: min(1.6vmin, 2vw);
@@ -18,7 +19,7 @@
   z-index: 2;
 }
 .vd-tab {
-  --size: min(calc(var(--tap) * 0.82), 11.5vw);
+  --size: max(56px, min(calc(var(--tap) * 0.82), 11.5vw));
   width: var(--size);
   height: var(--size);
   flex: 0 0 auto;

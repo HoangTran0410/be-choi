@@ -1,5 +1,5 @@
 .paint {
-  --paint-btn: clamp(44px, 9vmin, 72px);
+  --paint-btn: clamp(56px, 9vmin, 72px);
   --paint-gap: clamp(2px, 0.8vmin, 8px);
   position: absolute;
   inset: 0;
