@@ -20,8 +20,7 @@
   max-width: 90%;
   padding: 1.2vmin 2.4vmin;
   border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 4px 0 var(--btn-shadow);
+  background: rgba(255, 255, 255, 0.35);
   font-size: clamp(15px, 3vmin, 26px);
   font-weight: 700;
   color: var(--ink);

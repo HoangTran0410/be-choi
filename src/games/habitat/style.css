@@ -116,19 +116,27 @@
   gap: 8px;
   pointer-events: none;
 }
+/* The errand reads as a label, not a round button: flat pill, no shadow, picture + dots in a row.
+   Tapping still repeats the errand aloud and nudges the button to use. */
 .hb-chip {
-  background: rgba(254, 249, 195, 0.92);
-  grid-template-rows: 1fr auto;
-  padding: 6px 4px 8px;
-  place-items: center;
+  width: auto;
+  height: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
 }
 .hb-chip-icon {
-  font-size: calc(var(--tap) * 0.42);
+  font-size: calc(var(--tap) * 0.36);
   line-height: 1;
 }
 .hb-pips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 3px;
   max-width: 100%;
@@ -184,7 +192,8 @@
   box-shadow: 0 4px 0 rgba(2, 12, 26, 0.55);
 }
 .hb-night .hb-chip {
-  background: rgba(67, 56, 20, 0.88);
+  background: rgba(12, 42, 74, 0.35);
+  box-shadow: none;
 }
 
 /* ---- the egg ---- */

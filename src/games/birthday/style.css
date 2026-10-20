@@ -27,15 +27,14 @@
   pointer-events: none;
 }
 .birthday-tick {
-  width: calc(var(--tap) * 0.42);
-  height: calc(var(--tap) * 0.42);
+  width: calc(var(--tap) * 0.34);
+  height: calc(var(--tap) * 0.34);
   border-radius: 50%;
   display: grid;
   place-items: center;
   font-size: calc(var(--tap) * 0.24);
   line-height: 1;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: inset 0 0 0 0.4vmin rgba(219, 39, 119, 0.18);
+  background: transparent;
   filter: grayscale(1);
   opacity: 0.5;
   transition:

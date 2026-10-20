@@ -143,8 +143,9 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 3px 0 rgba(20, 83, 45, 0.25);
+  /* Display only: flat and soft so it does not read as a button. */
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
   flex: none;
 }
 .hv-star {
