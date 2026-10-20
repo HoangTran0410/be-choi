@@ -31,11 +31,15 @@ export interface Light {
    * over the tank. The tile is a 64 px square blown up three times or more anyway,
    * so nothing sharp is lost, and the fill touches a quarter of the pixels.
    */
-  causticLow: HTMLCanvasElement | null;
+  low: (HTMLCanvasElement | null)[];
+  /** When (in 1/15 s) each small canvas was last filled. */
+  lowAt: number[];
   /** Pictures of the parts of the tank that never move (see ./layers). */
   water: Layer;
   sand: Layer;
   vignette: Layer;
+  /** The sun beams held still, for when the device is struggling. */
+  rays: Layer;
 }
 
 export function createLight(): Light {
@@ -51,10 +55,12 @@ export function createLight(): Light {
     causticPattern: null,
     nightLayer: document.createElement('canvas'),
     nightBuiltFor: '',
-    causticLow: null,
+    low: [null, null],
+    lowAt: [-1, -1],
     water: makeLayer(),
     sand: makeLayer(),
     vignette: makeLayer(),
+    rays: makeLayer(),
   };
 }
 
@@ -112,22 +118,32 @@ export function drawRays(g: CanvasRenderingContext2D, s: State): void {
 /** How much smaller than the tank the caustics are filled. */
 const LOW = 2;
 
-/** Lay the baked square over the tank at a size where the veins read as light on water. */
+/** How often the caustic canvases are refilled: the light drifts slowly, so 15 a second reads as smooth. */
+const REFILL_HZ = 15;
+
+/**
+ * Lay the baked square over the tank at a size where the veins read as light on water.
+ * `slot` picks which small canvas holds the result between refills (0 the water,
+ * 1 the sand): the pattern is filled into it a few times a second, and every
+ * frame in between is one plain `drawImage`. `tint` recolours what was filled
+ * (the sand wants a white light, not the water's pale blue).
+ */
 function tileCaustics(
   g: CanvasRenderingContext2D,
   s: State,
   light: Light,
+  slot: 0 | 1,
   size: number,
   dx: number,
   dy: number,
   top: number,
   bottom: number,
+  tint?: string,
 ): void {
   const scale = size / CAUSTIC_N;
   const w = s.tank.w;
-  // Fill the pattern into the small canvas, then lay that over the tank.
-  let low = light.causticLow;
-  if (!low && typeof document !== 'undefined') low = light.causticLow = document.createElement('canvas');
+  let low = light.low[slot] ?? null;
+  if (!low && typeof document !== 'undefined') low = light.low[slot] = document.createElement('canvas');
   const lw = Math.max(1, Math.ceil(w / LOW));
   const lh = Math.max(1, Math.ceil(s.tank.h / LOW));
   const n = low ? low.getContext('2d') : null;
@@ -144,26 +160,38 @@ function tileCaustics(
     g.fillRect(0, top, w, bottom - top);
     return;
   }
-  if (low.width !== lw || low.height !== lh) {
-    low.width = lw;
-    low.height = lh;
-    light.causticPattern = null;
-  }
-  if (!light.causticPattern) light.causticPattern = n.createPattern(light.causticTile, 'repeat');
-  const pattern = light.causticPattern;
-  if (!pattern) return;
-  try {
-    // The pattern is moved rather than the canvas, so the fill stays put.
-    pattern.setTransform(new DOMMatrix().translateSelf((dx % size) / LOW, (dy % size) / LOW).scaleSelf(scale / LOW, scale / LOW));
-  } catch {
-    // No DOMMatrix (jsdom, older engines): the light simply does not drift.
-  }
   const y = Math.floor(top / LOW);
   const h = Math.min(lh - y, Math.ceil((bottom - top) / LOW) + 1);
-  n.setTransform(1, 0, 0, 1, 0, 0);
-  n.clearRect(0, y, lw, h);
-  n.fillStyle = pattern;
-  n.fillRect(0, y, lw, h);
+  const resized = low.width !== lw || low.height !== lh;
+  const stamp = Math.floor(s.clock * REFILL_HZ);
+  if (resized || light.lowAt[slot] !== stamp) {
+    if (resized) {
+      low.width = lw;
+      low.height = lh;
+      light.causticPattern = null;
+    }
+    light.lowAt[slot] = stamp;
+    if (!light.causticPattern) light.causticPattern = n.createPattern(light.causticTile, 'repeat');
+    const pattern = light.causticPattern;
+    if (!pattern) return;
+    try {
+      // The pattern is moved rather than the canvas, so the fill stays put.
+      pattern.setTransform(new DOMMatrix().translateSelf((dx % size) / LOW, (dy % size) / LOW).scaleSelf(scale / LOW, scale / LOW));
+    } catch {
+      // No DOMMatrix (jsdom, older engines): the light simply does not drift.
+    }
+    n.setTransform(1, 0, 0, 1, 0, 0);
+    n.globalCompositeOperation = 'source-over';
+    n.clearRect(0, y, lw, h);
+    n.fillStyle = pattern;
+    n.fillRect(0, y, lw, h);
+    if (tint) {
+      n.globalCompositeOperation = 'source-atop';
+      n.fillStyle = tint;
+      n.fillRect(0, y, lw, h);
+      n.globalCompositeOperation = 'source-over';
+    }
+  }
   g.drawImage(low, 0, y, lw, h, 0, y * LOW, lw * LOW, h * LOW);
 }
 
@@ -174,7 +202,7 @@ export function drawCaustics(g: CanvasRenderingContext2D, s: State, light: Light
   g.save();
   g.globalCompositeOperation = 'source-over';
   g.globalAlpha = 0.12;
-  tileCaustics(g, s, light, tank.unit * 3.4, clock * 16, Math.sin(clock * 0.3) * tank.unit, 0, tank.h);
+  tileCaustics(g, s, light, 0, tank.unit * 3.4, clock * 16, Math.sin(clock * 0.3) * tank.unit, 0, tank.h);
   g.restore();
 }
 
@@ -186,12 +214,11 @@ export function drawSandCaustics(g: CanvasRenderingContext2D, s: State, light: L
   if (!light.tileCtx) return;
   const { tank, clock } = s;
   g.save();
-  g.globalCompositeOperation = 'screen';
   g.globalAlpha = 0.45;
   g.beginPath();
   g.rect(0, tank.floor + tank.unit * 0.08, tank.w, tank.h - tank.floor);
   g.clip();
-  tileCaustics(g, s, light, tank.unit * 2.2, clock * -10, 0, tank.floor, tank.h);
+  tileCaustics(g, s, light, 1, tank.unit * 2.2, clock * -10, 0, tank.floor, tank.h, '#ffffff');
   g.restore();
 }
 
