@@ -1,40 +1,68 @@
 /*
- * Hát cùng bé. One concert hall: backdrop and lights behind, then (portrait) the
- * mode buttons, a panel for the mode, the singer and the crowd; (landscape) the
- * mode buttons on the left, the panel in the middle, the singer on the right and the
- * crowd along the bottom. Every button is at least --tap-min square: 72px, and 56px on a
- * short sideways screen or a very narrow one, where nothing else fits. The crowd sizes its
- * fans from its own width, so five animals and three photos always stand in view.
+ * Hát cùng bé. Two screens, never more than a handful of buttons on either.
+ *   menu: the singer, and the four big game cards (2x2); a dressing-room button in the corner.
+ *   play: the way back, the game's one main thing (a song shelf, the words, the microphone, the
+ *         lights button) in the middle, the singer, and the crowd along the bottom.
+ * Everything is sized from the stage itself (.sa is a size container, so cqmin/cqw/cqh are the
+ * stage's, not the window's) and laid out by container query: portrait stacks, landscape puts the
+ * way back on the left and the singer on the right. Nothing is meant to scroll except the shelf
+ * of songs and the dressing room's choices, when there are more than fit.
  */
 .sa {
-  --tap-min: 72px;
-  --tap: clamp(var(--tap-min), 14vmin, 140px);
-  --sg: clamp(110px, 20vmin, 190px);
-  --sa-level: 0;
   position: absolute;
   inset: 0;
   overflow: hidden;
+  container-type: size;
   touch-action: none;
+  color: #fff;
+}
+.sa-in {
+  --tap-min: 64px;
+  --tap: clamp(var(--tap-min), 15cqmin, 96px);
+  --emoji: clamp(48px, 11cqmin, 110px);
+  --sg: clamp(92px, min(34cqw, 19cqh), 180px);
+  --card: clamp(88px, min(34cqmin, 24cqw), 210px);
+  --sa-level: 0;
+  position: absolute;
+  inset: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-areas: 'top' 'panel' 'singer' 'crowd';
-  gap: 1vmin;
-  padding: 0 max(8px, 2vmin) 0;
-  color: #fff;
+  gap: 1.2cqmin;
+  padding: 0 max(8px, 2cqmin);
+}
+.sa-in[data-view='menu'] {
+  --sg: clamp(110px, min(52cqw, 28cqh), 250px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'top' 'singer' 'modes' 'crowd';
 }
 .sa [hidden] {
   display: none !important;
 }
-.sa > * {
+.sa-in > * {
   position: relative;
   z-index: 1;
   min-width: 0;
   min-height: 0;
 }
+/* Which screen shows what. */
+.sa-in[data-view='menu'] .sa-panel,
+.sa-in[data-view='menu'] .sa-home,
+.sa-in[data-view='menu'] .sa-mic {
+  display: none;
+}
+.sa-in[data-view='play'] .sa-modes,
+.sa-in[data-view='play'] .sa-wardrobe {
+  display: none;
+}
+/* With the microphone on there is nothing left to press: the singer glows instead. */
+.sa-mic-on .sa-mic {
+  display: none;
+}
 
 /* ---- backdrop ---- */
-.sa .sa-back {
+.sa-in > .sa-back {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -75,7 +103,7 @@
   position: absolute;
   top: calc(var(--i) * 9%);
   left: calc(8% + var(--i) * 36%);
-  font-size: clamp(36px, 9vmin, 84px);
+  font-size: clamp(36px, 9cqmin, 84px);
   opacity: 0.5;
 }
 .sa-curtain {
@@ -83,8 +111,8 @@
   top: 0;
   bottom: 0;
   width: 7%;
-  background: repeating-linear-gradient(90deg, #9f1239 0 1.6vmin, #be123c 1.6vmin 3.2vmin);
-  box-shadow: inset 0 0 3vmin rgba(0, 0, 0, 0.45);
+  background: repeating-linear-gradient(90deg, #9f1239 0 1.6cqmin, #be123c 1.6cqmin 3.2cqmin);
+  box-shadow: inset 0 0 3cqmin rgba(0, 0, 0, 0.45);
 }
 .sa-curtain-l {
   left: 0;
@@ -99,20 +127,20 @@
 }
 .sa-lights {
   position: absolute;
-  top: 0.8vmin;
+  top: 0.8cqmin;
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-evenly;
 }
 .sa-light {
-  width: 4.5vmin;
-  height: 4.5vmin;
+  width: 4.5cqmin;
+  height: 4.5cqmin;
   border-radius: 50%;
   background: var(--lc);
   opacity: calc(0.3 + var(--sa-level) * 0.7);
   /* A fixed glow, brightened through opacity: a blur radius that changes with the voice is redrawn every frame. */
-  box-shadow: 0 0 6vmin var(--lc);
+  box-shadow: 0 0 6cqmin var(--lc);
   transition: opacity 0.12s linear;
 }
 .sa-back[data-lights='rainbow'] .sa-light {
@@ -128,69 +156,68 @@
   }
 }
 
-/* ---- top row: tickets and the four modes ---- */
+/* ---- the corner: the way back (or the dressing room) and the ticket count ---- */
 .sa-top {
   grid-area: top;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 0.6vmin 8px;
+  justify-content: space-between;
+  gap: 8px;
   /* Clear of the row of stage lights. */
-  padding-top: 5.6vmin;
+  padding-top: 5.6cqmin;
 }
 .sa-chip {
-  flex: 1 0 100%;
   display: flex;
-  justify-content: center;
-  gap: 2vmin;
-  font-size: clamp(12px, 2.6vmin, 18px);
+  align-items: center;
+  min-height: 36px;
+  padding: 0 2cqmin;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.32);
+  font-size: clamp(14px, 3.4cqmin, 24px);
   font-weight: 800;
+  white-space: nowrap;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
 }
-.sa-chip-n {
-  padding: 0 1.6vmin;
-  border-radius: 99px;
-  background: rgba(0, 0, 0, 0.3);
+.sa-home,
+.sa-wardrobe {
+  flex: none;
 }
-.sa-chip-next {
-  opacity: 0.9;
-}
+
+/* ---- the opening screen: four big cards ---- */
 .sa-modes {
-  display: flex;
-  gap: 8px;
+  grid-area: modes;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, var(--card));
+  gap: 2cqmin;
+  padding-bottom: 1cqmin;
 }
 .sa-mode {
-  width: var(--tap);
-  height: var(--tap);
-  min-width: var(--tap-min);
   min-height: var(--tap-min);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2vmin;
+  gap: 0.6cqmin;
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 4px 0 var(--btn-shadow);
+  box-shadow: 0 5px 0 var(--btn-shadow);
   transition: transform 0.1s;
 }
 .sa-mode-icon {
-  font-size: calc(var(--tap) * 0.44);
+  font-size: clamp(40px, 15cqmin, 110px);
   line-height: 1;
 }
 .sa-mode-name {
-  font-size: clamp(11px, 2vmin, 15px);
+  font-size: clamp(12px, 3cqmin, 18px);
   font-weight: 800;
   line-height: 1;
-}
-.sa-mode-on {
-  background: #fef08a;
-  box-shadow:
-    0 4px 0 var(--btn-shadow),
-    0 0 0 0.9vmin #fff;
-  transform: translateY(-2px);
 }
 .sa-mode:active {
   transform: scale(0.94);
@@ -201,22 +228,15 @@
   grid-area: panel;
   display: flex;
   flex-direction: column;
-  gap: 0.8vmin;
 }
+/* The words said aloud, for a screen reader: not painted, a child cannot read them. */
 .sa-bubble {
-  flex: none;
-  padding: 0.8vmin 2vmin;
-  border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.32);
-  font-size: clamp(15px, 3.2vmin, 24px);
-  font-weight: 800;
-  line-height: 1.25;
-  text-align: center;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  position: absolute;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .sa-body {
   flex: 1;
@@ -228,19 +248,28 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 1vmin;
+  gap: 1cqmin;
   min-height: 0;
 }
 
 /* ---- the singer ---- */
 .sa-singer-row {
   grid-area: singer;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 3vmin;
-  /* Room above the singer for a tall hat. */
-  padding-top: calc(var(--sg) * 0.24);
+  justify-items: center;
+  /* Room above the singer for a tall hat, and at the sides for the bounce, the microphone and the glow. */
+  padding: calc(var(--sg) * 0.24) calc(var(--sg) * 0.16) 0;
+}
+.sa-singer-row > .sa-singer {
+  grid-column: 2;
+  grid-row: 1;
+}
+.sa-singer-row > .sa-mic {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
 }
 .sa-singer {
   position: relative;
@@ -251,8 +280,8 @@
   place-items: center;
   background: rgba(255, 255, 255, 0.22);
   box-shadow:
-    0 0 0 0.8vmin rgba(255, 255, 255, 0.55),
-    0 0 calc(var(--sa-level) * 5vmin) rgba(253, 224, 71, 0.9);
+    0 0 0 0.8cqmin rgba(255, 255, 255, 0.55),
+    0 0 calc(var(--sa-level) * 5cqmin) rgba(253, 224, 71, 0.9);
   transform: scale(calc(1 + var(--sa-level, 0) * 0.1)) rotate(calc((var(--sa-height, 0.5) - 0.5) * 10deg));
   transition: transform 0.08s linear;
 }
@@ -268,7 +297,7 @@
   background-position: center;
 }
 .sa-face.sa-photo {
-  border: 0.8vmin solid #fff;
+  border: 0.8cqmin solid #fff;
   box-sizing: border-box;
 }
 .sa-hat {
@@ -314,7 +343,7 @@
   background: #fef08a;
   box-shadow:
     0 4px 0 var(--btn-shadow),
-    0 0 0 calc(var(--sa-level, 0) * 2vmin) rgba(253, 224, 71, 0.5);
+    0 0 0 calc(var(--sa-level, 0) * 2cqmin) rgba(253, 224, 71, 0.5);
 }
 .sa-mic.sa-off {
   opacity: 0.55;
@@ -330,7 +359,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 0.5vmin;
+  padding-bottom: 0.5cqmin;
 }
 .sa-row {
   display: flex;
@@ -340,7 +369,7 @@
 }
 .sa-fan {
   /* Five animals in a row (portrait) or all eight in one (sideways) fit the crowd's own width. */
-  --fan: clamp(56px, min(11vmin, 18cqw), 104px);
+  --fan: clamp(56px, 18cqw, 88px);
   width: var(--fan);
   height: var(--fan);
   flex: none;
@@ -359,7 +388,7 @@
 }
 .sa-fan-face.sa-photo {
   border-radius: 50%;
-  border: 0.6vmin solid #fde68a;
+  border: 0.6cqmin solid #fde68a;
   box-sizing: border-box;
   background-size: cover;
   background-position: center;
@@ -422,7 +451,7 @@
 }
 
 /* ---- floating notes and sparks ---- */
-.sa .sa-fx {
+.sa-in > .sa-fx {
   position: absolute;
   inset: 0;
   z-index: 5;
@@ -446,7 +475,7 @@
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -40vmin) scale(1.3) rotate(18deg);
+    transform: translate(-50%, -40cqmin) scale(1.3) rotate(18deg);
   }
 }
 .sa-spark {
@@ -467,36 +496,52 @@
   }
   100% {
     opacity: 0;
-    transform: translate(var(--dx, 0), -55vmin) scale(1.4) rotate(40deg);
+    transform: translate(var(--dx, 0), -55cqmin) scale(1.4) rotate(40deg);
   }
 }
 
-/* ---- song cards (karaoke and the show share them) ---- */
+/* ---- song shelf (karaoke and the show share it): the one place that may scroll ---- */
 .sa-songs {
+  --shelf: #4a1a7c;
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(30vmin, 128px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(clamp(96px, 26cqmin, 150px), 1fr));
   grid-auto-rows: min-content;
   align-content: start;
-  gap: 1.4vmin;
-  padding: 1.2vmin;
+  gap: 1.6cqmin;
+  padding: 1.6cqmin;
   border-radius: var(--radius);
-  background: rgba(30, 5, 50, 0.28);
+  /* Shadows at the edge that still has more behind it: the shelf says it scrolls. */
+  background:
+    linear-gradient(var(--shelf) 30%, transparent) center top,
+    linear-gradient(transparent, var(--shelf) 70%) center bottom,
+    radial-gradient(farthest-side at 50% 0, rgba(255, 255, 255, 0.55), transparent) center top,
+    radial-gradient(farthest-side at 50% 100%, rgba(255, 255, 255, 0.55), transparent) center bottom;
+  background-color: var(--shelf);
+  background-repeat: no-repeat;
+  background-size:
+    100% 36px,
+    100% 36px,
+    100% 12px,
+    100% 12px;
+  background-attachment: local, local, scroll, scroll;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.7) transparent;
 }
 .sa-song {
   min-width: 0;
-  min-height: var(--tap);
-  padding: 1vmin;
+  min-height: calc(var(--tap) * 1.5);
+  padding: 1cqmin;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.4vmin;
+  gap: 0.4cqmin;
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
@@ -507,19 +552,18 @@
   transform: scale(0.95);
 }
 .sa-song-icon {
-  font-size: calc(var(--emoji) * 0.55);
+  font-size: clamp(40px, 12cqmin, 84px);
   line-height: 1;
 }
 .sa-song-title {
-  font-size: clamp(12px, 2.3vmin, 18px);
+  font-size: clamp(11px, 2.2cqmin, 16px);
   font-weight: 800;
   line-height: 1.15;
   text-align: center;
   overflow-wrap: anywhere;
 }
-.sa-song-lock,
-.sa-part-lock {
-  font-size: clamp(11px, 2vmin, 15px);
+.sa-song-lock {
+  font-size: clamp(11px, 2cqmin, 15px);
   font-weight: 800;
 }
 .sa-locked {
@@ -527,7 +571,7 @@
   filter: grayscale(0.6);
 }
 
-/* ---- karaoke ---- */
+/* ---- karaoke: the words, big, in the middle ---- */
 .sa-sing {
   position: absolute;
   inset: 0;
@@ -535,20 +579,16 @@
   align-items: center;
   justify-content: center;
 }
-.sa-sing .sa-stop {
-  position: absolute;
-  top: 0;
-  right: 0;
-}
 .sa-lyric {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1vmin;
+  gap: 1cqmin;
+  max-width: 100%;
   text-align: center;
 }
 .sa-lyric-emoji {
-  font-size: calc(var(--emoji) * 1.1);
+  font-size: clamp(56px, 20cqmin, 150px);
   line-height: 1;
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
 }
@@ -557,7 +597,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.1em 0.45em;
-  font-size: clamp(24px, 7vmin, 48px);
+  font-size: clamp(26px, 8cqmin, 64px);
   font-weight: 800;
   line-height: 1.2;
   transition: filter 0.15s;
@@ -583,7 +623,7 @@
   }
 }
 .sa-voice .sa-words {
-  filter: drop-shadow(0 0 1.4vmin rgba(253, 224, 71, 0.95));
+  filter: drop-shadow(0 0 1.4cqmin rgba(253, 224, 71, 0.95));
 }
 .sa-line-in {
   animation: sa-line-in 0.4s ease-out;
@@ -608,7 +648,7 @@
   place-items: center;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 0 0 1.2vmin rgba(253, 224, 71, 0.55);
+  box-shadow: 0 0 0 1.2cqmin rgba(253, 224, 71, 0.55);
   color: #4c1d95;
   font-size: calc(var(--tap) * 0.8);
   font-weight: 800;
@@ -634,30 +674,25 @@
   }
 }
 
-/* ---- echo choir ---- */
+/* ---- echo choir: the microphone is the one button ---- */
 .sa-choir {
   display: flex;
   justify-content: center;
-  gap: 1.4vmin;
+  gap: 2cqmin;
   flex: none;
 }
 .sa-part {
   position: relative;
-  width: var(--tap);
-  height: var(--tap);
-  min-width: var(--tap-min);
-  min-height: var(--tap-min);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius);
-  background: var(--surface);
+  width: clamp(36px, 9cqmin, 64px);
+  height: clamp(36px, 9cqmin, 64px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
   color: var(--ink);
-  box-shadow: 0 4px 0 var(--btn-shadow);
 }
 .sa-part-e {
-  font-size: calc(var(--tap) * 0.5);
+  font-size: clamp(22px, 5.6cqmin, 40px);
   line-height: 1;
 }
 .sa-singing-part,
@@ -672,22 +707,20 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.2vmin;
+  gap: 1.2cqmin;
 }
 .sa-echo-go {
-  width: calc(var(--tap) * 1.35);
-  height: calc(var(--tap) * 1.35);
-  min-width: 96px;
-  min-height: 96px;
+  width: clamp(96px, min(50cqw, 34cqh), 230px);
+  height: clamp(96px, min(50cqw, 34cqh), 230px);
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: calc(var(--tap) * 0.7);
+  font-size: clamp(52px, min(26cqw, 18cqh), 120px);
   line-height: 1;
   background: #fef08a;
   box-shadow:
     0 5px 0 var(--btn-shadow),
-    0 0 0 1vmin rgba(255, 255, 255, 0.5);
+    0 0 0 1cqmin rgba(255, 255, 255, 0.5);
 }
 .sa-mode-panel[data-state='listening'] .sa-echo-go {
   background: #fca5a5;
@@ -699,15 +732,15 @@
 .sa-bars {
   display: flex;
   align-items: center;
-  gap: 0.6vmin;
-  height: clamp(20px, 5vmin, 40px);
+  gap: 0.6cqmin;
+  height: clamp(18px, 4.4cqmin, 36px);
   visibility: hidden;
 }
 .sa-mode-panel[data-state='listening'] .sa-bars {
   visibility: visible;
 }
 .sa-bar {
-  width: 1.6vmin;
+  width: 1.6cqmin;
   min-width: 6px;
   height: calc(12% + var(--b, 0) * 88%);
   border-radius: 99px;
@@ -715,9 +748,9 @@
 }
 .sa-pips {
   display: flex;
-  gap: 1.6vmin;
+  gap: 1.6cqmin;
   flex: none;
-  font-size: clamp(20px, 4.4vmin, 36px);
+  font-size: clamp(18px, 4cqmin, 32px);
 }
 .sa-pip {
   opacity: 0.35;
@@ -776,7 +809,7 @@
   left: 25%;
   aspect-ratio: 1.5 / 1;
   transform: translate(-50%, -50%);
-  border: 0.9vmin dashed rgba(253, 224, 71, 0.95);
+  border: 0.9cqmin dashed rgba(253, 224, 71, 0.95);
   border-radius: 50%;
   pointer-events: none;
   transition: top 0.6s ease-in-out;
@@ -789,7 +822,7 @@
 }
 .sa-ring-in {
   border-style: solid;
-  box-shadow: 0 0 3vmin rgba(253, 224, 71, 0.95);
+  box-shadow: 0 0 3cqmin rgba(253, 224, 71, 0.95);
 }
 .sa-bird-spark {
   position: absolute;
@@ -806,9 +839,9 @@
 .sa-score {
   display: flex;
   justify-content: center;
-  gap: 1vmin;
+  gap: 1cqmin;
   flex: none;
-  font-size: clamp(18px, 4vmin, 32px);
+  font-size: clamp(18px, 4cqmin, 32px);
 }
 .sa-slot {
   opacity: 0.35;
@@ -819,55 +852,47 @@
   filter: none;
 }
 
-/* ---- the show ---- */
-.sa-fxrow {
-  flex: none;
-  display: flex;
-  justify-content: center;
-  gap: 1.4vmin;
-}
-.sa-fx-btn {
-  width: var(--tap);
-  height: var(--tap);
-  min-width: var(--tap-min);
-  min-height: var(--tap-min);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: calc(var(--tap) * 0.5);
-  line-height: 1;
-  background: var(--surface);
-  box-shadow: 0 4px 0 var(--btn-shadow);
-}
-.sa-fx-on {
-  background: #fef08a;
-  box-shadow:
-    0 4px 0 var(--btn-shadow),
-    0 0 0 0.9vmin #fff;
-}
+/* ---- the show: the song, and one big button that changes the lights ---- */
 .sa-now {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 2vmin;
-  padding: 0 1vmin;
+  justify-content: center;
+  gap: 2cqmin;
+}
+.sa-now-song {
+  display: flex;
+  align-items: center;
+  gap: 2cqmin;
+  max-width: 100%;
 }
 .sa-now-icon {
-  font-size: calc(var(--emoji) * 0.9);
+  font-size: clamp(40px, 12cqmin, 100px);
   line-height: 1;
   animation: sa-jump 0.9s ease-in-out infinite;
 }
 .sa-now-title {
-  font-size: clamp(18px, 4vmin, 34px);
+  font-size: clamp(16px, 3.6cqmin, 30px);
   font-weight: 800;
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
 }
-
-/* ---- the stop button shared by the song and the show ---- */
-.sa-stop {
-  color: var(--ink);
+.sa-fx-btn {
+  width: clamp(96px, min(48cqw, 32cqh), 220px);
+  height: clamp(96px, min(48cqw, 32cqh), 220px);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: clamp(52px, min(26cqw, 17cqh), 120px);
+  line-height: 1;
+  background: #fef08a;
+  box-shadow:
+    0 5px 0 var(--btn-shadow),
+    0 0 0 1cqmin rgba(255, 255, 255, 0.5);
+}
+.sa-fx-pop {
+  animation: sa-jump 0.45s ease-out;
 }
 
 /* ---- curtain call ---- */
@@ -877,31 +902,35 @@
   z-index: 20;
   display: grid;
   place-items: center;
-  padding: 2vmin;
+  padding: 2cqmin;
   background: rgba(30, 5, 50, 0.6);
 }
 .sa-res-card {
+  max-width: 100%;
   max-height: 100%;
   overflow-y: auto;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.2vmin;
-  padding: 2.4vmin 4vmin;
+  justify-content: center;
+  gap: 1.6cqmin 3cqmin;
+  padding: 2.4cqmin 4cqmin;
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
   text-align: center;
   box-shadow: 0 8px 0 var(--btn-shadow);
 }
-.sa-res-title {
-  font-size: clamp(22px, 5vmin, 40px);
-  font-weight: 800;
+.sa-res-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqmin;
 }
 .sa-res-stars {
   display: flex;
-  gap: 1vmin;
-  font-size: calc(var(--emoji) * 0.8);
+  gap: 1cqmin;
+  font-size: clamp(40px, 13cqmin, 96px);
   line-height: 1;
 }
 .sa-res-star {
@@ -926,72 +955,83 @@
   }
 }
 .sa-res-tickets {
-  font-size: clamp(20px, 4.4vmin, 34px);
+  font-size: clamp(20px, 5cqmin, 38px);
   font-weight: 800;
 }
 .sa-res-gifts {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6vmin;
-}
-.sa-res-new {
-  font-size: clamp(16px, 3.4vmin, 26px);
-  font-weight: 800;
-  color: var(--title);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.4cqmin 2.4cqmin;
 }
 .sa-res-gift {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1.4vmin;
-  font-size: clamp(14px, 3vmin, 22px);
+  gap: 0.2cqmin;
+  font-size: clamp(11px, 2.2cqmin, 16px);
   font-weight: 700;
 }
 .sa-res-gift-e {
-  font-size: calc(var(--emoji) * 0.5);
+  font-size: clamp(36px, 10cqmin, 72px);
   line-height: 1;
 }
 .sa-res-go {
-  width: calc(var(--tap) * 1.15);
-  height: calc(var(--tap) * 1.15);
+  width: clamp(72px, 18cqmin, 130px);
+  height: clamp(72px, 18cqmin, 130px);
   background: #fef08a;
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-/* ---- dressing room ---- */
+/* ---- dressing room: first which part, then the choices for that part ---- */
 .sa .sa-wd {
   position: absolute;
   inset: 0;
   z-index: 25;
-  background: rgba(30, 5, 50, 0.82);
+  background: rgba(30, 5, 50, 0.94);
+  --wd: clamp(84px, min(29cqw, 34cqh), 200px);
 }
 .sa-wd-body {
   position: absolute;
-  inset: 0 0 calc(var(--tap) + 3vmin) 0;
+  inset: 0 0 calc(var(--tap) + 3cqmin) 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  padding: 1.6vmin 2vmin;
+  padding: 2cqmin;
+  display: grid;
+  align-items: center;
 }
-.sa-wd-sec {
-  margin-bottom: 1.4vmin;
+.sa-wd-parts {
+  display: flex;
+  justify-content: center;
+  gap: 3cqmin;
 }
-.sa-wd-h {
-  margin: 0 0 0.8vmin;
-  font-size: clamp(14px, 3vmin, 22px);
-  font-weight: 800;
+.sa-wd-cat {
+  width: var(--wd);
+  height: var(--wd);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 5px 0 var(--btn-shadow);
+}
+.sa-wd-cat .sa-wd-emoji {
+  font-size: calc(var(--wd) * 0.55);
 }
 .sa-wd-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.2vmin;
+  display: grid;
+  --cell: clamp(64px, 20cqmin, 120px);
+  grid-template-columns: repeat(auto-fit, minmax(var(--cell), max-content));
+  justify-content: center;
+  gap: 1.6cqmin;
+  max-width: calc(var(--cell) * 4 + 1.6cqmin * 3 + 2px);
+  margin-inline: auto;
 }
 .sa-wd-cell {
   position: relative;
-  width: var(--tap);
-  height: var(--tap);
-  min-width: var(--tap-min);
-  min-height: var(--tap-min);
+  width: var(--cell);
+  height: var(--cell);
   display: grid;
   place-items: center;
   border-radius: var(--radius);
@@ -1000,7 +1040,7 @@
   box-shadow: 0 4px 0 var(--btn-shadow);
 }
 .sa-wd-emoji {
-  font-size: calc(var(--tap) * 0.5);
+  font-size: clamp(32px, 11cqmin, 68px);
   line-height: 1;
 }
 .sa-wd-photo {
@@ -1010,11 +1050,15 @@
   background-size: cover;
   background-position: center;
 }
+.sa-wd-cat .sa-wd-photo {
+  width: 70%;
+  height: 70%;
+}
 .sa-wd-on {
   background: #fef08a;
   box-shadow:
     0 4px 0 var(--btn-shadow),
-    0 0 0 0.9vmin #fff;
+    0 0 0 0.9cqmin #fff;
 }
 .sa-wd-locked {
   opacity: 0.55;
@@ -1024,66 +1068,88 @@
   position: absolute;
   right: 4%;
   bottom: 2%;
-  font-size: clamp(11px, 2vmin, 14px);
+  font-size: clamp(11px, 2cqmin, 14px);
   font-weight: 800;
 }
+.sa-wd-back,
 .sa-wd-close {
   position: absolute;
-  right: 2vmin;
-  bottom: 1.5vmin;
+  left: 50%;
+  bottom: 1.5cqmin;
+  translate: -50% 0;
+}
+.sa-wd-close {
   background: #bbf7d0;
 }
+.sa-wd[data-step='parts'] .sa-wd-back {
+  display: none;
+}
+.sa-wd:not([data-step='parts']) .sa-wd-close {
+  display: none;
+}
 
-/* ---- sideways: modes on the left, the singer on the right, the crowd along the bottom ---- */
-@media (orientation: landscape) {
-  .sa {
-    --sg: clamp(96px, 30vmin, 170px);
+/* ---- sideways: the way back on the left, the singer on the right, the crowd along the bottom ---- */
+@container (min-aspect-ratio: 1/1) {
+  .sa-in {
+    --sg: clamp(88px, min(24cqw, 44cqh), 200px);
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas: 'top panel singer' 'crowd crowd crowd';
-    column-gap: 2vmin;
+    column-gap: 2cqmin;
+  }
+  .sa-in[data-view='menu'] {
+    --sg: clamp(100px, min(26cqw, 56cqh), 260px);
+    --card: clamp(88px, min(30cqmin, 19cqw), 210px);
+    /* The singer and the four cards sit together in the middle, the corner buttons stay at the left. */
+    grid-template-columns: auto minmax(0, 1fr) auto auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: 'top . singer modes .' 'crowd crowd crowd crowd crowd';
+    column-gap: 3cqmin;
   }
   .sa-top {
     flex-direction: column;
-    flex-wrap: nowrap;
+    align-items: flex-start;
     justify-content: flex-start;
-    gap: 1.2vmin;
-    padding-top: 4vmin;
-  }
-  .sa-chip {
-    flex: none;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.4vmin;
-    text-align: center;
-    max-width: calc(var(--tap) * 2 + 8px);
-    font-size: clamp(11px, 2.4vmin, 15px);
+    gap: 1.2cqmin;
+    padding-top: 4cqmin;
   }
   .sa-modes {
-    display: grid;
-    grid-template-columns: repeat(2, var(--tap));
-    grid-auto-rows: var(--tap);
-  }
-  .sa-mode {
-    min-width: var(--tap-min);
+    width: auto;
+    grid-template-columns: repeat(2, var(--card));
+    grid-auto-rows: var(--card);
+    max-width: none;
   }
   .sa-singer-row {
-    display: grid;
-    grid-template-columns: repeat(2, var(--tap));
-    justify-items: center;
+    grid-template-columns: auto;
+    grid-template-rows: 1fr auto;
     align-content: center;
-    gap: 1.4vmin 2vmin;
+    gap: 1cqmin;
   }
-  .sa-singer {
-    grid-column: 1 / -1;
-  }
-  .sa-mic {
-    grid-row: 2;
+  .sa-singer-row > .sa-singer {
     grid-column: 1;
+    grid-row: 1;
   }
-  .sa-wardrobe {
+  .sa-singer-row > .sa-mic {
+    grid-column: 1;
     grid-row: 2;
-    grid-column: 2;
+    justify-self: center;
+  }
+  .sa-in[data-view='menu'] .sa-singer-row {
+    grid-template-rows: 1fr;
+  }
+  .sa-panel {
+    padding-top: 3.6cqmin;
+  }
+  .sa-lights {
+    top: 0.4cqmin;
+    justify-content: space-around;
+  }
+  .sa-light {
+    width: 3cqmin;
+    height: 3cqmin;
+  }
+  .sa-fan {
+    --fan: clamp(56px, 11.5cqw, 80px);
   }
   .sa-crowd {
     flex-direction: row;
@@ -1093,45 +1159,34 @@
   .sa-row {
     display: contents;
   }
-  .sa-fan {
-    --fan: clamp(56px, min(11vmin, 11.5cqw), 104px);
-  }
-  .sa-lights {
-    top: 0.4vmin;
-    justify-content: space-around;
-  }
-  .sa-light {
-    width: 3vmin;
-    height: 3vmin;
-  }
-  .sa-panel {
-    padding-top: 3.6vmin;
-  }
-  /* Short and wide: the words sit beside the stop button instead of under it. */
-  .sa-sing {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    justify-content: stretch;
-    align-items: start;
-  }
-  .sa-sing .sa-stop {
-    position: static;
-    grid-column: 2;
-    grid-row: 1;
-  }
   .sa-lyric {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
+    flex-direction: row;
+    gap: 3cqmin;
   }
   .sa-lyric-emoji {
-    font-size: calc(var(--emoji) * 0.85);
+    font-size: clamp(52px, 16cqmin, 120px);
+  }
+  .sa-now {
+    flex-direction: row;
+    gap: 4cqmin;
+  }
+  .sa-now-song {
+    flex-direction: column;
+    text-align: center;
+  }
+  .sa-echo-go {
+    width: clamp(96px, min(26cqw, 34cqh), 230px);
+    height: clamp(96px, min(26cqw, 34cqh), 230px);
+  }
+  .sa-fx-btn {
+    width: clamp(96px, min(26cqw, 36cqh), 220px);
+    height: clamp(96px, min(26cqw, 36cqh), 220px);
   }
 }
 
-/* A short sideways screen, or a very narrow one: the buttons give up 16px each so the words get room. */
-@media (orientation: landscape) and (max-height: 430px), (max-width: 359px) {
-  .sa {
+/* A short sideways stage, or a very narrow one: every button gives up 8px, and still stays above 56px. */
+@container (max-height: 430px), (max-width: 359px) {
+  .sa-in {
     --tap-min: 56px;
   }
 }

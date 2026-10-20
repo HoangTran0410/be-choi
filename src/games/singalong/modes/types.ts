@@ -40,6 +40,11 @@ export interface Mode {
   frame?(frame: VoiceFrame): void;
   /** A finger came down on the singer (a clap). */
   hit?(): void;
+  /**
+   * The back button was pressed. Return true when the mode took it itself (a song in progress
+   * goes back to the shelf); false sends the child back to the opening screen.
+   */
+  back?(): boolean;
   /** The idle hint: wiggle whatever would help. */
   nudge?(): void;
 }

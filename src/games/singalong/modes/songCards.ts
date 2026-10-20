@@ -5,15 +5,21 @@ import { REPERTOIRE, songUnlockAt } from '../catalog';
 import type { Env } from './types';
 
 /**
- * The shelf of songs. A song not yet won is dimmed with its ticket price; touching
+ * The shelf of songs: those won, and the next one dimmed with its ticket price; touching
  * it only says how many tickets are missing — no buzzer, nothing lost.
  */
 export function fillSongCards<S extends Song>(env: Env, grid: HTMLElement, songs: readonly S[], onPick: (song: S) => void): void {
   grid.replaceChildren();
   const tickets = env.progress.get().tickets;
+  // The songs won so far, and only the next one still locked: a shelf of a dozen dimmed cards is a lot for a small child.
+  let teaser = false;
   for (const song of songs) {
     const need = songUnlockAt(REPERTOIRE.indexOf(song));
     const locked = need > tickets;
+    if (locked) {
+      if (teaser) continue;
+      teaser = true;
+    }
     const card = h(
       'button',
       { class: `sa-song${locked ? ' sa-locked' : ''}`, type: 'button', 'data-song': song.id, 'aria-label': song.title },

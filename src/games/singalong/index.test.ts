@@ -74,20 +74,31 @@ const mode = (id: string) => q(ctx, `.sa-mode[data-mode="${id}"]`);
 const panel = (id: string) => q(ctx, `.sa-mode-panel[data-mode="${id}"]`);
 
 describe('the hall', () => {
-  it('opens on the karaoke with four big mode buttons, the singer and the crowd', async () => {
+  it('opens on four big game cards and the singer, and a card opens its game', async () => {
     game.start(ctx);
     await settle(50);
     expect(all(ctx, '.sa-mode').length).toBe(4);
+    expect(q(ctx, '.sa-in').dataset.view).toBe('menu');
+    expect(q(ctx, '.sa').dataset.mode).toBeUndefined();
+    expect(all(ctx, '.sa-mode-panel').filter((p) => !p.hidden).length).toBe(0);
+    await tap(mode('song'));
+    expect(q(ctx, '.sa-in').dataset.view).toBe('play');
     expect(q(ctx, '.sa').dataset.mode).toBe('song');
     expect(panel('song').hidden).toBe(false);
     expect(panel('echo').hidden).toBe(true);
-    expect(all(ctx, '.sa-song').length).toBe(SINGABLE.length);
+    // The songs won so far and just the next one, dimmed: not a shelf of a dozen locked cards.
+    const open = SINGABLE.filter((x) => songUnlockAt(REPERTOIRE.indexOf(x)) <= 0).length;
+    expect(all(ctx, '.sa-song').length).toBe(open + 1);
+    expect(all(ctx, '.sa-song.sa-locked').length).toBe(1);
     expect(q(ctx, '.sa-singer')).toBeTruthy();
     expect(all(ctx, '.sa-animal').length).toBeGreaterThanOrEqual(2);
   });
 
   it('greets the child on opening and says what to do (the voice gate holds it until the shell’s title is done)', async () => {
     game.start(ctx);
+    await settle(50);
+    expect(ctx.sequenced).toContain('Chọn một trò chơi nhé.');
+    await tap(mode('song'));
     await settle(50);
     expect(ctx.sequenced).toContain('Chọn một bài hát nhé.');
   });
@@ -115,8 +126,13 @@ describe('the hall', () => {
     expect(q(ctx, '.sa-bubble').textContent).toContain(SINGABLE[0]!.title);
   });
 
-  it('reminds a child who sits still on the song shelf, once in a while', async () => {
+  it('reminds a child who sits still on the opening screen, then on the song shelf', async () => {
     game.start(ctx);
+    await settle(4000);
+    ctx.sequenced.length = 0;
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(ctx.sequenced).toContain('Bé chạm vào một trò chơi nhé.');
+    await tap(mode('song'));
     await settle(4000);
     ctx.sequenced.length = 0;
     await vi.advanceTimersByTimeAsync(25_000);
@@ -138,6 +154,7 @@ describe('the hall', () => {
     game.start(ctx);
     await tap(q(ctx, '.sa-mic'));
     await settle();
+    await tap(mode('song'));
     const lockedIdx = SINGABLE.findIndex((s) => songUnlockAt(REPERTOIRE.indexOf(s)) > 0);
     expect(lockedIdx).toBeGreaterThan(0);
     const card = q(ctx, `.sa-song[data-song="${SINGABLE[lockedIdx]!.id}"]`);
@@ -151,6 +168,7 @@ describe('the hall', () => {
 describe('sing along', () => {
   it('counts in, runs the words, and ends with a star, tickets and a results card', async () => {
     game.start(ctx);
+    await tap(mode('song'));
     const song = SINGABLE[0]!;
     await tap(q(ctx, `.sa-song[data-song="${song.id}"]`));
     expect(q(ctx, '.sa-sing').hidden).toBe(false);
@@ -174,8 +192,10 @@ describe('sing along', () => {
 
   it('lets the child stop and choose another song, with no star', async () => {
     game.start(ctx);
+    await tap(mode('song'));
     await tap(q(ctx, `.sa-song[data-song="${SINGABLE[0]!.id}"]`));
-    await tap(q(ctx, '.sa-sing .sa-stop'));
+    await tap(q(ctx, '.sa-home')); // back from a song goes to the shelf, not out of the game
+    expect(q(ctx, '.sa').dataset.mode).toBe('song');
     expect(q(ctx, '.sa-sing').hidden).toBe(true);
     expect(q(ctx, '.sa-songs').hidden).toBe(false);
     await vi.advanceTimersByTimeAsync(120_000);
@@ -187,6 +207,7 @@ describe('sing along', () => {
     await tap(q(ctx, '.sa-mic'));
     await settle();
     expect(q(ctx, '.sa-mic').classList.contains('sa-on')).toBe(true);
+    await tap(mode('song'));
     await tap(q(ctx, `.sa-song[data-song="${SINGABLE[0]!.id}"]`));
     mic.level = 0.6;
     mic.pitchHz = 200;
@@ -338,14 +359,14 @@ describe('the show', () => {
   it('plays a whole song with lights and ends with a curtain call', async () => {
     game.start(ctx);
     await tap(mode('perform'));
-    expect(all(ctx, '.sa-fx-btn').length).toBe(4);
-    await tap(q(ctx, '.sa-fx-btn[data-fx="rainbow"]'));
-    expect(q(ctx, '.sa-back').dataset.lights).toBe('rainbow');
-    expect(ctx.stage.querySelectorAll('.sa-spark').length).toBeGreaterThan(0);
+    expect(all(ctx, '.sa-fx-btn').length).toBe(1); // one button changes the lights, not a row of four
     const note = vi.spyOn(ctx.audio, 'note');
     const drum = vi.spyOn(ctx.audio, 'drum');
     await tap(panel('perform').querySelector(`.sa-song[data-song="${REPERTOIRE[0]!.id}"]`)!);
     expect(q(ctx, '.sa-now').hidden).toBe(false);
+    await tap(q(ctx, '.sa-fx-btn'));
+    expect(q(ctx, '.sa-back').dataset.lights).toBe('rainbow');
+    expect(ctx.stage.querySelectorAll('.sa-spark').length).toBeGreaterThan(0);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(note).toHaveBeenCalled();
     expect(drum).toHaveBeenCalledWith('kick');
@@ -360,8 +381,11 @@ describe('the show', () => {
   it('puts the lights back when the child leaves it', async () => {
     game.start(ctx);
     await tap(mode('perform'));
-    await tap(q(ctx, '.sa-fx-btn[data-fx="fire"]'));
-    await tap(mode('song'));
+    await tap(q(ctx, '.sa-fx-btn'));
+    await tap(q(ctx, '.sa-fx-btn'));
+    expect(q(ctx, '.sa-back').dataset.lights).toBe('pink');
+    await tap(q(ctx, '.sa-home'));
+    expect(q(ctx, '.sa-in').dataset.view).toBe('menu');
     expect(q(ctx, '.sa-back').dataset.lights).toBe('gold');
   });
 });
@@ -376,11 +400,15 @@ describe('photos', () => {
     expect(q(ctx, '.sa-singer .sa-face').classList.contains('sa-photo')).toBe(false);
 
     await tap(q(ctx, '.sa-wardrobe'));
+    expect(all(ctx, '.sa-wd-cat').length).toBe(3); // first which part, then only that part's choices
+    expect(all(ctx, '.sa-wd-cell').length).toBe(0);
+    await tap(q(ctx, '.sa-wd-cat[data-part="face"]'));
     const cells = all(ctx, '.sa-wd-cell');
     expect(cells.length).toBeGreaterThan(5);
     await tap(q(ctx, '.sa-wd-photo').parentElement as HTMLElement);
     expect(q(ctx, '.sa-singer .sa-face').classList.contains('sa-photo')).toBe(true);
     expect(JSON.parse(localStorage.getItem(SAVE_KEY) ?? '{}').face).toMatch(/^photo:/);
+    await tap(q(ctx, '.sa-wd-back'));
     await tap(q(ctx, '.sa-wd-close'));
     expect(ctx.stage.querySelector('.sa-wd')).toBeNull();
   });
@@ -388,6 +416,7 @@ describe('photos', () => {
   it('tells the child what is missing instead of dressing them in a hat not yet won', async () => {
     game.start(ctx);
     await tap(q(ctx, '.sa-wardrobe'));
+    await tap(q(ctx, '.sa-wd-cat[data-part="hat"]'));
     const locked = q(ctx, '.sa-wd-locked');
     await tap(locked);
     expect(JSON.parse(localStorage.getItem(SAVE_KEY) ?? '{}').hat ?? 'none').toBe('none');

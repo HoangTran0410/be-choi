@@ -45,26 +45,62 @@ export function openWardrobe(ctx: Pick<GameContext, 'onCleanup' | 'audio'>, o: W
   };
 
   const body = h('div', { class: 'sa-wd-body' });
+  const back = h('button', { class: 'btn-round sa-wd-back', type: 'button', 'aria-label': 'Quay lại' }, '⬅️');
   const close = h('button', { class: 'btn-round sa-wd-close', type: 'button', 'aria-label': 'Xong' }, '✅');
-  const root = h('div', { class: 'sa-wd', role: 'dialog', 'aria-label': 'Phòng thay đồ' }, body, close);
+  const root = h('div', { class: 'sa-wd', role: 'dialog', 'aria-label': 'Phòng thay đồ' }, body, back, close);
   o.parent.append(root);
 
-  function section(title: string, ...cells: HTMLElement[]): HTMLElement {
-    return h('section', { class: 'sa-wd-sec' }, h('h3', { class: 'sa-wd-h' }, title), h('div', { class: 'sa-wd-grid' }, ...cells));
+  /** One thing at a time: first which part to change, then the choices for that part only. */
+  type Part = 'face' | 'hat' | 'stage';
+  let part: Part | null = null;
+
+  function choices(p: Part): HTMLButtonElement[] {
+    const cur = o.progress.get();
+    if (p === 'face')
+      return [
+        ...o.photos.map((ph) =>
+          cell('', 'Ảnh người thân', cur.face === `photo:${ph.id}`, 0, () => o.progress.setFace(`photo:${ph.id}`), ph.url),
+        ),
+        ...CHARACTERS.map((c) => cell(c.emoji, c.name, cur.face === `char:${c.id}`, 0, () => o.progress.setFace(`char:${c.id}`))),
+      ];
+    if (p === 'hat') return HATS.map((x) => cell(x.emoji, x.name, cur.hat === x.id, x.at, () => o.progress.setHat(x.id)));
+    return STAGES.map((s) => cell(s.emoji, s.name, cur.stage === s.id, s.at, () => o.progress.setStage(s.id)));
   }
 
   function render(): void {
-    const p = o.progress.get();
+    root.dataset.step = part ?? 'parts';
+    if (part) {
+      body.replaceChildren(h('div', { class: 'sa-wd-grid', 'data-part': part }, ...choices(part)));
+      return;
+    }
+    const cur = o.progress.get();
+    const face = o.photos.find((ph) => cur.face === `photo:${ph.id}`);
+    const show = (id: Part, emoji: string, label: string, photo?: string): HTMLButtonElement => {
+      const btn = h(
+        'button',
+        { class: 'sa-wd-cat', type: 'button', 'data-part': id, 'aria-label': label },
+        photo ? h('span', { class: 'sa-wd-photo', style: `background-image:url("${photo}")` }) : h('span', { class: 'sa-wd-emoji' }, emoji),
+      );
+      makeTappable(
+        btn,
+        () => {
+          ctx.audio.tick();
+          part = id;
+          render();
+        },
+        { ctx },
+      );
+      return btn;
+    };
+    const charEmoji = CHARACTERS.find((c) => cur.face === `char:${c.id}`)?.emoji ?? CHARACTERS[0]?.emoji ?? '🧒';
     body.replaceChildren(
-      section(
-        'Ca sĩ là ai?',
-        ...o.photos.map((ph) =>
-          cell('', 'Ảnh người thân', p.face === `photo:${ph.id}`, 0, () => o.progress.setFace(`photo:${ph.id}`), ph.url),
-        ),
-        ...CHARACTERS.map((c) => cell(c.emoji, c.name, p.face === `char:${c.id}`, 0, () => o.progress.setFace(`char:${c.id}`))),
+      h(
+        'div',
+        { class: 'sa-wd-parts' },
+        show('face', charEmoji, 'Ca sĩ là ai?', face?.url),
+        show('hat', HATS.find((x) => x.id === cur.hat)?.emoji ?? '🙂', 'Đội gì nào?'),
+        show('stage', STAGES.find((x) => x.id === cur.stage)?.emoji ?? '🎭', 'Sân khấu'),
       ),
-      section('Đội gì nào?', ...HATS.map((x) => cell(x.emoji, x.name, p.hat === x.id, x.at, () => o.progress.setHat(x.id)))),
-      section('Sân khấu', ...STAGES.map((s) => cell(s.emoji, s.name, p.stage === s.id, s.at, () => o.progress.setStage(s.id)))),
     );
   }
   render();
@@ -75,6 +111,15 @@ export function openWardrobe(ctx: Pick<GameContext, 'onCleanup' | 'audio'>, o: W
     open = false;
     root.remove();
   };
+  makeTappable(
+    back,
+    () => {
+      ctx.audio.tick();
+      part = null;
+      render();
+    },
+    { ctx },
+  );
   makeTappable(
     close,
     () => {
