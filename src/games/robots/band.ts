@@ -17,11 +17,12 @@ import { QUESTS, currentQuest, loadProgress, newlyDone, saveProgress, unlockedId
 import { barsOf, findRobot, playerFor, type RobotDef, type Role } from './robots';
 import { createShelf } from './shelf';
 import { createStage } from './stage';
-import { byeLines, createNarrator, fullLines, hintLines, newRobotLines, placedLines, songLines, type Missing } from './voice';
+import { createNarrator, createSparseVoice, fullLines, newRobotLines, welcomeLines } from './voice';
 
 const HINT_MS = 9000;
 const REWARD_MS = 2800;
 const FINALE_MS = 7000;
+const HELLO_KEY = 'be-choi:robots:hello';
 
 export function mountBand(ctx: GameContext): void {
   let alive = true;
@@ -42,7 +43,6 @@ export function mountBand(ctx: GameContext): void {
   let unlocked = unlockedIds(done);
   const fresh = new Set<string>();
   let selected: string | null = null;
-  let placed = 0;
   let wasFull = false;
   let photos: Photo[] = [];
   /** Which family photo is whose face (robot id → photo id). */
@@ -59,6 +59,11 @@ export function mountBand(ctx: GameContext): void {
     clearTimer: (hd) => clearTimeout(hd as ReturnType<typeof setTimeout>),
   });
   const narrator = createNarrator({ speakSeq: (p) => ctx.speakSeq(p), stopSpeech: () => ctx.stopSpeech() });
+  // The voice is for big moments only, and never twice in a short while: this game is for listening.
+  const sparse = createSparseVoice(() => performance.now());
+  const sayMoment = (moment: 'welcome' | 'full' | 'unlock', lines: ReturnType<typeof welcomeLines>): void => {
+    if (sparse.allow(moment)) narrator.say(lines);
+  };
   let songId: SongId = saved.song;
   groove.setSong(songId);
   stage.setSong(songId);
@@ -144,6 +149,21 @@ export function mountBand(ctx: GameContext): void {
   });
   ctx.onCleanup(offPhotos);
 
+  function hasSaidHello(): boolean {
+    try {
+      return localStorage.getItem(HELLO_KEY) === '1';
+    } catch {
+      return true; // no storage: never repeat it
+    }
+  }
+  function rememberHello(): void {
+    try {
+      localStorage.setItem(HELLO_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  }
+
   // ---- the shelf -----------------------------------------------------------------------------
   const disposers: Array<() => void> = [];
   const dnd = createDnd({
@@ -151,6 +171,7 @@ export function mountBand(ctx: GameContext): void {
     targets: () => stage.targets(),
     stageRect: () => stage.el.getBoundingClientRect(),
     shelfRect: () => shelf.el.getBoundingClientRect(),
+    shelfEl: shelf.el,
     onTap: (src) => (src.kind === 'shelf' ? tapShelf(src.robot) : cycleLevel(src.slot)),
     onHold: (src) => {
       if (src.kind === 'stage') removeAt(src.slot);
@@ -163,10 +184,16 @@ export function mountBand(ctx: GameContext): void {
       }
       stage.canDrop(true);
     },
+    onHover: (slot) => stage.setOver(slot),
     onDrop: (src, drop) => dropped(src, drop),
+    onEnd: () => {
+      stage.setOver(null);
+      stage.canDrop(selected !== null);
+    },
+    // A light, still picture of the robot (not a copy of the live, dancing figure).
     ghost: (src, el) => {
-      if (src.kind === 'shelf') return shelf.ghost(src.robot) ?? (el.cloneNode(true) as HTMLElement);
-      return el.cloneNode(true) as HTMLElement;
+      const id = src.kind === 'shelf' ? src.robot : lineup.seat(src.slot)?.robot;
+      return (id ? shelf.ghost(id) : null) ?? (el.cloneNode(true) as HTMLElement);
     },
     onHolding: (src, on) => {
       if (src.kind === 'stage') stage.setHolding(src.slot, on);
@@ -237,12 +264,6 @@ export function mountBand(ctx: GameContext): void {
     fresh.delete(id);
     if (!quiet) ctx.audio.pop(1.1);
     navigator.vibrate?.(10);
-    const n = lineup.count();
-    if (!quiet) {
-      const lines = placedLines(def, n, placed++);
-      if (lineup.full()) lines.splice(1, 1, ...placedLines(def, n, 0).slice(1), ...fullLines());
-      narrator.say(lines);
-    }
     changed();
     return true;
   }
@@ -271,10 +292,7 @@ export function mountBand(ctx: GameContext): void {
     faces.delete(seat.robot);
     stage.leave(slot, performance.now());
     shelf.setOnStage(new Set(lineup.robots()));
-    if (!silent) {
-      ctx.audio.tick();
-      narrator.say(byeLines());
-    }
+    if (!silent) ctx.audio.tick();
     if (lineup.count() === 0) groove.stop();
     changed();
   }
@@ -299,7 +317,8 @@ export function mountBand(ctx: GameContext): void {
     persist();
   }
 
-  function dropped(src: Source, drop: Drop): void {
+  /** What a drop does. Returns `false` when it went nowhere, so the carried copy glides back. */
+  function dropped(src: Source, drop: Drop): boolean {
     ctx.hint.touch();
     stage.canDrop(selected !== null);
     if (src.kind === 'shelf') {
@@ -309,10 +328,11 @@ export function mountBand(ctx: GameContext): void {
       } else if (drop.kind === 'shelf') {
         tapShelf(src.robot);
       }
-      return;
+      return drop.kind !== 'nowhere';
     }
     if (drop.kind === 'slot') move(src.slot, drop.slot);
     else if (drop.kind === 'shelf') removeAt(src.slot);
+    return drop.kind !== 'nowhere';
   }
 
   // Tapping an empty seat puts the picked robot there; with nothing picked it points at a robot to pick.
@@ -328,7 +348,7 @@ export function mountBand(ctx: GameContext): void {
           place(id, i);
         } else {
           ctx.audio.pop(0.8);
-          suggest(false);
+          suggest();
         }
       },
       { ctx, feedback: false, cooldownMs: 150 },
@@ -345,7 +365,6 @@ export function mountBand(ctx: GameContext): void {
       tried.add(songId);
       renderSong();
       ctx.audio.tick();
-      narrator.say(songLines(songId));
       songBtn.classList.remove('anim-bounce');
       void songBtn.offsetWidth;
       songBtn.classList.add('anim-bounce');
@@ -358,11 +377,9 @@ export function mountBand(ctx: GameContext): void {
     againBtn,
     () => {
       ctx.hint.touch();
-      let n = 0;
       last.forEach((s, slot) => {
-        if (s && place(s.robot, slot, true, s.level)) n++;
+        if (s) place(s.robot, slot, true, s.level);
       });
-      if (n > 0) narrator.say(placedLines(findRobot(lineup.robots()[0]!)!, n, 0).slice(1));
     },
     { ctx, feedback: false, cooldownMs: 500 },
   );
@@ -414,7 +431,7 @@ export function mountBand(ctx: GameContext): void {
     refreshShelf();
     if (!showing) showReward();
     later(() => {
-      narrator.say(newRobotLines());
+      sayMoment('unlock', newRobotLines());
       const first = won.flatMap((q) => q.reward)[0];
       if (first) shelf.nudge(first);
     }, 3800);
@@ -434,6 +451,7 @@ export function mountBand(ctx: GameContext): void {
   function changed(): void {
     if (lineup.full() && !wasFull) {
       wasFull = true;
+      sayMoment('full', fullLines());
       finale();
     } else if (!lineup.full()) {
       wasFull = false;
@@ -447,38 +465,28 @@ export function mountBand(ctx: GameContext): void {
 
   const hasRole = (role: Role): boolean => lineup.robots().some((id) => findRobot(id)?.role === role);
 
-  /** A gentle nudge about what the band lacks: a robot on the shelf wobbles. No wrong answers. */
-  function suggest(speak: boolean): void {
+  /** A gentle nudge about what the band lacks: a robot on the shelf wobbles. No wrong answers, no talking. */
+  function suggest(): void {
     const free = unlocked.map((id) => findRobot(id)).filter((d): d is RobotDef => !!d && lineup.slotOf(d.id) < 0);
     if (free.length === 0 || lineup.full()) return;
-    const order: Array<[Missing, Role]> = [
-      ['beat', 'beat'],
-      ['bass', 'bass'],
-      ['chord', 'chord'],
-      ['melody', 'melody'],
-    ];
-    let what: Missing = 'more';
+    const order: Role[] = ['beat', 'bass', 'chord', 'melody'];
     let pick: RobotDef | undefined = free.find((d) => fresh.has(d.id)) ?? free[Math.floor(Math.random() * free.length)];
     if (lineup.count() === 0) {
-      what = 'empty';
       pick = free.find((d) => d.id === 'kick') ?? free[0];
     } else {
-      for (const [m, role] of order) {
+      for (const role of order) {
         if (hasRole(role)) continue;
         const fit = free.find((d) => d.role === role);
         if (fit) {
-          what = m;
           pick = fit;
           break;
         }
       }
     }
-    if (!pick) return;
-    shelf.nudge(pick.id);
-    if (speak) narrator.say(hintLines(what));
+    if (pick) shelf.nudge(pick.id);
   }
 
-  ctx.hint.arm(() => suggest(true), HINT_MS);
+  ctx.hint.arm(() => suggest(), HINT_MS);
   ctx.onCleanup(() => ctx.hint.clear());
 
   // ---- the loop ------------------------------------------------------------------------------
@@ -491,6 +499,12 @@ export function mountBand(ctx: GameContext): void {
   // ---- go ------------------------------------------------------------------------------------
   renderSong();
   refreshShelf();
+  if (!hasSaidHello()) {
+    later(() => {
+      rememberHello();
+      sayMoment('welcome', welcomeLines());
+    }, 1200);
+  }
   renderQuest();
   renderAgain();
 

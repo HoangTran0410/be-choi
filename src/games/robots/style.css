@@ -177,6 +177,7 @@
   background-position: center;
   opacity: 0;
   pointer-events: none;
+  will-change: opacity;
 }
 .rb-lights,
 .rb-floor,
@@ -198,6 +199,8 @@
   background: linear-gradient(180deg, var(--bc), transparent 88%);
   clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
   opacity: 0;
+  /* Its own layer: the beam sweeps and breathes by compositing, never by repainting a big gradient. */
+  will-change: transform, opacity;
 }
 .rb-floor {
   left: 0;
@@ -206,6 +209,7 @@
   height: 45%;
   background: radial-gradient(ellipse at 50% 100%, var(--beam), transparent 70%);
   opacity: 0.12;
+  will-change: opacity;
 }
 .rb-eq {
   left: 4%;
@@ -224,6 +228,7 @@
   transform: scaleY(0.05);
   background: linear-gradient(0deg, hsl(calc(var(--i) * 22 + 300), 90%, 62%), hsl(calc(var(--i) * 22 + 340), 95%, 72%));
   opacity: 0.85;
+  will-change: transform;
 }
 .rb-fx {
   inset: 0;
@@ -237,6 +242,7 @@
   font-weight: 800;
   line-height: 1;
   text-shadow: 0 1px 0 #fff;
+  opacity: 0;
   will-change: transform, opacity;
 }
 .rb-away {
@@ -253,7 +259,7 @@
   z-index: 2;
   display: grid;
   gap: 2px;
-  padding: 6px 8px 4px;
+  padding: 6px 8px 18px;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(4, 1fr);
 }
@@ -391,11 +397,26 @@
 .rb-ghost {
   z-index: 40;
   opacity: 0.95;
-  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.4));
+  /* No filter: a blur under a moving picture is repainted every frame. A flat shadow is free. */
 }
-.rb-ghost.rb-bot {
-  left: 0;
-  right: auto;
+.rb-ghost::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -4%;
+  height: 8%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: -1;
+}
+.rb-stage .rb-slot.over .rb-pad {
+  background: rgba(255, 255, 255, 0.4);
+  border: 3px solid #fde047;
+  box-shadow: 0 0 22px #fde047;
+}
+.rb-stage .rb-slot.over .rb-plus {
+  color: #fde047;
 }
 .rb-carry {
   display: block;
@@ -411,7 +432,7 @@
   height: calc(var(--item) + 22px);
   overflow-x: auto;
   overflow-y: hidden;
-  touch-action: pan-x;
+  touch-action: none;
   background: rgba(0, 0, 0, 0.32);
   border-top: 3px solid rgba(255, 255, 255, 0.2);
   scrollbar-width: none;
@@ -437,18 +458,47 @@
   border-radius: 22px;
   background: color-mix(in srgb, var(--c) 28%, rgba(255, 255, 255, 0.08));
   border: 3px solid color-mix(in srgb, var(--c) 70%, #fff);
-  touch-action: pan-x;
+  touch-action: none;
   cursor: grab;
   transition:
     transform 0.15s,
     opacity 0.2s;
 }
 .stage .rb-item * {
-  touch-action: pan-x;
+  touch-action: none;
+}
+.rb-label {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.rb-slot.has-bot::after {
+  content: attr(data-name);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  opacity: 0.9;
 }
 .rb-shelf-art {
   position: absolute;
-  inset: 4px 6px 2px;
+  inset: 4px 6px 14px;
   pointer-events: none;
 }
 .rb-shelf-art .rb-svg {

@@ -1,52 +1,25 @@
 /**
- * What the robots say, and how: slowly, a word or two at a time, with a breath between, so a
- * three-year-old can catch each one. Lines are built here (pure, tested); the narrator spaces them out.
+ * What the robots say — very little. This game is for listening to the band, so a tap, a drop or a
+ * goodbye is never talked over. The voice is kept for a few big moments, each a short line, and a
+ * quiet-time rule keeps even those apart: the first time a child comes in, the stage getting full,
+ * and a new robot being unlocked. Names, counts and colours are shown (words and pictures), not said.
+ *
+ * Lines are built here (pure, tested); the narrator speaks them; `createSparseVoice` decides whether
+ * a moment may speak at all.
  */
 import type { SpeechPart } from '../../core/speech';
-import { COUNT_WORDS, type RobotDef } from './robots';
 
 export interface Line {
   text: string;
-  /** Speech rate: 0.65 for a name, 0.8 for the sentence after it. */
+  /** Speech rate. */
   rate: number;
   /** Quiet time after this line (ms). */
   gap: number;
 }
 
-const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-
-/** "một", "hai" … up to eight. */
-export function countWord(n: number): string {
-  return COUNT_WORDS[Math.min(Math.max(0, Math.floor(n)), COUNT_WORDS.length - 1)] ?? '';
-}
-
-/** The line that follows the name rotates through these so it stays fresh. */
-export type Fact = 'count' | 'color' | 'group';
-export const FACTS: readonly Fact[] = ['count', 'color', 'group'];
-
-const GROUP_WORDS: Record<RobotDef['group'], string> = {
-  gõ: 'gõ',
-  gảy: 'gảy',
-  thổi: 'thổi',
-  kéo: 'kéo',
-  phím: 'bấm phím',
-};
-
-/**
- * A robot has just joined: say its name on its own, slowly, then one more thing.
- * `n` is how many robots are on stage now; `nth` picks which fact to give.
- */
-export function placedLines(robot: RobotDef, n: number, nth: number): Line[] {
-  const name: Line = { text: cap(robot.name) + '.', rate: 0.65, gap: 800 };
-  const fact = FACTS[((nth % FACTS.length) + FACTS.length) % FACTS.length] as Fact;
-  switch (fact) {
-    case 'count':
-      return [name, { text: n === 1 ? 'Bé có một bạn robot rồi.' : `${cap(countWord(n))} bạn robot rồi.`, rate: 0.8, gap: 0 }];
-    case 'color':
-      return [name, { text: `Bạn ${robot.name} màu ${robot.colorName}.`, rate: 0.8, gap: 0 }];
-    default:
-      return [name, { text: `${cap(robot.name)} là nhạc cụ ${GROUP_WORDS[robot.group]}.`, rate: 0.8, gap: 0 }];
-  }
+/** The very first time in the game: one sentence. */
+export function welcomeLines(): Line[] {
+  return [{ text: 'Kéo robot lên sân khấu nhé!', rate: 0.8, gap: 0 }];
 }
 
 /** The stage is full. */
@@ -54,34 +27,36 @@ export function fullLines(): Line[] {
   return [{ text: 'Đủ cả ban nhạc rồi!', rate: 0.8, gap: 0 }];
 }
 
-export type Missing = 'empty' | 'beat' | 'bass' | 'chord' | 'melody' | 'more';
-
-/** A nudge about what the band lacks; the shelf robot that fits wobbles at the same moment. */
-export function hintLines(what: Missing): Line[] {
-  const text: Record<Missing, string> = {
-    empty: 'Kéo một bạn robot lên sân khấu nhé!',
-    beat: 'Thiếu nhịp trống nè!',
-    bass: 'Thiếu tiếng bass nè!',
-    chord: 'Thiếu đàn đệm nè!',
-    melody: 'Thiếu giai điệu nè!',
-    more: 'Thêm một bạn nữa nhé!',
-  };
-  return [{ text: text[what], rate: 0.8, gap: 0 }];
-}
-
-const SONG_NAMES = { fun: 'Bài vui.', disco: 'Disco robot.', calm: 'Nhạc êm.' } as const;
-
-/** The name of the song just chosen. */
-export function songLines(id: keyof typeof SONG_NAMES): Line[] {
-  return [{ text: SONG_NAMES[id], rate: 0.8, gap: 0 }];
-}
-
-export function byeLines(): Line[] {
-  return [{ text: 'Tạm biệt!', rate: 0.8, gap: 0 }];
-}
-
+/** A goal is done and a new robot is on the shelf. */
 export function newRobotLines(): Line[] {
   return [{ text: 'Có bạn robot mới!', rate: 0.8, gap: 0 }];
+}
+
+export type Moment = 'welcome' | 'full' | 'unlock';
+
+/** At least this long between two spoken moments (ms). */
+export const QUIET_MS = 30000;
+
+export interface SparseVoice {
+  /** May this moment speak now? Say yes at most once per quiet time, and `welcome` at most once. */
+  allow(moment: Moment): boolean;
+}
+
+export function createSparseVoice(now: () => number, quietMs = QUIET_MS): SparseVoice {
+  let last = -Infinity;
+  const welcomed = new Set<Moment>();
+  return {
+    allow(moment) {
+      const t = now();
+      if (t - last < quietMs) return false;
+      if (moment === 'welcome') {
+        if (welcomed.has(moment)) return false;
+        welcomed.add(moment);
+      }
+      last = t;
+      return true;
+    },
+  };
 }
 
 export interface Narrator {
