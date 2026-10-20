@@ -17,7 +17,7 @@ import {
   trackOpen,
   TRACKS,
 } from './logic';
-import { button, dragScroll, timers, tile, type Deps, type View } from './ui';
+import { button, timers, tile, type Deps, type View } from './ui';
 
 const BACK_VEL = 0.5;
 const CONCERT_TOUCHES = 20;
@@ -123,7 +123,6 @@ export function mountBand(host: HTMLElement, deps: Deps): View {
       grid.append(el);
     }
     picker.append(grid);
-    dragScroll(picker);
   }
   function closePicker(): void {
     picker.hidden = true;

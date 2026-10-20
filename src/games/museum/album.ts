@@ -2,7 +2,7 @@ import { h } from '../../core/dom';
 import { bandVoices, ENTRIES } from './catalog';
 import { sound } from './instruments/voices';
 import { hasStamp } from './logic';
-import { button, dragScroll, tile, type Deps, type View } from './ui';
+import { button, tile, type Deps, type View } from './ui';
 
 /**
  * The stamp album: one slot per instrument, coloured when the stamp is earned and a
@@ -32,7 +32,6 @@ export function mountAlbum(host: HTMLElement, { ctx, album, go }: Deps): View {
       ),
     );
   }
-  dragScroll(grid);
   const root = h(
     'div',
     { class: 'mu-album' },

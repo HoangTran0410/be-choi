@@ -3,7 +3,6 @@ import type { GameContext, GameModule } from '../../core/types';
 import type { SpeechPart } from '../../core/speech';
 import { makeTappable } from '../../core/tap';
 import { tapOnRelease } from './release';
-import { dragScroll } from './dragscroll';
 import { meta } from './meta';
 import { ALL, DIGITS, STAR_EVERY_TILES, isDigit, lowerOf, splitWord, type Countable, type Glyph, type Word } from './logic';
 import { buildCountRound, buildFindRound, easeStreak, levelFor, record, ROUNDS_PER_STAR, type CountRound, type LetterRound, type Mastery, type PictureRound } from './quiz';
@@ -199,7 +198,6 @@ function start(ctx: GameContext): void {
     const more = h('div', { class: 'letters-more', 'aria-hidden': 'true' });
     board.append(grid, more);
     main.replaceChildren(board);
-    dragScroll(grid, ctx);
 
     const lettersCount = all.findIndex((x) => isDigit(x));
     tilesEls = all.map((glyph, i) => {

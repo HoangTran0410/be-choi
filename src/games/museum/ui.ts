@@ -54,28 +54,6 @@ export function onTap(el: HTMLElement, fn: (e: PointerEvent) => void): void {
 }
 const TAP_SLOP = 12;
 
-/** Let a finger drag a long list up and down (the stage does not allow native scrolling). */
-export function dragScroll(el: HTMLElement): void {
-  let id: number | undefined = -1;
-  let startY = 0;
-  let top = 0;
-  el.addEventListener('pointerdown', (e) => {
-    id = e.pointerId;
-    startY = e.clientY;
-    top = el.scrollTop;
-  });
-  el.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== id) return;
-    const dy = e.clientY - startY;
-    if (Math.abs(dy) > 8) el.scrollTop = top - dy;
-  });
-  const end = (): void => {
-    id = -1;
-  };
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
-}
-
 /** A round or square button with a picture or emoji. */
 export function button(cls: string, label: string, content: string | Node, onClick: (e: PointerEvent) => void): HTMLButtonElement {
   const b = h('button', { class: cls, type: 'button', 'aria-label': label }, content);

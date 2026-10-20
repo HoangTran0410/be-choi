@@ -576,3 +576,10 @@
     animation: none;
   }
 }
+
+/* `.stage *` turns touch panning off; a long list scrolls under a finger wherever it lands. */
+.stage .mu-room.scroll *,
+.stage .mu-album-grid *,
+.stage .mu-picker * {
+  touch-action: pan-y;
+}

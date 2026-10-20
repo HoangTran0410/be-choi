@@ -1,15 +1,20 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { makeTappable } from './tap';
 
-function press(el: Element, init: { isPrimary?: boolean } = {}): Event {
-  const e = new Event('pointerdown', { bubbles: true, cancelable: true });
+function press(el: Element, init: { isPrimary?: boolean; type?: string; x?: number } = {}): Event {
+  const e = new Event(init.type ?? 'pointerdown', { bubbles: true, cancelable: true });
   Object.defineProperty(e, 'isPrimary', { value: init.isPrimary ?? true });
+  Object.defineProperty(e, 'pointerId', { value: 1 });
+  Object.defineProperty(e, 'pointerType', { value: 'touch' });
+  Object.defineProperty(e, 'clientX', { value: init.x ?? 0 });
+  Object.defineProperty(e, 'clientY', { value: 0 });
   el.dispatchEvent(e);
   return e;
 }
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('makeTappable', () => {
@@ -113,5 +118,23 @@ describe('makeTappable', () => {
     for (const c of cleanups) c();
     press(el);
     expect(fn2).toHaveBeenCalledTimes(1);
+  });
+
+  it('in a list the finger scrolls, fires on lifting in place, never on a swipe', () => {
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({ touchAction: 'pan-y' } as CSSStyleDeclaration);
+    const el = document.createElement('button');
+    const fn = vi.fn();
+    makeTappable(el, fn, { cooldownMs: 0 });
+    press(el);
+    expect(fn).not.toHaveBeenCalled();
+    press(el, { type: 'pointerup', x: 3 });
+    expect(fn).toHaveBeenCalledTimes(1);
+    // a swipe: the finger lifts far away, or the browser takes it over to scroll
+    press(el);
+    press(el, { type: 'pointerup', x: 80 });
+    press(el);
+    press(el, { type: 'pointercancel' });
+    press(el, { type: 'pointerup' });
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 });

@@ -111,13 +111,17 @@ document.addEventListener(
 // pointermove follows the finger immediately. Games use Pointer Events, which keep firing.
 const inStage = (e: Event) => (e.target as Element | null)?.closest?.('.stage') !== null;
 /**
- * The exception: a panel laid over the stage that is taller than the screen.
- * It is not the play area — it is a list to look through — and cancelling its
- * touches leaves the bottom of a long one unreachable.
+ * The exception: a list to look through, laid over or inside the stage (a picker, a shelf of
+ * drawings, a song list). It opts in from CSS with `touch-action: pan-y` / `pan-x` on itself and on
+ * everything in it (`.stage *` turns panning off, and the browser takes the strictest rule between
+ * what was touched and what scrolls). Cancelling its touches would leave the bottom of a long one
+ * unreachable, so a touch that starts on such an element is left to the browser for the whole gesture.
  */
-const SCROLLING_PANEL = '.pp-panel';
+const pans = (t: EventTarget | null): boolean => t instanceof Element && (getComputedStyle(t).touchAction ?? '').includes('pan');
+let panning = false;
 const cancelStageTouch = (e: TouchEvent) => {
-  if ((e.target as Element | null)?.closest?.(SCROLLING_PANEL)) return;
+  if (e.type === 'touchstart') panning = pans(e.target);
+  if (panning) return;
   if (inStage(e)) e.preventDefault();
 };
 document.addEventListener('touchstart', cancelStageTouch, { passive: false });

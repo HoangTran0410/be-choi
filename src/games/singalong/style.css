@@ -1190,3 +1190,9 @@
     --tap-min: 56px;
   }
 }
+
+/* `.stage *` turns touch panning off; on a short screen the card has to scroll under a finger. */
+.stage .sa-res-card,
+.stage .sa-res-card * {
+  touch-action: pan-y;
+}

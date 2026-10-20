@@ -308,3 +308,9 @@
     max-height: 76%;
   }
 }
+
+/* `.stage *` turns touch panning off; the song list has to scroll under a finger. */
+.stage .sing-songs,
+.stage .sing-songs * {
+  touch-action: pan-y;
+}

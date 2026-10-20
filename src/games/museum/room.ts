@@ -2,7 +2,7 @@ import { h } from '../../core/dom';
 import { sayLines } from '../../core/say';
 import { ENTRIES, entriesOf, GROUPS } from './catalog';
 import { BAND_NEEDS, bandOpen, hasStamp, shelfLayout, stampsLeft } from './logic';
-import { button, dragScroll, tile, timers, watchSize, wiggle, type Deps, type View } from './ui';
+import { button, tile, timers, watchSize, wiggle, type Deps, type View } from './ui';
 
 /**
  * The main room. At the door only four big cabinet doors (one per family of instruments), the
@@ -75,7 +75,6 @@ export function mountRoom(host: HTMLElement, deps: Deps): View {
   }
 
   host.append(room);
-  if (group) dragScroll(room);
 
   // an idle nudge: a cabinet door in the lobby, inside a tile with no stamp yet, wiggles
   ctx.hint.arm(() => {

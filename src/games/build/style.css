@@ -941,3 +941,9 @@
     0 0 0 4px rgba(255, 255, 255, 0.9),
     0 8px 24px rgba(59, 47, 47, 0.16);
 }
+
+/* `.stage *` turns touch panning off; a full cabinet has to scroll under a finger. */
+.stage .bw-cab-panel,
+.stage .bw-cab-panel * {
+  touch-action: pan-y;
+}

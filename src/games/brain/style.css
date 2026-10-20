@@ -833,3 +833,9 @@
 .brain .is-tapped {
   transform: scale(0.94);
 }
+
+/* `.stage *` turns touch panning off; on a short screen the sheet has to scroll under a finger. */
+.stage .brain-sheet,
+.stage .brain-sheet * {
+  touch-action: pan-y;
+}
