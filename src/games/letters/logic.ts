@@ -55,7 +55,7 @@ export const LETTERS: readonly Glyph[] = [
   letter('K', 'ca', 'cờ', [w('kẹo', '🍬'), w('kéo', '✂️'), w('kiến', '🐜')]),
   letter('L', 'e lờ', 'lờ', [w('lá', '🍃'), w('lửa', '🔥'), w('lạc đà', '🐪')]),
   letter('M', 'em mờ', 'mờ', [w('mèo', '🐱'), w('mưa', '🌧️'), w('mũ', '🧢')]),
-  letter('N', 'en nờ', 'nờ', [w('nơ', '🎀'), w('nến', '🕯️'), w('nho', '🍇')]),
+  letter('N', 'en nờ', 'nờ', [w('nơ', '🎀'), w('nến', '🕯️'), w('nấm', '🍄')]),
   letter('O', 'o', 'o', [w('ong', '🐝'), w('oẳn tù tì', '✌️'), w('ong mật', '🍯')]),
   letter('Ô', 'ô', 'ô', [w('ô tô', '🚗'), w('ốc sên', '🐌'), w('ô che mưa', '☂️')]),
   letter('Ơ', 'ơ', 'ơ', [w('ớt', '🌶️'), w('ớt chuông', '🫑'), w('ơ kìa', '😮')]),

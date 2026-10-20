@@ -6,6 +6,7 @@ import { initialOf } from './logic';
 const tap = (el: Element | null | undefined): void => {
   expect(el).toBeTruthy();
   el!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  el!.dispatchEvent(new Event('pointerup', { bubbles: true }));
 };
 const q = (ctx: { stage: HTMLElement }, sel: string): Element | null => ctx.stage.querySelector(sel);
 const qa = (ctx: { stage: HTMLElement }, sel: string): Element[] => [...ctx.stage.querySelectorAll(sel)];
@@ -132,6 +133,33 @@ describe('letters game', () => {
     await vi.advanceTimersByTimeAsync(4000);
     expect(ctx.stars).toBe(0);
     expect(q(ctx, '.quiz-star.on')).toBeTruthy();
+    ctx.cleanup();
+  });
+
+  it('a swipe that starts on a tile scrolls the board and does not open the letter', () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    tap(qa(ctx, '.mode-btn')[0]);
+    const tile = qa(ctx, '.letter-tile')[0]!;
+    const ev = (type: string, y: number): Event => Object.assign(new Event(type, { bubbles: true }), { clientX: 10, clientY: y });
+    tile.dispatchEvent(ev('pointerdown', 100));
+    tile.dispatchEvent(ev('pointerup', 160));
+    expect(q(ctx, '.letters-focus')!.hasAttribute('hidden')).toBe(true);
+    expect(ctx.sequenced.length).toBe(0);
+    ctx.cleanup();
+  });
+
+  it('nudges a child who sits still, on the board and in front of the pictures', async () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    tap(qa(ctx, '.mode-btn')[0]);
+    ctx.sequenced.length = 0;
+    await vi.advanceTimersByTimeAsync(6100);
+    expect(ctx.sequenced).toContain('Bé chạm vào một chữ nhé');
+    tap(qa(ctx, '.letter-tile')[3]);
+    ctx.sequenced.length = 0;
+    await vi.advanceTimersByTimeAsync(6100);
+    expect(ctx.sequenced).toContain('Bé chạm vào hình để nghe nhé');
     ctx.cleanup();
   });
 

@@ -76,6 +76,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 /* ---- face of a letter: capital + small ---- */
@@ -93,18 +96,25 @@
 }
 
 /* ---- Nghe & học: the grid ---- */
+/* The board scrolls (finger or wheel) when the tiles cannot all fit at a readable size. */
 .letters-grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(5, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(88px, 1fr));
   gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
 }
 @media (orientation: landscape) {
   .letters-grid {
-    grid-template-columns: repeat(5, 1fr);
-    grid-template-rows: repeat(2, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(104px, 1fr));
   }
 }
 .letter-tile {
@@ -166,6 +176,9 @@
   grid-template-rows: auto 1fr auto;
   gap: 8px;
   padding: 10px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   background: linear-gradient(180deg, hsl(var(--hue, 40), 90%, 93%) 0%, hsl(var(--hue, 40), 85%, 84%) 100%);
 }
 .letters-focus.focus-in {

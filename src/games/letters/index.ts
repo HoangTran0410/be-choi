@@ -2,6 +2,7 @@ import { h, replay, wait } from '../../core/dom';
 import type { GameContext, GameModule } from '../../core/types';
 import type { SpeechPart } from '../../core/speech';
 import { makeTappable } from '../../core/tap';
+import { tapOnRelease } from './release';
 import { meta } from './meta';
 import { DIGITS, isDigit, lowerOf, pageDone, pages, splitWord, type Countable, type Glyph, type Word } from './logic';
 import { buildCountRound, buildFindRound, easeStreak, levelFor, record, ROUNDS_PER_STAR, type CountRound, type LetterRound, type Mastery, type PictureRound } from './quiz';
@@ -204,7 +205,8 @@ function start(ctx: GameContext): void {
         h('span', { class: 'letter-pic' }, isDigit(glyph) ? glyph.emoji : glyph.words[0]!.emoji),
       );
       tile.style.setProperty('--hue', String(((page * 7 + i) * 37) % 360));
-      makeTappable(
+      // On release, not on press: a swipe that starts on a tile scrolls the board instead of opening it.
+      tapOnRelease(
         tile,
         () => {
           ctx.hint.touch();
@@ -215,12 +217,14 @@ function start(ctx: GameContext): void {
             renderDots();
           });
         },
-        { cooldownMs: 0, ctx },
+        ctx,
       );
       return tile;
     });
     grid.replaceChildren(...tiles);
     renderDots();
+    // scrolling the board by wheel or finger counts as activity too
+    grid.addEventListener('scroll', () => ctx.hint.touch(), { passive: true });
 
     const finish = async (): Promise<void> => {
       ctx.hint.clear();
@@ -238,7 +242,11 @@ function start(ctx: GameContext): void {
     };
     ctx.hint.arm(() => {
       const next = tiles.find((_, i) => !touched.has(i));
-      if (next) replay(next, 'anim-wiggle');
+      if (next) {
+        next.scrollIntoView?.({ block: 'nearest' });
+        replay(next, 'anim-wiggle');
+      }
+      void ctx.speakSeq([say('Bé chạm vào một chữ nhé', TALK_RATE, 0)]);
     });
   }
   let pendingFinish: (() => void) | null = null;
@@ -313,6 +321,13 @@ function start(ctx: GameContext): void {
     }
     const play = (): void => {
       void ctx.speakSeq(parts);
+      // a child who sits still in front of the pictures is nudged to touch one
+      ctx.hint.arm(() => {
+        const pics = [...body.children];
+        const pick = pics[Math.floor(Math.random() * pics.length)];
+        if (pick) replay(pick as HTMLElement, 'anim-wiggle');
+        void ctx.speakSeq([say(isDigit(glyph) ? 'Bé chạm vào hình để đếm nhé' : 'Bé chạm vào hình để nghe nhé', TALK_RATE, 0)]);
+      });
     };
     makeTappable(
       face,
@@ -346,7 +361,11 @@ function start(ctx: GameContext): void {
   function armLearnHint(): void {
     ctx.hint.arm(() => {
       const next = main.querySelector('.letter-tile:not(.seen)');
-      if (next) replay(next, 'anim-wiggle');
+      if (next) {
+        next.scrollIntoView?.({ block: 'nearest' });
+        replay(next as HTMLElement, 'anim-wiggle');
+      }
+      void ctx.speakSeq([say('Bé chạm vào một chữ nhé', TALK_RATE, 0)]);
     });
   }
 

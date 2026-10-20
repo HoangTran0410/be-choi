@@ -26,6 +26,15 @@ describe('letters logic', () => {
     // no picture is used for two different words
     expect(new Set(emojis).size).toBe(emojis.length);
   });
+  it('no word starts with a two-letter sound (ch, kh, nh, th, tr …) that belongs to another letter', () => {
+    for (const l of LETTERS) {
+      for (const x of l.words) {
+        const t = x.word.normalize('NFC').toLowerCase();
+        if (l.label === 'Q') continue;
+        expect(/^(ch|gh|gi|kh|ng|nh|ph|qu|th|tr)/.test(t), `${l.label}: ${x.word}`).toBe(false);
+      }
+    }
+  });
   it('reads the usual names for the marked vowels', () => {
     const by = (c: string) => LETTERS.find((l) => l.label === c)!;
     expect(by('Ă').name).toBe('á');
