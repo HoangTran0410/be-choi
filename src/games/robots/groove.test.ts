@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   BARS,
+  BAND_GAIN,
   SONGS,
+  chordTones,
+  extOf,
+  swingOffset,
+  voicingOf,
   STEPS_PER_BAR,
   chordPcs,
   createGroove,
@@ -13,11 +18,12 @@ import {
   scalePcs,
   stepMs,
   type GrooveDeps,
+  type SongId,
   type Player,
   type StepEvent,
 } from './groove';
 
-const song = (id: 'fun' | 'disco' | 'calm') => findSong(id);
+const song = (id: SongId) => findSong(id);
 
 describe('harmony', () => {
   it('builds the chords and scales of each song', () => {
@@ -78,15 +84,45 @@ describe('harmony', () => {
     expect(midiFreq(60)).toBeCloseTo(261.63, 2);
   });
 
-  it('has three different songs: tempo, key, chords and drum feel all differ', () => {
-    expect(SONGS.map((s) => s.id)).toEqual(['fun', 'disco', 'calm']);
-    expect(new Set(SONGS.map((s) => s.bpm)).size).toBe(3);
-    expect(new Set(SONGS.map((s) => s.tonic)).size).toBe(3);
-    expect(new Set(SONGS.map((s) => s.style)).size).toBe(3);
-    expect(new Set(SONGS.map((s) => s.icon)).size).toBe(3);
+  it('has five different songs: tempo, key, chords and drum feel all differ', () => {
+    expect(SONGS.map((s) => s.id)).toEqual(['fun', 'disco', 'calm', 'latin', 'east']);
+    expect(new Set(SONGS.map((s) => s.bpm)).size).toBe(5);
+    expect(new Set(SONGS.map((s) => s.tonic)).size).toBe(5);
+    expect(new Set(SONGS.map((s) => s.style)).size).toBe(5);
+    expect(new Set(SONGS.map((s) => s.icon)).size).toBe(5);
+    expect(new Set(SONGS.map((s) => s.chords.map((c) => `${(c.root - s.tonic + 12) % 12}${c.quality}`).join())).size).toBe(5);
     expect(Math.min(...SONGS.map((s) => s.bpm))).toBeGreaterThanOrEqual(70);
     expect(Math.max(...SONGS.map((s) => s.bpm))).toBeLessThanOrEqual(130);
-    for (const s of SONGS) expect(s.chords.length).toBe(BARS);
+    for (const s of SONGS) {
+      expect(s.chords.length).toBe(BARS);
+      expect(s.swing).toBeGreaterThanOrEqual(0);
+      expect(s.swing).toBeLessThanOrEqual(0.67);
+    }
+  });
+
+  it('every chord has a colour tone (a seventh or sixth) that suits it', () => {
+    for (const s of SONGS) {
+      for (const c of s.chords) {
+        const ext = extOf(c);
+        expect([9, 10, 11]).toContain(ext);
+        expect(chordTones(c)).toHaveLength(4);
+        expect(new Set(chordTones(c)).size).toBe(4);
+      }
+    }
+    // Dominant seventh on G in the pop loop: F natural; major seventh on C: B.
+    expect(chordTones(song('fun').chords[3]!)).toEqual([7, 11, 2, 5]);
+    expect(chordTones(song('fun').chords[0]!)).toEqual([0, 4, 7, 11]);
+    // The sus-2 chord replaces the third with the second.
+    expect(chordPcs({ root: 2, quality: 'sus' })).toEqual([2, 4, 9]);
+  });
+
+  it('reads the colour tone and the third and colour tone in the bass', () => {
+    const fun = song('fun');
+    expect(pitchOf(fun, 0, { k: 'ext', oct: 0 })).toBe(71); // B over C
+    expect(pitchOf(fun, 3, { k: 'ext', oct: 0 })).toBe(65); // F over G
+    expect(pitchOf(fun, 0, { k: 'bass', n: 3, oct: 0 })).toBe(52); // E
+    expect(pitchOf(fun, 0, { k: 'bass', n: 4, oct: 0 })).toBe(59); // B
+    expect(pitchOf(fun, 1, { k: 'bass', n: 3, oct: 0 })).toBe(48); // C over A minor
   });
 });
 
@@ -102,6 +138,22 @@ describe('parseBars', () => {
     expect(bar!.slice(5).map((h) => (h.p as { i: number }).i)).toEqual([0, 1, 2]);
   });
 
+  it('reads velocities, voiced chords, colour tones and bass thirds', () => {
+    const [bar] = parseBars('0K@9 1S@2 2w:4@5 6y:2 8v1:2 9j3:2^ 10e:2 12b3:2 14b4:2@8');
+    expect(bar![0]).toEqual({ s: 0, d: 1, drum: 'kick', v: 1 });
+    expect(bar![1]).toEqual({ s: 1, d: 1, drum: 'snare', v: 0.22 });
+    const voiced = bar!.filter((h) => h.s === 2);
+    expect(voiced.map((h) => (h.p as { i: number }).i)).toEqual([0, 1, 2]);
+    expect(voiced.every((h) => h.v === 0.56 && h.p!.k === 'voice' && !h.p!.sev)).toBe(true);
+    expect(bar!.filter((h) => h.s === 6).length).toBe(4);
+    expect(bar!.find((h) => h.s === 6)!.v).toBeUndefined();
+    expect(bar!.find((h) => h.s === 8)!.p).toEqual({ k: 'voice', i: 1, sev: false, oct: 0 });
+    expect(bar!.find((h) => h.s === 9)!.p).toEqual({ k: 'voice', i: 3, sev: true, oct: 1 });
+    expect(bar!.find((h) => h.s === 10)!.p).toEqual({ k: 'ext', oct: 0 });
+    expect(bar!.find((h) => h.s === 12)!.p).toEqual({ k: 'bass', n: 3, oct: 0 });
+    expect(bar!.find((h) => h.s === 14)!.v).toBe(0.89);
+  });
+
   it('takes 1, 2 or 4 bars, with empty bars allowed', () => {
     expect(parseBars('0K').length).toBe(1);
     expect(parseBars('0K | 4S').length).toBe(2);
@@ -112,8 +164,52 @@ describe('parseBars', () => {
     expect(() => parseBars('0Z')).toThrow();
     expect(() => parseBars('16K')).toThrow();
     expect(() => parseBars('0K | 4S | 8K')).toThrow();
-    expect(() => parseBars('0b3')).toThrow();
+    expect(() => parseBars('0b5')).toThrow();
+    expect(() => parseBars('0K@0')).toThrow();
+    expect(() => parseBars('0v')).toThrow();
     expect(() => parseBars('K')).toThrow();
+  });
+});
+
+describe('voice-led chords', () => {
+  it('every voicing holds exactly the chord tones, close together, in the middle register', () => {
+    for (const s of SONGS) {
+      for (const sev of [false, true]) {
+        for (let bar = 0; bar < BARS; bar++) {
+          const v = voicingOf(s, bar, sev);
+          const want = new Set(sev ? chordTones(s.chords[bar]!) : chordPcs(s.chords[bar]!));
+          expect(v.length).toBe(want.size);
+          expect(new Set(v.map((n) => n % 12))).toEqual(want);
+          expect([...v].sort((a, b) => a - b)).toEqual([...v]);
+          expect(v[0]!).toBeGreaterThanOrEqual(52);
+          expect(v[v.length - 1]!).toBeLessThanOrEqual(76);
+          expect(v[v.length - 1]! - v[0]!).toBeLessThanOrEqual(sev ? 14 : 12);
+        }
+      }
+    }
+  });
+
+  it('the notes move as little as possible from chord to chord, round the loop too', () => {
+    for (const s of SONGS) {
+      for (const sev of [false, true]) {
+        let total = 0;
+        for (let bar = 0; bar < BARS; bar++) {
+          const a = voicingOf(s, bar, sev);
+          const b = voicingOf(s, bar + 1, sev);
+          const move = a.reduce((t, n, i) => t + Math.abs(n - b[i]!), 0) / a.length;
+          expect(move, `${s.id} bar ${bar} sev=${sev}`).toBeLessThanOrEqual(5);
+          total += move;
+        }
+        expect(total / BARS, `${s.id} sev=${sev}`).toBeLessThanOrEqual(3.5);
+      }
+    }
+  });
+
+  it('voice tokens wrap into the next octave', () => {
+    const fun = song('fun');
+    const v = voicingOf(fun, 0);
+    expect(pitchOf(fun, 0, { k: 'voice', i: 1, sev: false, oct: 0 })).toBe(v[1]);
+    expect(pitchOf(fun, 0, { k: 'voice', i: 3, sev: false, oct: 0 })).toBe(v[0]! + 12);
   });
 });
 
@@ -125,6 +221,7 @@ interface Rig {
   timers: Array<{ fn: () => void; at: number; id: number }>;
   note: ReturnType<typeof vi.fn>;
   drum: ReturnType<typeof vi.fn>;
+  inst: ReturnType<typeof vi.fn>;
   /** Advance time, running due timers like a browser would. */
   advance(ms: number): void;
 }
@@ -135,8 +232,9 @@ function rig(): Rig {
   let nextId = 1;
   const note = vi.fn();
   const drum = vi.fn();
+  const inst = vi.fn();
   const deps: GrooveDeps = {
-    audio: { note, drum },
+    audio: { note, drum, inst },
     now: () => clock.t,
     setTimer(fn, ms) {
       const id = nextId++;
@@ -154,6 +252,7 @@ function rig(): Rig {
     timers,
     note,
     drum,
+    inst,
     advance(ms) {
       const end = clock.t + ms;
       for (;;) {
@@ -365,5 +464,89 @@ describe('groove scheduler', () => {
     expect(freqs.map((f) => Math.round(f))).toEqual([262, 330, 392]); // C major triad
     expect(r.note.mock.calls[0]![2]).toBe('piano');
     expect(r.note.mock.calls[0]![3]).toBeCloseTo(0.06, 3);
+  });
+});
+
+describe('the sound of the groove', () => {
+  it('plays a robot with the instrument of the song, and falls back to its timbre', () => {
+    for (const [songId, voice] of [['fun', 'marimba'], ['calm', 'kalimba'], ['east', 'handpan']] as const) {
+      const r = rig();
+      const g = createGroove(r.deps);
+      g.setSong(songId);
+      g.setPlayer(0, { timbre: 'xylo', bars: () => parseBars('0c0:2'), voice: (id) => (id === songId ? voice : 'xylo') });
+      g.start();
+      expect(r.inst).toHaveBeenCalledTimes(1);
+      expect(r.inst.mock.calls[0]![0]).toBe(voice);
+      expect(r.note).not.toHaveBeenCalled();
+    }
+    const r = rig();
+    const g = createGroove(r.deps);
+    g.setPlayer(0, { timbre: 'xylo', bars: () => parseBars('0c0:2'), voice: () => 'flute' });
+    g.start();
+    expect(r.note.mock.calls[0]![2]).toBe('flute');
+    expect(r.inst).not.toHaveBeenCalled();
+  });
+
+  it('plays an instrument voice through note() when the audio has no world instruments', () => {
+    const r = rig();
+    const { inst: _unused, ...audio } = r.deps.audio as unknown as Record<string, unknown>;
+    const g = createGroove({ ...r.deps, audio: audio as unknown as GrooveDeps['audio'] });
+    g.setPlayer(0, { timbre: 'bell', bars: () => parseBars('0c0:2'), voice: () => 'harp' });
+    g.start();
+    expect(r.note.mock.calls[0]![2]).toBe('bell');
+  });
+
+  it('a world instrument can stand in for a drum', () => {
+    const r = rig();
+    const g = createGroove(r.deps);
+    g.setPlayer(0, { timbre: 'bass', bars: () => parseBars('0X 4K'), perc: (_s, kind) => (kind === 'shaker' ? 'maracas' : undefined) });
+    g.start();
+    expect(r.inst.mock.calls[0]![0]).toBe('maracas');
+    expect(r.drum).not.toHaveBeenCalled();
+    r.advance(1000);
+    expect(r.drum.mock.calls[0]![0]).toBe('kick');
+  });
+
+  it('velocity and the robot level set how loud a hit is', () => {
+    const r = rig();
+    const g = createGroove(r.deps);
+    g.setPlayer(0, { timbre: 'bass', bars: () => parseBars('0K@9 4K@3 8K'), vol: 0.5 });
+    g.start();
+    r.advance(1500);
+    const vels = r.drum.mock.calls.map((c) => c[2] as number);
+    expect(vels.slice(0, 3).map((v) => Math.round((v / BAND_GAIN) * 1000) / 1000)).toEqual([0.5, 0.165, 0.39]);
+  });
+
+  it('chords roll a few milliseconds apart, and the first note is exactly on the beat', () => {
+    const r = rig();
+    const g = createGroove(r.deps);
+    g.setPlayer(0, chordPlayer(0));
+    g.start();
+    const delays = r.note.mock.calls.map((c) => c[3] as number);
+    expect(delays[0]).toBeCloseTo(0.06, 4);
+    expect(delays[1]! - delays[0]!).toBeCloseTo(0.011, 4);
+    expect(delays[2]! - delays[1]!).toBeCloseTo(0.011, 4);
+  });
+
+  it('swing pushes the off-beats late in the sound only, never moving the grid', () => {
+    const calm = song('calm');
+    expect(swingOffset(calm, 0)).toBe(0);
+    expect(swingOffset(calm, 4)).toBe(0);
+    expect(swingOffset(calm, 2)).toBeCloseTo(calm.swing, 6);
+    expect(swingOffset(calm, 3)).toBeCloseTo(calm.swing / 2, 6);
+    expect(swingOffset(song('fun'), 2)).toBe(0);
+    const r = rig();
+    const g = createGroove(r.deps);
+    g.setSong('calm');
+    const when: number[] = [];
+    r.drum.mockImplementation((_k: string, delay: number) => when.push(r.clock.t + delay * 1000));
+    g.setPlayer(0, { timbre: 'bass', bars: () => parseBars('0K 2K') });
+    g.start();
+    r.advance(600);
+    const kick = g.drain(r.clock.t + 1000).filter((e) => e.hits.length > 0);
+    // The picture's step times stay exact multiples of the step...
+    expect(kick[1]!.t - kick[0]!.t).toBeCloseTo(2 * stepMs(calm), 6);
+    // ...but the sound of the off-beat is late by the swing.
+    expect(when[1]! - when[0]!).toBeCloseTo(2 * stepMs(calm) + calm.swing * stepMs(calm), 4);
   });
 });

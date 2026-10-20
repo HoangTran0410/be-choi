@@ -6,7 +6,7 @@
 import { LOUDNESS } from './loudness';
 import { SFX_TAKES, sfxUrl } from './sfx';
 import { VOICE_HZ } from './voicepitch';
-import { INSTRUMENT_IDS, INSTRUMENT_REF, renderInstrument, type InstrumentId } from './instruments';
+import { HELD, INSTRUMENT_IDS, INSTRUMENT_REF, renderInstrument, type InstrumentId } from './instruments';
 
 export type { InstrumentId };
 /** World instruments the synth can render (see instruments.ts). */
@@ -130,15 +130,18 @@ export interface AudioEngine {
    * `delay` (seconds, default 0) starts it that long from now on the audio clock, so a
    * sequencer can queue notes a little ahead and keep exact time.
    */
-  note(freq: number, dur?: number, timbre?: Timbre, delay?: number): void;
-  /** Percussion hit. `delay` (seconds, default 0) starts it that long from now. */
-  drum(kind: DrumKind, delay?: number): void;
+  note(freq: number, dur?: number, timbre?: Timbre, delay?: number, vel?: number): void;
+  /** Percussion hit. `delay` (seconds, default 0) starts it that long from now. `vel` 0…1 scales the level. */
+  drum(kind: DrumKind, delay?: number, vel?: number): void;
   /**
    * A world instrument (marimba, kalimba, gong…) at `freq` Hz, struck with `vel` 0…1.
    * `dur` only matters for the held ones (organ, accordion, harmonica, pan flute).
+   * `delay` (seconds) starts it that long from now on the audio clock; with `damp`, a struck
+   * instrument is also faded out over ~0.3 s once `dur` is up, so a sequencer can keep chords clean;
+   * `gain` (default 1) sets its place in a mix without changing how hard it is struck.
    * Returns a handle that can damp it early (a hand on a gong), or null when silent.
    */
-  inst(id: InstrumentId, freq?: number, vel?: number, dur?: number): InstVoice | null;
+  inst(id: InstrumentId, freq?: number, vel?: number, dur?: number, delay?: number, damp?: boolean, gain?: number): InstVoice | null;
   /** A soft breath of air (blowing out a candle). */
   puff(): void;
   /** Sound effect / animal voice. */
@@ -429,8 +432,8 @@ export function createAudio(): AudioEngine {
   /** Seconds to push the sound being built into the future (see `note`/`drum`'s `delay`). */
   let shift = 0;
 
-  function at<T>(id: SoundId, play: () => T, delay = 0): T {
-    trim = LOUDNESS[id] ?? 1;
+  function at<T>(id: SoundId, play: () => T, delay = 0, vel = 1): T {
+    trim = (LOUDNESS[id] ?? 1) * (Number.isFinite(vel) ? Math.min(1.5, Math.max(0, vel)) : 1);
     shift = Number.isFinite(delay) && delay > 0 ? delay : 0;
     try {
       return play();
@@ -1006,21 +1009,22 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  function note(freq: number, dur = 0.5, timbre: Timbre = 'piano', delay = 0): void {
-    at(`note:${timbre}`, () => playNote(freq, dur, timbre), delay);
+  function note(freq: number, dur = 0.5, timbre: Timbre = 'piano', delay = 0, vel = 1): void {
+    at(`note:${timbre}`, () => playNote(freq, dur, timbre), delay, vel);
   }
 
   /** Rendered notes, most recently used last: a repeated tap costs no DSP. */
   const instCache = new Map<string, AudioBuffer>();
-  const INST_KEPT = 72;
+  const INST_KEPT = 128;
 
-  function playInst(id: InstrumentId, freq: number, vel: number, dur?: number): InstVoice | null {
+  function playInst(id: InstrumentId, freq: number, vel: number, dur?: number, damp = false): InstVoice | null {
     const c = getCtx();
     if (!c || !master) return null;
     try {
       const v = Math.round(Math.min(1, Math.max(0, vel)) * 5) / 5;
       const f = freq > 0 ? freq : INSTRUMENT_REF[id];
-      const key = `${id}|${Math.round(f * 10)}|${v}|${dur ? dur.toFixed(2) : ''}`;
+      // Only the held instruments (organ, reeds, pan flute) render differently for a different length.
+      const key = `${id}|${Math.round(f * 10)}|${v}|${dur && HELD.has(id) ? (Math.round(dur * 20) / 20).toFixed(2) : ''}`;
       let buf = instCache.get(key);
       if (buf) instCache.delete(key);
       else {
@@ -1037,7 +1041,15 @@ export function createAudio(): AudioEngine {
       const g = c.createGain();
       g.gain.value = trim * (0.95 + Math.random() * 0.1);
       src.connect(g).connect(master);
-      src.start(c.currentTime);
+      const t0 = c.currentTime + shift;
+      src.start(t0);
+      if (damp && dur && dur > 0) {
+        // A struck note rings on; let it go when its written length is up so chords stay clean.
+        const level = g.gain.value;
+        g.gain.setValueAtTime(level, t0 + dur);
+        g.gain.linearRampToValueAtTime(0, t0 + dur + 0.3);
+        src.stop(t0 + dur + 0.35);
+      }
       let stopped = false;
       return {
         stop() {
@@ -1058,12 +1070,12 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  function inst(id: InstrumentId, freq?: number, vel = 1, dur?: number): InstVoice | null {
-    return at(`inst:${id}`, () => playInst(id, freq ?? INSTRUMENT_REF[id], vel, dur));
+  function inst(id: InstrumentId, freq?: number, vel = 1, dur?: number, delay = 0, damp = false, gain = 1): InstVoice | null {
+    return at(`inst:${id}`, () => playInst(id, freq ?? INSTRUMENT_REF[id], vel, dur, damp), delay, gain);
   }
 
-  function drum(kind: DrumKind, delay = 0): void {
-    at(`drum:${kind}`, () => playDrum(kind), delay);
+  function drum(kind: DrumKind, delay = 0, vel = 1): void {
+    at(`drum:${kind}`, () => playDrum(kind), delay, vel);
   }
 
   /**

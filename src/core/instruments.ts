@@ -79,7 +79,7 @@ export const INSTRUMENT_REF: Readonly<Record<InstrumentId, number>> = {
 
 /** How long a note of this instrument is held when it has a "held" sound (seconds). */
 const HELD_DEFAULT = 0.9;
-const HELD: ReadonlySet<InstrumentId> = new Set<InstrumentId>(['organ', 'accordion', 'harmonica', 'panflute']);
+export const HELD: ReadonlySet<InstrumentId> = new Set<InstrumentId>(['organ', 'accordion', 'harmonica', 'panflute']);
 /** Longest tail rendered, so a cached gong stays small. */
 const MAX_SECONDS = 4.2;
 

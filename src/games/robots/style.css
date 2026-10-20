@@ -28,6 +28,16 @@
   --bg2: #1e3a5f;
   --beam: #7dd3fc;
 }
+.rb[data-song='latin'] {
+  --bg1: #7c2d12;
+  --bg2: #be123c;
+  --beam: #fde68a;
+}
+.rb[data-song='east'] {
+  --bg1: #450a0a;
+  --bg2: #7f1d1d;
+  --beam: #fcd34d;
+}
 
 /* ---- top bar ---- */
 .rb-top {
