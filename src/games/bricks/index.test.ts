@@ -16,7 +16,10 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x = 0, y = 0): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  const e = new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true, bubbles: true });
+  // A finger: the shared drag-and-drop treats a mouse move with no button down as a release.
+  Object.assign(e, { pointerType: 'touch' });
+  return e;
 }
 
 /** Plate cell in the stubbed layout: a 10×8 plate at (0, 0) of 400×320 px. */
@@ -125,7 +128,7 @@ describe('bricks game', () => {
     expect(ctx.stage.querySelector('.bricks-tray .bricks-mode')?.textContent).toBe('🏗️');
     expect(bricks(ctx).length).toBe(0);
     expect(q(ctx, '.bricks-ghost-cell').length).toBe(0);
-    expect(ctx.spoken).toEqual([]);
+    expect(ctx.spoken).toEqual(['Xếp gạch tuỳ thích nhé!']); // the greeting
     // No stray `click` handlers: everything is Pointer Events.
     window.dispatchEvent(new Event('resize'));
     ctx.cleanup();
@@ -148,7 +151,7 @@ describe('bricks game', () => {
     expect(pop).toHaveBeenCalledWith(1.4);
     expect(tick).toHaveBeenCalledTimes(1);
     // The template springs back to the tray.
-    expect(one.classList.contains('spring-back')).toBe(true);
+    expect(ctx.stage.querySelector('.bricks-dragLayer .dd-ghost')).not.toBeNull(); // gliding back
     expect(one.parentElement?.classList.contains('bricks-pieces')).toBe(true);
 
     dropAt(one, 0);
@@ -183,7 +186,7 @@ describe('bricks game', () => {
     colorBtn(blue).dispatchEvent(ptr('pointerdown'));
     expect(colorBtn(blue).classList.contains('active')).toBe(true);
     expect(q(ctx, '.bricks-color.active').length).toBe(1);
-    expect(ctx.spoken).toEqual(['màu xanh dương']);
+    expect(ctx.spoken.at(-1)).toBe('màu xanh dương');
     for (const t of q(ctx, '.bricks-piece')) {
       expect(t.querySelector<HTMLElement>('.bricks-brick')!.style.getPropertyValue('--bricks-color')).toBe(blue);
     }
@@ -441,5 +444,27 @@ describe('bricks game', () => {
     expect(Math.min(...xs2)).toBe(centerOffset(model, 10));
     ctx.cleanup();
     delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+});
+
+describe('bricks: shared drag-and-drop', () => {
+  it('leaving mid-drag removes the floating copy', () => {
+    const { ctx, template } = mount();
+    const one = template(1, 1);
+    one.dispatchEvent(ptr('pointerdown', 0, 0));
+    one.dispatchEvent(ptr('pointermove', 100, 100));
+    expect(ctx.stage.querySelectorAll('.bricks-dragLayer .dd-ghost').length).toBe(1);
+    ctx.cleanup();
+    expect(document.querySelectorAll('.dd-ghost').length).toBe(0);
+  });
+
+  it('greets on open and the idle hint says what to do', () => {
+    vi.useFakeTimers();
+    const { ctx } = mount();
+    expect(ctx.spoken[0]).toBe('Xếp gạch tuỳ thích nhé!');
+    vi.advanceTimersByTime(6000);
+    expect(ctx.sequenced.some((t) => t.includes('Kéo gạch'))).toBe(true);
+    ctx.cleanup();
+    vi.useRealTimers();
   });
 });

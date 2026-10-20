@@ -1,10 +1,9 @@
 import { ANIMALS, voiceOf } from '../../core/content';
 import { h, randInt, replay, shuffle } from '../../core/dom';
-import { makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import { makeTappable } from '../../core/tap';
 import { makeCut, renderPhotoPicture, renderPicture, scalePath, trayPieceWidth, type CutPiece } from '../jigsaw/logic';
 import { artBg, pickArt, pieceHint, puzzleLevel, vehicleVoice, type PuzzleArt } from './levels';
-import { pullElement } from './magnet';
 import { renderScene } from './scenes';
 import type { ModeCtl, Workshop } from './types';
 import { speakText } from '../../core/say';
@@ -47,6 +46,7 @@ interface PieceEls {
   item: HTMLElement;
   piece: HTMLElement;
   slot: HTMLElement;
+  accept(): void;
 }
 
 /**
@@ -88,7 +88,55 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
     h('span', { class: 'bw-ico' }, '🖼️'),
   );
   makeTappable(source, () => w.choosePhoto(), { ctx, cooldownMs: 300 });
-  const el = h('section', { class: 'bw-mode bw-pz' }, area, tray, caption, source);
+  // The copy of the piece in the child's hand floats here (see core/dragdrop.ts).
+  const dragLayer = h('div', { class: 'bw-dd-layer' });
+  const el = h('section', { class: 'bw-mode bw-pz' }, area, tray, caption, source, dragLayer);
+
+  /** The piece in the child's hand and the pull radius (px). A finger within it of the piece's place counts as put there. */
+  let carried: PieceEls | null = null;
+  let radius = 0;
+  let lit: PieceEls | null = null;
+  const light = (e: PieceEls | null): void => {
+    if (lit === e) return;
+    lit?.slot.classList.remove('bw-near');
+    lit = e;
+    lit?.slot.classList.add('bw-near');
+  };
+  const dd = createDragDrop<PieceEls>({
+    layer: dragLayer,
+    targets: () => (carried ? [{ id: String(carried.p.id), rect: carried.slot.getBoundingClientRect() }] : []),
+    resolve: (p, targets) => pickTarget(p, targets, { maxDistance: radius }),
+    ghost(src, item) {
+      carried = src;
+      radius = MAGNET * board.getBoundingClientRect().width;
+      item.classList.remove('anim-wiggle');
+      ctx.hint.touch();
+      const g = h('div', { class: 'bw-pz-ghost-piece' });
+      g.append(src.piece.cloneNode(true));
+      return g;
+    },
+    onHover: (id, src) => light(id === null ? null : src),
+    onTap(src, item) {
+      // A tap shows where this one goes; the words come from the idle hint, not from every touch.
+      ctx.hint.touch();
+      replay(item, 'anim-wiggle');
+      replay(src.slot, 'anim-wiggle');
+    },
+    onDrop(src, hit) {
+      light(null);
+      if (hit === null) {
+        ctx.audio.boing();
+        return false;
+      }
+      src.accept();
+      return true;
+    },
+    onEnd() {
+      carried = null;
+      light(null);
+    },
+    ctx,
+  });
 
   function layout(): void {
     const size = board.getBoundingClientRect().width;
@@ -192,34 +240,8 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
       }
       piece.append(edgeOf(p));
       const item = h('div', { class: 'g-item bw-pz-item', 'data-id': p.id }, piece);
-      const e: PieceEls = { p, item, piece, slot };
-      const center = () => {
-        const r = slot.getBoundingClientRect();
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      };
-      const radius = () => MAGNET * board.getBoundingClientRect().width;
-      disposers.push(
-        makeDraggable(item, {
-          onStart(node) {
-            node.classList.remove('anim-wiggle');
-            ctx.hint.touch();
-          },
-          onMove(node) {
-            pullElement(node, center(), radius());
-          },
-          onDrop(node) {
-            node.classList.remove('bw-near');
-            const a = node.getBoundingClientRect();
-            const c = center();
-            if (Math.hypot(a.left + a.width / 2 - c.x, a.top + a.height / 2 - c.y) > radius()) {
-              ctx.audio.boing();
-              return false;
-            }
-            accept(e, isPhoto, art);
-            return true;
-          },
-        }),
-      );
+      const e: PieceEls = { p, item, piece, slot, accept: () => accept(e, isPhoto, art) };
+      disposers.push(dd.attach(item, () => (item.classList.contains('placed') ? null : e)));
       return e;
     });
     board.replaceChildren(ghost, lines, ...els.map((e) => e.slot), caption);
@@ -244,7 +266,6 @@ export function createPuzzleMode(w: Workshop): ModeCtl {
   function accept(e: PieceEls, isPhoto: boolean, art: PuzzleArt | null): void {
     e.item.classList.add('placed');
     e.piece.classList.add('placed');
-    e.piece.style.transform = '';
     e.slot.classList.add('filled');
     e.slot.append(e.piece);
     e.item.remove();

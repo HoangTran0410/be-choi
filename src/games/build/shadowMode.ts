@@ -1,9 +1,8 @@
 import { h, replay, svgEl } from '../../core/dom';
-import { makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import { makeTappable } from '../../core/tap';
 import { blockPath, blockTransform, congruent, pieceOrder, type Block, type Picture } from '../blocks/logic';
 import { describeBlock, pickShadow, shadowHasSeams } from './levels';
-import { pullElement } from './magnet';
 import type { ModeCtl, Workshop } from './types';
 import { speakText } from '../../core/say';
 
@@ -74,7 +73,58 @@ export function createShadowMode(w: Workshop): ModeCtl {
     h('span', { class: 'bw-ico' }, '🖼️'),
   );
   makeTappable(source, () => w.choosePhoto(), { ctx, cooldownMs: 300 });
-  const el = h('section', { class: 'bw-mode bw-sh' }, area, tray, caption, source);
+  // The copy of the block in the child's hand floats here (see core/dragdrop.ts).
+  const dragLayer = h('div', { class: 'bw-dd-layer' });
+  const el = h('section', { class: 'bw-mode bw-sh' }, area, tray, caption, source, dragLayer);
+
+  /** A block in the child's hand, how far (px) from a place of its own shape still counts, and the place it would take now. */
+  let carried: { block: Block; picture: Picture } | null = null;
+  let radius = 0;
+  let lit: Slot | null = null;
+  const light = (slot: Slot | null): void => {
+    if (lit === slot) return;
+    lit?.path.classList.remove('bw-hover');
+    lit = slot;
+    lit?.path.classList.add('bw-hover');
+  };
+  const dd = createDragDrop<{ block: Block; picture: Picture }>({
+    layer: dragLayer,
+    // Any open place of the same shape and size will do (twin blocks look the same).
+    targets: () => (carried ? openSlots(carried.block).map((s) => ({ id: String(s.index), rect: s.path.getBoundingClientRect() })) : []),
+    resolve: (p, targets) => pickTarget(p, targets, { maxDistance: radius }),
+    ghost(src, node) {
+      carried = src;
+      const b = svg.getBoundingClientRect();
+      const a = node.getBoundingClientRect();
+      radius = Math.max(0.2 * Math.min(b.width, b.height), 0.45 * Math.max(a.width, a.height));
+      node.classList.remove('anim-wiggle');
+      ctx.hint.touch();
+      speakText(ctx, describeBlock(src.block.shape, src.block.color));
+      return node.cloneNode(true) as HTMLElement;
+    },
+    onHover: (id) => light(id === null ? null : (slots[Number(id)] ?? null)),
+    onTap(src, node) {
+      // A tap says what the block is and shows where it goes.
+      ctx.hint.touch();
+      replay(node, 'anim-wiggle');
+      speakText(ctx, describeBlock(src.block.shape, src.block.color));
+    },
+    onDrop(src, hit, node) {
+      light(null);
+      const slot = hit === null ? undefined : slots[Number(hit)];
+      if (!slot || slot.placed) {
+        ctx.audio.boing();
+        return false;
+      }
+      accept(node, src.block, slot, src.picture);
+      return true;
+    },
+    onEnd() {
+      carried = null;
+      light(null);
+    },
+    ctx,
+  });
 
   /** Tray pieces are sized from the picture's on-screen size (see style.css). */
   function layout(): void {
@@ -130,27 +180,6 @@ export function createShadowMode(w: Workshop): ModeCtl {
     return slots.filter((s) => !s.placed && congruent(s.block, block));
   }
 
-  function nearest(node: HTMLElement, block: Block): { slot: Slot; dist: number; x: number; y: number } | null {
-    const a = node.getBoundingClientRect();
-    const cx = a.left + a.width / 2;
-    const cy = a.top + a.height / 2;
-    let best: { slot: Slot; dist: number; x: number; y: number } | null = null;
-    for (const slot of openSlots(block)) {
-      const r = slot.path.getBoundingClientRect();
-      const x = r.left + r.width / 2;
-      const y = r.top + r.height / 2;
-      const dist = Math.hypot(x - cx, y - cy);
-      if (!best || dist < best.dist) best = { slot, dist, x, y };
-    }
-    return best;
-  }
-
-  function radiusFor(node: HTMLElement): number {
-    const b = svg.getBoundingClientRect();
-    const a = node.getBoundingClientRect();
-    return Math.max(0.2 * Math.min(b.width, b.height), 0.45 * Math.max(a.width, a.height));
-  }
-
   function pieceFor({ block, index }: Slot, picture: Picture): HTMLElement {
     const piece = h(
       'div',
@@ -162,29 +191,8 @@ export function createShadowMode(w: Workshop): ModeCtl {
       },
       pieceSvg(block),
     );
-    disposers.push(
-      makeDraggable(piece, {
-        onStart(node) {
-          node.classList.remove('anim-wiggle');
-          ctx.hint.touch();
-          speakText(ctx, describeBlock(block.shape, block.color));
-        },
-        onMove(node) {
-          const n = nearest(node, block);
-          if (n) pullElement(node, { x: n.x, y: n.y }, radiusFor(node));
-        },
-        onDrop(node) {
-          node.classList.remove('bw-near');
-          const n = nearest(node, block);
-          if (!n || n.dist > radiusFor(node)) {
-            ctx.audio.boing();
-            return false;
-          }
-          accept(node, block, n.slot, picture);
-          return true;
-        },
-      }),
-    );
+    const src = { block, picture };
+    disposers.push(dd.attach(piece, () => (piece.classList.contains('placed') ? null : src)));
     return piece;
   }
 
@@ -195,7 +203,6 @@ export function createShadowMode(w: Workshop): ModeCtl {
       blockNode(slot.block, { fill: block.color, stroke: 'rgba(255,255,255,.7)', 'stroke-width': '2', class: 'bw-placed' }).g,
     );
     piece.classList.add('placed');
-    piece.style.transform = '';
     ctx.audio.ding();
     navigator.vibrate?.(15);
     ctx.hint.touch();

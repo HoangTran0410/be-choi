@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
-import { makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
+import { speakText } from '../../core/say';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { Photo } from '../../core/photos';
 import type { GameContext, GameModule } from '../../core/types';
@@ -54,6 +55,8 @@ interface PieceEls {
   item: HTMLElement;
   piece: HTMLElement;
   slot: HTMLElement;
+  /** Put the piece in its place (set when the round is dealt). */
+  accept(): void;
 }
 
 /**
@@ -96,7 +99,9 @@ function start(ctx: GameContext): void {
   lines.append(linesPath);
   const tray = h('div', { class: 'g-tray jigsaw-tray' });
   area.append(board);
-  wrap.append(area, tray);
+  // The copy of the piece in the child's hand floats here (see core/dragdrop.ts).
+  const layer = h('div', { class: 'jigsaw-layer' });
+  wrap.append(area, tray, layer);
   ctx.stage.append(wrap);
 
   // 🖼️ in the corner opens a full-stage picker: one tile per photo and a 🐣 tile for emoji pictures.
@@ -144,6 +149,54 @@ function start(ctx: GameContext): void {
     if (chosenId !== null && !photos.some((p) => p.id === chosenId)) chosenId = null;
     syncSource();
   }
+
+  /** The piece in the child's hand and how close (px, finger to its place's centre) still counts. */
+  let carried: PieceEls | null = null;
+  let radius = 0;
+  let lit: PieceEls | null = null;
+  const light = (e: PieceEls | null): void => {
+    if (lit === e) return;
+    lit?.slot.classList.remove('jigsaw-near');
+    lit = e;
+    lit?.slot.classList.add('jigsaw-near');
+  };
+
+  const dd = createDragDrop<PieceEls>({
+    layer,
+    // Only its own place counts. The finger is the middle of the copy, so close to the centre = close enough.
+    targets: () => (carried ? [{ id: String(carried.p.id), rect: carried.slot.getBoundingClientRect() }] : []),
+    resolve: (p, targets) => pickTarget(p, targets, { maxDistance: radius }),
+    ghost(src, item) {
+      carried = src;
+      radius = DROP_TOLERANCE * board.getBoundingClientRect().width;
+      item.classList.remove('anim-wiggle');
+      ctx.hint.touch();
+      const g = h('div', { class: 'jigsaw-ghost-piece' });
+      g.append(src.piece.cloneNode(true));
+      return g;
+    },
+    onHover: (id, src) => light(id === null ? null : src),
+    onTap(src, item) {
+      // A tap shows where this one goes; the words come from the idle hint, not from every touch.
+      ctx.hint.touch();
+      replay(item, 'anim-wiggle');
+      replay(src.slot, 'anim-wiggle');
+    },
+    onDrop(src, hit) {
+      light(null);
+      if (hit === null) {
+        ctx.audio.boing();
+        return false;
+      }
+      src.accept();
+      return true;
+    },
+    onEnd() {
+      carried = null;
+      light(null);
+    },
+    ctx,
+  });
 
   /**
    * Size everything from the laid-out board: placed pieces fill their slot at
@@ -250,25 +303,8 @@ function start(ctx: GameContext): void {
       piece.append(edgeOf(p));
       // The tray item is the drag handle: never smaller than a tap target, the visual centred in it.
       const item = h('div', { class: 'g-item jigsaw-item', 'data-id': p.id }, piece);
-      const e: PieceEls = { p, item, piece, slot };
-      disposers.push(
-        makeDraggable(item, {
-          onDrop(el) {
-            // Close enough to its own slot (centre to centre) wins; nothing else counts.
-            const size = board.getBoundingClientRect().width;
-            const a = el.getBoundingClientRect();
-            const b = slot.getBoundingClientRect();
-            const dx = a.left + a.width / 2 - (b.left + b.width / 2);
-            const dy = a.top + a.height / 2 - (b.top + b.height / 2);
-            if (Math.hypot(dx, dy) > DROP_TOLERANCE * size) {
-              ctx.audio.boing();
-              return false;
-            }
-            accept(e);
-            return true;
-          },
-        }),
-      );
+      const e: PieceEls = { p, item, piece, slot, accept: () => accept(e) };
+      disposers.push(dd.attach(item, () => (item.classList.contains('placed') ? null : e)));
       return e;
     });
     board.replaceChildren(ghost, lines, ...els.map((e) => e.slot));
@@ -278,7 +314,6 @@ function start(ctx: GameContext): void {
     function accept(e: PieceEls): void {
       e.item.classList.add('placed');
       e.piece.classList.add('placed');
-      e.piece.style.transform = '';
       e.slot.classList.add('filled');
       e.slot.append(e.piece);
       e.item.remove();
@@ -296,6 +331,7 @@ function start(ctx: GameContext): void {
       if (!e) return;
       replay(e.piece, 'anim-wiggle');
       replay(e.slot, 'anim-wiggle');
+      speakText(ctx, 'Kéo mảnh này vào chỗ sáng nhé');
     });
   }
 

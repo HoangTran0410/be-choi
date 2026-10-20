@@ -73,7 +73,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     0 2px 4px rgba(0, 0, 0, 0.18);
   touch-action: none;
-  will-change: transform;
   transform-origin: bottom center;
 }
 .bricks-brick::before {
@@ -191,5 +190,46 @@
     align-items: stretch;
     justify-content: center;
     gap: calc(var(--bricks-gap) * 2);
+  }
+}
+
+/* ---- the brick in the child's hand (a copy that floats; see core/dragdrop.ts) ---- */
+.bricks-dragLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.bricks-brick.is-carried {
+  opacity: 0;
+}
+.bricks-piece.is-carried {
+  opacity: 0.4;
+}
+.bricks-plate.bricks-over {
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.9),
+    0 8px 24px rgba(59, 47, 47, 0.16);
+}
+
+/* Landscape phone (short screen): the tray column would be taller than the screen. Wider, tighter, smaller buttons. */
+@media (orientation: landscape) and (max-height: 460px) {
+  .bricks {
+    --bricks-btn: 40px;
+    --bricks-gap: 3px;
+    --bricks-tcell: 16px;
+  }
+  .bricks-tray {
+    width: 46%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .bricks-piece {
+    min-width: 44px;
+    min-height: 44px;
   }
 }

@@ -129,3 +129,22 @@
     align-content: center;
   }
 }
+
+/* ---- the piece in the child's hand (a copy that floats; see core/dragdrop.ts) ---- */
+.blocks-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.blocks-piece.is-carried {
+  opacity: 0.3;
+}
+.blocks-layer .blocks-piece {
+  padding: 0.5vmin;
+}
+/* The outline the piece would land on if let go now. */
+.blocks-outline path.blocks-near {
+  fill: rgba(255, 255, 255, 0.95);
+  stroke: rgba(59, 47, 47, 0.7);
+}

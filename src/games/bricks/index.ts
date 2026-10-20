@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
-import { hitTest, makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
+import { speakText } from '../../core/say';
 import { onHold } from '../../core/hold';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -102,7 +103,9 @@ function start(ctx: GameContext): void {
   const pieces = h('div', { class: 'bricks-pieces' });
   const colors = h('div', { class: 'bricks-colors' });
   const tray = h('div', { class: 'bricks-tray' }, pieces, colors);
-  const root = h('div', { class: 'bricks', 'data-mode': mode }, area, tray);
+  // The copy of the brick in the child's hand floats here (see core/dragdrop.ts).
+  const dragLayer = h('div', { class: 'bricks-dragLayer' });
+  const root = h('div', { class: 'bricks', 'data-mode': mode }, area, tray, dragLayer);
   ctx.stage.append(root);
 
   // ---- geometry ----
@@ -130,10 +133,6 @@ function start(ctx: GameContext): void {
     return rect.width > 0 ? rect.width / board.cols : 0;
   }
 
-  function overPlate(p: { x: number; y: number }, rect: DOMRect, cell: number): boolean {
-    return cell > 0 && hitTest(p, [{ id: 'plate', rect }], cell * 0.5) !== null;
-  }
-
   function clampCol(col: number, w: number): number {
     return Math.max(0, Math.min(board.cols - w, col));
   }
@@ -145,68 +144,116 @@ function start(ctx: GameContext): void {
 
   // ---- bricks on the plate ----
 
+  /** What a finger can pick up: a template from the tray, or a brick already on the plate. */
+  type Src = { kind: 'template'; size: BrickSize } | { kind: 'brick'; id: number };
+  /** The brick lifted off the plate while the child carries it (it is out of `board` until it lands). */
+  let lifted: Brick | null = null;
+  let tolerance = 0;
+
+  const dd = createDragDrop<Src>({
+    layer: dragLayer,
+    targets: () => [{ id: 'plate', rect: plate.getBoundingClientRect() }],
+    // Over the plate (a little beyond its edge counts) or nowhere.
+    resolve: (p, targets) => pickTarget(p, targets, { tolerance }),
+    ghost(src, el) {
+      tolerance = plateCell(plate.getBoundingClientRect()) * 0.5;
+      ctx.hint.touch();
+      const g = el.cloneNode(true) as HTMLElement;
+      g.classList.remove('anim-wiggle', 'bricks-land', 'is-carried');
+      if (src.kind === 'brick') {
+        g.style.bottom = 'auto';
+        g.style.setProperty('--x', '0');
+        g.style.setProperty('--y', '0');
+      }
+      return g;
+    },
+    onPickUp(src, el) {
+      el.classList.remove('anim-wiggle');
+      if (src.kind !== 'brick') return;
+      lifted = board.bricks.find((k) => k.id === src.id) ?? null;
+      if (lifted) board = removeBrick(board, lifted.id);
+    },
+    onHover: (id) => plate.classList.toggle('bricks-over', id !== null),
+    onTap(src, el) {
+      // Only a template answers a tap: it wiggles. (The words come from the idle hint.)
+      ctx.hint.touch();
+      if (src.kind === 'template') {
+        ctx.audio.tick();
+        replay(el, 'anim-wiggle');
+      }
+    },
+    onDrop(src, hit, el, p) {
+      const r = plate.getBoundingClientRect();
+      const cell = plateCell(r);
+      if (src.kind === 'template') {
+        if (hit === null || cell <= 0) {
+          ctx.audio.boing();
+          return false;
+        }
+        const col = clampCol(Math.round((p.x - r.left) / cell - src.size.w / 2), src.size.w);
+        if (!dropTemplate(src.size, col)) ctx.audio.boing();
+        // The template always glides back; the plate got its own brick.
+        return false;
+      }
+      const b = lifted;
+      lifted = null;
+      if (!b) return false;
+      if (hit === null || cell <= 0) {
+        // Lifted off the plate: the brick goes back in the box.
+        discard(el);
+        ctx.audio.pop(0.7);
+        navigator.vibrate?.(10);
+        afterChange();
+        return true;
+      }
+      const col = clampCol(Math.round((p.x - r.left) / cell - b.w / 2), b.w);
+      let x = col;
+      let y = dropY(board, col, b.w, b.h);
+      if (y === null) {
+        if (!canPlace(board, b.x, b.y, b.w, b.h)) {
+          discard(el);
+          ctx.audio.pop(0.7);
+          afterChange();
+          return true;
+        }
+        // Nowhere to go: back to where it was.
+        x = b.x;
+        y = b.y;
+        ctx.audio.boing();
+      } else {
+        ctx.audio.tick();
+        ctx.audio.pop(1.4);
+        navigator.vibrate?.(10);
+      }
+      discard(el);
+      board = place(board, { x, y, w: b.w, h: b.h, color: b.color });
+      addBrickEl(board.bricks[board.bricks.length - 1] as Brick, true);
+      afterChange();
+      return true;
+    },
+    onCancel(src, el) {
+      // The system took the finger: a lifted brick goes back where it was.
+      const b = lifted;
+      lifted = null;
+      if (src.kind !== 'brick' || !b || !canPlace(board, b.x, b.y, b.w, b.h)) return;
+      discard(el);
+      board = place(board, { x: b.x, y: b.y, w: b.w, h: b.h, color: b.color });
+      addBrickEl(board.bricks[board.bricks.length - 1] as Brick, false);
+    },
+    onEnd() {
+      lifted = null;
+      plate.classList.remove('bricks-over');
+    },
+    ctx,
+  });
+
   function addBrickEl(brick: Brick, land: boolean): HTMLElement {
     const el = brickNode(brick, brick.color, brick.x, brick.y);
     el.dataset.id = String(brick.id);
-    let grabDx = 0;
-    let lifted: Brick | null = null;
-    const down = (e: PointerEvent) => {
-      const b = board.bricks.find((k) => k.id === Number(el.dataset.id));
-      if (!b) return;
-      const r = plate.getBoundingClientRect();
-      const cell = plateCell(r);
-      grabDx = cell > 0 ? e.clientX - (r.left + b.x * cell) : 0;
-    };
-    el.addEventListener('pointerdown', down);
-    const dispose = makeDraggable(el, {
-      onStart() {
-        ctx.hint.touch();
-        lifted = board.bricks.find((k) => k.id === Number(el.dataset.id)) ?? null;
-        if (lifted) board = removeBrick(board, lifted.id);
-      },
-      onDrop(_el, p) {
-        const b = lifted;
-        lifted = null;
-        if (!b) return false;
-        const r = plate.getBoundingClientRect();
-        const cell = plateCell(r);
-        if (!overPlate(p, r, cell)) {
-          discard(el);
-          ctx.audio.pop(0.7);
-          navigator.vibrate?.(10);
-          afterChange();
-          return false;
-        }
-        const col = clampCol(Math.round((p.x - grabDx - r.left) / cell), b.w);
-        let x = col;
-        let y = dropY(board, col, b.w, b.h);
-        if (y === null) {
-          if (!canPlace(board, b.x, b.y, b.w, b.h)) {
-            discard(el);
-            ctx.audio.pop(0.7);
-            afterChange();
-            return false;
-          }
-          // Nowhere to go: back to where it was.
-          x = b.x;
-          y = b.y;
-          ctx.audio.boing();
-        } else {
-          ctx.audio.tick();
-          ctx.audio.pop(1.4);
-          navigator.vibrate?.(10);
-        }
-        discard(el);
-        board = place(board, { x, y, w: b.w, h: b.h, color: b.color });
-        addBrickEl(board.bricks[board.bricks.length - 1] as Brick, true);
-        afterChange();
-        return false;
-      },
-    });
-    brickDisposers.set(el, () => {
-      el.removeEventListener('pointerdown', down);
-      dispose();
-    });
+    brickDisposers.set(
+      el,
+      dd.attach(el, () => ({ kind: 'brick', id: Number(el.dataset.id) })),
+    );
     if (land) el.classList.add('bricks-land');
     layer.append(el);
     return el;
@@ -328,26 +375,7 @@ function start(ctx: GameContext): void {
       { class: 'bricks-piece', 'data-w': size.w, 'data-h': size.h, 'aria-label': `gạch ${size.w} nhân ${size.h}` },
       brickNode(size, color),
     );
-    disposers.push(
-      makeDraggable(piece, {
-        onStart(el) {
-          el.classList.remove('anim-wiggle');
-          ctx.hint.touch();
-        },
-        onDrop(_el, p) {
-          const r = plate.getBoundingClientRect();
-          const cell = plateCell(r);
-          if (!overPlate(p, r, cell)) {
-            ctx.audio.boing();
-            return false;
-          }
-          const col = clampCol(Math.round((p.x - r.left) / cell - size.w / 2), size.w);
-          if (!dropTemplate(size, col)) ctx.audio.boing();
-          // The template always springs back; the plate got its own brick.
-          return false;
-        },
-      }),
-    );
+    disposers.push(dd.attach(piece, () => ({ kind: 'template', size })));
     return piece;
   });
   pieces.append(...templates);
@@ -407,10 +435,12 @@ function start(ctx: GameContext): void {
         }
         const t = templates.find((p) => Number(p.dataset.w) === s.w && Number(p.dataset.h) === s.h);
         if (t) replay(t, 'anim-wiggle');
+        speakText(ctx, 'Kéo gạch này lên nền xanh nhé');
         return;
       }
       const t = templates[Math.floor(Math.random() * templates.length)];
       if (t) replay(t, 'anim-wiggle');
+      speakText(ctx, 'Kéo gạch lên nền xanh nhé');
     });
   }
 
@@ -446,6 +476,7 @@ function start(ctx: GameContext): void {
   let raf = 0;
   if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(() => fit());
   window.addEventListener('resize', onResize);
+  ctx.speak('Xếp gạch tuỳ thích nhé!');
   armHint();
 
   ctx.onCleanup(() => {
