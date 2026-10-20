@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -13,10 +13,11 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
-| 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
+| 🎈 **Chơi vui** | 🧸 Ngày của bạn nhỏ · 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
 
 Vài trò nổi bật:
 
+- **🧸 Ngày của bạn nhỏ** — một bạn nhỏ sống trọn một ngày: sáng (mặc đồ theo thời tiết, nấu & ăn sáng, đánh răng) → trưa (đi chơi, cho thú ăn) → chiều (tắm, làm bánh/sinh nhật) → tối (dỗ bạn khi giận/buồn, ru đi ngủ). Mặt trời đi dọc đường phía trên khi xong hết việc của một buổi; bé làm việc nào trước cũng được và không có "sai" (mặc áo ấm giữa trời nắng thì bạn nhỏ chỉ cười). Bạn nhỏ có thể lấy **ảnh của bé/người thân** (thêm ở Góc phụ huynh) làm khuôn mặt — chạm 📷. Hết một ngày là có đồ mới (mũ, đồ ăn, đồ chơi) và một ngày mới với biến cố ngẫu nhiên: trời mưa, sinh nhật (bánh ba nến), hoặc có khách đến chơi (là ảnh người thân nếu có). Số ngày và đồ mở khoá được nhớ lại. Đây là game gộp từ Cho ăn, Nấu ăn, Đánh răng, Tắm sạch, Mặc đồ, Giờ đi ngủ, Cảm xúc, Sinh nhật; các game cũ vẫn chơi được ở nhóm *Game lẻ* cuối trang chủ.
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
 - **🌦️ Bé tạo cảnh** — 47 âm thanh nền (mưa, tuyết, sóng biển, thác nước, vườn ong, hội chợ, vũ trụ…) trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, tuyết phủ đồi, pháo hoa có đuôi, đu quay quay, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
 - **📺 Xem nhạc** — chọn video nhạc êm, lofi, thiên nhiên (danh sách của iFocus); bố mẹ dán thêm link YouTube được. Cần có mạng.

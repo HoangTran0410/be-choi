@@ -22,6 +22,7 @@ import { meta as parrot } from '../games/parrot/meta';
 import { meta as birdsong } from '../games/birdsong/meta';
 import { meta as paint } from '../games/paint/meta';
 import { meta as peekaboo } from '../games/peekaboo/meta';
+import { meta as day } from '../games/day/meta';
 import { meta as feed } from '../games/feed/meta';
 import { meta as wash } from '../games/wash/meta';
 import { meta as count } from '../games/count/meta';
@@ -101,6 +102,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...feelings, load: () => import('../games/feelings/index') },
   { ...dressup, load: () => import('../games/dressup/index') },
   { ...mask, load: () => import('../games/mask/index') },
+  { ...day, load: () => import('../games/day/index') },
 ];
 
 /**
