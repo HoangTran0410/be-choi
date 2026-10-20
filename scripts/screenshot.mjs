@@ -73,6 +73,7 @@ const GAMES = [
   'harvest',
   'singalong',
   'draw',
+  'day',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
