@@ -41,6 +41,38 @@ export function createShelf(): Shelf {
   };
   el.addEventListener('wheel', onWheel, { passive: false });
 
+  // Swiping the shelf anywhere that is not a robot waiting to be picked up (an empty place, the gap
+  // between two places, the padding, a place whose robot is on stage) scrolls it by hand. The page
+  // cancels native touch panning inside `.stage`, and the drag-and-drop only listens on the robots
+  // themselves, so without this those spots were dead. A robot that can be picked up keeps its own
+  // handler (it also scrolls on a sideways swipe), so we leave it alone.
+  let swipe: { id: number; x: number; from: number } | null = null;
+  const onDown = (e: PointerEvent): void => {
+    if (swipe || e.isPrimary === false || (e.button !== undefined && e.button !== 0)) return;
+    if ((e.target as Element | null)?.closest?.('.rb-item:not(.on-stage)')) return;
+    swipe = { id: e.pointerId, x: e.clientX, from: el.scrollLeft };
+    try {
+      el.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* the pointer is already gone */
+    }
+  };
+  const onMove = (e: PointerEvent): void => {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    if (e.pointerType === 'mouse' && e.buttons === 0) {
+      swipe = null;
+      return;
+    }
+    el.scrollLeft = swipe.from - (e.clientX - swipe.x);
+  };
+  const onUp = (e: PointerEvent): void => {
+    if (swipe && e.pointerId === swipe.id) swipe = null;
+  };
+  el.addEventListener('pointerdown', onDown);
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+
   function picture(def: RobotDef): HTMLElement {
     const rig = createRig(def.color, def.look);
     setPose(rig, null);
@@ -96,6 +128,10 @@ export function createShelf(): Shelf {
     },
     dispose() {
       el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
       el.remove();
     },
   };

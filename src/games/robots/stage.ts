@@ -445,7 +445,8 @@ export function createStage(): Stage {
       const power = Math.min(1, playing / CAPACITY);
       const sweepBase = beat === null ? f.now / 1600 : (beat / 4) * TAU;
       beams.forEach((b, i) => {
-        const on = playing > 0 && (i < Math.ceil(playing / 3) || finale);
+        // A struggling device keeps one beam: each is a big translucent layer blended every frame.
+        const on = playing > 0 && (i < Math.ceil(playing / 3) || finale) && (!f.low || i === 0);
         const angle = 18 * Math.sin(sweepBase + i * 2.1) * (finale ? 1.6 : 1);
         put(b, 'transform', `rotate(${angle.toFixed(1)}deg)`);
         put(b, 'opacity', on ? String(Math.round((0.18 + 0.5 * power + 0.18 * thump) * 100) / 100) : '0');

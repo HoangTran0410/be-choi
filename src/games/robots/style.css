@@ -159,12 +159,23 @@
   .rb-song {
     order: 3;
   }
-  .rb-grid {
-    padding-top: 88px !important;
+  /* The equaliser starts below the HUD strip (song button 56px + 2x6px padding), never under it. */
+  .rb-song {
+    width: 56px;
+    height: 56px;
   }
-  .rb-eq {
-    top: 4px;
-    height: 12%;
+  .rb-song-icon {
+    font-size: 26px;
+  }
+  .rb-pips {
+    bottom: 4px;
+  }
+  .rb .rb-grid {
+    padding-top: 72px !important;
+  }
+  .rb .rb-eq {
+    top: 72px;
+    height: 14%;
   }
 }
 
@@ -206,12 +217,25 @@
   width: 46%;
   height: 112%;
   transform-origin: 50% 0;
-  background: linear-gradient(180deg, var(--bc), transparent 88%);
-  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  /* The cone is a picture (an SVG gradient painted once), not a clip-path over a gradient: a clip
+     on a layer that rotates every frame is re-rasterised every frame, which was the single most
+     expensive thing on the stage. */
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   opacity: 0;
-  /* Its own layer: the beam sweeps and breathes by compositing, never by repainting a big gradient. */
+  /* Its own layer: the beam sweeps and breathes by compositing alone. */
   will-change: transform, opacity;
 }
+.rb-beam:nth-child(1) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fde047'/%3E%3Cstop offset='.88' stop-color='%23fde047' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='46,0 54,0 100,100 0,100' fill='url(%23g)'/%3E%3C/svg%3E");
+}
+.rb-beam:nth-child(2) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23f472b6'/%3E%3Cstop offset='.88' stop-color='%23f472b6' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='46,0 54,0 100,100 0,100' fill='url(%23g)'/%3E%3C/svg%3E");
+}
+.rb-beam:nth-child(3) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%2338bdf8'/%3E%3Cstop offset='.88' stop-color='%2338bdf8' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='46,0 54,0 100,100 0,100' fill='url(%23g)'/%3E%3C/svg%3E");
+}
+
 .rb-floor {
   left: 0;
   right: 0;
@@ -588,7 +612,6 @@
 
 /* ---- finale: every bulb on ---- */
 .rb-stage.finale .rb-beam {
-  background: linear-gradient(180deg, hsl(0, 95%, 65%), transparent 88%);
   animation: rb-rainbow 2s linear infinite;
 }
 .rb-stage.finale .rb-bot {
