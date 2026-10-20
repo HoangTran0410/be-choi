@@ -55,6 +55,7 @@ import { meta as build } from '../games/build/meta';
 import { meta as brain } from '../games/brain/meta';
 import { meta as harvest } from '../games/harvest/meta';
 import { meta as singalong } from '../games/singalong/meta';
+import { meta as draw } from '../games/draw/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -119,6 +120,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...brain, load: () => import('../games/brain/index') },
   { ...harvest, load: () => import('../games/harvest/index') },
   { ...singalong, load: () => import('../games/singalong/index') },
+  { ...draw, load: () => import('../games/draw/index') },
 ];
 
 /**

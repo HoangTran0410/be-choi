@@ -3,6 +3,7 @@
 import { mkdirSync } from 'node:fs';
 import { chromium, webkit } from 'playwright';
 import { createServer, preview } from 'vite';
+import { drawShots } from './draw-shots.mjs';
 
 // DEV=1 serves the source through the Vite dev server (no build needed, only opened routes compile).
 const server = process.env.DEV
@@ -71,6 +72,7 @@ const GAMES = [
   'brain',
   'harvest',
   'singalong',
+  'draw',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
@@ -121,6 +123,8 @@ for (const vp of VIEWPORTS) {
     if (box.sw > box.iw || box.sh > box.ih + 1) problems.push(`${vp.name}/${name}: overflow ${JSON.stringify(box)}`);
     await page.screenshot({ path: `screenshots/${name}-${vp.name}${suffix}.png` });
   }
+  // Xưởng vẽ: every mode, the notebook, the exhibition, the collection (with real pointer drawing).
+  if (!only.length || only.includes('draw')) await drawShots(page, base, vp, suffix, problems);
   await context.close();
 }
 
