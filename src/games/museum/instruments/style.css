@@ -1,0 +1,122 @@
+/*
+ * Playable instrument simulations (see index.ts). The drawing is one SVG sized to
+ * the host; each touchable thing is a <g class="z" data-z="…"> that dips when hit.
+ * Only transform and opacity animate, so a tablet keeps up.
+ */
+.inst {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.inst-art {
+  position: absolute;
+  inset: 0;
+}
+.inst-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.inst .z {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.inst .z.hit {
+  animation: inst-press 0.26s ease-out;
+}
+.inst .z.muted {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+@keyframes inst-press {
+  0% {
+    transform: scale(0.93);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* wind: a covered hole shows its cap; the mouthpiece breathes while held */
+.inst .z.hole .cap {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.inst .z.hole.on .cap {
+  opacity: 1;
+}
+.inst .z.blow.blowing {
+  animation: inst-breath 0.8s ease-in-out infinite;
+}
+@keyframes inst-breath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* fretted: the chosen chord is bright, the others pale */
+.inst .z.chord {
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.inst .z.chord.sel {
+  opacity: 1;
+}
+
+/* a touch ripple and a mallet that swings in */
+.inst .ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: inst-ripple 0.55s ease-out forwards;
+}
+@keyframes inst-ripple {
+  from {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+.inst .mallet {
+  animation: inst-mallet 0.42s ease-out forwards;
+}
+@keyframes inst-mallet {
+  0% {
+    transform: translate(22px, -34px) rotate(16deg);
+    opacity: 0;
+  }
+  30% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-4px, -8px);
+    opacity: 0;
+  }
+}
+
+.inst-off {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inst .z.hit,
+  .inst .z.blow.blowing,
+  .inst .ripple,
+  .inst .mallet {
+    animation: none;
+  }
+}

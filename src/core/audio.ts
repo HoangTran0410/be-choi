@@ -6,6 +6,11 @@
 import { LOUDNESS } from './loudness';
 import { SFX_TAKES, sfxUrl } from './sfx';
 import { VOICE_HZ } from './voicepitch';
+import { INSTRUMENT_IDS, INSTRUMENT_REF, renderInstrument, type InstrumentId } from './instruments';
+
+export type { InstrumentId };
+/** World instruments the synth can render (see instruments.ts). */
+export const INSTRUMENTS: readonly InstrumentId[] = INSTRUMENT_IDS;
 
 export type Timbre = 'piano' | 'xylo' | 'bell' | 'guitar' | 'flute' | 'trumpet' | 'violin' | 'sax' | 'bass';
 export type DrumKind = 'kick' | 'snare' | 'hat' | 'tom' | 'clap' | 'cowbell' | 'shaker' | 'wood' | 'ride' | 'triangle' | 'crash';
@@ -94,6 +99,7 @@ export type SoundId =
   | 'puff'
   | `note:${Timbre}`
   | `drum:${DrumKind}`
+  | `inst:${InstrumentId}`
   | `fx:${FxKind}`
   /**
    * The recorded animal voices share one level: `scripts/sfx.mjs` already
@@ -127,6 +133,12 @@ export interface AudioEngine {
   note(freq: number, dur?: number, timbre?: Timbre, delay?: number): void;
   /** Percussion hit. `delay` (seconds, default 0) starts it that long from now. */
   drum(kind: DrumKind, delay?: number): void;
+  /**
+   * A world instrument (marimba, kalimba, gong…) at `freq` Hz, struck with `vel` 0…1.
+   * `dur` only matters for the held ones (organ, accordion, harmonica, pan flute).
+   * Returns a handle that can damp it early (a hand on a gong), or null when silent.
+   */
+  inst(id: InstrumentId, freq?: number, vel?: number, dur?: number): InstVoice | null;
   /** A soft breath of air (blowing out a candle). */
   puff(): void;
   /** Sound effect / animal voice. */
@@ -162,6 +174,11 @@ export interface AudioEngine {
    * file cannot play.
    */
   loop(url: string, volume?: number): Promise<Loop | null>;
+}
+
+export interface InstVoice {
+  /** Fade it out over a few tens of milliseconds. */
+  stop(): void;
 }
 
 export interface Loop {
@@ -993,6 +1010,58 @@ export function createAudio(): AudioEngine {
     at(`note:${timbre}`, () => playNote(freq, dur, timbre), delay);
   }
 
+  /** Rendered notes, most recently used last: a repeated tap costs no DSP. */
+  const instCache = new Map<string, AudioBuffer>();
+  const INST_KEPT = 72;
+
+  function playInst(id: InstrumentId, freq: number, vel: number, dur?: number): InstVoice | null {
+    const c = getCtx();
+    if (!c || !master) return null;
+    try {
+      const v = Math.round(Math.min(1, Math.max(0, vel)) * 5) / 5;
+      const f = freq > 0 ? freq : INSTRUMENT_REF[id];
+      const key = `${id}|${Math.round(f * 10)}|${v}|${dur ? dur.toFixed(2) : ''}`;
+      let buf = instCache.get(key);
+      if (buf) instCache.delete(key);
+      else {
+        const data = renderInstrument(id, f, v, c.sampleRate, { dur });
+        buf = c.createBuffer(1, data.length, c.sampleRate);
+        buf.getChannelData(0).set(data);
+      }
+      instCache.set(key, buf);
+      while (instCache.size > INST_KEPT) instCache.delete(instCache.keys().next().value as string);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      // A hair of random pitch and level, so ten taps are not one sample ten times.
+      src.playbackRate.value = 1 + (Math.random() - 0.5) * 0.006;
+      const g = c.createGain();
+      g.gain.value = trim * (0.95 + Math.random() * 0.1);
+      src.connect(g).connect(master);
+      src.start(c.currentTime);
+      let stopped = false;
+      return {
+        stop() {
+          if (stopped) return;
+          stopped = true;
+          try {
+            const now = c.currentTime;
+            g.gain.setValueAtTime(g.gain.value, now);
+            g.gain.linearRampToValueAtTime(0, now + 0.06);
+            src.stop(now + 0.08);
+          } catch {
+            /* already over */
+          }
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function inst(id: InstrumentId, freq?: number, vel = 1, dur?: number): InstVoice | null {
+    return at(`inst:${id}`, () => playInst(id, freq ?? INSTRUMENT_REF[id], vel, dur));
+  }
+
   function drum(kind: DrumKind, delay = 0): void {
     at(`drum:${kind}`, () => playDrum(kind), delay);
   }
@@ -1026,8 +1095,21 @@ export function createAudio(): AudioEngine {
       const f = Math.max(80, hz);
       const g = 0.22 * gain;
       const vib = { hz: 6, depth: f * 0.02 };
-      tone('sawtooth', f * 0.9, 0.28, { gain: g, attack: 0.04, slideTo: f * 1.1, filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 }, vibrato: vib });
-      tone('sawtooth', f * 1.1, 0.4, { gain: g, attack: 0.01, at: 0.28, slideTo: f * 0.8, filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 }, vibrato: vib });
+      tone('sawtooth', f * 0.9, 0.28, {
+        gain: g,
+        attack: 0.04,
+        slideTo: f * 1.1,
+        filter: { type: 'bandpass', freq: 1500, to: 2400, q: 2.5 },
+        vibrato: vib,
+      });
+      tone('sawtooth', f * 1.1, 0.4, {
+        gain: g,
+        attack: 0.01,
+        at: 0.28,
+        slideTo: f * 0.8,
+        filter: { type: 'bandpass', freq: 2400, to: 900, q: 2.5 },
+        vibrato: vib,
+      });
       tone('sine', f * 0.9, 0.28, { gain: 0.12 * gain, attack: 0.04, slideTo: f * 1.1 });
       tone('sine', f * 1.1, 0.4, { gain: 0.12 * gain, attack: 0.01, at: 0.28, slideTo: f * 0.8 });
     });
@@ -1264,6 +1346,7 @@ export function createAudio(): AudioEngine {
     },
     note,
     drum,
+    inst,
     fx,
     pitched,
     ready() {

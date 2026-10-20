@@ -1,0 +1,546 @@
+/*
+ * Bảo tàng nhạc cụ. Every screen fills the stage and never makes the page scroll;
+ * the room and the album may scroll inside themselves when 72 px tiles cannot all
+ * fit. Every touch target is ≥ 72 px: tiles are --tile (72–96), buttons are 72.
+ */
+.mu {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fff7ed 0%, #fde68a 100%);
+  font-family: var(--font);
+}
+.mu button {
+  font: inherit;
+  border: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.mu [hidden] {
+  display: none !important;
+}
+
+/* ---- round buttons ---- */
+.mu-back,
+.mu-say,
+.mu-play,
+.mu-track {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  line-height: 1;
+  background: #fff;
+  color: #3b2f2f;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.13);
+}
+.mu button:active {
+  transform: scale(0.94);
+}
+
+/* ---- the room ---- */
+.mu-room {
+  position: absolute;
+  inset: 0;
+  --tile: 76px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+.mu-room.scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.mu-room.wide {
+  display: block;
+  column-count: 2;
+  column-gap: 8px;
+}
+.mu-room.wide > * {
+  break-inside: avoid;
+  margin-bottom: 8px;
+}
+.mu-foyer {
+  display: flex;
+  gap: 8px;
+  height: 88px;
+  flex: none;
+}
+.mu-door,
+.mu-albumbtn {
+  position: relative;
+  min-height: 80px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.13);
+}
+.mu-door {
+  flex: 1;
+  background: linear-gradient(180deg, #fef3c7, #fcd34d);
+  border: 4px solid #92400e;
+}
+.mu-door.locked {
+  background: linear-gradient(180deg, #e7e5e4, #d6d3d1);
+  border-color: #78716c;
+}
+.mu-albumbtn {
+  flex: 0 0 120px;
+  flex-direction: column;
+  gap: 0;
+}
+.mu-door-ico {
+  font-size: 40px;
+  line-height: 1;
+}
+.mu-count {
+  font-size: 18px;
+  font-weight: 800;
+  color: #92400e;
+}
+.mu-dots {
+  display: flex;
+  gap: 6px;
+}
+.mu-dots i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.15);
+}
+.mu-dots i.on {
+  background: #f59e0b;
+}
+
+.mu-cab {
+  position: relative;
+  flex: none;
+  padding: 16px 8px 10px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%), var(--cab, #fde68a);
+  border: 5px solid #92400e;
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.08),
+    0 4px 0 rgba(0, 0, 0, 0.12);
+}
+.mu-cab-label {
+  position: absolute;
+  left: 14px;
+  top: -16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: #fff;
+  border: 3px solid #92400e;
+}
+.mu-shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--tile));
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ---- tiles (room, album, picker) ---- */
+.mu-tile {
+  position: relative;
+  width: var(--tile);
+  height: var(--tile);
+  padding: 4px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.13);
+}
+.mu-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 11px;
+  overflow: hidden;
+}
+.mu-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mu-star {
+  position: absolute;
+  right: -6px;
+  top: -8px;
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.25));
+}
+.mu-tile.ghost .mu-thumb,
+.mu-tile.locked .mu-thumb {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+.mu-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+}
+
+/* ---- a table (one instrument) ---- */
+.mu-table {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+.mu-rail {
+  flex: none;
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  grid-template-areas:
+    'back name say'
+    'missions missions missions';
+  gap: 6px 8px;
+  align-items: center;
+}
+.mu-rail .mu-back {
+  grid-area: back;
+}
+.mu-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 72px;
+  min-width: 0;
+}
+.mu-name-thumb {
+  display: block;
+  width: 108px;
+  height: 66px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.mu-name-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mu-name-g {
+  font-size: 34px;
+}
+.mu-rail .mu-say {
+  grid-area: say;
+}
+.mu-missions {
+  grid-area: missions;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.mu-pill {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.75);
+  opacity: 0.7;
+}
+.mu-pill.done {
+  opacity: 1;
+  background: #fde047;
+  box-shadow: 0 0 0 3px #f59e0b;
+}
+.mu-pill.done::after {
+  content: '⭐';
+  position: absolute;
+  right: -7px;
+  top: -9px;
+  font-size: 17px;
+}
+.mu-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.13);
+}
+
+@media (orientation: landscape) {
+  .mu-table {
+    flex-direction: row;
+  }
+  .mu-rail {
+    width: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .mu-rail .mu-name {
+    display: none;
+  }
+  .mu-rail .mu-say {
+    order: 2;
+  }
+  .mu-missions {
+    order: 3;
+    display: grid;
+    grid-template-columns: 38px 38px;
+    gap: 8px;
+  }
+  .mu-pill {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+}
+
+/* the stamp you have just won */
+.mu-stamp-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.62);
+  pointer-events: none;
+}
+.mu-stamp {
+  position: relative;
+  width: min(60%, 60vmin, 280px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  border: 10px dashed #f59e0b;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.15);
+  display: grid;
+  place-items: center;
+  animation: mu-stamp-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.mu-stamp-art {
+  display: block;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.mu-stamp-art svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.mu-stamp-star {
+  position: absolute;
+  right: -6%;
+  top: -6%;
+  font-size: min(18vmin, 72px);
+}
+@keyframes mu-stamp-in {
+  from {
+    transform: scale(2.4) rotate(-14deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(-6deg);
+    opacity: 1;
+  }
+}
+
+/* ---- the album ---- */
+.mu-album {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+.mu-album-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mu-progress {
+  flex: 1;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}
+.mu-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  border-radius: 12px;
+}
+.mu-album-ico {
+  font-size: 40px;
+}
+.mu-album-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  grid-auto-rows: 84px;
+  gap: 10px;
+  align-content: start;
+  padding: 8px 6px;
+}
+.mu-album-grid .mu-tile {
+  width: auto;
+  height: auto;
+}
+
+/* ---- the orchestra room ---- */
+.mu-band {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+.mu-band-rail {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+.mu-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.mu-slot {
+  position: relative;
+  min-width: 72px;
+  min-height: 72px;
+  aspect-ratio: 1;
+  padding: 4px;
+  border-radius: 18px;
+  background: #fff;
+  border: 4px solid transparent;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.13);
+}
+.mu-slot.empty {
+  background: rgba(255, 255, 255, 0.55);
+  border: 4px dashed #cbd5e1;
+  box-shadow: none;
+}
+.mu-slot.focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 4px #fde68a;
+}
+.mu-plus {
+  font-size: 30px;
+  opacity: 0.6;
+}
+.mu-auto {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #22c55e;
+  opacity: 0;
+}
+.mu-slot.full:not(.focus) .mu-auto {
+  opacity: 0.35;
+}
+.mu-auto.beat {
+  animation: mu-beat 0.32s ease-out;
+}
+@keyframes mu-beat {
+  0% {
+    transform: scale(2.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.mu-band.beat .mu-track {
+  animation: mu-pulse 0.3s ease-out;
+}
+@keyframes mu-pulse {
+  0% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.mu-band-field {
+  min-height: 0;
+}
+.mu-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 10px;
+  background: rgba(255, 247, 237, 0.98);
+}
+.mu-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  grid-auto-rows: 84px;
+  gap: 10px;
+}
+.mu-picker-grid .mu-tile {
+  width: auto;
+  height: auto;
+}
+
+@media (orientation: landscape) {
+  .mu-band {
+    grid-template-columns: 84px 164px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .mu-band-rail {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .mu-slots {
+    grid-template-columns: repeat(2, 1fr);
+    align-content: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mu-stamp,
+  .mu-auto.beat,
+  .mu-band.beat .mu-track {
+    animation: none;
+  }
+}

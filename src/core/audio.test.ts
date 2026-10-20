@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SFX_TAKES } from './sfx';
-import { createAudio, DRUMS, FX, TIMBRES, type SoundId } from './audio';
+import { createAudio, DRUMS, FX, INSTRUMENTS, TIMBRES, type SoundId } from './audio';
 import { LOUDNESS } from './loudness';
 import { VOICE_HZ, pitchRate } from './voicepitch';
 
@@ -19,6 +19,7 @@ describe('audio', () => {
     for (const t of TIMBRES) a.note(440, 0.5, t);
     for (const d of DRUMS) a.drum(d);
     for (const f of FX) a.fx(f);
+    for (const i of INSTRUMENTS) expect(a.inst(i, 440, 0.7)).toBeNull();
     a.puff();
     expect(a.enabled).toBe(true);
     a.setEnabled(false);
@@ -131,6 +132,7 @@ describe('the loudness table', () => {
     ...TIMBRES.map((t): SoundId => `note:${t}`),
     ...DRUMS.map((d): SoundId => `drum:${d}`),
     ...FX.map((f): SoundId => `fx:${f}`),
+    ...INSTRUMENTS.map((i): SoundId => `inst:${i}`),
     // The recorded animal voices are levelled as one group.
     'sample',
   ];
