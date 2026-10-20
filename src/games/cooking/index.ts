@@ -1,5 +1,6 @@
 import { h, randInt, replay } from '../../core/dom';
-import { centerOf, hitTest, makeDraggable, type Pt } from '../../core/drag';
+import { centerOf, type Pt } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import type { Item } from '../../core/content';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -24,6 +25,15 @@ const CHOMP_MS = 300;
 const CELEBRATE_DELAY_MS = 100;
 /** How long the hint spoon stays on the tool. */
 const HINT_SPOON_MS = 1100;
+/** A drop this close to the pot / mouth (as a share of the piece's width) still lands. */
+const DROP_SLACK = 0.35;
+/** What to say, now and then, to a child who is sitting still in each phase. */
+const HINT_SAY: Record<Phase, string> = {
+  add: 'Bỏ vào nồi nào',
+  stir: 'Khuấy đều nào',
+  cook: 'Bấm bếp lên nào',
+  serve: 'Cho bạn ăn nào',
+};
 /** Floating-point slack when counting whole turns. */
 const TURN_EPS = 1e-6;
 
@@ -73,6 +83,53 @@ function start(ctx: GameContext): void {
   const wrap = h('div', { class: 'cooking' }, card, scene, tray);
   ctx.stage.append(wrap);
 
+  /** What a finger can pick up: an ingredient from the tray, or the finished dish. */
+  type Piece = { kind: 'item'; item: Item } | { kind: 'dish' };
+  // The piece is lifted as a light copy that follows the finger on its own layer; the real one stays put.
+  const dd = createDragDrop<Piece>({
+    layer: ctx.stage,
+    // Measured once at pick-up: the pot while adding, the eater's mouth while serving.
+    targets: () => {
+      const place = phase === 'add' ? bowl : mouth;
+      const r = place.getBoundingClientRect();
+      const pad = (phase === 'add' ? (tray.firstElementChild?.getBoundingClientRect().width ?? 0) : dish.getBoundingClientRect().width) * DROP_SLACK;
+      return [{ id: 'place', rect: { left: r.left - pad, top: r.top - pad, width: r.width + pad * 2, height: r.height + pad * 2 } }];
+    },
+    resolve: (p, t) => pickTarget(p, t),
+    ghost: (_piece, el) => {
+      const g = el.cloneNode(true) as HTMLElement;
+      g.removeAttribute('hidden');
+      g.classList.remove('anim-wiggle', 'anim-bounce', 'anim-pulse', 'anim-pop', 'anim-shake');
+      // The dish is centred with a negative margin; the copy is placed by transform alone.
+      g.style.margin = '0';
+      return g;
+    },
+    onPickUp: () => {
+      bowl.classList.remove('anim-pulse');
+      mouth.classList.remove('anim-pulse');
+    },
+    onHover: (id) => (phase === 'add' ? bowl : mouth).classList.toggle('cooking-over', id !== null),
+    onDrop: (piece, hit, el) => {
+      bowl.classList.remove('cooking-over');
+      mouth.classList.remove('cooking-over');
+      if (hit === null) return false;
+      if (piece.kind === 'dish') {
+        if (phase !== 'serve') return false;
+        feed();
+        return true;
+      }
+      if (phase !== 'add' || !recipe) return false;
+      const needed = recipe.ingredients.some((i) => i.emoji === piece.item.emoji) && !added.has(piece.item.emoji);
+      if (!needed) {
+        refuse(piece.item);
+        return false;
+      }
+      addIngredient(el, piece.item);
+      return true;
+    },
+    ctx,
+  });
+
   function later(fn: () => void, ms: number): void {
     const id = setTimeout(() => {
       timers.delete(id);
@@ -103,11 +160,6 @@ function start(ctx: GameContext): void {
     return { x: p.x - r.left, y: p.y - r.top };
   }
 
-  function over(el: HTMLElement, p: Pt, target: HTMLElement): boolean {
-    const tolerance = el.getBoundingClientRect().width * 0.35;
-    return hitTest(p, [{ id: 't', rect: target.getBoundingClientRect() }], tolerance) !== null;
-  }
-
   /** A bubble, spark or steam puff rising out of the tool. */
   function particle(kind: 'bubble' | 'spark' | 'steam'): void {
     const dx = Math.round((Math.random() - 0.5) * 60);
@@ -136,12 +188,14 @@ function start(ctx: GameContext): void {
 
   function armHint(): void {
     ctx.hint.arm(() => {
-      if (!alive || !recipe) return;
+      if (!alive || !recipe || dd.active) return;
+      // The speech gate keeps these few and far between.
+      ctx.speak(HINT_SAY[phase]);
       switch (phase) {
         case 'add': {
           const next = recipe.ingredients.find((i) => !added.has(i.emoji));
           const el = next ? trayItems.get(next.emoji) : undefined;
-          if (el && !el.classList.contains('dragging')) replay(el, 'anim-wiggle');
+          if (el && !dd.active) replay(el, 'anim-wiggle');
           bowl.classList.add('anim-pulse');
           break;
         }
@@ -160,7 +214,7 @@ function start(ctx: GameContext): void {
           replay(stove, 'anim-wiggle');
           break;
         case 'serve':
-          if (!dish.classList.contains('dragging')) replay(dish, 'anim-wiggle');
+          if (!dd.active) replay(dish, 'anim-wiggle');
           mouth.classList.add('anim-pulse');
           break;
       }
@@ -207,28 +261,7 @@ function start(ctx: GameContext): void {
     const els = items.map((item) => {
       const el = h('div', { class: 'g-item cooking-item', 'data-emoji': item.emoji }, item.emoji);
       trayItems.set(item.emoji, el);
-      disposers.push(
-        makeDraggable(el, {
-          onStart() {
-            bowl.classList.remove('anim-pulse');
-          },
-          onMove(e, p) {
-            bowl.classList.toggle('cooking-over', over(e, p, bowl));
-          },
-          onDrop(e, p) {
-            bowl.classList.remove('cooking-over');
-            if (phase !== 'add' || !recipe) return false;
-            if (!over(e, p, bowl)) return false;
-            const needed = recipe.ingredients.some((i) => i.emoji === item.emoji) && !added.has(item.emoji);
-            if (!needed) {
-              refuse(item);
-              return false;
-            }
-            addIngredient(e, item);
-            return true;
-          },
-        }),
-      );
+      disposers.push(dd.attach(el, () => (phase === 'add' ? { kind: 'item', item } : null)));
       return el;
     });
     tray.replaceChildren(...els);
@@ -333,22 +366,7 @@ function start(ctx: GameContext): void {
     eater.hidden = false;
     mouth.classList.remove('anim-pulse', 'cooking-over');
     replay(eaterBody, 'cooking-slide');
-    disposers.push(
-      makeDraggable(dish, {
-        onStart() {
-          mouth.classList.remove('anim-pulse');
-        },
-        onMove(el, p) {
-          mouth.classList.toggle('cooking-over', over(el, p, mouth));
-        },
-        onDrop(el, p) {
-          mouth.classList.remove('cooking-over');
-          if (phase !== 'serve' || !over(el, p, mouth)) return false;
-          feed();
-          return true;
-        },
-      }),
-    );
+    disposers.push(dd.attach(dish, () => (phase === 'serve' ? { kind: 'dish' } : null)));
     armHint();
   }
 
@@ -410,10 +428,7 @@ function start(ctx: GameContext): void {
     stove.classList.remove('on');
 
     dish.hidden = true;
-    dish.classList.remove('placed', 'cooking-eaten', 'spring-back', 'dragging');
-    dish.style.transform = '';
-    delete dish.dataset.dx;
-    delete dish.dataset.dy;
+    dish.classList.remove('placed', 'cooking-eaten');
     scene.append(dish);
     eater.hidden = true;
     mouth.classList.remove('anim-pulse', 'cooking-over');

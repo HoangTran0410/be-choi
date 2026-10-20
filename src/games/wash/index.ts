@@ -4,6 +4,8 @@ import { meta } from './meta';
 import { blobPixels, CLEAN_DONE, cleanRatio, dirtColor, makeWashRound, type WashRound } from './logic';
 import './style.css';
 
+/** Longest side of the dirt bitmap (px). */
+const MAX_BITMAP = 640;
 /** Minimum gap between two scrub ticks. */
 const TICK_MS = 120;
 /** How often the dirt is measured while rubbing. */
@@ -33,7 +35,9 @@ function start(ctx: GameContext): void {
   const subject = h('div', { class: 'wash-subject' });
   const emoji = h('span', { class: 'wash-item' });
   const canvas = h('canvas', { class: 'wash-dirt' });
-  const sponge = h('div', { class: 'wash-sponge', hidden: true }, '🧽');
+  // The outer box is moved by transform; the wiggle plays on the inner one so the two never fight.
+  const spongeIn = h('span', { class: 'wash-sponge-in' }, '🧽');
+  const sponge = h('div', { class: 'wash-sponge', hidden: true }, spongeIn);
   subject.append(emoji, canvas);
   wrap.append(subject, sponge);
   ctx.stage.append(wrap);
@@ -68,10 +72,23 @@ function start(ctx: GameContext): void {
     return c2d;
   }
 
+  /**
+   * Boxes read once when a finger lands (and again on resize), never while it moves: a layout
+   * read per pointer move is what makes rubbing stutter on a tablet.
+   */
+  let wrapBox = { left: 0, top: 0 };
+  let canvasBox = { left: 0, top: 0, width: 0, height: 0 };
+  let spongeR = 64 * 0.45;
+  function measure(): void {
+    const w = wrap.getBoundingClientRect();
+    wrapBox = { left: w.left, top: w.top };
+    const c = canvas.getBoundingClientRect();
+    canvasBox = { left: c.left, top: c.top, width: c.width, height: c.height };
+  }
+
   /** Client coords → coords inside the wrapper. */
   function local(cx: number, cy: number): { x: number; y: number } {
-    const r = wrap.getBoundingClientRect();
-    return { x: cx - r.left, y: cy - r.top };
+    return { x: cx - wrapBox.left, y: cy - wrapBox.top };
   }
 
   function drawDirt(): void {
@@ -95,7 +112,8 @@ function start(ctx: GameContext): void {
   /** Match the bitmap to the subject box (DPR-scaled); redraw the dirt when it changed. */
   function fit(force = false): void {
     const rect = subject.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Soft dirt does not need a sharp bitmap: capping it keeps erasing and the "is it clean?" read cheap.
+    const dpr = Math.min(2, window.devicePixelRatio || 1, MAX_BITMAP / Math.max(1, rect.width, rect.height));
     const w = Math.round(rect.width * dpr);
     const hgt = Math.round(rect.height * dpr);
     if (w < 1 || hgt < 1) {
@@ -114,12 +132,12 @@ function start(ctx: GameContext): void {
   function scrub(cx: number, cy: number): void {
     const c = ctx2d();
     if (!c || !ready) return;
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasBox;
     if (rect.width <= 0 || rect.height <= 0) return;
     const sx = canvas.width / rect.width;
     const x = (cx - rect.left) * sx;
     const y = (cy - rect.top) * (canvas.height / rect.height);
-    const r = (sponge.offsetWidth || 64) * 0.45 * sx;
+    const r = spongeR * sx;
     c.save();
     c.globalCompositeOperation = 'destination-out';
     const g = c.createRadialGradient(x, y, r * 0.7, x, y, r);
@@ -163,8 +181,8 @@ function start(ctx: GameContext): void {
   }
 
   function showSponge(x: number, y: number): void {
-    sponge.style.left = `${x}px`;
-    sponge.style.top = `${y}px`;
+    // A transform on its own layer: the sponge follows the finger without any layout.
+    sponge.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
     sponge.hidden = false;
   }
 
@@ -188,10 +206,13 @@ function start(ctx: GameContext): void {
   function armHint(): void {
     ctx.hint.arm(() => {
       if (done || pressed.size > 0) return;
+      // The speech gate keeps this rare: a few times, well apart, until the child touches something.
+      ctx.speak('Chà cho sạch nào');
+      measure();
       const s = subject.getBoundingClientRect();
       const w = wrap.getBoundingClientRect();
       showSponge(s.left - w.left + s.width / 2, s.top - w.top + s.height / 2);
-      replay(sponge, 'anim-wiggle');
+      replay(spongeIn, 'anim-wiggle');
       later(() => {
         if (pressed.size === 0) sponge.hidden = true;
       }, HINT_SHOW_MS);
@@ -216,8 +237,10 @@ function start(ctx: GameContext): void {
     pressed.add(e.pointerId);
     ctx.hint.touch();
     if (!ready) fit();
+    measure();
     const p = local(e.clientX, e.clientY);
     showSponge(p.x, p.y);
+    spongeR = (sponge.offsetWidth || 64) * 0.45;
     scrub(e.clientX, e.clientY);
   });
   wrap.addEventListener('pointermove', (e) => {
@@ -249,7 +272,10 @@ function start(ctx: GameContext): void {
 
   // Layout may settle after the first paint (fonts, safe areas): fit once more.
   const raf = requestAnimationFrame(() => fit());
-  const onResize = (): void => fit();
+  const onResize = (): void => {
+    fit();
+    measure();
+  };
   window.addEventListener('resize', onResize);
 
   ctx.onCleanup(() => {

@@ -174,3 +174,51 @@
     height: 88px;
   }
 }
+
+/* The real piece stays put (faint) while its copy follows the finger. */
+.dressup-garment.is-carried,
+.dressup-toy.is-carried {
+  opacity: 0.3;
+}
+
+/*
+ * Short portrait screens (a small phone): the friend with three slots, three rows of clothes
+ * (or the toys and the box) do not fit at 72px, so everything shrinks together.
+ */
+@media (orientation: portrait) and (max-height: 640px) {
+  .dressup {
+    gap: 4px;
+    padding: 4px 8px;
+  }
+  .dressup-garment,
+  .dressup-toy {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    font-size: 36px;
+  }
+  .dressup-slot,
+  .dressup-head {
+    width: 56px;
+    height: 56px;
+  }
+  .dressup-slot {
+    font-size: 40px;
+  }
+  .dressup-head {
+    font-size: 44px;
+  }
+  .dressup-row,
+  .dressup-floor {
+    gap: 8px;
+  }
+  .dressup-box {
+    width: 72px;
+    height: 72px;
+    font-size: 44px;
+  }
+  .dressup-sky {
+    font-size: 40px;
+  }
+}

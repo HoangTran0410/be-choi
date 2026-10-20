@@ -17,7 +17,7 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x = 0, y = 0, id = 1): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, button: 0, buttons: 1, isPrimary: true, bubbles: true });
 }
 
 function tap(el: Element): void {
@@ -27,7 +27,7 @@ function tap(el: Element): void {
 
 /** jsdom rects are all zeros: a drop at (0,0) lands on the cake, one far away misses. */
 function drop(el: Element, x = 0, y = 0): void {
-  el.dispatchEvent(ptr('pointerdown'));
+  el.dispatchEvent(ptr('pointerdown', x + 40, y + 40));
   el.dispatchEvent(ptr('pointermove', x, y));
   el.dispatchEvent(ptr('pointerup', x, y));
 }
@@ -108,7 +108,7 @@ describe('birthday game', () => {
     expect(pop).toHaveBeenCalledTimes(1);
     // The tray piece stays in the tray for the next strawberry.
     expect(all(ctx, '.birthday-tray .birthday-topping').length).toBe(8);
-    expect(strawberry.classList.contains('spring-back')).toBe(true);
+    expect(q(ctx, '.dd-ghost')).toBeTruthy(); // the copy glides back to the tray
     drop(strawberry);
     expect(all(ctx, '.birthday-decor .birthday-topping.placed').length).toBe(2);
 

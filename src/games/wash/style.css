@@ -51,7 +51,11 @@
   line-height: 1;
   text-align: center;
   pointer-events: none;
+  will-change: transform;
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.2));
+}
+.wash-sponge-in {
+  display: block;
 }
 .wash-sponge[hidden] {
   display: none;

@@ -51,7 +51,7 @@ const NO_FACE = '__none';
  */
 export function runDay(ctx: GameContext): void {
   const progress = loadProgress();
-  const scope = createScope();
+  const scope = createScope(ctx.stage);
   ctx.onCleanup(() => {
     job?.dispose();
     weather?.dispose();
@@ -176,6 +176,7 @@ export function runDay(ctx: GameContext): void {
   function armHint(): void {
     ctx.hint.arm(() => {
       if (job) return;
+      say('Chọn một việc nào');
       const next = cards.querySelector<HTMLElement>('.task:not(.done)');
       if (next) replay(next, 'anim-wiggle');
     });
@@ -210,7 +211,7 @@ export function runDay(ctx: GameContext): void {
     if (!banner.hidden) banner.click();
     ctx.hint.clear();
     const def = taskDef(id);
-    const s = createScope();
+    const s = createScope(ctx.stage);
     job = s;
     home.hidden = true;
     actHost.hidden = false;

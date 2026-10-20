@@ -63,8 +63,16 @@ export const teeth: Activity = (env) => {
   scope.tap(paste, () => useJob('paste', paste), 0);
   scope.tap(rinse, () => useJob('rinse', rinse), 0);
 
+  /** Boxes read once when a finger lands, never while it moves (a layout read per move stutters on a tablet). */
+  let rects: Array<{ id: string; rect: DOMRect }> = [];
+  let jawBox = { left: 0, top: 0 };
+  function measure(): void {
+    rects = toothEls.map((el, i) => ({ id: String(i), rect: el.getBoundingClientRect() }));
+    const r = jaw.getBoundingClientRect();
+    jawBox = { left: r.left, top: r.top };
+  }
+
   function brushAt(x: number, y: number): void {
-    const rects = toothEls.map((el, i) => ({ id: String(i), rect: el.getBoundingClientRect() }));
     const hit = hitTest({ x, y }, rects);
     if (hit === null) return;
     const i = Number(hit);
@@ -89,14 +97,14 @@ export const teeth: Activity = (env) => {
 
   let from: { x: number; y: number } | null = null;
   const place = (e: PointerEvent): void => {
-    const r = jaw.getBoundingClientRect();
-    brush.style.transform = `translate(${e.clientX - r.left - 36}px, ${e.clientY - r.top - 36}px)`;
+    brush.style.transform = `translate3d(${e.clientX - jawBox.left - 36}px, ${e.clientY - jawBox.top - 36}px, 0)`;
     brush.classList.add('on');
   };
   jaw.addEventListener('pointerdown', (e) => {
     ctx.hint.touch();
     fin.touch();
     from = { x: e.clientX, y: e.clientY };
+    measure();
     place(e);
     brushAt(e.clientX, e.clientY);
   });
@@ -117,6 +125,7 @@ export const teeth: Activity = (env) => {
 
   env.say(NUDGES.paste);
   ctx.hint.arm(() => {
+    env.say('Đánh răng cho sạch nào');
     const next = !done.has('paste') ? paste : !allClean(list) ? jaw : rinse;
     replay(next, 'anim-wiggle');
   });

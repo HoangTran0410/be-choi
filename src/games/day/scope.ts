@@ -1,4 +1,4 @@
-import { hitTest, makeDraggable, type DragOptions } from '../../core/drag';
+import { createDragDrop, pickTarget, type DragDrop } from '../../core/dragdrop';
 import { makeTappable } from '../../core/tap';
 
 /**
@@ -11,7 +11,6 @@ export interface Scope {
   /** Run `fn` when the scope closes. */
   own(fn: () => void): void;
   tap(el: HTMLElement, fn: () => void, cooldownMs?: number): void;
-  drag(el: HTMLElement, opts: DragOptions): void;
   /**
    * A piece that can be dropped on `target` or simply tapped. A drop elsewhere springs
    * back; nothing is ever wrong, so `act` decides what happens.
@@ -20,15 +19,55 @@ export interface Scope {
   dispose(): void;
 }
 
-/** A press that moves less than this is a tap, not a drag. */
-const TAP_PX = 10;
 /** How far outside the target a drop still counts. */
 const SLACK = 28;
 
-export function createScope(): Scope {
+/** `layer` is where a picked-up piece's copy floats: the play area (default: the page). */
+export function createScope(layer?: HTMLElement): Scope {
   let open = true;
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const disposers: Array<() => void> = [];
+  let dd: DragDrop<() => void> | null = null;
+  let lastGesture = -Infinity;
+  /** Where the piece being picked up may land; set by the piece's `getSrc` just before a pick-up. */
+  let aim: (() => Element | null) | null = null;
+
+  /** One shared drag-and-drop for every piece of the scene: a light copy follows the finger on its own layer. */
+  function dnd(): DragDrop<() => void> {
+    if (dd) return dd;
+    const made = createDragDrop<() => void>({
+      layer: layer ?? document.body,
+      // Measured once at pick-up, never while the finger moves.
+      targets: () => {
+        const t = aim?.();
+        if (!t) return [];
+        const r = t.getBoundingClientRect();
+        return [{ id: 't', rect: { left: r.left - SLACK, top: r.top - SLACK, width: r.width + SLACK * 2, height: r.height + SLACK * 2 } }];
+      },
+      resolve: (p, t) => pickTarget(p, t),
+      ghost: (_act, el) => {
+        const g = el.cloneNode(true) as HTMLElement;
+        g.setAttribute('aria-hidden', 'true');
+        g.removeAttribute('aria-label');
+        g.classList.remove('anim-wiggle', 'anim-bounce', 'anim-pulse', 'anim-pop', 'anim-shake');
+        return g;
+      },
+      onTap: (act) => act(),
+      // However a pointer gesture ends (tap, drop, missed drop, cancel), the click that follows is part of it.
+      onEnd: () => {
+        lastGesture = Date.now();
+      },
+      // Nothing is wrong here: a piece let go anywhere else simply glides back.
+      onDrop: (act, hit) => {
+        if (hit === null) return false;
+        act();
+        return true;
+      },
+    });
+    dd = made;
+    disposers.push(() => made.dispose());
+    return made;
+  }
 
   const scope: Scope = {
     alive: () => open,
@@ -48,35 +87,22 @@ export function createScope(): Scope {
       if (!open) return;
       disposers.push(makeTappable(el, () => open && fn(), cooldownMs === undefined ? {} : { cooldownMs }));
     },
-    drag(el, opts) {
-      if (open) disposers.push(makeDraggable(el, opts));
-    },
     piece(el, target, act) {
       if (!open) return;
-      let sx = 0;
-      let sy = 0;
-      let lastDrop = -Infinity;
-      const down = (e: PointerEvent): void => {
-        sx = e.clientX;
-        sy = e.clientY;
+      /** What a finger's tap or drop does. */
+      const run = (): void => {
+        if (open) act();
       };
       const click = (): void => {
-        // A drag or a tap already acted on pointer-up; the click that follows is the same gesture.
-        if (open && Date.now() - lastDrop > 500) act();
+        // Keyboard and assistive taps arrive as a bare click; right after a pointer gesture it is the same gesture.
+        if (open && Date.now() - lastGesture > 500) act();
       };
-      el.addEventListener('pointerdown', down);
       el.addEventListener('click', click);
-      const stop = makeDraggable(el, {
-        onDrop(_el, p) {
-          lastDrop = Date.now();
-          const t = target();
-          const tap = Math.hypot(p.x - sx, p.y - sy) < TAP_PX;
-          if (open && (tap || (t && hitTest(p, [{ id: 't', rect: t.getBoundingClientRect() }], SLACK) === 't'))) act();
-          return false;
-        },
+      const stop = dnd().attach(el, () => {
+        aim = target;
+        return run;
       });
       disposers.push(() => {
-        el.removeEventListener('pointerdown', down);
         el.removeEventListener('click', click);
         stop();
       });

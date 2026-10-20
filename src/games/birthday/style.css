@@ -403,7 +403,8 @@
   row-gap: 1vmin;
   transition: opacity 0.3s;
 }
-.birthday-tray .birthday-topping {
+.birthday-tray .birthday-topping,
+.birthday-topping.dd-ghost {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
@@ -453,4 +454,9 @@
     /* Short screens: the row of toppings sets the height, not the g-tray minimum. */
     min-height: 0;
   }
+}
+
+/* The tray piece stays put (faint) while its copy follows the finger. */
+.birthday-tray .birthday-topping.is-carried {
+  opacity: 0.3;
 }

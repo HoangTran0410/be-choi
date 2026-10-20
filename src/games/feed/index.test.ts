@@ -16,14 +16,20 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x = 0, y = 0): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: 1, isPrimary: true, bubbles: true });
 }
 
-/** jsdom rects are all zeros, so a drop at (0,0) lands on the mouth. */
-function drop(el: Element): void {
-  el.dispatchEvent(ptr('pointerdown'));
-  el.dispatchEvent(ptr('pointermove'));
-  el.dispatchEvent(ptr('pointerup'));
+/** Every box is the same 100px square at (100,100): letting go at its centre lands on the mouth. */
+function stubRects(): void {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+    x: 100, y: 100, left: 100, top: 100, width: 100, height: 100, right: 200, bottom: 200, toJSON: () => ({}),
+  });
+}
+
+function drop(el: Element, x = 150, y = 150): void {
+  el.dispatchEvent(ptr('pointerdown', x - 40, y - 40));
+  el.dispatchEvent(ptr('pointermove', x, y));
+  el.dispatchEvent(ptr('pointerup', x, y));
 }
 
 function foodsOf(stage: HTMLElement): { correct: HTMLElement; wrong: HTMLElement } {
@@ -42,7 +48,7 @@ describe('feed game', () => {
     game.start(ctx);
     expect(ctx.stage.querySelectorAll('.feed-animal').length).toBe(1);
     expect(ctx.stage.querySelectorAll('.feed-mouth').length).toBe(1);
-    expect(ctx.stage.querySelectorAll('.feed-food').length).toBe(3);
+    expect(ctx.stage.querySelectorAll('.feed-tray .feed-food').length).toBe(3);
     expect(ctx.spoken.some((s) => s.endsWith('đói rồi'))).toBe(true);
     ctx.cleanup();
     expect(document.body.contains(ctx.stage)).toBe(false);
@@ -53,14 +59,15 @@ describe('feed game', () => {
     vi.useFakeTimers();
     const ctx = fakeContext();
     game.start(ctx);
+    stubRects();
     const first = ctx.stage.querySelector('.feed-animal')!.textContent;
     const { correct, wrong } = foodsOf(ctx.stage);
 
     drop(wrong);
     expect(ctx.spoken).toContain('Không phải món này');
     expect(ctx.stage.querySelector('.feed-animal')!.classList.contains('anim-shake')).toBe(true);
-    expect(wrong.classList.contains('spring-back')).toBe(true);
-    expect(ctx.stage.querySelectorAll('.feed-food').length).toBe(3);
+    expect(ctx.stage.querySelector('.dd-ghost')).not.toBeNull(); // gliding home
+    expect(ctx.stage.querySelectorAll('.feed-tray .feed-food').length).toBe(3);
 
     drop(correct);
     expect(ctx.spoken).toContain('Ngon quá!');
@@ -69,14 +76,16 @@ describe('feed game', () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.stage.querySelector('.feed-animal')!.textContent).not.toBe(first);
-    expect(ctx.stage.querySelectorAll('.feed-food').length).toBe(3);
+    expect(ctx.stage.querySelectorAll('.feed-tray .feed-food').length).toBe(3);
     expect(ctx.spoken.filter((s) => s.endsWith('đói rồi')).length).toBe(2);
     ctx.cleanup();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('celebrates and awards a star after 5 animals', async () => {
     vi.useFakeTimers();
+    stubRects();
     const ctx = fakeContext();
     game.start(ctx);
     for (let i = 0; i < 5; i++) {
@@ -86,7 +95,7 @@ describe('feed game', () => {
     }
     expect(ctx.celebrations).toBe(1);
     expect(ctx.stars).toBe(1);
-    expect(ctx.stage.querySelectorAll('.feed-food').length).toBe(3);
+    expect(ctx.stage.querySelectorAll('.feed-tray .feed-food').length).toBe(3);
     ctx.cleanup();
     vi.useRealTimers();
   });

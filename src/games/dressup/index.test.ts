@@ -16,7 +16,7 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: 1, isPrimary: true, bubbles: true });
 }
 
 function garments(root: ParentNode, slot?: string): HTMLElement[] {
@@ -112,6 +112,28 @@ describe('dressup game', () => {
     g.dispatchEvent(ptr('pointermove', 50, 150));
     g.dispatchEvent(ptr('pointerup', 50, 150));
     expect(slot.textContent).toBe(g.dataset.emoji);
+    ctx.cleanup();
+  });
+
+  it('a press that barely moves is a tap and puts the piece on; a missed drop glides the copy home', () => {
+    const ctx = fakeContext();
+    game.start(ctx);
+    const g = garments(ctx.stage, 'shoes')[0]!;
+    const slot = ctx.stage.querySelector<HTMLElement>('.dressup-slot-shoes')!;
+    g.dispatchEvent(ptr('pointerdown', 500, 500));
+    g.dispatchEvent(ptr('pointerup', 503, 502));
+    expect(slot.textContent).toBe(g.dataset.emoji);
+    const h = garments(ctx.stage, 'hat')[0]!;
+    h.dispatchEvent(ptr('pointerdown', 500, 500));
+    h.dispatchEvent(ptr('pointermove', 400, 400));
+    expect(ctx.stage.querySelector('.dd-ghost')).not.toBeNull();
+    expect(h.classList.contains('is-carried')).toBe(true);
+    h.dispatchEvent(ptr('pointerup', 400, 400));
+    expect(ctx.stage.querySelector<HTMLElement>('.dressup-slot-hat')!.textContent).toBe('');
+    expect(h.classList.contains('is-carried')).toBe(false);
+    // A real browser sends a click after the pointer-up: it is part of the missed drop, not a new tap.
+    h.click();
+    expect(ctx.stage.querySelector<HTMLElement>('.dressup-slot-hat')!.textContent).toBe('');
     ctx.cleanup();
   });
 

@@ -126,7 +126,10 @@ export const breakfast: Activity = (env) => {
       replay(me, 'anim-wiggle');
       ctx.audio.pop(1.1);
     }, 300);
-    ctx.hint.arm(() => replay(dish, 'anim-wiggle'));
+    ctx.hint.arm(() => {
+      env.say('Cho bạn nhỏ ăn nào');
+      replay(dish, 'anim-wiggle');
+    });
   }
 
   function eat(dish: HTMLElement, me: HTMLElement): void {
