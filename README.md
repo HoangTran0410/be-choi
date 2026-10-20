@@ -16,10 +16,13 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | 🦉 **Học cùng bé** | Một cô giáo cú hỏi chậm bằng giọng và hình, mười trạm trên bản đồ: chữ cái · số · màu · hình · to nhỏ · con vật · cái bóng · quy luật · phân loại · người thân (ảnh gia đình). Độ khó tự tăng khi bé đúng liên tiếp; sai thì cô dạy chứ không phạt. Có chế độ Khám phá (chạm là nghe, không hỏi). |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Thế giới nhỏ của bé (bể cá · biển · rừng nhỏ · ao câu, một sổ bạn bè) · 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
+| 🧩 **Suy nghĩ** | 🧱 Xưởng xếp hình · 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
+| 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
 
 Vài trò nổi bật:
 
+- **🧱 Xưởng xếp hình** — một xưởng, ba cách chơi, đổi qua lại không cần thoát: *Ghép tranh* (tranh con vật, cảnh vật và ảnh gia đình; mảnh nam châm hút vào đúng chỗ, xong thì tranh "sống dậy"), *Xếp theo bóng* (kéo khối màu vào cái bóng đen, càng lên cao càng mất đường kẻ gợi ý; xong thì ảnh gia đình hiện qua hình bóng), *Xây tự do* (xây gạch theo bản vẽ từng bước hoặc tuỳ thích, bấm 📸 cất vào Tủ trưng bày). Mỗi lần xong được sao; sao mở thêm tranh, khối, bản vẽ mới và làm các mảnh ghép khó dần. Gộp từ Ghép tranh, Xếp khối và Xếp gạch (ba game cũ vẫn chơi được ở cuối trang).
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
 - **🌦️ Bé tạo cảnh** — 47 âm thanh nền (mưa, tuyết, sóng biển, thác nước, vườn ong, hội chợ, vũ trụ…) trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, tuyết phủ đồi, pháo hoa có đuôi, đu quay quay, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
 - **📺 Xem nhạc** — chọn video nhạc êm, lofi, thiên nhiên (danh sách của iFocus); bố mẹ dán thêm link YouTube được. Cần có mạng.

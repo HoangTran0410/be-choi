@@ -67,6 +67,7 @@ const GAMES = [
   'catband',
   'museum',
   'learn',
+  'build',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
