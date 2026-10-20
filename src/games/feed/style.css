@@ -34,7 +34,7 @@
   border-color: rgba(59, 47, 47, 0.5);
 }
 
-.feed-tray .feed-food {
+.feed-food {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
@@ -51,4 +51,12 @@
   transition:
     transform 0.3s ease-in,
     opacity 0.3s ease-in;
+}
+
+/* The real food stays in the tray (faint) while its copy follows the finger. */
+.feed-food.is-carried {
+  opacity: 0.3;
+}
+.feed-food.dd-ghost {
+  opacity: 0.95;
 }

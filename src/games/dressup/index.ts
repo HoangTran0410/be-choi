@@ -1,4 +1,4 @@
-import { hitTest, makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import { h, replay } from '../../core/dom';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -26,8 +26,6 @@ const GIGGLE_MS = 900;
 const DRESSED_MS = 1400;
 const TOY_FLY_MS = 500;
 const ALL_TIDY_MS = 600;
-/** A press that moves less than this is a tap, not a drag. */
-const TAP_PX = 10;
 /** How far outside the child a drop still counts as "on the child". */
 const DROP_SLACK = 24;
 
@@ -52,7 +50,7 @@ function start(ctx: GameContext): void {
   let left = 0;
   const worn: Partial<Record<Slot, Garment>> = {};
   const timers = new Set<ReturnType<typeof setTimeout>>();
-  const disposers: Array<() => void> = [];
+  const pieceDisposers: Array<() => void> = [];
 
   const sky = h('div', { class: 'dressup-sky' });
   const head = h('div', { class: 'dressup-head' }, HEAD);
@@ -83,37 +81,71 @@ function start(ctx: GameContext): void {
     timers.add(t);
   }
 
+  function dropPieces(): void {
+    for (const d of pieceDisposers.splice(0)) d();
+  }
+
   function setPhase(p: typeof phase): void {
     phase = p;
     wrap.dataset.phase = p;
   }
 
-  /** Press-and-release without moving counts as a tap; a drag must end on `target`. */
-  function bindPiece(el: HTMLElement, target: () => HTMLElement, act: () => void): void {
-    let sx = 0;
-    let sy = 0;
-    let lastDrop = -Infinity;
-    const down = (e: PointerEvent): void => {
-      sx = e.clientX;
-      sy = e.clientY;
-      ctx.hint.touch();
+  /** A piece (garment or toy) is acted on by a tap, or by being dropped on `to`. */
+  let lastGesture = -Infinity;
+  interface Piece {
+    to: 'kid' | 'box';
+    act: () => void;
+  }
+  // The piece is lifted as a light copy that follows the finger on its own layer; the real one stays put.
+  const dd = createDragDrop<Piece>({
+    layer: ctx.stage,
+    // Both drop places are measured once at pick-up, never while the finger moves.
+    targets: () =>
+      [
+        { id: 'kid', el: kid, on: phase === 'dress' },
+        { id: 'box', el: box, on: phase === 'tidy' },
+      ]
+        .filter((t) => t.on)
+        .map((t) => {
+          const r = t.el.getBoundingClientRect();
+          return {
+            id: t.id,
+            rect: { left: r.left - DROP_SLACK, top: r.top - DROP_SLACK, width: r.width + DROP_SLACK * 2, height: r.height + DROP_SLACK * 2 },
+          };
+        }),
+    resolve: (p, t) => pickTarget(p, t),
+    ghost: (_p, el) => {
+      const g = el.cloneNode(true) as HTMLElement;
+      g.setAttribute('aria-hidden', 'true');
+      g.classList.remove('anim-wiggle', 'anim-bounce', 'anim-pulse', 'anim-pop', 'anim-shake');
+      g.removeAttribute('aria-label');
+      return g;
+    },
+    onTap: (p) => p.act(),
+    // However a pointer gesture ends (tap, drop, missed drop, cancel), the click that follows is part of it.
+    onEnd: () => {
+      lastGesture = Date.now();
+    },
+    onDrop: (p, hit) => {
+      // Nothing is wrong here: a piece let go anywhere else simply glides back.
+      if (hit !== p.to) return false;
+      p.act();
+      return true;
+    },
+    ctx,
+  });
+
+  /** Tap it, or drop it on `to`. The click that follows a pointer gesture is the same gesture. */
+  function bindPiece(el: HTMLElement, to: Piece['to'], act: () => void): void {
+    const piece: Piece = { to, act };
+    const click = (): void => {
+      // Keyboard and assistive taps arrive as a bare click.
+      if (Date.now() - lastGesture > 500) act();
     };
-    el.addEventListener('pointerdown', down);
-    el.addEventListener('click', () => {
-      // A drag or a tap already acted on pointer-up; the click that follows is the same gesture.
-      if (Date.now() - lastDrop > 500) act();
-    });
-    const stop = makeDraggable(el, {
-      onDrop(_el, p) {
-        lastDrop = Date.now();
-        const tap = Math.hypot(p.x - sx, p.y - sy) < TAP_PX;
-        const rect = target().getBoundingClientRect();
-        if (tap || hitTest(p, [{ id: 'hit', rect }], DROP_SLACK) === 'hit') act();
-        return false;
-      },
-    });
-    disposers.push(() => {
-      el.removeEventListener('pointerdown', down);
+    el.addEventListener('click', click);
+    const stop = dd.attach(el, () => piece);
+    pieceDisposers.push(() => {
+      el.removeEventListener('click', click);
       stop();
     });
   }
@@ -171,6 +203,10 @@ function start(ctx: GameContext): void {
 
   function armHint(): void {
     ctx.hint.arm(() => {
+      if (dd.active) return;
+      // The speech gate keeps these few and far between.
+      if (phase === 'dress') ctx.speak('Kéo đồ cho bạn nhỏ mặc nhé');
+      else if (phase === 'tidy') ctx.speak('Cất đồ chơi vào hộp nhé');
       if (phase === 'dress') {
         const empty = SLOTS.filter((s) => !worn[s]);
         const slot = oneOf(empty.length > 0 ? empty : SLOTS);
@@ -186,6 +222,7 @@ function start(ctx: GameContext): void {
   }
 
   function showRound(): void {
+    dropPieces();
     round = makeDressRound(Math.random, round?.scenario.id);
     for (const slot of SLOTS) delete worn[slot];
     for (const slot of SLOTS) paintSlot(slot);
@@ -203,7 +240,7 @@ function start(ctx: GameContext): void {
           { class: 'dressup-garment', type: 'button', 'data-slot': slot, 'data-emoji': g.emoji, 'aria-label': g.name },
           g.emoji,
         );
-        bindPiece(b, () => kid, () => wear(g));
+        bindPiece(b, 'kid', () => wear(g));
         row.append(b);
       }
       tray.append(row);
@@ -216,6 +253,7 @@ function start(ctx: GameContext): void {
   // ---- tidying ----
 
   function startTidy(): void {
+    dropPieces();
     setPhase('tidy');
     ctx.speak(DRESSED_SAY);
     later(() => ctx.speak(TIDY_SAY), 1800);
@@ -223,7 +261,7 @@ function start(ctx: GameContext): void {
     left = toys.length;
     for (const t of toys) {
       const el = h('button', { class: 'dressup-toy', type: 'button', 'aria-label': 'đồ chơi' }, t);
-      bindPiece(el, () => box, () => tidy(el));
+      bindPiece(el, 'box', () => tidy(el));
       floor.append(el);
     }
     armHint();
@@ -231,11 +269,6 @@ function start(ctx: GameContext): void {
 
   function tidy(toy: HTMLElement): void {
     if (phase !== 'tidy' || toy.classList.contains('away')) return;
-    // A dragged toy carries an inline translate: clear it so the fly starts from its slot.
-    toy.classList.remove('spring-back');
-    toy.style.transform = '';
-    toy.dataset.dx = '0';
-    toy.dataset.dy = '0';
     const from = toy.getBoundingClientRect();
     const to = box.getBoundingClientRect();
     toy.style.setProperty('--dx', `${to.left + to.width / 2 - (from.left + from.width / 2)}px`);
@@ -269,8 +302,7 @@ function start(ctx: GameContext): void {
     alive = false;
     for (const t of timers) clearTimeout(t);
     timers.clear();
-    for (const d of disposers) d();
-    disposers.length = 0;
+    dropPieces();
   });
 
   showRound();

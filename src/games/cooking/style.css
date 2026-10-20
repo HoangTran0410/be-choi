@@ -399,3 +399,9 @@
     right: 4vw;
   }
 }
+
+/* The real piece stays put (faint) while its copy follows the finger. */
+.cooking-item.is-carried,
+.cooking-dish.is-carried {
+  opacity: 0.3;
+}

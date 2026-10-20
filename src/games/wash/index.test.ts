@@ -16,7 +16,7 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x: number, y: number, id = 1): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, button: 0, buttons: 1, isPrimary: true, bubbles: true });
 }
 
 function rect(size: number): DOMRect {
@@ -78,7 +78,7 @@ describe('wash game', () => {
     // Idle hint: the sponge wiggles on the subject, then hides again.
     vi.advanceTimersByTime(6000);
     expect(sponge.hidden).toBe(false);
-    expect(sponge.classList.contains('anim-wiggle')).toBe(true);
+    expect(sponge.querySelector('.wash-sponge-in')!.classList.contains('anim-wiggle')).toBe(true);
     vi.advanceTimersByTime(1200);
     expect(sponge.hidden).toBe(true);
 

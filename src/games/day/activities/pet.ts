@@ -67,6 +67,7 @@ export const pet: Activity = (env) => {
     });
     tray.replaceChildren(...foods);
     ctx.hint.arm(() => {
+      env.say('Cho bạn thú ăn nào');
       const right = foods.find((b) => b.dataset.emoji === r.correct.emoji);
       if (right) replay(right, 'anim-wiggle');
       replay(mouth, 'anim-pulse');

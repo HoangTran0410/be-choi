@@ -116,6 +116,29 @@ describe('the whole day: dressing, then back to the morning jobs', () => {
     expect(dayState().period).toBe('0');
   });
 
+  it('a garment can be dragged onto the friend: a light copy follows, a drop elsewhere only glides it home', async () => {
+    const ptr = (type: string, x: number, y: number): PointerEvent =>
+      new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: 1 }) as unknown as PointerEvent;
+    await openDress();
+    const kidBox = q(stage(), '.dress-kid').firstElementChild!;
+    vi.spyOn(kidBox, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, left: 0, top: 0, width: 100, height: 300, right: 100, bottom: 300, toJSON: () => ({}),
+    });
+    const piece = qa(stage(), '.dress-piece')[0]!;
+    piece.dispatchEvent(ptr('pointerdown', 500, 500));
+    piece.dispatchEvent(ptr('pointermove', 400, 400));
+
+    expect(q(stage(), '.dd-ghost')).toBeTruthy();
+    expect(piece.classList.contains('is-carried')).toBe(true);
+    piece.dispatchEvent(ptr('pointerup', 400, 400));
+    expect(qa(stage(), '.dress-piece.worn').length).toBe(0);
+    expect(piece.classList.contains('is-carried')).toBe(false);
+    piece.dispatchEvent(ptr('pointerdown', 500, 500));
+    piece.dispatchEvent(ptr('pointermove', 50, 150));
+    piece.dispatchEvent(ptr('pointerup', 50, 150));
+    expect(qa(stage(), '.dress-piece.worn').length).toBe(1);
+  });
+
   it('taking a garment off hides ✓ and never ends the job', async () => {
     await openDress();
     await wearAll();

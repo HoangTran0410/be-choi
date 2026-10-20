@@ -19,7 +19,7 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x = 0, y = 0, id = 1): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, button: 0, isPrimary: true, bubbles: true });
+  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, button: 0, buttons: 1, isPrimary: true, bubbles: true });
 }
 
 /** Every box is the same square, so its centre is the drop point and the stir centre. */
@@ -114,7 +114,7 @@ describe('cooking game', () => {
     const ctx = fakeContext();
     game.start(ctx);
     const r = currentRecipe(ctx.stage);
-    vi.advanceTimersByTime(6000);
+    vi.advanceTimersByTime(10000);
     const first = trayItems(ctx.stage).find((el) => el.dataset.emoji === r.ingredients[0]!.emoji)!;
     expect(first.classList.contains('anim-wiggle')).toBe(true);
     expect(ctx.stage.querySelector('.cooking-bowl')!.classList.contains('anim-pulse')).toBe(true);
@@ -143,7 +143,7 @@ describe('cooking game', () => {
     expect(ctx.spoken.at(-1)).toContain(decoyName);
     expect(SILLY_LINES.some((l) => ctx.spoken.at(-1) === l.replace('%s', decoyName ?? ''))).toBe(true);
     expect(stage.querySelectorAll('.cooking-bit').length).toBe(0);
-    expect(decoy.classList.contains('spring-back')).toBe(true);
+    expect(stage.querySelector('.dd-ghost')).not.toBeNull(); // gliding back to the tray
     expect(trayItems(stage).length).toBe(r.ingredients.length + 2);
 
     // Letting go away from the bowl does nothing.

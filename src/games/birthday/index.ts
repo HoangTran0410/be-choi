@@ -1,5 +1,6 @@
 import { h, replay } from '../../core/dom';
-import { hitTest, makeDraggable, type Pt, type Target } from '../../core/drag';
+import { hitTest, type Pt } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import { noteFreq, schedule } from '../../core/music';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { Photo } from '../../core/photos';
@@ -41,6 +42,8 @@ const ANIM_CLASSES = ['anim-bounce', 'anim-wiggle', 'anim-pulse', 'anim-pop', 'a
 /** localStorage key: id of the photo on the cake, or NO_PHOTO. */
 const PHOTO_KEY = 'be-choi:birthday-photo';
 const NO_PHOTO = 'none';
+/** A topping let go this close to the cake (as a share of its width) still lands on it. */
+const CAKE_SLACK = 0.06;
 
 type AudioCtor = new () => AudioContext;
 
@@ -80,7 +83,6 @@ function start(ctx: GameContext): void {
   let micTimer: ReturnType<typeof setInterval> | null = null;
   const pressed = new Set<number>();
   const timers = new Set<ReturnType<typeof setTimeout>>();
-  const disposers: Array<() => void> = [];
 
   // ---- DOM ----
   const wrap = h('div', { class: 'birthday' });
@@ -122,21 +124,35 @@ function start(ctx: GameContext): void {
   const todo = h('div', { class: 'birthday-todo' }, ...ticks.values());
 
   const tray = h('div', { class: 'g-tray birthday-tray' });
+  // A topping is lifted as a light copy that follows the finger on its own layer; the tray piece stays put.
+  const dd = createDragDrop<string>({
+    layer: ctx.stage,
+    // The cake's three parts, measured once at pick-up and grown a little so a near miss still lands.
+    targets: () => {
+      const pad = cake.getBoundingClientRect().width * CAKE_SLACK;
+      return [tierTop, tierBottom, plate].map((el, i) => {
+        const r = el.getBoundingClientRect();
+        return { id: String(i), rect: { left: r.left - pad, top: r.top - pad, width: r.width + pad * 2, height: r.height + pad * 2 } };
+      });
+    },
+    resolve: (p, t) => pickTarget(p, t),
+    ghost: (_emoji, el) => {
+      const g = el.cloneNode(true) as HTMLElement;
+      g.classList.remove(...ANIM_CLASSES);
+      return g;
+    },
+    onPickUp: () => ctx.hint.touch(),
+    onDrop: (emoji, hit, _el, p) => {
+      // The tray piece always floats home; a copy stays where it was dropped.
+      // A cake in full blaze is still worth decorating.
+      if (hit !== null) place(emoji, p);
+      return false;
+    },
+    ctx,
+  });
   for (const item of TOPPINGS) {
     const el = h('div', { class: 'g-item birthday-topping', 'data-emoji': item.emoji }, item.emoji);
-    disposers.push(
-      makeDraggable(el, {
-        onStart() {
-          ctx.hint.touch();
-        },
-        onDrop(_el, p) {
-          // The tray piece always floats home; a copy stays where it was dropped.
-          // A cake in full blaze is still worth decorating.
-          if (overCake(p)) place(item.emoji, p);
-          return false;
-        },
-      }),
-    );
+    dd.attach(el, () => item.emoji);
     tray.append(el);
   }
 
@@ -160,12 +176,6 @@ function start(ctx: GameContext): void {
 
   function isLit(c: HTMLElement): boolean {
     return c.classList.contains('birthday-lit');
-  }
-
-  function overCake(p: Pt): boolean {
-    const tolerance = cake.getBoundingClientRect().width * 0.06;
-    const targets: Target[] = [tierTop, tierBottom, plate].map((el, i) => ({ id: String(i), rect: el.getBoundingClientRect() }));
-    return hitTest(p, targets, tolerance) !== null;
   }
 
   /** The lit candle under the pointer (geometric, so a swipe finds them too). */
@@ -198,19 +208,23 @@ function start(ctx: GameContext): void {
   /** Wiggle whatever would move the cake along, without insisting on it. */
   function armHint(): void {
     ctx.hint.arm(() => {
-      if (!alive || singing || pressed.size > 0) return;
+      if (!alive || singing || pressed.size > 0 || dd.active) return;
+      // The speech gate keeps these few and far between.
       if (candles.length === 0) {
         anim(candleBtn, 'anim-wiggle');
+        ctx.speak('Thêm nến nào');
         return;
       }
       const unlit = candles.find((c) => !isLit(c));
       if (unlit) {
+        ctx.speak('Thắp nến nào');
         anim(unlit, 'anim-wiggle');
         anim(lightBtn, 'anim-wiggle');
         return;
       }
       const lit = candles.find(isLit);
       if (lit) {
+        ctx.speak('Thổi nến nào');
         anim(lit, 'anim-wiggle');
         if (!micBtn.hidden) anim(micBtn, 'anim-wiggle');
         return;
@@ -641,7 +655,6 @@ function start(ctx: GameContext): void {
     cancelSong?.();
     cancelSong = null;
     stopMic();
-    for (const d of disposers) d();
     for (const t of timers) clearTimeout(t);
     timers.clear();
     window.removeEventListener('pointerup', release);
@@ -651,6 +664,7 @@ function start(ctx: GameContext): void {
   setFlavor(0);
   syncUi();
   armHint();
+  ctx.speak('Trang trí bánh sinh nhật nào!');
 }
 
 const game: GameModule = { ...meta, start };

@@ -887,6 +887,7 @@
   opacity: 0;
   pointer-events: none;
   transform-origin: center;
+  will-change: transform;
 }
 .teeth-brush.on {
   opacity: 1;
@@ -1636,4 +1637,12 @@
 .dress-dots i.on {
   background: #22c55e;
   transform: scale(1.25);
+}
+
+/* A piece being carried: the real one stays put (faint) while its copy follows the finger. */
+.dress-piece.is-carried,
+.pet-food.is-carried,
+.bed-toy.is-carried,
+.cook-serve.is-carried {
+  opacity: 0.3;
 }

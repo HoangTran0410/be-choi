@@ -83,6 +83,8 @@ export const dress: Activity = (env) => {
 
   env.say(WEATHER_SAY[plan.weather]);
   ctx.hint.arm(() => {
+    // The speech gate keeps this rare: a few times, well apart, until the child touches something.
+    env.say('Kéo đồ cho bạn nhỏ mặc nhé');
     const empty = SLOTS.find((s) => kid.state[s] === '');
     const goods = (empty ? offers[empty] : []).filter((g) => fits(g, sc));
     const b = goods[0] && buttons.get(goods[0].emoji);

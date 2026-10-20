@@ -95,10 +95,16 @@ function start(ctx: GameContext): void {
     timers.add(t);
   }
 
+  /** The wrapper's corner, read once when a finger lands (and on every hint), never while it moves. */
+  let wrapBox = { left: 0, top: 0 };
+  function measureWrap(): void {
+    const r = wrap.getBoundingClientRect();
+    wrapBox = { left: r.left, top: r.top };
+  }
+
   /** Client coords → coords inside the wrapper. */
   function local(cx: number, cy: number): { x: number; y: number } {
-    const r = wrap.getBoundingClientRect();
-    return { x: cx - r.left, y: cy - r.top };
+    return { x: cx - wrapBox.left, y: cy - wrapBox.top };
   }
 
   // ---- brushing song ----
@@ -259,16 +265,15 @@ function start(ctx: GameContext): void {
   // ---- brush following the finger ----
 
   function showBrush(x: number, y: number): void {
-    brush.style.left = `${x}px`;
-    brush.style.top = `${y}px`;
+    // A transform on its own layer: the brush follows the finger without any layout.
+    brush.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
     brush.classList.add('teeth-brush-active');
   }
 
   function release(): void {
     activePointer = null;
     brush.classList.remove('teeth-brush-active');
-    brush.style.left = '';
-    brush.style.top = '';
+    brush.style.transform = '';
   }
 
   function onDown(e: PointerEvent): void {
@@ -279,6 +284,7 @@ function start(ctx: GameContext): void {
     e.preventDefault();
     activePointer = e.pointerId;
     lastStroke = null;
+    measureWrap();
     cacheRects();
     const p = local(e.clientX, e.clientY);
     showBrush(p.x, p.y);
