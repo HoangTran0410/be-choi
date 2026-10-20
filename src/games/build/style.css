@@ -4,7 +4,7 @@
  * Every button is at least one --tap (72 px); nothing scrolls.
  */
 .bw {
-  --bw-btn: clamp(72px, 11vmin, 104px);
+  --bw-btn: clamp(56px, 8.5vmin, 80px);
   --bw-radius: 22px;
   position: absolute;
   inset: 0;
@@ -230,6 +230,7 @@
 
 /* ---- Ghép tranh ---- */
 .bw-pz-area {
+  container-type: size;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -243,6 +244,9 @@
   height: min(70vmin, 100%);
   max-width: 100%;
   aspect-ratio: 1 / 1;
+  /* The biggest square the area holds (container units; the line above is the fallback). */
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.45);
   box-shadow: 0 8px 24px rgba(59, 47, 47, 0.12);
@@ -361,6 +365,7 @@
   --bw-cap: max(var(--tap), 30vw);
 }
 .bw-sh-area {
+  container-type: size;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -374,6 +379,8 @@
   height: min(86vmin, 100%);
   max-width: 100%;
   aspect-ratio: 1 / 1;
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
 }
 .bw-sh-svg {
   position: absolute;
@@ -448,8 +455,9 @@
   --bw-cell: 40px;
   --bw-cols: 10;
   --bw-rows: 8;
-  --bw-tcell: clamp(16px, 5vmin, 40px);
-  --bw-bk-btn: var(--bw-btn);
+  /* Dock buttons: 56 px is the floor for a toddler's finger; a bit more on a big screen. */
+  --bw-tcell: clamp(14px, 4.2vmin, 26px);
+  --bw-bk-btn: clamp(56px, 9vmin, 72px);
 }
 .bw-bk-area {
   position: relative;
@@ -458,7 +466,7 @@
   min-height: 0;
   display: grid;
   place-items: center;
-  padding: 2vmin;
+  padding: 1.2vmin;
 }
 .bw-bk-plate {
   position: relative;
@@ -566,31 +574,57 @@
 .bw-land {
   animation: bw-land 0.28s ease-out;
 }
+.bw-bk-dock {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  background: var(--tray-bg);
+}
 .bw-bk-tray {
-  gap: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 4px 6px;
+  max-height: 100%;
 }
 .bw-bk-pieces,
 .bw-bk-tools {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   align-items: center;
-  gap: 4px 6px;
+  gap: 6px;
 }
+/* A thin row that scrolls sideways when the bricks do not fit; the margin trick centres it when they do. */
 .bw-bk-pieces {
-  column-gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 6px 8px;
+  scrollbar-width: none;
 }
-.bw-bk-colors,
+.bw-bk-pieces::-webkit-scrollbar {
+  display: none;
+}
+.bw-bk-pieces > :first-child,
+.bw-bk-tools > :first-child {
+  margin-left: auto;
+}
+.bw-bk-pieces > :last-child,
+.bw-bk-tools > :last-child {
+  margin-right: auto;
+}
 .bw-bk-actions {
   display: contents;
 }
 .bw-bk-piece {
   position: relative;
+  flex: none;
   min-width: var(--bw-bk-btn);
   min-height: var(--bw-bk-btn);
+  padding: 0 6px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
+  background: var(--surface);
+  box-shadow: 0 3px 0 var(--btn-shadow);
   touch-action: none;
   will-change: transform;
 }
@@ -599,6 +633,23 @@
   position: relative;
   left: auto;
   bottom: auto;
+}
+/* Picked with a tap: a ring. The next brick of the blueprint: a warm glow. */
+.bw-bk-piece.sel {
+  box-shadow:
+    0 0 0 3px var(--ink),
+    0 3px 0 var(--btn-shadow);
+}
+.bw-bk-piece.next {
+  background: #fff7d6;
+  box-shadow:
+    0 0 0 4px var(--c-orange),
+    0 3px 0 var(--btn-shadow);
+}
+.bw-bk-piece.next.sel {
+  box-shadow:
+    0 0 0 4px var(--c-orange),
+    0 0 0 7px var(--ink);
 }
 .bw-bk-color,
 .bw-bk-btn {
@@ -629,10 +680,50 @@
 }
 .bw-bk-color.active {
   z-index: 1;
-  transform: scale(1.1);
+  transform: scale(1.08);
   box-shadow:
     0 0 0 3px #fff,
     0 0 0 6px var(--ink);
+}
+/* The colour chip shows the colour in hand; a tap opens the whole palette over the plate. */
+.bw-bk-swatch {
+  width: 68%;
+  height: 68%;
+  border-radius: 50%;
+  background: var(--bw-color, #ef4444);
+  box-shadow: inset 0 0 0 3px #fff;
+  pointer-events: none;
+}
+.bw-bk-chip[aria-expanded='true'] {
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 3px 0 var(--btn-shadow);
+}
+.bw-bk-chip.need {
+  box-shadow:
+    0 0 0 4px var(--c-orange),
+    0 3px 0 var(--btn-shadow);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.bw-lite .bw-bk-chip.need {
+  animation: none;
+}
+.bw-bk-palette {
+  position: absolute;
+  z-index: 20;
+  left: 6px;
+  right: 6px;
+  bottom: calc(100% + 4px);
+  padding: 8px;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+.bw-bk-colors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* ---- Tủ trưng bày ---- */
@@ -752,7 +843,7 @@
     flex-direction: row;
   }
   .bw-tray {
-    width: 34%;
+    width: 30%;
     height: 100%;
     min-height: 0;
   }
@@ -771,23 +862,38 @@
   .bw-sh.bw-many {
     --bw-cap: max(var(--tap), 13vw);
   }
-  .bw-bk {
-    --bw-tcell: clamp(16px, 4.6vmin, 34px);
+  .bw-bk-dock {
+    /* Three buttons across: the plate gets everything else. */
+    width: calc(var(--bw-bk-btn) * 3 + 36px);
+    height: 100%;
   }
   .bw-bk-tray {
-    /* Five round buttons per row: 5 × button + gaps, so ten colours and buttons make two rows, not three. */
-    width: max(51%, calc(var(--bw-bk-btn) * 5 + 30px));
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: stretch;
+    height: 100%;
+    overflow-y: auto;
     justify-content: center;
-    gap: 3px;
+    gap: 6px;
+    padding: 4px;
+    scrollbar-width: none;
   }
-  .bw-bk-pieces {
-    gap: 3px 2px;
-  }
+  .bw-bk-pieces,
   .bw-bk-tools {
-    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow: visible;
+    padding: 2px;
+    gap: 6px;
+  }
+  .bw-bk-pieces > :first-child,
+  .bw-bk-tools > :first-child,
+  .bw-bk-pieces > :last-child,
+  .bw-bk-tools > :last-child {
+    margin: 0;
+  }
+  .bw-bk-palette {
+    left: auto;
+    right: calc(100% + 4px);
+    bottom: 6px;
+    width: calc(var(--bw-bk-btn) * 3 + 44px);
   }
   .bw-cab-view {
     grid-auto-flow: column;

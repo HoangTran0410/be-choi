@@ -74,7 +74,10 @@ const GALLERY_SPEC: VersionedSpec<Work[]> = {
   current: 1,
   validate(data) {
     const list = Array.isArray(data.works) ? data.works : [];
-    return list.map(parseWork).filter((w): w is Work => w !== null).slice(0, MAX_WORKS);
+    return list
+      .map(parseWork)
+      .filter((w): w is Work => w !== null)
+      .slice(0, MAX_WORKS);
   },
 };
 
@@ -134,7 +137,9 @@ export function workSvg(work: Work): string {
   for (const [x, y, w, h, color] of work.bricks) {
     const left = x - minX + MARGIN;
     const top = height - (y + h) + MARGIN;
-    parts.push(`<rect x="${left}" y="${top}" width="${w}" height="${h}" rx="0.12" fill="${color}" stroke="rgba(0,0,0,.28)" stroke-width="0.05"/>`);
+    parts.push(
+      `<rect x="${left}" y="${top}" width="${w}" height="${h}" rx="0.12" fill="${color}" stroke="rgba(0,0,0,.28)" stroke-width="0.05"/>`,
+    );
     parts.push(`<rect x="${left}" y="${top + h - 0.14}" width="${w}" height="0.14" fill="rgba(0,0,0,.2)"/>`);
     for (let i = 0; i < w; i++) {
       parts.push(`<circle cx="${left + i + 0.5}" cy="${top + 0.2}" r="0.14" fill="rgba(255,255,255,.55)"/>`);

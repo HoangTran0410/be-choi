@@ -87,6 +87,8 @@ export function createBuildMode(w: Workshop): ModeCtl {
   let lastModelId: string | undefined;
   let lastShot = '';
   let step: Suggestion | null = null;
+  /** The brick picked by a tap in the dock: a tap on the plate then puts it down there. */
+  let selected: BrickSize | null = null;
 
   const disposers: Array<() => void> = [];
   const brickDisposers = new Map<HTMLElement, () => void>();
@@ -98,13 +100,17 @@ export function createBuildMode(w: Workshop): ModeCtl {
   const caption = h('div', { class: 'bw-caption bw-bk-caption', 'aria-live': 'polite' });
   const flash = h('div', { class: 'bw-flash' });
   const area = h('div', { class: 'bw-bk-area' }, plate, caption, flash);
+  // The dock is a thin strip (a row under the plate in portrait, a narrow column beside it in
+  // landscape) so the plate gets the room. Bricks and the few buttons sit in the strip; the colours
+  // fold into a palette that opens from one chip, over the plate, only when asked for.
   const pieces = h('div', { class: 'bw-bk-pieces' });
   const colors = h('div', { class: 'bw-bk-colors' });
+  const palette = h('div', { class: 'bw-bk-palette', hidden: true, role: 'listbox', 'aria-label': 'Chọn màu' }, colors);
   const actions = h('div', { class: 'bw-bk-actions' });
-  // Colours and buttons share rows (`display: contents`): ten round buttons fit two rows, not four.
-  const tools = h('div', { class: 'bw-bk-tools' }, colors, actions);
-  const tray = h('div', { class: 'bw-tray bw-bk-tray' }, pieces, tools);
-  const el = h('section', { class: 'bw-mode bw-bk', 'data-sub': sub }, area, tray);
+  const tools = h('div', { class: 'bw-bk-tools' }, actions);
+  const tray = h('div', { class: 'bw-bk-tray' }, pieces, tools);
+  const dock = h('div', { class: 'bw-bk-dock' }, tray, palette);
+  const el = h('section', { class: 'bw-mode bw-bk', 'data-sub': sub }, area, dock);
 
   // ---- geometry ----
 
@@ -120,9 +126,27 @@ export function createBuildMode(w: Workshop): ModeCtl {
     const cs = getComputedStyle(area);
     const aw = a.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
     const ah = a.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+    // A plate whose shape is far from the area's leaves bare margins: widen it (never narrow it, so
+    // no brick is ever lost) until it is closer. Rotation goes back to the base shape first.
+    const base = plateDims(portrait);
+    const wide = portrait ? aw / ah > 0.8 : aw / ah > 1.4;
+    const want = wide ? { cols: base.cols + 2, rows: base.rows } : base;
+    if (want.cols > board.cols && want.rows >= board.rows) {
+      applyDims(want.cols, want.rows);
+      return fit();
+    }
     const cell = Math.floor(Math.min(aw / board.cols, ah / board.rows));
     if (cell > 0) el.style.setProperty('--bw-cell', `${cell}px`);
   }
+
+  /** Put a brick of `size` (in the current colour) with its middle over `clientX`. */
+  const dropAtX = (size: BrickSize, clientX: number): boolean => {
+    const r = plate.getBoundingClientRect();
+    const cell = plateCell(r);
+    if (cell <= 0) return false;
+    const col = clampCol(Math.round((clientX - r.left) / cell - size.w / 2), size.w);
+    return dropTemplate(size, col);
+  };
 
   const plateCell = (rect: DOMRect): number => (rect.width > 0 ? rect.width / board.cols : 0);
   const overPlate = (p: { x: number; y: number }, rect: DOMRect, cell: number): boolean =>
@@ -219,9 +243,15 @@ export function createBuildMode(w: Workshop): ModeCtl {
   }
 
   /** Show (and optionally say) the next brick of the blueprint. */
+  function markNext(): void {
+    for (const t of templates) t.classList.toggle('next', !!step && Number(t.dataset.w) === step.w && Number(t.dataset.h) === step.h);
+    chip.classList.toggle('need', !!step && step.color !== color);
+  }
+
   function showStep(say: boolean): void {
     step = null;
     next.hidden = true;
+    markNext();
     if (sub !== 'blueprint' || !model) return;
     const progress = modelProgress(board, model);
     caption.textContent = `${modelBase?.name ?? ''} · ${progress.done}/${progress.total}`;
@@ -249,6 +279,8 @@ export function createBuildMode(w: Workshop): ModeCtl {
     next.hidden = false;
     next.style.cssText = `--x:${step.x};--y:${y};--w:${step.w};--h:${step.h};--bw-color:${step.color}`;
     selectColor(step.color, false);
+    selectPiece({ w: step.w, h: step.h }, true);
+    markNext();
     if (say && active) speakText(ctx, describeStep(step));
   }
 
@@ -324,6 +356,7 @@ export function createBuildMode(w: Workshop): ModeCtl {
     step = null;
     next.hidden = true;
     delete el.dataset.model;
+    selectPiece(null, true);
     celebrating = false;
     board = freeBoard ? withDims(freeBoard) : emptyBoard(board.cols, board.rows);
     freeBoard = null;
@@ -356,6 +389,12 @@ export function createBuildMode(w: Workshop): ModeCtl {
       { class: 'bw-bk-piece', 'data-w': size.w, 'data-h': size.h, 'aria-label': `gạch ${size.w} nhân ${size.h}` },
       brickNode(size, color),
     );
+    let downAt = { x: 0, y: 0 };
+    const mark = (e: PointerEvent): void => {
+      downAt = { x: e.clientX, y: e.clientY };
+    };
+    piece.addEventListener('pointerdown', mark);
+    disposers.push(() => piece.removeEventListener('pointerdown', mark));
     disposers.push(
       makeDraggable(piece, {
         onStart(node) {
@@ -363,6 +402,11 @@ export function createBuildMode(w: Workshop): ModeCtl {
           ctx.hint.touch();
         },
         onDrop(_n, p) {
+          // A tap, not a drag: pick this brick, then a tap on the plate puts it down.
+          if (Math.hypot(p.x - downAt.x, p.y - downAt.y) < 10) {
+            selectPiece(size);
+            return false;
+          }
           const r = plate.getBoundingClientRect();
           const cell = plateCell(r);
           if (!overPlate(p, r, cell)) {
@@ -380,6 +424,24 @@ export function createBuildMode(w: Workshop): ModeCtl {
   });
   pieces.append(...templates);
 
+  function selectPiece(size: BrickSize | null, quiet = false): void {
+    selected = size;
+    for (const t of templates) t.classList.toggle('sel', size !== null && Number(t.dataset.w) === size.w && Number(t.dataset.h) === size.h);
+    if (size && !quiet) {
+      ctx.audio.tick();
+      ctx.hint.touch();
+    }
+  }
+
+  // Tap the plate (not a brick) with a brick picked: it goes down there.
+  const onPlateTap = (e: PointerEvent): void => {
+    if (!selected || !e.isPrimary || (e.target as HTMLElement).closest('.bw-brick')) return;
+    ctx.hint.touch();
+    if (!dropAtX(selected, e.clientX)) ctx.audio.boing();
+  };
+  plate.addEventListener('pointerup', onPlateTap);
+  disposers.push(() => plate.removeEventListener('pointerup', onPlateTap));
+
   const colorBtns = BRICK_COLORS.map((c) => {
     const btn = h('button', {
       class: 'bw-bk-color',
@@ -394,6 +456,9 @@ export function createBuildMode(w: Workshop): ModeCtl {
 
   function selectColor(c: string, speak: boolean): void {
     color = c;
+    chipSwatch.style.setProperty('--bw-color', c);
+    markNext();
+    if (speak) closePalette();
     for (const b of colorBtns) b.classList.toggle('active', b.dataset.color === c);
     for (const t of templates) t.querySelector<HTMLElement>('.bw-brick')?.style.setProperty('--bw-color', c);
     if (speak) {
@@ -409,7 +474,36 @@ export function createBuildMode(w: Workshop): ModeCtl {
     for (const b of colorBtns) b.hidden = used !== null && !used.has(b.dataset.color ?? '');
     if (used && !used.has(color)) selectColor([...used][0] ?? color, false);
     else selectColor(color, false);
+    // One colour only: nothing to choose, so no chip.
+    chip.hidden = used !== null && used.size <= 1;
+    closePalette();
   }
+
+  const chipSwatch = h('span', { class: 'bw-bk-swatch' });
+  const chip = h(
+    'button',
+    { class: 'bw-bk-btn bw-bk-chip', type: 'button', 'aria-label': 'Chọn màu', 'aria-expanded': 'false' },
+    chipSwatch,
+  );
+  makeTappable(chip, () => (palette.hidden ? openPalette() : closePalette()), { cooldownMs: 150, ctx });
+
+  function openPalette(): void {
+    palette.hidden = false;
+    chip.setAttribute('aria-expanded', 'true');
+    ctx.hint.touch();
+    ctx.audio.tick();
+  }
+  function closePalette(): void {
+    palette.hidden = true;
+    chip.setAttribute('aria-expanded', 'false');
+  }
+  // A tap anywhere else folds the palette away.
+  const outside = (e: PointerEvent): void => {
+    const t = e.target as Node | null;
+    if (!palette.hidden && t && !palette.contains(t) && !chip.contains(t)) closePalette();
+  };
+  document.addEventListener('pointerdown', outside, true);
+  disposers.push(() => document.removeEventListener('pointerdown', outside, true));
 
   const toggleBtn = h('button', { class: 'bw-bk-btn', type: 'button', 'aria-label': 'Xây tự do' }, h('span', { class: 'bw-ico' }, '✋'));
   makeTappable(toggleBtn, () => setSub(sub === 'free' ? 'blueprint' : 'free'), { cooldownMs: 300, ctx });
@@ -443,7 +537,7 @@ export function createBuildMode(w: Workshop): ModeCtl {
   );
   disposers.push(onHold(trash, 700, clearPlate));
 
-  actions.append(toggleBtn, skipBtn, shotBtn, trash);
+  actions.append(chip, toggleBtn, skipBtn, shotBtn, trash);
   colors.append(...colorBtns);
 
   function refreshButtons(): void {
@@ -512,22 +606,28 @@ export function createBuildMode(w: Workshop): ModeCtl {
     if (p !== portrait) {
       portrait = p;
       const { cols, rows } = plateDims(p);
-      if (sub === 'blueprint' && modelBase) {
-        const offset = centerOffset(modelBase, cols);
-        board = refitBoard(board, cols, rows, offset - modelOffset);
-        modelOffset = offset;
-        model = shiftModel(modelBase, offset);
-      } else {
-        board = refitBoard(board, cols, rows);
-      }
-      if (freeBoard) freeBoard = refitBoard(freeBoard, cols, rows);
-      setPlateDims();
-      rebuild();
-      renderGhost();
-      showStep(false);
-      if (sub === 'free') writeRaw(FREE_KEY, serialize(board));
+      applyDims(cols, rows);
     }
     fit();
+  }
+
+  /** The same bricks (and the blueprint, re-centred) on a `cols × rows` plate. */
+  function applyDims(cols: number, rows: number): void {
+    if (cols === board.cols && rows === board.rows) return;
+    if (sub === 'blueprint' && modelBase) {
+      const offset = centerOffset(modelBase, cols);
+      board = refitBoard(board, cols, rows, offset - modelOffset);
+      modelOffset = offset;
+      model = shiftModel(modelBase, offset);
+    } else {
+      board = refitBoard(board, cols, rows);
+    }
+    if (freeBoard) freeBoard = refitBoard(freeBoard, cols, rows);
+    setPlateDims();
+    rebuild();
+    renderGhost();
+    showStep(false);
+    if (sub === 'free') writeRaw(FREE_KEY, serialize(board));
   }
 
   // The tray changes height with the colours it shows: refit the plate whenever the area changes.

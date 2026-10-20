@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { emptyBoard, place } from '../bricks/logic';
 import { magnetPull, isNear } from './magnet';
-import { GALLERY_KEY, MAX_WORKS, PROGRESS_KEY, addWork, loadGallery, loadProgress, removeWork, saveGallery, saveProgress, workBounds, workFromBoard, workSvg, type Work } from './store';
+import {
+  GALLERY_KEY,
+  MAX_WORKS,
+  PROGRESS_KEY,
+  addWork,
+  loadGallery,
+  loadProgress,
+  removeWork,
+  saveGallery,
+  saveProgress,
+  workBounds,
+  workFromBoard,
+  workSvg,
+  type Work,
+} from './store';
 
 const work = (id: string, bricks: Work['bricks'] = [[0, 0, 2, 1, '#ef4444']]): Work => ({ id, name: 'tháp', at: 1, bricks });
 
@@ -34,7 +48,10 @@ describe('cabinet', () => {
     expect(loadGallery().map((w) => w.id)).toEqual(['a', 'b']);
     localStorage.setItem(
       GALLERY_KEY,
-      JSON.stringify({ v: 1, works: [{ id: 'x', bricks: [[0, 0, 1, 1, 'url(javascript:1)']] }, { id: 'y', bricks: [[0, 0, 1, 1, '#fff']] }, 7] }),
+      JSON.stringify({
+        v: 1,
+        works: [{ id: 'x', bricks: [[0, 0, 1, 1, 'url(javascript:1)']] }, { id: 'y', bricks: [[0, 0, 1, 1, '#fff']] }, 7],
+      }),
     );
     expect(loadGallery().map((w) => w.id)).toEqual(['y']);
   });
@@ -45,7 +62,10 @@ describe('cabinet', () => {
     expect(w?.bricks).toEqual([[2, 0, 3, 1, '#22c55e']]);
   });
   it('draws an svg cropped to the work', () => {
-    const w = work('s', [[3, 0, 2, 1, '#ef4444'], [3, 1, 2, 1, '#3b82f6']]);
+    const w = work('s', [
+      [3, 0, 2, 1, '#ef4444'],
+      [3, 1, 2, 1, '#3b82f6'],
+    ]);
     expect(workBounds(w)).toEqual({ minX: 3, width: 2, height: 2 });
     const svg = workSvg(w);
     expect(svg.startsWith('<svg')).toBe(true);
