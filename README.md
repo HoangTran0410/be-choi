@@ -10,6 +10,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | | |
 |---|---|
 | 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay · 🤖 Ban nhạc robot |
+| 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay · 🐱 Dàn mèo hát |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Thế giới nhỏ của bé (bể cá · biển · rừng nhỏ · ao câu, một sổ bạn bè) · 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
@@ -24,6 +25,7 @@ Vài trò nổi bật:
 - **🐠 Bể cá / 🦎 Bể cạn** — bể của riêng bé, tự sống, nhớ giữa các lần chơi. Bắt, thả, cho ăn, bật đèn đêm.
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
 - **🎭 Biến hình** — bật camera trước như một chiếc gương, bé đội mặt nạ gấu, mèo, thỏ, khủng long… lên mặt; bấm nút to để đổi mặt nạ và nghe tiếng con vật. Mặt nạ đi theo mặt bé nếu trình duyệt có `FaceDetector`, không thì nằm giữa màn hình để bé tự đưa mặt vào. Không có camera thì chơi với gương hoạt hình.
+- **🐱 Dàn mèo hát** — tám chú mèo, mỗi chú một màu và một nốt: mèo to tiếng trầm, mèo nhỏ tiếng cao. Chạm mèo thì mèo "meo" đúng nốt đó (bản thu tiếng mèo thật, phát nhanh/chậm để ra đúng cao độ), trên nền trống, bass và hợp âm (vui / rock mèo / êm). Đứng yên một lúc là mèo tự hát bè, chỉ dùng nốt hợp với hợp âm. Chế độ "Hát theo bài": mèo sáng lên theo giai điệu, bé chạm đúng thì bài đi tiếp (chạm lung tung không sao, bài chờ), xong bài cả dàn hát cùng nhạc. Mỗi bài xong được 1 sao: mở thêm mèo (đen, tam thể, cam, đeo nơ, phi hành gia, DJ…) và thêm bài. Lấy cảm hứng từ kiểu "cat music" của The Kiffness nhưng **không** dùng bản thu hay nhạc của họ; mọi âm thanh là của repo (tiếng mèo trong `public/sfx`, nhạc nền tự tổng hợp).
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
 
 - **🤖 Ban nhạc robot** — kéo các bạn robot (mỗi bạn một nhạc cụ: trống, bass, piano, ghi-ta, sáo, kèn, vi-ô-lông…) lên sân khấu 8 chỗ; ban nhạc luôn hoà âm vì mọi robot chơi theo cùng một nhịp, một tông và chuỗi hợp âm 4 ô nhịp. Chạm robot để đổi kiểu chơi (dễ/vừa/rộn), kéo xuống kệ hoặc chạm giữ để tạm biệt, nút to đổi bài (vui / disco / êm). Robot nhảy đúng nhịp, giọng đọc chậm dạy tên nhạc cụ, màu, số lượng, nhóm nhạc cụ; nhiệm vụ bằng hình mở khoá thêm robot (5 → 15). Ảnh gia đình ở Góc phụ huynh hiện làm mặt robot và phông sân khấu.

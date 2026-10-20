@@ -48,6 +48,7 @@ import { meta as dressup } from '../games/dressup/meta';
 import { meta as mask } from '../games/mask/meta';
 import { meta as robots } from '../games/robots/meta';
 import { meta as habitat } from '../games/habitat/meta';
+import { meta as catband } from '../games/catband/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -105,6 +106,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...mask, load: () => import('../games/mask/index') },
   { ...robots, load: () => import('../games/robots/index') },
   { ...habitat, load: () => import('../games/habitat/index') },
+  { ...catband, load: () => import('../games/catband/index') },
 ];
 
 /**

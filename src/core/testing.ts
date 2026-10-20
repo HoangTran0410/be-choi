@@ -22,6 +22,7 @@ export function fakeAudio(): AudioEngine {
     note: noop,
     drum: noop,
     fx: noop,
+    pitched: noop,
     puff: noop,
     ready: () => Promise.resolve(),
     clip: () => Promise.resolve(null),
