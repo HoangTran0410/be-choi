@@ -1,3 +1,4 @@
+import { makeLayer, type Layer } from './layers';
 import type { State } from './state';
 
 /** Caustics are baked into a tile this many pixels square and blown up over the tank. */
@@ -25,6 +26,16 @@ export interface Light {
    */
   nightLayer: HTMLCanvasElement;
   nightBuiltFor: string;
+  /**
+   * A half-size canvas the caustic pattern is filled into before being scaled up
+   * over the tank. The tile is a 64 px square blown up three times or more anyway,
+   * so nothing sharp is lost, and the fill touches a quarter of the pixels.
+   */
+  causticLow: HTMLCanvasElement | null;
+  /** Pictures of the parts of the tank that never move (see ./layers). */
+  water: Layer;
+  sand: Layer;
+  vignette: Layer;
 }
 
 export function createLight(): Light {
@@ -40,6 +51,10 @@ export function createLight(): Light {
     causticPattern: null,
     nightLayer: document.createElement('canvas'),
     nightBuiltFor: '',
+    causticLow: null,
+    water: makeLayer(),
+    sand: makeLayer(),
+    vignette: makeLayer(),
   };
 }
 
@@ -73,7 +88,7 @@ export function bakeCaustics(light: Light, t: number): void {
 export function drawRays(g: CanvasRenderingContext2D, s: State): void {
   const { tank, clock } = s;
   g.save();
-  g.globalCompositeOperation = 'screen';
+  g.globalCompositeOperation = 'source-over';
   for (let i = 0; i < 4; i++) {
     const x = tank.w * (0.12 + i * 0.26) + Math.sin(clock * 0.18 + i) * tank.w * 0.03;
     const width = tank.unit * (0.5 + i * 0.12);
@@ -94,6 +109,9 @@ export function drawRays(g: CanvasRenderingContext2D, s: State): void {
   g.restore();
 }
 
+/** How much smaller than the tank the caustics are filled. */
+const LOW = 2;
+
 /** Lay the baked square over the tank at a size where the veins read as light on water. */
 function tileCaustics(
   g: CanvasRenderingContext2D,
@@ -105,18 +123,48 @@ function tileCaustics(
   top: number,
   bottom: number,
 ): void {
-  if (!light.causticPattern) light.causticPattern = g.createPattern(light.causticTile, 'repeat');
+  const scale = size / CAUSTIC_N;
+  const w = s.tank.w;
+  // Fill the pattern into the small canvas, then lay that over the tank.
+  let low = light.causticLow;
+  if (!low && typeof document !== 'undefined') low = light.causticLow = document.createElement('canvas');
+  const lw = Math.max(1, Math.ceil(w / LOW));
+  const lh = Math.max(1, Math.ceil(s.tank.h / LOW));
+  const n = low ? low.getContext('2d') : null;
+  if (!low || !n) {
+    // No offscreen canvas: fill the tank directly.
+    const pattern = g.createPattern(light.causticTile, 'repeat');
+    if (!pattern) return;
+    try {
+      pattern.setTransform(new DOMMatrix().translateSelf(dx % size, dy % size).scaleSelf(scale, scale));
+    } catch {
+      // No DOMMatrix (jsdom, older engines): the light simply does not drift.
+    }
+    g.fillStyle = pattern;
+    g.fillRect(0, top, w, bottom - top);
+    return;
+  }
+  if (low.width !== lw || low.height !== lh) {
+    low.width = lw;
+    low.height = lh;
+    light.causticPattern = null;
+  }
+  if (!light.causticPattern) light.causticPattern = n.createPattern(light.causticTile, 'repeat');
   const pattern = light.causticPattern;
   if (!pattern) return;
-  const scale = size / CAUSTIC_N;
   try {
     // The pattern is moved rather than the canvas, so the fill stays put.
-    pattern.setTransform(new DOMMatrix().translateSelf(dx % size, dy % size).scaleSelf(scale, scale));
+    pattern.setTransform(new DOMMatrix().translateSelf((dx % size) / LOW, (dy % size) / LOW).scaleSelf(scale / LOW, scale / LOW));
   } catch {
     // No DOMMatrix (jsdom, older engines): the light simply does not drift.
   }
-  g.fillStyle = pattern;
-  g.fillRect(0, top, s.tank.w, bottom - top);
+  const y = Math.floor(top / LOW);
+  const h = Math.min(lh - y, Math.ceil((bottom - top) / LOW) + 1);
+  n.setTransform(1, 0, 0, 1, 0, 0);
+  n.clearRect(0, y, lw, h);
+  n.fillStyle = pattern;
+  n.fillRect(0, y, lw, h);
+  g.drawImage(low, 0, y, lw, h, 0, y * LOW, lw * LOW, h * LOW);
 }
 
 /** Light through the whole body of water. */
@@ -124,7 +172,7 @@ export function drawCaustics(g: CanvasRenderingContext2D, s: State, light: Light
   if (!light.tileCtx) return;
   const { tank, clock } = s;
   g.save();
-  g.globalCompositeOperation = 'screen';
+  g.globalCompositeOperation = 'source-over';
   g.globalAlpha = 0.12;
   tileCaustics(g, s, light, tank.unit * 3.4, clock * 16, Math.sin(clock * 0.3) * tank.unit, 0, tank.h);
   g.restore();
@@ -162,20 +210,6 @@ export function drawSurface(g: CanvasRenderingContext2D, s: State): void {
   g.closePath();
   g.fill();
   g.restore();
-  // A soft vignette so the glass has edges — soft being the point. At nearly a
-  // half it was not an edge, it was dusk.
-  const edge = g.createRadialGradient(
-    tank.w / 2,
-    tank.h / 2,
-    Math.min(tank.w, tank.h) * 0.45,
-    tank.w / 2,
-    tank.h / 2,
-    Math.max(tank.w, tank.h) * 0.8,
-  );
-  edge.addColorStop(0, 'rgba(0,0,0,0)');
-  edge.addColorStop(1, 'rgba(3,32,54,0.2)');
-  g.fillStyle = edge;
-  g.fillRect(0, 0, tank.w, tank.h);
 }
 
 function buildNight(s: State, light: Light): void {

@@ -49,6 +49,7 @@ import {
   type Species,
   type Vivarium,
 } from './logic';
+import { drawLayer, makeLayer } from '../aquarium/layers';
 import { drawBack, drawCreature, drawDrops, drawFoodItem, drawGlass, drawPlant, drawSoil, type Scene } from './draw';
 import { readRaw, writeJson } from '../../core/save';
 import './style.css';
@@ -777,12 +778,31 @@ function start(ctx: GameContext): void {
   /** Reused every frame: sorting the bank must not cost a few hundred objects a second. */
   const order: Layer[] = [];
 
+  /**
+   * The parts of the box that never move are painted once and laid down with a
+   * single blit: the wall, the soil, the lamp's pool and the glass. Each falls
+   * back to painting directly when there is no offscreen canvas.
+   */
+  const backLayer = makeLayer();
+  const soilLayer = makeLayer();
+  const poolLayer = makeLayer();
+  const glassLayer = makeLayer();
+
+  function drawPool(n: CanvasRenderingContext2D): void {
+    const pool = n.createRadialGradient(viv.w * 0.5, viv.top, viv.unit * 0.2, viv.w * 0.5, viv.top, viv.h * 0.85);
+    pool.addColorStop(0, 'rgba(255,236,180,0.75)');
+    pool.addColorStop(0.55, 'rgba(255,224,150,0.22)');
+    pool.addColorStop(1, 'rgba(255,214,130,0)');
+    n.fillStyle = pool;
+    n.fillRect(0, 0, viv.w, viv.h);
+  }
+
   function draw(g: CanvasRenderingContext2D): void {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     // One of these per frame rather than one per animal: with a box full of
     // animals that is a few hundred throwaway objects a second.
     const view: Scene = { viv, clock };
-    drawBack(g, viv);
+    if (!drawLayer(g, backLayer, viv.w, viv.h, dpr, 0, [viv], (n) => drawBack(n, viv))) drawBack(g, viv);
     // On the cork wall, before anything in the bank goes in front of it. A veil
     // of the wall's own colour over the top pushes it back where it belongs:
     // without it a gecko up there is as crisp as one at the child's feet, and the
@@ -795,7 +815,9 @@ function start(ctx: GameContext): void {
       g.fillStyle = 'rgba(120,80,44,0.16)';
       g.fillRect(0, 0, viv.w, viv.floor);
     }
-    drawSoil(g, viv, pebbles);
+    if (!drawLayer(g, soilLayer, viv.w, viv.h, dpr, 0, [viv, pebbles], (n) => drawSoil(n, viv, pebbles))) {
+      drawSoil(g, viv, pebbles);
+    }
     // Everything standing in the soil, in the order it stands — planting,
     // ornaments, animals and crickets in one list. Drawn after the soil, not
     // before: the soil is nearly half the screen here, so anything painted under
@@ -827,20 +849,14 @@ function start(ctx: GameContext): void {
     // a basking spot looks like, and it is where the sleepy ones end up.
     if (dusk < 0.98) {
       g.save();
-      g.globalCompositeOperation = 'screen';
       g.globalAlpha = (1 - dusk) * 0.3;
-      const pool = g.createRadialGradient(viv.w * 0.5, viv.top, viv.unit * 0.2, viv.w * 0.5, viv.top, viv.h * 0.85);
-      pool.addColorStop(0, 'rgba(255,236,180,0.75)');
-      pool.addColorStop(0.55, 'rgba(255,224,150,0.22)');
-      pool.addColorStop(1, 'rgba(255,214,130,0)');
-      g.fillStyle = pool;
-      g.fillRect(0, 0, viv.w, viv.h);
+      if (!drawLayer(g, poolLayer, viv.w, viv.h, dpr, 0, [viv], drawPool)) drawPool(g);
       g.restore();
     }
     drawNight(g);
     drawLamp(g);
     drawDrops(g, drops);
-    drawGlass(g, viv);
+    if (!drawLayer(g, glassLayer, viv.w, viv.h, dpr, 0, [viv], (n) => drawGlass(n, viv))) drawGlass(g, viv);
   }
 
   /**

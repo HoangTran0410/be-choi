@@ -1,8 +1,10 @@
 import { h, replay } from '../../core/dom';
-import { startLoop } from '../../core/frame';
+import { onPerfChange, perf, startLoop } from '../../core/frame';
+import { pickDpr } from '../../core/quality';
 import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import type { GameContext, GameModule } from '../../core/types';
-import { drawBubbles, drawCreature, drawPlant, drawSand, drawWater, smoothPath, type Scene } from '../aquarium/draw';
+import { drawBubbles, drawCreature, drawPlant, smoothPath, type Scene } from '../aquarium/draw';
+import { drawSandCached, drawWaterCached, makeLayer } from '../aquarium/layers';
 import {
   Creature,
   SAVE_KEY,
@@ -210,11 +212,24 @@ function start(ctx: GameContext): void {
     timers.add(t);
   }
 
+  /** Quality changed: re-fit the canvas resolution in place. Nothing is rebuilt. */
+  function refit(): void {
+    const w = root.clientWidth;
+    const hgt = root.clientHeight;
+    if (!w || !hgt) return;
+    const next = pickDpr(window.devicePixelRatio || 1, 2, perf.low);
+    if (next === dpr) return;
+    dpr = next;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(hgt * dpr);
+  }
+  ctx.onCleanup(onPerfChange(refit));
+
   function build(): void {
     const w = root.clientWidth;
     const hgt = root.clientHeight;
     if (!w || !hgt) return;
-    const nextDpr = Math.min(2, window.devicePixelRatio || 1);
+    const nextDpr = pickDpr(window.devicePixelRatio || 1, 2, perf.low);
     if (canvas.width === Math.round(w * nextDpr) && canvas.height === Math.round(hgt * nextDpr)) return;
     dpr = nextDpr;
     canvas.width = Math.round(w * dpr);
@@ -357,13 +372,16 @@ function start(ctx: GameContext): void {
     g.restore();
   }
 
+  const waterLayer = makeLayer();
+  const sandLayer = makeLayer();
+
   function draw(g: CanvasRenderingContext2D): void {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     // One of these per frame rather than one per animal: with a tank full of
     // fish that is a few hundred throwaway objects a second.
     const view = scene();
-    drawWater(g, tank);
-    drawSand(g, tank, sand, rocks);
+    drawWaterCached(g, tank, dpr, waterLayer);
+    drawSandCached(g, tank, sand, rocks, dpr, sandLayer);
     for (const plant of plants) drawPlant(g, plant, view);
     drawDrifters(g);
     drawLine(g);

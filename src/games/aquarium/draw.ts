@@ -542,3 +542,19 @@ export function drawBubbles(g: CanvasRenderingContext2D, bubbles: readonly Bubbl
     g.fill();
   }
 }
+
+/** A soft vignette so the glass has edges — soft being the point. At nearly a half it was not an edge, it was dusk. */
+export function vignette(g: CanvasRenderingContext2D, tank: Tank): void {
+  const edge = g.createRadialGradient(
+    tank.w / 2,
+    tank.h / 2,
+    Math.min(tank.w, tank.h) * 0.45,
+    tank.w / 2,
+    tank.h / 2,
+    Math.max(tank.w, tank.h) * 0.8,
+  );
+  edge.addColorStop(0, 'rgba(0,0,0,0)');
+  edge.addColorStop(1, 'rgba(3,32,54,0.2)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, tank.w, tank.h);
+}
