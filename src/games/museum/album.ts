@@ -9,7 +9,7 @@ import { button, dragScroll, tile, type Deps, type View } from './ui';
  * grey ghost when not. Touch a stamp to hear the instrument and go and play it.
  */
 export function mountAlbum(host: HTMLElement, { ctx, album, go }: Deps): View {
-  const back = button('mu-back', 'Về phòng bảo tàng', '←', () => go.room());
+  const back = button('mu-back', 'Về phòng bảo tàng', '⬅️', () => go.room());
   const total = ENTRIES.length;
   const bar = h(
     'div',

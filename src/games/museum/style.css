@@ -38,6 +38,10 @@
   color: #3b2f2f;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.13);
 }
+/* The back arrow is an emoji: it needs more size than the text glyphs to read as solid. */
+.mu-back {
+  font-size: 44px;
+}
 .mu button:active {
   transform: scale(0.94);
 }

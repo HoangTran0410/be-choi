@@ -30,7 +30,7 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
   const t = timers();
   let alive = true;
 
-  const back = button('mu-back', 'Về phòng bảo tàng', '←', () => go.room());
+  const back = button('mu-back', 'Về phòng bảo tàng', '⬅️', () => go.room());
   const thumb = h('span', { class: 'mu-name-thumb' });
   thumb.innerHTML = thumbSvg(en.kind);
   const name = h('div', { class: 'mu-name', 'aria-label': en.name }, thumb);

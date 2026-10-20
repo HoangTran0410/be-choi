@@ -26,7 +26,7 @@ export function mountRoom(host: HTMLElement, deps: Deps): View {
       tiles.push(el);
       shelf.append(el);
     }
-    const back = button('mu-back', 'Về sảnh', '←', () => {
+    const back = button('mu-back', 'Về sảnh', '⬅️', () => {
       nav.group = null;
       go.room();
     });

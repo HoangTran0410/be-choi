@@ -53,7 +53,7 @@ export function mountBand(host: HTMLElement, deps: Deps): View {
     save();
   }
 
-  const back = button('mu-back', 'Về phòng bảo tàng', '←', () => go.room());
+  const back = button('mu-back', 'Về phòng bảo tàng', '⬅️', () => go.room());
   const playBtn = button('mu-play', 'Bật tắt nhạc nền', '⏸', () => togglePlay());
   const trackBtn = button('mu-track', 'Đổi bài nhạc nền', trackById(album.track).emoji, () => nextTrack());
   const rail = h('div', { class: 'mu-band-rail' }, back, playBtn, trackBtn);
