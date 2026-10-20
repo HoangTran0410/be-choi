@@ -76,6 +76,16 @@ describe('game shell', () => {
     unmount();
   });
 
+  it('keeps a compact bar: home first, parent gate last, title between, labelled for readers', () => {
+    const unmount = mountShell(root, entry(), deps());
+    const bar = root.querySelector('.topbar');
+    const kids = Array.from(bar?.children ?? []).map((k) => k.className);
+    expect(kids).toEqual(['btn-round home', 'topbar-title', 'btn-round parent']);
+    expect(root.querySelector('.btn-round.home')?.getAttribute('aria-label')).toBeTruthy();
+    expect(root.querySelector('.btn-round.parent')?.getAttribute('aria-label')).toBeTruthy();
+    unmount();
+  });
+
   it('puts the parent’s own theme back, not a guess at it', () => {
     const d = deps();
     d.store.setSettings({ theme: 'dark' });

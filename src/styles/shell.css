@@ -4,32 +4,82 @@
   flex-direction: column;
 }
 
-/* Slim on purpose: every millimetre here is a millimetre of game the child does not get. */
+/*
+ * Compact on purpose: every pixel here is a pixel of game the child does not get.
+ * The drawn buttons are small, but each one carries an invisible ring (::before)
+ * that makes the tappable area 56px, so a grown-up still hits it first time.
+ * Side padding stays >= 28px so the visible button sits clear of the 24px strip
+ * where the edge guard (haptics.ts) swallows touches.
+ */
 .topbar {
+  --bar-h: 44px;
+  --bar-btn: 38px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5vmin;
-  padding: 0.7vmin 1.6vmin;
+  gap: 8px;
+  height: var(--bar-h);
+  flex-shrink: 0;
+  padding: 0 max(28px, env(safe-area-inset-right)) 0 max(28px, env(safe-area-inset-left));
   background: var(--surface-2);
 }
 .topbar .btn-round {
-  width: calc(var(--tap) * 0.62);
-  height: calc(var(--tap) * 0.62);
-  font-size: calc(var(--tap) * 0.32);
-  box-shadow: 0 3px 0 var(--btn-shadow);
+  width: var(--bar-btn);
+  height: var(--bar-btn);
+  font-size: 20px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 0 var(--btn-shadow);
+  touch-action: manipulation;
+}
+/* Invisible hit ring: 38px drawn, 56px tappable. */
+.topbar .btn-round::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
 }
 .topbar-title {
-  font-size: clamp(15px, 3.2vmin, 26px);
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 15px;
   font-weight: 800;
   color: var(--ink);
-  /* A long name (Thế giới nhỏ của bé) takes two lines rather than ending in "…". */
-  line-height: 1.15;
+  line-height: 1.1;
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  text-overflow: ellipsis;
+}
+.album .topbar-spacer {
+  width: var(--bar-btn);
+}
+
+/*
+ * Phone held sideways: height is the scarce thing, so the bar turns into a slim
+ * column on the left. Home sits at the top and the parent gate at the bottom,
+ * the two as far apart as the screen allows; the title is dropped (the game
+ * shows what it is). The album keeps its ordinary strip.
+ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .shell {
+    flex-direction: row;
+  }
+  .shell > .topbar {
+    flex-direction: column;
+    justify-content: space-between;
+    height: auto;
+    width: calc(var(--bar-btn) + 22px + env(safe-area-inset-left));
+    padding: 12px 0 12px env(safe-area-inset-left);
+  }
+  .shell > .topbar .topbar-title {
+    display: none;
+  }
+  .shell > .stage {
+    min-width: 0;
+  }
+  .album .topbar {
+    --bar-h: 40px;
+  }
 }
 
 /*
@@ -45,7 +95,7 @@
 }
 .shell-night .topbar .btn-round {
   background: #1e293b;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
 }
 
 .stage-error {
@@ -275,29 +325,6 @@
   font-weight: 900;
   font-size: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* ---- top bar: big, spaced buttons so a stray tap is unlikely and a deliberate one easy ---- */
-.topbar {
-  padding: 1vmin max(20px, env(safe-area-inset-right)) 1vmin max(20px, env(safe-area-inset-left));
-  gap: 4vmin;
-}
-.topbar .btn-round {
-  width: max(72px, calc(var(--tap) * 0.8));
-  height: max(72px, calc(var(--tap) * 0.8));
-  font-size: calc(var(--tap) * 0.4);
-  flex-shrink: 0;
-  touch-action: manipulation;
-}
-/* Home is the one the child needs: the biggest, with the parent gate pushed to the far side. */
-.topbar .btn-round.home {
-  width: max(84px, calc(var(--tap) * 0.95));
-  height: max(84px, calc(var(--tap) * 0.95));
-  font-size: calc(var(--tap) * 0.48);
-}
-.topbar-title {
-  flex: 1;
-  text-align: center;
 }
 
 /* ---- gentle rest reminder ---- */

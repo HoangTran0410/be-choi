@@ -5,7 +5,7 @@
   background: var(--bg);
 }
 .album .topbar-spacer {
-  width: calc(var(--tap) * 0.8);
+  width: 38px;
 }
 .album-progress {
   display: flex;
