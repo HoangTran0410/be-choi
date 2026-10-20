@@ -258,6 +258,26 @@ const BASS_MIX = 0.5;
  * so the series climbs into the band where a small speaker is actually working.
  * The DC offset that asymmetry leaves behind is removed by the highpass after it.
  */
+/**
+ * The last word before the speaker. A DynamicsCompressorNode is not a brickwall: it adds its own
+ * makeup gain (about +0.9 dB at the limiter's settings) and lets the front of a fast hit through,
+ * so eight robots on a kick still reached 0.99-1.00. This curve is straight up to SOFT_CLIP_KNEE and
+ * then bends smoothly towards SOFT_CLIP_CEILING, so only those rare peaks are rounded off — at once,
+ * with no gain riding that would make the band pump under the kick.
+ */
+const SOFT_CLIP_KNEE = 0.75;
+const SOFT_CLIP_CEILING = 0.93;
+function softClipCurve(n = 2048): Float32Array<ArrayBuffer> {
+  const curve = new Float32Array(n);
+  const room = SOFT_CLIP_CEILING - SOFT_CLIP_KNEE;
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    const a = Math.abs(x);
+    curve[i] = a <= SOFT_CLIP_KNEE ? x : Math.sign(x) * (SOFT_CLIP_KNEE + room * Math.tanh((a - SOFT_CLIP_KNEE) / room));
+  }
+  return curve;
+}
+
 function saturationCurve(n = 1024): Float32Array<ArrayBuffer> {
   const curve = new Float32Array(n);
   for (let i = 0; i < n; i++) {
@@ -428,7 +448,17 @@ export function createAudio(): AudioEngine {
         limit.ratio.value = 20;
         limit.attack.value = 0.001;
         limit.release.value = 0.25;
-        limit.connect(ctx.destination);
+        let out: AudioNode = ctx.destination;
+        try {
+          const clip = ctx.createWaveShaper();
+          clip.curve = softClipCurve();
+          clip.oversample = '2x';
+          clip.connect(ctx.destination);
+          out = clip;
+        } catch {
+          /* no wave shaper: the limiter alone */
+        }
+        limit.connect(out);
         makeup.connect(limit);
         comp.connect(makeup);
         // Small speakers are sharpest at 2-5 kHz and a child's ear is most tender there.
@@ -1151,12 +1181,12 @@ export function createAudio(): AudioEngine {
   const LATE_NOTE_S = 0.03;
   /** OfflineAudioContext where it exists: offline renders (the level scripts) render notes in place. */
   const OfflineAudioContextCtor = (): typeof OfflineAudioContext =>
-    (globalThis as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext ?? (class {} as unknown as typeof OfflineAudioContext);
+    (globalThis as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext ??
+    (class {} as unknown as typeof OfflineAudioContext);
 
   /** Rendered notes, most recently used last: a repeated tap costs no DSP. */
   const instCache = new Map<string, AudioBuffer>();
   const INST_KEPT = 128;
-
 
   function keepInst(key: string, c: Ctx, data: Float32Array): AudioBuffer {
     const buf = c.createBuffer(1, data.length, c.sampleRate);
