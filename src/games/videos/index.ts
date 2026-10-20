@@ -41,6 +41,8 @@ const CUSTOM_KEY = 'be-choi:videos-custom';
 const MINE = 'mine';
 /** Long enough that a toddler patting the screen never throws away a parent's link. */
 const REMOVE_HOLD_MS = 900;
+/** The grown-up "+" opens only after this long a press. */
+const ADD_HOLD_MS = 1000;
 
 function load(key: string): string | null {
   return readRaw(key);
@@ -143,31 +145,42 @@ function start(ctx: GameContext): void {
 
   // ---- shelves ----
 
-  function renderTabs(): void {
-    const faces = SHELVES.map((s) => ({ id: s.id, icon: s.icon, name: s.name }));
-    if (custom.length) faces.push({ id: MINE, icon: '⭐', name: 'Của bé' });
-    const plus = h('button', { class: 'vd-plus', type: 'button', 'aria-label': 'Thêm video' }, '+');
-    plus.addEventListener('pointerup', () => {
-      settle();
-      openAdder();
+  function faces(): Array<{ id: string; icon: string; name: string }> {
+    const f = SHELVES.map((s) => ({ id: s.id, icon: s.icon, name: s.name }));
+    if (custom.length) f.push({ id: MINE, icon: '⭐', name: 'Của bé' });
+    return f;
+  }
+
+  function flip(dir: number): void {
+    ctx.hint.touch();
+    const f = faces();
+    const i = Math.max(0, f.findIndex((x) => x.id === shelf));
+    show(f[(i + dir + f.length) % f.length]!.id);
+    ctx.audio.tick();
+  }
+
+  function arrow(dir: number, glyph: string, label: string): HTMLElement {
+    const b = h('button', { class: `vd-tab vd-arrow vd-arrow-${dir < 0 ? 'prev' : 'next'}`, type: 'button', 'aria-label': label }, glyph);
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      flip(dir);
     });
-    tabs.replaceChildren(
-      ...faces.map((f) => {
-        const b = h(
-          'button',
-          { class: `vd-tab${f.id === shelf ? ' vd-tab-on' : ''}`, type: 'button', 'aria-label': f.name, 'data-shelf': f.id },
-          f.icon,
-        );
-        b.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          if (f.id === shelf) return;
-          show(f.id);
-          ctx.audio.tick();
-        });
-        return b;
-      }),
-      plus,
-    );
+    return b;
+  }
+
+  // For grown-ups: a faint corner button that only opens after a long press, so a child's tap does nothing.
+  const plus = h('button', { class: 'vd-plus', type: 'button', 'aria-label': 'Giữ để thêm video' }, '+');
+  const disposePlus = onHold(plus, ADD_HOLD_MS, () => {
+    settle();
+    openAdder();
+  });
+  const shelfIcon = h('div', { class: 'vd-tab vd-tab-on vd-shelficon', 'aria-hidden': 'true' });
+  tabs.append(arrow(-1, '◀', 'Kệ trước'), shelfIcon, arrow(1, '▶', 'Kệ sau'), plus);
+
+  function renderTabs(): void {
+    const f = faces().find((x) => x.id === shelf) ?? faces()[0]!;
+    shelfIcon.textContent = f.icon;
+    shelfIcon.dataset.shelf = f.id;
   }
 
   function card(ref: YouTubeRef, emoji: string, title: string, removable: boolean): HTMLElement {
@@ -687,6 +700,7 @@ function start(ctx: GameContext): void {
     alive = false;
     closePlayer();
     closeAdder();
+    disposePlus();
     for (const dispose of holds) dispose();
     for (const ac of fetches) ac.abort();
     fetches.clear();

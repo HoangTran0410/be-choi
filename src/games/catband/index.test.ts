@@ -12,7 +12,7 @@ function down(el: Element | null): void {
 }
 const cell = (ctx: Ctx, i: number) => ctx.stage.querySelector<HTMLElement>(`.cb-cell[data-cat="${i}"]`);
 const mode = (ctx: Ctx, m: string) => ctx.stage.querySelector<HTMLElement>(`.cb-btn[data-mode="${m}"]`);
-const styleBtn = (ctx: Ctx, s: string) => ctx.stage.querySelector<HTMLElement>(`.cb-btn[data-style="${s}"]`);
+const styleBtn = (ctx: Ctx) => ctx.stage.querySelector<HTMLElement>('.cb-btn[data-act="style"]')!;
 const songBtn = (ctx: Ctx, id: string) => ctx.stage.querySelector<HTMLElement>(`.cb-song[data-song="${id}"]`);
 const lit = (ctx: Ctx) => [...ctx.stage.querySelectorAll('.cb-cell')].findIndex((c) => c.classList.contains('cb-lit'));
 
@@ -81,11 +81,12 @@ describe('catband game', () => {
     vi.advanceTimersByTime(2200);
     expect(drum).toHaveBeenCalled();
     expect(note).toHaveBeenCalled();
-    expect(styleBtn(ctx, 'vui')!.classList.contains('cb-on')).toBe(true);
-    down(styleBtn(ctx, 'rock'));
+    expect(styleBtn(ctx).dataset.style).toBe('vui');
+    expect(styleBtn(ctx).classList.contains('cb-on')).toBe(true);
+    down(styleBtn(ctx));
     vi.advanceTimersByTime(60);
-    expect(styleBtn(ctx, 'rock')!.classList.contains('cb-on')).toBe(true);
-    expect(styleBtn(ctx, 'vui')!.classList.contains('cb-on')).toBe(false);
+    expect(styleBtn(ctx).dataset.style).toBe('rock');
+    expect(styleBtn(ctx).classList.contains('cb-on')).toBe(true);
     drum.mockClear();
     vi.advanceTimersByTime(2000);
     expect(drum.mock.calls.some((c) => c[0] === 'snare')).toBe(true);
@@ -223,8 +224,8 @@ describe('catband game', () => {
         vi.advanceTimersByTime(700);
       }
     }
-    for (const s of STYLES) {
-      down(styleBtn(ctx, s.id));
+    for (const _ of STYLES) {
+      down(styleBtn(ctx));
       vi.advanceTimersByTime(300);
     }
     down(mode(ctx, 'song'));

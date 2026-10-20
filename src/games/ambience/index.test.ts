@@ -57,7 +57,8 @@ describe('ambience game', () => {
 
   it('opens on the first shelf, silent', () => {
     const { ctx, started } = mount();
-    expect(ctx.stage.querySelectorAll('.amb-tab').length).toBeGreaterThanOrEqual(5);
+    expect(ctx.stage.querySelectorAll('.amb-tab').length).toBe(1);
+    expect(ctx.stage.querySelectorAll('.amb-tile').length).toBeLessThanOrEqual(4);
     expect(tile(ctx, 'rain')).not.toBeNull();
     expect(started).toEqual([]);
     ctx.cleanup();

@@ -501,7 +501,7 @@
 @media (min-aspect-ratio: 1/1) {
   .catband {
     display: grid;
-    grid-template-columns: minmax(0, 4fr) minmax(0, calc(var(--cb-modes, 3) * 1fr));
+    grid-template-columns: minmax(0, 2fr) minmax(0, calc(var(--cb-modes, 3) * 1fr));
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
       'caption caption'
@@ -528,7 +528,7 @@
     padding: 2px 1px;
   }
   .cb-emoji {
-    font-size: clamp(22px, 6vh, 36px);
+    font-size: clamp(26px, 8vh, 40px);
   }
 }
 .cb-stop.cb-on {
@@ -572,4 +572,8 @@
   background: #e0f2fe;
   flex-direction: row;
   gap: 12px;
+}
+
+.cb-btn[hidden] {
+  display: none;
 }

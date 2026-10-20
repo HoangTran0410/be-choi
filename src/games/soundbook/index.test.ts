@@ -36,9 +36,9 @@ describe('soundbook game', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.useRealTimers());
 
-  it('opens on the first page with a tab for every page', () => {
+  it('opens on the first page with two page arrows', () => {
     const { ctx } = mount();
-    expect(ctx.stage.querySelectorAll('.sb-tab').length).toBe(PAGES.length);
+    expect(ctx.stage.querySelectorAll('.sb-arrow').length).toBe(2);
     expect(things(ctx).length).toBe(PAGES[0]!.things.length);
     ctx.cleanup();
   });
@@ -69,10 +69,13 @@ describe('soundbook game', () => {
     ctx.cleanup();
   });
 
-  it('turns the page from the tabs and remembers it for next time', () => {
+  it('turns the page with the arrows and remembers it for next time', () => {
     const { ctx } = mount();
-    const tab = ctx.stage.querySelector<HTMLElement>('.sb-tab[data-page="vehicles"]')!;
-    tab.dispatchEvent(ptr());
+    const next = ctx.stage.querySelector<HTMLElement>('.sb-arrow-next')!;
+    let clock = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => (clock += 500));
+    for (let i = 0; i < PAGES.findIndex((p) => p.id === 'vehicles'); i++) next.dispatchEvent(ptr());
+    vi.restoreAllMocks();
     expect(things(ctx).map((el) => el.dataset.id)).toContain('firetruck');
     ctx.cleanup();
     const again = mount();

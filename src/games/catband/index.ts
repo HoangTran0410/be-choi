@@ -179,39 +179,31 @@ function start(ctx: GameContext): void {
   }
   drawCats();
 
-  const styleButtons = new Map<StyleId, HTMLElement>();
-  for (const s of STYLES) {
-    const b = h(
-      'button',
-      { class: 'cb-btn', type: 'button', 'data-style': s.id, 'aria-label': `Nhạc ${s.name}` },
-      h('span', { class: 'cb-emoji' }, s.emoji),
-      h('span', { class: 'cb-label' }, s.name),
-    );
-    makeTappable(b, () => pickStyle(s.id), { ctx, cooldownMs: 250 });
-    styleButtons.set(s.id, b);
-    styleBar.append(b);
-  }
+  // One button turns the music on or off; one button steps through the three styles (its face shows the current one).
   const stopBtn = h(
     'button',
     { class: 'cb-btn cb-stop', type: 'button', 'data-act': 'stop', 'aria-label': 'Tắt nhạc' },
     h('span', { class: 'cb-emoji' }, '⏹️'),
-    h('span', { class: 'cb-label' }, 'Tắt nhạc'),
   );
   makeTappable(stopBtn, () => (playing ? stopBacking() : startBacking()), { ctx, cooldownMs: 250 });
-  styleBar.append(stopBtn);
+  const styleBtn = h('button', { class: 'cb-btn', type: 'button', 'data-act': 'style' }, h('span', { class: 'cb-emoji' }));
+  makeTappable(styleBtn, () => pickStyle(STYLES[(STYLES.findIndex((x) => x.id === style.id) + 1) % STYLES.length]!.id), {
+    ctx,
+    cooldownMs: 250,
+  });
+  styleBar.append(stopBtn, styleBtn);
 
   const modeButtons = new Map<Mode, HTMLElement>();
-  const MODE_DEFS: { mode: Mode; emoji: string; label: string; aria: string }[] = [
-    { mode: 'free', emoji: '🎹', label: 'Chơi tự do', aria: 'Chơi tự do' },
-    { mode: 'song', emoji: '🎵', label: 'Hát theo bài', aria: 'Mèo hát theo bài' },
-    { mode: 'scale', emoji: '🪜', label: 'Đếm mèo', aria: 'Đếm mèo từ thấp đến cao' },
+  const MODE_DEFS: { mode: Mode; emoji: string; aria: string }[] = [
+    { mode: 'free', emoji: '🎹', aria: 'Chơi tự do' },
+    { mode: 'song', emoji: '🎵', aria: 'Mèo hát theo bài' },
+    { mode: 'scale', emoji: '🪜', aria: 'Đếm mèo từ thấp đến cao' },
   ];
   for (const m of MODE_DEFS) {
     const b = h(
       'button',
       { class: 'cb-btn', type: 'button', 'data-mode': m.mode, 'aria-label': m.aria },
       h('span', { class: 'cb-emoji' }, m.emoji),
-      h('span', { class: 'cb-label' }, m.label),
     );
     makeTappable(b, () => chooseMode(m.mode), { ctx, cooldownMs: 250 });
     modeButtons.set(m.mode, b);
@@ -222,21 +214,26 @@ function start(ctx: GameContext): void {
     'button',
     { class: 'cb-btn', type: 'button', 'data-act': 'face', 'aria-label': 'Ảnh làm mặt mèo', hidden: true },
     h('span', { class: 'cb-emoji' }, '📷'),
-    h('span', { class: 'cb-label' }, 'Mặt mèo'),
   );
   makeTappable(photoBtn, () => openFacePicker(), { ctx, cooldownMs: 300 });
   modeBar.append(photoBtn);
 
   function syncButtons(): void {
-    for (const [id, b] of styleButtons) b.classList.toggle('cb-on', playing && id === style.id);
+    styleBtn.dataset.style = style.id;
+    styleBtn.setAttribute('aria-label', `Nhạc ${style.name}`);
+    styleBtn.classList.toggle('cb-on', playing);
+    const styleEmoji = styleBtn.querySelector('.cb-emoji');
+    if (styleEmoji) styleEmoji.textContent = style.emoji;
     stopBtn.classList.toggle('cb-on', playing);
-    const label = stopBtn.querySelector('.cb-label');
     const emoji = stopBtn.querySelector('.cb-emoji');
-    if (label) label.textContent = playing ? 'Tắt nhạc' : 'Bật nhạc';
     if (emoji) emoji.textContent = playing ? '⏹️' : '▶️';
     stopBtn.setAttribute('aria-label', playing ? 'Tắt nhạc' : 'Bật nhạc');
     for (const [m, b] of modeButtons)
       b.classList.toggle('cb-on', m === mode && (m !== 'song' || !picker.hidden || guide !== null || finale));
+    // "Free play" is only there to come back to: with nothing else going on it would just be one more button.
+    const freeBtn = modeButtons.get('free');
+    if (freeBtn) freeBtn.hidden = mode === 'free' && picker.hidden && guide === null && !finale;
+    root.style.setProperty('--cb-modes', String([...modeBar.children].filter((c) => !(c as HTMLElement).hidden).length));
     root.classList.toggle('cb-playing', playing);
     root.style.setProperty('--beat', `${Math.round(60000 / style.bpm)}ms`);
   }
@@ -262,7 +259,7 @@ function start(ctx: GameContext): void {
   function applyPhotos(list: Photo[]): void {
     photoList = list;
     photoBtn.hidden = list.length === 0;
-    root.style.setProperty('--cb-modes', String(list.length === 0 ? 3 : 4));
+    syncButtons();
     // A photo a parent removed leaves its cat with the cat's own face.
     const faces: Record<string, string> = {};
     for (const [seat, id] of Object.entries(save.faces)) if (list.some((p) => p.id === id)) faces[seat] = id;
@@ -444,7 +441,7 @@ function start(ctx: GameContext): void {
     ctx.audio.tick();
     if (!finale) startBacking();
     else syncButtons();
-    setCaption(`${style.emoji} Nhạc ${style.name.toLowerCase()}`);
+    setCaption(`${style.emoji}`);
   }
 
   /* -------------------------------------------------------- the cats */

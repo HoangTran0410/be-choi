@@ -24,7 +24,7 @@ function savePage(id: string): void {
 }
 
 /**
- * Bấm nghe tiếng: a picture book of sounds. Tabs along the top pick a page —
+ * Bấm nghe tiếng: a picture book of sounds. Two big arrows flip the page —
  * farm, jungle, vehicles, things at home, people, weather — and every picture
  * on the page makes its own real sound when pressed: the fire engine wails, the
  * cow moos, the baby giggles. Then its name is said.
@@ -101,33 +101,34 @@ function start(ctx: GameContext): void {
         starred.add(page.id);
         // A bell, not confetti: this page is for pressing things over and over.
         ctx.audio.ding();
-        replay(tabs.querySelector<HTMLElement>('.sb-tab-on') ?? tabs, 'anim-bounce');
+        replay(pageIcon, 'anim-bounce');
         ctx.addStar();
       }
     }, ms + NAME_AFTER_MS);
   }
 
+  function flip(dir: number): void {
+    ctx.hint.touch();
+    const i = PAGES.indexOf(page);
+    show(PAGES[(i + dir + PAGES.length) % PAGES.length]!);
+    ctx.audio.tick();
+  }
+
+  function arrow(dir: number, glyph: string, label: string): HTMLElement {
+    const b = h('button', { class: `sb-tab sb-arrow sb-arrow-${dir < 0 ? 'prev' : 'next'}`, type: 'button', 'aria-label': label }, glyph);
+    makeTappable(b, () => flip(dir), { ctx });
+    return b;
+  }
+
+  const prevBtn = arrow(-1, '◀', 'Trang trước');
+  const nextBtn = arrow(1, '▶', 'Trang sau');
+  const pageIcon = h('div', { class: 'sb-tab sb-tab-on sb-pageicon', 'aria-hidden': 'true' });
+  tabs.append(prevBtn, pageIcon, nextBtn);
+
   function renderTabs(): void {
-    tabs.replaceChildren(
-      ...PAGES.map((p) => {
-        const b = h(
-          'button',
-          { class: `sb-tab${p === page ? ' sb-tab-on' : ''}`, type: 'button', 'aria-label': p.name, 'data-page': p.id },
-          p.icon,
-        );
-        makeTappable(
-          b,
-          () => {
-            ctx.hint.touch();
-            if (p === page) return;
-            show(p);
-            ctx.audio.tick();
-          },
-          { ctx },
-        );
-        return b;
-      }),
-    );
+    pageIcon.textContent = page.icon;
+    pageIcon.dataset.page = page.id;
+    replay(pageIcon, 'anim-bounce');
   }
 
   function show(p: Page): void {

@@ -11,10 +11,10 @@
 .vd-tabs {
   flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
+  position: relative;
   justify-content: center;
   align-items: center;
-  gap: min(1.6vmin, 2vw);
+  gap: min(4vmin, 6vw);
   padding: 2.2vmin 2vmin 1.2vmin;
   z-index: 2;
 }
@@ -44,22 +44,31 @@
 .vd-tab:active {
   transform: scale(0.92);
 }
-/* For grown-ups: small, faint, off to the side, so it is not the most pressable thing on screen. */
+/* For grown-ups: faint, in the corner, opens only on a long press. */
 .vd-plus {
-  --size: min(calc(var(--tap) * 0.56), 9vw);
-  width: var(--size);
-  height: var(--size);
-  flex: 0 0 auto;
-  margin-left: min(2vmin, 2vw);
+  position: absolute;
+  right: 1.5vmin;
+  top: 50%;
+  translate: 0 -50%;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: calc(var(--size) * 0.6);
+  font-size: 28px;
   font-weight: 800;
   line-height: 1;
   color: #6b21a8;
-  background: rgba(255, 255, 255, 0.4);
+  opacity: 0.35;
+  background: rgba(255, 255, 255, 0.3);
   border: 2px dashed rgba(107, 33, 168, 0.35);
+}
+.vd-arrow {
+  font-size: calc(var(--size) * 0.4);
+}
+.vd-shelficon {
+  pointer-events: none;
+  --size: max(64px, min(calc(var(--tap) * 1), 14vw));
 }
 
 /* ---- the list ---- */
