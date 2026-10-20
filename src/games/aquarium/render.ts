@@ -1,6 +1,7 @@
 import { SHAKE_SECONDS } from './logic';
 import { drawBubbles, drawCreature, drawPlant } from './draw';
-import { drawSandCached, drawVignetteCached, drawWaterCached } from './layers';
+import { perf } from '../../core/frame';
+import { drawLayer, drawSandCached, drawVignetteCached, drawWaterCached } from './layers';
 import { drawDecor } from './furniture';
 import {
   drawCaustics,
@@ -45,7 +46,11 @@ export function draw(g: CanvasRenderingContext2D, s: State, light: Light): void 
   if (dusk < 0.98) {
     g.save();
     g.globalAlpha = 1 - dusk;
-    drawRays(g, s);
+    if (perf.low) {
+      // Struggling: the beams hold still (one cached picture) instead of swaying.
+      const still = { tank, clock: 0 } as State;
+      if (!drawLayer(g, light.rays, tank.w, tank.floor, dpr, 0, [tank], (n) => drawRays(n, still))) drawRays(g, s);
+    } else drawRays(g, s);
     g.restore();
   }
   for (const d of s.decor) if (d.layer === 'far') drawDecor(g, s, d);
