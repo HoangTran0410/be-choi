@@ -145,3 +145,64 @@ describe('the loudness table', () => {
     }
   });
 });
+
+describe('scheduling ahead with delay', () => {
+  const starts: number[] = [];
+  function clockContext() {
+    const param = () => ({ value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} });
+    const node = () => ({ connect: (n: unknown) => n, gain: param(), frequency: param(), Q: param(), detune: param() });
+    return class {
+      state = 'running';
+      currentTime = 10;
+      sampleRate = 8000;
+      destination = {};
+      createGain = node;
+      createBiquadFilter = node;
+      createDynamicsCompressor = node;
+      createWaveShaper = node;
+      createOscillator = () => ({ ...node(), type: '', start: (t: number) => starts.push(t), stop() {} });
+      createBuffer = (_c: number, len: number) => ({ getChannelData: () => new Float32Array(len) });
+      createBufferSource = () => ({ ...node(), buffer: null, start: (t: number) => starts.push(t) });
+      resume = () => Promise.resolve();
+    };
+  }
+  beforeEach(() => {
+    starts.length = 0;
+    vi.stubGlobal('AudioContext', clockContext());
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('note and drum start `delay` seconds from now, and without it start now (backwards compatible)', () => {
+    const a = createAudio();
+    a.unlock();
+    a.note(440, 0.2, 'piano');
+    expect(starts.length).toBeGreaterThan(0);
+    expect(Math.max(...starts)).toBe(10);
+    starts.length = 0;
+    a.note(440, 0.2, 'piano', 0.5);
+    expect(starts.length).toBeGreaterThan(0);
+    expect(Math.min(...starts)).toBe(10.5);
+    starts.length = 0;
+    a.note(220, 0.2, 'guitar', 0.25);
+    expect(starts).toEqual([10.25]);
+    starts.length = 0;
+    a.drum('snare', 0.1);
+    expect(Math.min(...starts)).toBeCloseTo(10.1, 6);
+    starts.length = 0;
+    a.drum('hat');
+    expect(Math.max(...starts)).toBe(10);
+  });
+
+  it('a delay does not leak into the next call, and bad delays count as 0', () => {
+    const a = createAudio();
+    a.unlock();
+    a.note(440, 0.2, 'piano', 1);
+    starts.length = 0;
+    a.note(440, 0.2, 'piano');
+    expect(Math.max(...starts)).toBe(10);
+    starts.length = 0;
+    a.note(440, 0.2, 'piano', -3);
+    a.note(440, 0.2, 'piano', Number.NaN);
+    expect(Math.max(...starts)).toBe(10);
+  });
+});
