@@ -4,13 +4,15 @@
 // that vibrates). A frame taken in the middle of the animation goes to OUT.
 // Usage: node scripts/museum-fx.mjs [id ...]    env: OUT=dir  CPU=4 (throttle)  STRESS=1 (fast tapping, frame gaps)
 import { mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
 const server = await createServer({ server: { port: 4179, host: '127.0.0.1' }, logLevel: 'silent' });
 await server.listen();
 const base = 'http://127.0.0.1:4179';
-const OUT = process.env.OUT ?? 'screenshots/museum-fx';
+const OUT = process.env.OUT ?? join(tmpdir(), 'museum-fx');
 const CPU = Number(process.env.CPU ?? 1);
 const STRESS = !!process.env.STRESS;
 mkdirSync(OUT, { recursive: true });
@@ -34,7 +36,7 @@ const probe = () =>
     if (!root) return null;
     const anims = document.getAnimations().filter((a) => a.effect?.target && root.contains(a.effect.target) && a.playState === 'running').length;
     const down = root.querySelectorAll('.down,.blowing').length;
-    const sprites = root.querySelectorAll('.fx > *, .fx-glow > *, .fx-trail > *, .fx-bow > *').length;
+    const sprites = root.querySelectorAll('.fx > *, .fx-glow > *, .fx-trail > *, .fx-bow > *, .fx-burst > *').length;
     const sig = [...root.querySelectorAll('svg path')].map((p) => p.getAttribute('d')).join('|');
     return { anims, down, sprites, sig: sig.length + ':' + sig.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7) };
   });
