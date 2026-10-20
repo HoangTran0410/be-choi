@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -9,7 +9,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 
 | | |
 |---|---|
-| 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
+| 🎵 **Âm nhạc** | 🎤 Hát cùng bé · 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
@@ -23,6 +23,7 @@ Vài trò nổi bật:
 - **🐠 Bể cá / 🦎 Bể cạn** — bể của riêng bé, tự sống, nhớ giữa các lần chơi. Bắt, thả, cho ăn, bật đèn đêm.
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
 - **🎭 Biến hình** — bật camera trước như một chiếc gương, bé đội mặt nạ gấu, mèo, thỏ, khủng long… lên mặt; bấm nút to để đổi mặt nạ và nghe tiếng con vật. Mặt nạ đi theo mặt bé nếu trình duyệt có `FaceDetector`, không thì nằm giữa màn hình để bé tự đưa mặt vào. Không có camera thì chơi với gương hoạt hình.
+- **🎤 Hát cùng bé** — một sân khấu hoà nhạc gộp Ca sĩ nhí, Vẹt nhại và Hát cho chim bay: bé là ca sĩ (nhân vật, hoặc ảnh bé/người thân làm khuôn mặt), khán giả là các bạn thú và ảnh gia đình ở hàng ghế đầu, phản ứng theo giọng bé (to/nhỏ, cao/thấp). 4 chế độ: *Hát bài* (lời chạy chậm, sáng dần khi bé hát), *Vẹt nhại* (các bạn thú hát lại thành hợp xướng; không có micro thì bé gõ nhịp), *Chim bay* (hát to thì bay lên, hát đều giữ chim trong vòng sáng), *Biểu diễn* (chọn bài + ánh sáng, cả dàn thú chơi nhạc). Mỗi buổi diễn được sao và vé; vé mở bài mới, mũ, sân khấu, khán giả. Không có micro vẫn chơi được bằng cách chạm vào ca sĩ. Ba game cũ vẫn ở mục *Game lẻ*.
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
 
 Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô màu.
@@ -31,7 +32,7 @@ Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô m�
 
 - **Cài lên máy:** iOS mở bằng Safari → Chia sẻ → *Thêm vào MH chính*. Android: menu ⋮ → *Cài đặt ứng dụng*.
 - **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé.
-- **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic và camera tắt. *Biến hình* không chụp, không lưu, không gửi hình đi đâu — chỉ hiện lên màn hình.
+- **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic và camera tắt. *Hát cùng bé* chỉ đo to/nhỏ/cao/thấp tức thời; giọng bé thu cho *Vẹt nhại* nằm trong bộ nhớ tạm, không lưu, không gửi đi, mất khi rời game. *Biến hình* không chụp, không lưu, không gửi hình đi đâu — chỉ hiện lên màn hình.
 - **Giọng đọc tiếng Việt** dùng giọng có sẵn của máy (iOS: Cài đặt → Trợ năng → Nội dung đọc → Giọng nói → Tiếng Việt).
 
 ## Chạy thử
