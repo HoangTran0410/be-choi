@@ -240,9 +240,6 @@
   width: 100%;
   height: 100%;
 }
-.mu-name-g {
-  font-size: 34px;
-}
 .mu-rail .mu-say {
   grid-area: say;
 }

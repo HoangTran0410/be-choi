@@ -155,7 +155,7 @@ export function layoutFret(kind: FretKind, w: number, h: number, harmony: Harmon
   // Strum area: the body
   const strumShape = f.shapeRect(neckU1, V * 0.03, U * 0.97 - neckU1, V * 0.94);
   zones.push({ id: 'strum', shape: strumShape, role: 'strum', voices: [] });
-  art += zg('strum', f.rect(neckU1, V * 0.03, U * 0.97 - neckU1, V * 0.94, 20, 'rgba(255,255,255,0)'), 'strum');
+  art += zg('strum', f.rect(neckU1, V * 0.03, U * 0.97 - neckU1, V * 0.94, 20, 'rgba(255,255,255,.2)'), 'strum');
 
   const chords: StrumSpec['chords'] = {};
   for (const name of CHORDS) chords[name] = VOICINGS[kind][name]!.map((m) => voiceFor(kind, m, harmony));
@@ -257,22 +257,17 @@ export function layoutViolin(w: number, h: number, harmony: Harmony): Board {
       const u = u0 + b * bw;
       const m = ms[b]!;
       zones.push({ id: `v${s}-${b}`, shape: f.shapeRect(u, v, bw, sw), role: 'bow', voices: [note('violin', m, 0.8)] });
-      art += zg(
-        `v${s}-${b}`,
-        f.rect(
-          u + 2,
-          v + sw * 0.1,
-          bw - 4,
-          sw * 0.8,
-          10,
-          'rgba(251,191,36,.18)',
-          'stroke="#fbbf24" stroke-width="2" stroke-dasharray="7 6"',
-        ),
-        'cell',
-      );
+      // no dashed boxes: the touchable places are quiet, and the one under the finger lights up
+      art += zg(`v${s}-${b}`, f.rect(u + 2, v + sw * 0.08, bw - 4, sw * 0.84, 10, 'rgba(251,191,36,0)'), 'cell');
     }
     const vs = v + sw / 2;
-    art += f.line(U * 0.06, vs, bu + U * 0.1, vs, '#e7e5e4', 1.6 + (3 - s) * 0.5);
+    const ux1 = U * 0.06;
+    const ux2 = bu + U * 0.1;
+    const p = [f.X(ux1, vs), f.Y(ux1, vs), f.X(ux2, vs), f.Y(ux2, vs)].map((n) => Math.round(n * 10) / 10);
+    art += `<path class="str" data-s="${s}" data-p="${p.join(',')}" d="M${p[0]} ${p[1]}L${p[2]} ${p[3]}" stroke="#e7e5e4" stroke-width="${1.8 + (3 - s) * 0.6}" stroke-linecap="round" fill="none"/>`;
   }
+  // frets: a faint line between the places, and two dots like the marks on a real fingerboard
+  for (let b = 1; b < bands; b++) art += f.line(u0 + b * bw, V * 0.04, u0 + b * bw, V * 0.96, 'rgba(255,255,255,.13)', 2);
+  for (const b of [1, 3]) art += f.ell(u0 + (b + 0.5) * bw, V / 2, 5, 5, 'rgba(255,255,255,.2)');
   return { kind: 'violin', family: 'bow', w, h, portrait, harmony, zones, svg: wrap(w, h, defs, art, 'Đàn violin'), glide: false };
 }

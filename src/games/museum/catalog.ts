@@ -1,5 +1,5 @@
 import type { Timbre } from '../../core/audio';
-import { talkPart, wordPart } from '../../core/say';
+import { wordPart } from '../../core/say';
 import type { SpeechPart } from '../../core/speech';
 import { familyOf, layoutFor } from './instruments/layout';
 import { pentaFrom } from './instruments/scale';
@@ -87,11 +87,12 @@ export const entriesOf = (g: GroupId): Entry[] => ENTRIES.filter((x) => x.group 
 export const groupOf = (g: GroupId): Group => GROUPS.find((x) => x.id === g)!;
 
 /**
- * "Đây là" … (pause) … "đàn, ma, rim, ba": the name is a slow part of its own (its syllables are
- * set apart by commas); with a group, a clear gap and then "Nhóm" and the group's name.
+ * What is said when an instrument's table opens: only its name, slowly, syllable by
+ * syllable (the commas in `say` make the pauses). No "this is…", no group: the child
+ * is there to listen to the music, not to a lecture.
  */
-export function nameParts(en: Entry, g?: Group): SpeechPart[] {
-  return [talkPart('Đây là', 350), wordPart(en.say, g ? 900 : 0), ...(g ? [talkPart('Nhóm', 350), wordPart(g.say, 0)] : [])];
+export function nameParts(en: Entry): SpeechPart[] {
+  return [wordPart(en.say, 0)];
 }
 
 const BASE: Partial<Record<InstrumentKind, number>> = {

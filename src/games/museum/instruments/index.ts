@@ -11,8 +11,10 @@
  */
 import type { InstVoice } from '../../../core/audio';
 import './style.css';
-import { onFrame, perf } from '../../../core/frame';
+import { onFrame } from '../../../core/frame';
 import type { GameContext } from '../../../core/types';
+import { createFx, hasTrail, holdsPress } from './fx';
+import { clamp, thin, zonesAlong, type Crossing } from './fxmath';
 import { layoutFor } from './layout';
 import { inShape, shapeCenter } from './svg';
 import { crossed, nearestLine, velocityFromGap } from './touch';
@@ -28,6 +30,13 @@ const MALLET = new Set(['bars', 'chimes', 'pan', 'kit', 'rack', 'gong', 'djembe'
 const MUTE_AFTER_MS = 380;
 const STRUM_WAIT_MS = 90;
 const STRUM_STAGGER_MS = 24;
+/** Strings crossed by one swipe sound this far apart, so a fast swipe is a ripple of notes, not a burst. */
+const SWIPE_GAP_MS = 16;
+/** A slide plays at most this many zones per move, and a zone is not retriggered within the cooldown. */
+const MAX_PER_MOVE = 9;
+/** ...and the line of notes waiting to sound never grows past this. */
+const MAX_QUEUE = 14;
+const ZONE_COOLDOWN_MS = 55;
 const BOW_RENEW_MS = 420;
 const SHAKE_PX = 52;
 
@@ -36,6 +45,9 @@ interface Pointer {
   zone: Zone | null;
   x: number;
   y: number;
+  /** When the finger was last seen moving, and how fast (px per ms, smoothed). */
+  t: number;
+  speed: number;
   startX: number;
   startY: number;
   moved: boolean;
@@ -46,6 +58,8 @@ interface Pointer {
   lastBow: number;
   shakeAcc: number;
   shakeFlip: number;
+  /** The zone this finger is holding down (a key, a hole, a place on the bowed string). */
+  held: string | null;
 }
 
 export function createInstrument(
@@ -63,20 +77,22 @@ export function createInstrument(
   const pointers = new Map<number, Pointer>();
   /** Sound handles per zone, so a finger resting on a gong can still it. */
   const live = new Map<string, InstVoice[]>();
+  /** When each zone last sounded from a slide (so a finger wobbling on an edge does not stutter). */
+  const lastSlide = new Map<string, number>();
   let lastHit: number | null = null;
   let chord = 'C';
   const covered: boolean[] = [];
-  const vibrating = new Map<number, { amp: number; age: number }>();
   let shakeTurn = 0;
 
   const root = document.createElement('div');
   root.className = `inst inst-${board.family} inst-k-${kind}`;
   root.style.touchAction = 'none';
   host.replaceChildren(root);
-  let svgHost = document.createElement('div');
+  const svgHost = document.createElement('div');
   svgHost.className = 'inst-art';
   root.append(svgHost);
-  let fx: SVGGElement | null = null;
+  /** Elements of each zone, found once per drawing. */
+  let zoneMap = new Map<string, SVGElement[]>();
 
   function later(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
     const t = setTimeout(() => {
@@ -87,6 +103,16 @@ export function createInstrument(
     return t;
   }
 
+  function zoneEls(id: string): SVGElement[] {
+    return zoneMap.get(id) ?? [];
+  }
+
+  function svgRoot(): SVGSVGElement | null {
+    return svgHost.querySelector('svg');
+  }
+
+  const fx = createFx({ svg: svgRoot, board: () => board, later, zoneEls });
+
   function size(): { w: number; h: number } {
     const r = host.getBoundingClientRect();
     return r.width >= 40 && r.height >= 40
@@ -94,24 +120,22 @@ export function createInstrument(
       : { w: board.w || FALLBACK.w, h: board.h || FALLBACK.h };
   }
 
-  function svgRoot(): SVGSVGElement | null {
-    return svgHost.querySelector('svg');
-  }
-
   function draw(): void {
     svgHost.innerHTML = board.svg;
-    const svg = svgRoot();
-    if (svg) {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.setAttribute('class', 'fx');
-      g.setAttribute('pointer-events', 'none');
-      svg.append(g);
-      fx = g;
-    }
-    root.className = `inst inst-${board.family} inst-k-${kind}${enabled ? '' : ' inst-off'}`;
+    zoneMap = new Map();
+    svgHost.querySelectorAll<SVGElement>('[data-z]').forEach((el) => {
+      const id = el.dataset.z!;
+      const list = zoneMap.get(id);
+      if (list) list.push(el);
+      else zoneMap.set(id, [el]);
+    });
+    root.className = `inst inst-${board.family} inst-k-${kind}${board.portrait ? ' inst-portrait' : ''}${enabled ? '' : ' inst-off'}`;
     // restore state that lives in the drawing
     if (board.strum) selectChord(chord);
     board.holes?.forEach((id, i) => zoneEls(id).forEach((el) => el.classList.toggle('on', !!covered[i])));
+    fx.rebuild();
+    // fingers that were down are on a new drawing now: forget what they were holding
+    for (const p of pointers.values()) p.held = null;
   }
 
   function build(): void {
@@ -132,10 +156,6 @@ export function createInstrument(
   } else {
     onWinResize = () => build();
     window.addEventListener('resize', onWinResize);
-  }
-
-  function zoneEls(id: string): SVGElement[] {
-    return Array.from(svgHost.querySelectorAll<SVGElement>('[data-z]')).filter((el) => el.dataset.z === id);
   }
 
   function emit(zoneId: string, voice: Voice | null, vel: number): void {
@@ -165,72 +185,11 @@ export function createInstrument(
     later(() => zoneEls(zoneId).forEach((el) => el.classList.remove('muted')), 600);
   }
 
-  // ---- looks ----
+  // ---- the frame: strings, trails and the bow move here ----
 
-  function flash(zoneId: string): void {
-    for (const el of zoneEls(zoneId)) {
-      el.classList.remove('hit');
-      void el.getBoundingClientRect();
-      el.classList.add('hit');
-      later(() => el.classList.remove('hit'), 260);
-    }
-  }
-
-  function sprite(markup: string, x: number, y: number, cls: string, ms: number): void {
-    if (!fx || perf.low) return;
-    if (fx.childElementCount > 14) fx.firstElementChild?.remove();
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('class', cls);
-    g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-    g.innerHTML = markup;
-    fx.append(g);
-    later(() => g.remove(), ms);
-  }
-
-  function touchFx(zone: Zone, x: number, y: number, vel: number): void {
-    const r = 14 + vel * 26;
-    sprite(`<circle class="ripple" r="${r.toFixed(0)}" fill="none" stroke="#fff" stroke-width="5" opacity=".85"/>`, x, y, 'ripple-g', 560);
-    if (MALLET.has(board.family) && zone.role === 'play') {
-      sprite(
-        '<g class="mallet"><line x1="0" y1="0" x2="46" y2="-70" stroke="#92400e" stroke-width="7" stroke-linecap="round"/><circle cx="0" cy="0" r="12" fill="#f97316" stroke="#7c2d12" stroke-width="3"/></g>',
-        x,
-        y,
-        'mallet-g',
-        420,
-      );
-    }
-  }
-
-  function vibrate(j: number, amp: number): void {
-    vibrating.set(j, { amp: Math.min(16, 5 + amp * 11), age: 0 });
-  }
-
-  const stopFrame = onFrame(
-    (_now, dt) => {
-      if (vibrating.size === 0 || dead) return;
-      const svg = svgRoot();
-      if (!svg) return;
-      for (const [j, st] of [...vibrating]) {
-        st.age += dt;
-        const amp = st.amp * Math.exp(-st.age / 280);
-        const el = svg.querySelector<SVGPathElement>(`path.str[data-s="${j}"]`);
-        if (el) {
-          const p = (el.dataset.p ?? '').split(',').map(Number);
-          const [x1 = 0, y1 = 0, x2 = 0, y2 = 0] = p;
-          if (amp < 0.4) el.setAttribute('d', `M${x1} ${y1}L${x2} ${y2}`);
-          else {
-            const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-            const nx = -(y2 - y1) / len;
-            const ny = (x2 - x1) / len;
-            const off = amp * Math.sin(st.age * 0.11) * 2;
-            el.setAttribute('d', `M${x1} ${y1}Q${(x1 + x2) / 2 + nx * off} ${(y1 + y2) / 2 + ny * off} ${x2} ${y2}`);
-          }
-        }
-        if (amp < 0.4) vibrating.delete(j);
-      }
-    },
-    { maxFps: perf.low ? 30 : undefined },
-  );
+  const stopFrame = onFrame((now, dt) => {
+    if (!dead) fx.tick(now, dt);
+  });
 
   // ---- striking ----
 
@@ -241,35 +200,37 @@ export function createInstrument(
     return v;
   }
 
+  /** How hard a slide plays: by the speed of the finger, gentler than a tap so a run stays smooth. */
+  function swipeVel(p: Pointer): number {
+    lastHit = performance.now();
+    return Math.round(clamp(0.5 + Math.min(p.speed, 2.5) * 0.18, 0.5, 0.92) * 100) / 100;
+  }
+
   function currentFingering(): Voice | null {
     return board.fingering ? board.fingering(board.holes!.map((_, i) => !!covered[i])) : null;
   }
 
-  function strike(zone: Zone, x: number, y: number, vel: number): void {
+  function strike(zone: Zone, x: number, y: number, vel: number, swipe = false): void {
+    // the look comes first: it must be on screen in the very next frame
+    if (zone.role !== 'strum') fx.hit(zone, x, y, vel, { swipe });
     if (zone.role === 'play' || zone.role === 'bow') {
+      if (!swipe && zone.role === 'play' && MALLET.has(board.family)) fx.mallet(x, y);
       for (const v of zone.voices) playVoice(zone.id, v, vel);
-      flash(zone.id);
-      touchFx(zone, x, y, vel);
     } else if (zone.role === 'shake') {
       const v = zone.voices[0];
       if (v) playVoice(zone.id, v, vel);
-      flash(zone.id);
-      touchFx(zone, x, y, vel);
     } else if (zone.role === 'chord') {
       selectChord(zone.id.slice('chord:'.length));
       strumAll(vel * 0.75);
-      flash(zone.id);
     } else if (zone.role === 'hole') {
       const i = board.holes!.indexOf(zone.id);
       covered[i] = !covered[i];
       zoneEls(zone.id).forEach((el) => el.classList.toggle('on', !!covered[i]));
       const v = currentFingering();
       if (v) playVoice(zone.id, v.t === 'note' ? { ...v, dur: 0.5 } : v, vel);
-      flash(zone.id);
     } else if (zone.role === 'blow') {
       const v = currentFingering();
       if (v) playVoice(zone.id, v, vel);
-      flash(zone.id);
     }
   }
 
@@ -278,26 +239,28 @@ export function createInstrument(
     svgHost.querySelectorAll<SVGElement>('.chord').forEach((el) => el.classList.toggle('sel', el.dataset.z === `chord:${name}`));
   }
 
-  function playString(j: number, vel: number): void {
+  function playString(j: number, vel: number, at?: { x: number; y: number }): void {
     const v = board.strum?.chords[chord]?.[j];
     if (!v) return;
+    fx.pluck(j, vel, at);
     playVoice(`string${j}`, v, vel);
-    vibrate(j, vel);
   }
 
-  function strumAll(vel: number, dir = 1): void {
+  function strumAll(vel: number, dir = 1, at?: { x: number; y: number }): void {
     const n = board.strum?.lines.length ?? 0;
+    const first = dir > 0 ? 0 : n - 1;
+    const last = dir > 0 ? n - 1 : 0;
+    fx.sweep(first, last, STRUM_STAGGER_MS);
     for (let k = 0; k < n; k++) {
       const j = dir > 0 ? k : n - 1 - k;
-      if (k === 0) playString(j, vel);
-      else later(() => playString(j, vel), k * STRUM_STAGGER_MS);
+      if (k === 0) playString(j, vel, at);
+      else later(() => playString(j, vel, at), k * STRUM_STAGGER_MS);
     }
-    flash('strum');
   }
 
   // ---- pointers ----
 
-  function local(e: PointerEvent): { x: number; y: number } {
+  function local(e: { clientX: number; clientY: number }): { x: number; y: number } {
     const svg = svgRoot();
     const r = svg?.getBoundingClientRect();
     if (!r || r.width < 1) return { x: e.clientX, y: e.clientY };
@@ -309,15 +272,27 @@ export function createInstrument(
     return null;
   }
 
+  /** Show which zone a finger is holding down, and let go of the one it left. */
+  function hold(p: Pointer, zone: Zone | null): void {
+    const id = zone && holdsPress(board, zone) ? zone.id : null;
+    if (id === p.held) return;
+    if (p.held) fx.release(p.held);
+    p.held = id;
+    if (id) fx.press(id);
+  }
+
   function stopBlow(p: Pointer): void {
-    if (p.blowTimer) clearInterval(p.blowTimer);
+    if (!p.blowTimer) return;
+    clearInterval(p.blowTimer);
     p.blowTimer = null;
     zoneEls('blow').forEach((el) => el.classList.remove('blowing'));
+    fx.breath(false);
   }
 
   function startBlow(p: Pointer, zone: Zone, x: number, y: number, vel: number): void {
     strike(zone, x, y, vel);
     zoneEls('blow').forEach((el) => el.classList.add('blowing'));
+    fx.breath(true);
     // The synth plays a note of fixed length, so keep renewing it while the finger stays.
     p.blowTimer = setInterval(() => {
       if (dead || !enabled) return stopBlow(p);
@@ -342,6 +317,8 @@ export function createInstrument(
       zone,
       x,
       y,
+      t: performance.now(),
+      speed: 0,
       startX: x,
       startY: y,
       moved: false,
@@ -352,6 +329,7 @@ export function createInstrument(
       lastBow: performance.now(),
       shakeAcc: 0,
       shakeFlip: 0,
+      held: null,
     };
     pointers.set(e.pointerId, p);
     if (!zone) return;
@@ -362,11 +340,13 @@ export function createInstrument(
       const vel = velocity();
       p.strumTimer = setTimeout(() => {
         p.strumTimer = null;
-        if (!p.moved && !dead) strumAll(vel, 1);
+        if (!p.moved && !dead) strumAll(vel, 1, { x, y });
       }, STRUM_WAIT_MS);
       return;
     }
     const vel = velocity();
+    hold(p, zone);
+    if (zone.role === 'bow') fx.bowMove(p.id, x, y);
     if (zone.role === 'blow') startBlow(p, zone, x, y, vel);
     else strike(zone, x, y, vel);
     if (zone.mute) {
@@ -377,27 +357,102 @@ export function createInstrument(
     }
   }
 
+  /**
+   * Notes of a slide wait in one line and are let out SWIPE_GAP_MS apart, in the order the
+   * finger crossed them: a quick swipe is an even run of notes, never a burst, and never
+   * more than the sound engine can take.
+   */
+  const queue: Array<() => void> = [];
+  let draining = false;
+  function enqueue(fn: () => void): void {
+    queue.push(fn);
+    if (queue.length > MAX_QUEUE) queue.splice(1, queue.length - MAX_QUEUE);
+    if (!draining) drain();
+  }
+  function drain(): void {
+    const fn = queue.shift();
+    if (!fn) {
+      draining = false;
+      return;
+    }
+    draining = true;
+    fn();
+    later(drain, SWIPE_GAP_MS);
+  }
+
+  /** Sound the zones one stretch of a slide crossed: at most `MAX_PER_MOVE`, one after another. */
+  function slideInto(p: Pointer, crossings: Crossing[], only: (z: Zone) => boolean): void {
+    const list = thin(
+      crossings.filter((c) => only(c.zone)),
+      MAX_PER_MOVE,
+    );
+    list.forEach((c) => {
+      const go = (): void => {
+        const now = performance.now();
+        if (now - (lastSlide.get(c.zone.id) ?? -1e9) < ZONE_COOLDOWN_MS) return;
+        lastSlide.set(c.zone.id, now);
+        strike(c.zone, c.x, c.y, swipeVel(p), true);
+      };
+      enqueue(go);
+    });
+  }
+
   function onMove(e: PointerEvent): void {
     const p = pointers.get(e.pointerId);
     if (!p || !enabled || dead) return;
-    const { x, y } = local(e);
-    const dx = x - p.x;
-    const dy = y - p.y;
+    // a fast finger reports many positions between frames: use them all, so nothing is skipped
+    const batch = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
+    if (batch.length > 1) for (const c of batch) step(p, local(c));
+    else step(p, local(e));
+  }
+
+  function step(p: Pointer, to: { x: number; y: number }): void {
+    const { x, y } = to;
+    const ax = p.x;
+    const ay = p.y;
+    const dist = Math.hypot(x - ax, y - ay);
+    if (dist === 0) return;
+    const now = performance.now();
+    const dt = Math.max(1, now - p.t);
+    p.speed += (dist / dt - p.speed) * 0.4;
+    p.t = now;
     p.x = x;
     p.y = y;
+    const dx = x - ax;
+    const dy = y - ay;
     if (!p.moved && Math.hypot(x - p.startX, y - p.startY) > 9) {
       p.moved = true;
       if (p.muteTimer) clearTimeout(p.muteTimer);
       p.muteTimer = null;
     }
     const zone = zoneAt(x, y);
+    if (p.moved && hasTrail(board)) {
+      // the harmonica's light runs along the row, whatever height the finger is at
+      let tx = x;
+      let ty = y;
+      if (board.family === 'harmonica' && zone) {
+        const c = shapeCenter(zone.shape);
+        if (board.portrait) tx = c.x;
+        else ty = c.y;
+      }
+      fx.trailMove(p.id, tx, ty);
+    }
     if (p.zone?.role === 'strum' && board.strum) {
       if (!p.moved) return;
       if (p.strumTimer) clearTimeout(p.strumTimer);
       p.strumTimer = null;
-      const idx = nearestLine(board.strum.lines, board.strum.axis === 'x' ? x : y);
-      const vel = velocity();
-      for (const j of crossed(p.strumIdx, idx)) playString(j, vel);
+      const st = board.strum;
+      const axisX = st.axis === 'x';
+      const idx = nearestLine(st.lines, axisX ? x : y);
+      const vel = swipeVel(p);
+      crossed(p.strumIdx, idx).forEach((j) => {
+        const L = st.lines[j]!;
+        const a = axisX ? ax : ay;
+        const b = axisX ? x : y;
+        const t = b === a ? 0.5 : clamp((L - a) / (b - a), 0, 1);
+        const at = { x: ax + dx * t, y: ay + dy * t };
+        enqueue(() => playString(j, vel, at));
+      });
       p.strumIdx = idx;
       return;
     }
@@ -413,27 +468,33 @@ export function createInstrument(
       }
       return;
     }
-    if (zone?.role === 'bow') {
-      const now = performance.now();
-      if (zone.id !== p.zone?.id) {
-        p.zone = zone;
-        p.lastBow = now;
-        strike(zone, x, y, velocity());
-      } else if (now - p.lastBow > BOW_RENEW_MS) {
-        p.lastBow = now;
-        strike(zone, x, y, 0.8);
+    if (p.zone?.role === 'bow' || zone?.role === 'bow') {
+      // the bow lies across the strings and rubs wherever the finger goes
+      fx.bowMove(p.id, x, y);
+      const stamp = performance.now();
+      const entered = zonesAlong(board.zones, ax, ay, x, y, p.zone?.id ?? null);
+      if (entered.length) {
+        slideInto(p, entered, (z) => z.role === 'bow');
+        p.lastBow = stamp;
+      } else if (zone && stamp - p.lastBow > BOW_RENEW_MS) {
+        p.lastBow = stamp;
+        strike(zone, x, y, 0.8, true);
       }
+      p.zone = zone ?? p.zone;
+      hold(p, zone);
       return;
     }
-    if (board.glide && zone && zone.id !== p.zone?.id && zone.role === 'play') {
-      p.zone = zone;
-      strike(zone, x, y, velocity());
-      if (zone.mute) {
-        if (p.muteTimer) clearTimeout(p.muteTimer);
-        p.muteTimer = null;
+    if (board.glide) {
+      const entered = zonesAlong(board.zones, ax, ay, x, y, p.zone?.id ?? null);
+      if (entered.length) {
+        slideInto(p, entered, (z) => z.role === 'play');
+        if (p.muteTimer) {
+          clearTimeout(p.muteTimer);
+          p.muteTimer = null;
+        }
       }
-    } else if (board.glide && !zone) {
-      p.zone = null;
+      p.zone = zone && zone.role === 'play' ? zone : null;
+      hold(p, p.zone);
     }
   }
 
@@ -445,11 +506,15 @@ export function createInstrument(
       // a quick tap lifted before the wait was over: strum now
       clearTimeout(p.strumTimer);
       p.strumTimer = null;
-      if (!p.moved && !dead && enabled) strumAll(velocityFromGap(null), 1);
+      if (!p.moved && !dead && enabled) strumAll(velocityFromGap(null), 1, { x: p.x, y: p.y });
     }
     if (p.muteTimer) clearTimeout(p.muteTimer);
     p.muteTimer = null;
     stopBlow(p);
+    if (p.held) fx.release(p.held);
+    p.held = null;
+    fx.trailEnd(p.id);
+    fx.bowEnd(p.id);
     try {
       root.releasePointerCapture(e.pointerId);
     } catch {
@@ -507,6 +572,7 @@ export function createInstrument(
     if (dead) return;
     dead = true;
     stopFrame();
+    fx.destroy();
     ro?.disconnect();
     if (onWinResize) window.removeEventListener('resize', onWinResize);
     if (motionOn) window.removeEventListener('devicemotion', onMotion);
@@ -548,7 +614,10 @@ export function createInstrument(
       if (!z || dead) return;
       const c = shapeCenter(z.shape);
       if (z.role === 'strum') strumAll(vel);
-      else strike(z, c.x, c.y, vel);
+      else {
+        strike(z, c.x, c.y, vel);
+        if (holdsPress(board, z)) later(() => fx.release(z.id), 120);
+      }
     },
     destroy,
   };

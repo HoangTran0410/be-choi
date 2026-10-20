@@ -26,22 +26,34 @@
   transform-box: fill-box;
   transform-origin: center;
 }
-.inst .z.hit {
-  animation: inst-press 0.26s ease-out;
-}
 .inst .z.muted {
-  opacity: 0.5;
+  opacity: 0.78;
   transition: opacity 0.2s;
 }
-@keyframes inst-press {
-  0% {
-    transform: scale(0.93);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+
+/*
+ * A key / hole / button sinks the moment a finger is on it (the next frame, no
+ * script wait) and springs back with a little overshoot when the finger leaves.
+ * The motion of everything else (skins, bars, tines, chimes, strings, the bow)
+ * is run by fx.ts with transform and opacity only.
+ */
+.inst .z.sinkable {
+  transition:
+    transform 0.28s cubic-bezier(0.25, 1.9, 0.5, 1),
+    opacity 0.25s ease-out;
+}
+.inst .z.sinkable.down {
+  transform: scale(var(--sink, 0.95));
+  opacity: 0.82;
+  transition-duration: 0.05s, 0.05s;
+  transition-timing-function: ease-out;
+}
+/* the place on the bowed string under the finger */
+.inst .z.cell rect {
+  transition: fill 0.12s;
+}
+.inst .z.cell.down rect {
+  fill: rgba(251, 191, 36, 0.3);
 }
 
 /* wind: a covered hole shows its cap; the mouthpiece breathes while held */
@@ -74,49 +86,15 @@
   opacity: 1;
 }
 
-/* a touch ripple and a mallet that swings in */
-.inst .ripple {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: inst-ripple 0.55s ease-out forwards;
-}
-@keyframes inst-ripple {
-  from {
-    transform: scale(0.4);
-    opacity: 0.9;
-  }
-  to {
-    transform: scale(1.7);
-    opacity: 0;
-  }
-}
-.inst .mallet {
-  animation: inst-mallet 0.42s ease-out forwards;
-}
-@keyframes inst-mallet {
-  0% {
-    transform: translate(22px, -34px) rotate(16deg);
-    opacity: 0;
-  }
-  30% {
-    transform: translate(0, 0) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-4px, -8px);
-    opacity: 0;
-  }
-}
-
 .inst-off {
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .inst .z.hit,
-  .inst .z.blow.blowing,
-  .inst .ripple,
-  .inst .mallet {
+  .inst .z.blow.blowing {
     animation: none;
+  }
+  .inst .z.sinkable {
+    transition: none;
   }
 }
