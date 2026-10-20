@@ -118,10 +118,14 @@ export interface AudioEngine {
   tick(): void;
   /** Celebration arpeggio. */
   jingle(): void;
-  /** Musical note. `dur` in seconds. `timbre` picks the instrument (default piano). */
-  note(freq: number, dur?: number, timbre?: Timbre): void;
-  /** Percussion hit. */
-  drum(kind: DrumKind): void;
+  /**
+   * Musical note. `dur` in seconds. `timbre` picks the instrument (default piano).
+   * `delay` (seconds, default 0) starts it that long from now on the audio clock, so a
+   * sequencer can queue notes a little ahead and keep exact time.
+   */
+  note(freq: number, dur?: number, timbre?: Timbre, delay?: number): void;
+  /** Percussion hit. `delay` (seconds, default 0) starts it that long from now. */
+  drum(kind: DrumKind, delay?: number): void;
   /** A soft breath of air (blowing out a candle). */
   puff(): void;
   /** Sound effect / animal voice. */
@@ -392,13 +396,17 @@ export function createAudio(): AudioEngine {
    * together and the sound keeps its internal balance.
    */
   let trim = 1;
+  /** Seconds to push the sound being built into the future (see `note`/`drum`'s `delay`). */
+  let shift = 0;
 
-  function at<T>(id: SoundId, play: () => T): T {
+  function at<T>(id: SoundId, play: () => T, delay = 0): T {
     trim = LOUDNESS[id] ?? 1;
+    shift = Number.isFinite(delay) && delay > 0 ? delay : 0;
     try {
       return play();
     } finally {
       trim = 1;
+      shift = 0;
     }
   }
 
@@ -420,7 +428,7 @@ export function createAudio(): AudioEngine {
     const c = getCtx();
     if (!c || !master || freq <= 0) return;
     try {
-      const t0 = c.currentTime + (opts.at ?? 0);
+      const t0 = c.currentTime + shift + (opts.at ?? 0);
       const osc = c.createOscillator();
       const g = c.createGain();
       osc.type = type;
@@ -478,7 +486,7 @@ export function createAudio(): AudioEngine {
     const c = getCtx();
     if (!c || !master) return;
     try {
-      const t0 = c.currentTime + (opts.at ?? 0);
+      const t0 = c.currentTime + shift + (opts.at ?? 0);
       const len = Math.max(1, Math.floor(c.sampleRate * dur));
       const buf = c.createBuffer(1, len, c.sampleRate);
       const data = buf.getChannelData(0);
@@ -525,7 +533,7 @@ export function createAudio(): AudioEngine {
       const g = c.createGain();
       g.gain.value = gain * trim;
       src.connect(g).connect(master);
-      src.start(c.currentTime);
+      src.start(c.currentTime + shift);
     } catch {
       /* silent */
     }
@@ -968,12 +976,12 @@ export function createAudio(): AudioEngine {
     }
   }
 
-  function note(freq: number, dur = 0.5, timbre: Timbre = 'piano'): void {
-    at(`note:${timbre}`, () => playNote(freq, dur, timbre));
+  function note(freq: number, dur = 0.5, timbre: Timbre = 'piano', delay = 0): void {
+    at(`note:${timbre}`, () => playNote(freq, dur, timbre), delay);
   }
 
-  function drum(kind: DrumKind): void {
-    at(`drum:${kind}`, () => playDrum(kind));
+  function drum(kind: DrumKind, delay = 0): void {
+    at(`drum:${kind}`, () => playDrum(kind), delay);
   }
 
   /**

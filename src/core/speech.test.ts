@@ -54,4 +54,19 @@ describe('speech', () => {
     s.speak('ba');
     expect(spoken).toEqual(['một', 'hai']);
   });
+  it('speaks slower when asked, and keeps the default rate otherwise', () => {
+    const rates: number[] = [];
+    const synth = {
+      getVoices: () => [{ lang: 'vi-VN', name: 'Linh' }] as SpeechSynthesisVoice[],
+      speak: (u: SpeechSynthesisUtterance) => rates.push(u.rate),
+      cancel: vi.fn(),
+      addEventListener: vi.fn(),
+    } as unknown as SpeechSynthesis;
+    const s = createSpeech(synth);
+    s.speak('a');
+    s.speak('b', { rate: 0.6 });
+    s.speak('c', { rate: 0 });
+    s.speak('d', { rate: Number.NaN });
+    expect(rates).toEqual([0.95, 0.6, 0.3, 0.95]);
+  });
 });

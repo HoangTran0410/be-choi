@@ -55,8 +55,12 @@ export interface GameContext {
   /** Play area. `position: relative`, `touch-action: none`, fills the screen under the top bar. */
   stage: HTMLElement;
   audio: AudioEngine;
-  /** Vietnamese text-to-speech. No-op when voice is off or unavailable. */
-  speak(text: string): void;
+  /**
+   * Vietnamese text-to-speech. No-op when voice is off or unavailable.
+   * `rate` (default 0.95) slows the voice for words a child is learning; `interrupt: false`
+   * queues after what is being said.
+   */
+  speak(text: string, opts?: { interrupt?: boolean; rate?: number }): void;
   /**
    * Say parts one after another, slowly, with a gap after each (see `Speech.speakSeq`).
    * A new call cuts off the old one. Resolves true if finished, false if cut short.

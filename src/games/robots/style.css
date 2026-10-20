@@ -1,0 +1,599 @@
+/*
+ * Ban nhạc robot. A dark theatre: the stage fills the screen, robots stand on eight pads (2×4 on a
+ * phone held upright, 4×2 on a tablet, one row of 8 on a wide phone), and a shelf of the robots
+ * the child owns scrolls sideways underneath.
+ */
+.rb {
+  --bg1: #1e1b4b;
+  --bg2: #3b2a7a;
+  --beam: #fde047;
+  --item: clamp(84px, 17vmin, 128px);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg1), var(--bg2));
+  color: #fff;
+  touch-action: none;
+  transition: background 0.6s;
+}
+.rb[data-song='disco'] {
+  --bg1: #2e1065;
+  --bg2: #831843;
+  --beam: #f0abfc;
+}
+.rb[data-song='calm'] {
+  --bg1: #0c1b3a;
+  --bg2: #1e3a5f;
+  --beam: #7dd3fc;
+}
+
+/* ---- top bar ---- */
+.rb-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+.rb-quest {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.rb-parts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.rb-part {
+  font-size: 24px;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.35;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+.rb-part.on {
+  filter: none;
+  opacity: 1;
+  transform: scale(1.18);
+}
+.rb-stickers {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 20px;
+  line-height: 1;
+}
+.rb-again {
+  flex: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1e1b4b;
+  animation: rb-pulse 1.4s ease-in-out infinite;
+}
+.rb-again[hidden] {
+  display: none;
+}
+.rb-song {
+  flex: none;
+  width: max(var(--tap), 76px);
+  height: max(var(--tap), 76px);
+  background: rgba(255, 255, 255, 0.92);
+  color: #1e1b4b;
+}
+.rb-song-icon {
+  font-size: calc(var(--tap) * 0.5);
+  line-height: 1;
+}
+.rb-pips {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.rb-pips i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1e1b4b;
+  opacity: 0.25;
+}
+.rb-pips i.on {
+  opacity: 1;
+}
+
+/* A wide phone has no height to spare: the goal and the song button float over the top of the stage. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .rb {
+    --item: 76px;
+  }
+  .rb-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    padding: 6px 10px;
+    pointer-events: none;
+  }
+  .rb-top > * {
+    pointer-events: auto;
+  }
+  .rb-quest {
+    flex: none;
+    min-height: 44px;
+    max-width: 55%;
+  }
+  .rb-top::after {
+    content: '';
+    flex: 1;
+    order: 1;
+  }
+  .rb-again {
+    order: 2;
+  }
+  .rb-song {
+    order: 3;
+  }
+  .rb-grid {
+    padding-top: 88px !important;
+  }
+  .rb-eq {
+    top: 4px;
+    height: 12%;
+  }
+}
+
+/* ---- stage ---- */
+.rb-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 78% 12%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 44% 30%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 90% 40%, rgba(255, 255, 255, 0.5), transparent);
+}
+.rb-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  pointer-events: none;
+}
+.rb-lights,
+.rb-floor,
+.rb-eq,
+.rb-fx,
+.rb-away {
+  position: absolute;
+  pointer-events: none;
+}
+.rb-lights {
+  inset: 0;
+}
+.rb-beam {
+  position: absolute;
+  top: -6%;
+  width: 46%;
+  height: 112%;
+  transform-origin: 50% 0;
+  background: linear-gradient(180deg, var(--bc), transparent 88%);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  opacity: 0;
+}
+.rb-floor {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 45%;
+  background: radial-gradient(ellipse at 50% 100%, var(--beam), transparent 70%);
+  opacity: 0.12;
+}
+.rb-eq {
+  left: 4%;
+  right: 4%;
+  top: 0;
+  height: 16%;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.2%;
+}
+.rb-bar {
+  flex: 1;
+  height: 100%;
+  border-radius: 4px 4px 0 0;
+  transform-origin: 50% 100%;
+  transform: scaleY(0.05);
+  background: linear-gradient(0deg, hsl(calc(var(--i) * 22 + 300), 90%, 62%), hsl(calc(var(--i) * 22 + 340), 95%, 72%));
+  opacity: 0.85;
+}
+.rb-fx {
+  inset: 0;
+  z-index: 4;
+}
+.rb-note {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 0 #fff;
+  will-change: transform, opacity;
+}
+.rb-away {
+  inset: 0;
+  z-index: 5;
+}
+.rb-away .rb-bot {
+  pointer-events: none;
+}
+
+.rb-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px 4px;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+}
+@media (orientation: landscape) {
+  .rb-grid {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+@media (orientation: landscape) and (min-aspect-ratio: 3/2) {
+  .rb-grid {
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: 1fr;
+    align-items: end;
+    padding-top: 14%;
+  }
+}
+
+.rb-slot {
+  position: relative;
+  min-width: 0;
+  min-height: 72px;
+}
+.rb-pad {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 2%;
+  height: 15%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.28);
+  transition:
+    background 0.3s,
+    border-color 0.3s;
+}
+.rb-slot.has-bot .rb-pad {
+  background: color-mix(in srgb, var(--c) 55%, transparent);
+  border: 2px solid color-mix(in srgb, var(--c) 80%, #fff);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--c) 70%, transparent);
+}
+.rb-plus {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  font-size: 44px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+.rb-stage.can-drop .rb-slot:not(.has-bot) .rb-plus {
+  display: grid;
+  animation: rb-pulse 1s ease-in-out infinite;
+}
+.rb-stage.can-drop .rb-slot:not(.has-bot) .rb-pad {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #fff;
+}
+
+/* ---- robots ---- */
+.rb-bot {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  top: 0;
+  bottom: 6%;
+  transform-origin: 50% 100%;
+  will-change: transform;
+  touch-action: none;
+  cursor: grab;
+}
+.rb-bot .rb-svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.rb-glow {
+  position: absolute;
+  inset: -8% -10%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 85%, #fff) 0%, transparent 68%);
+  opacity: 0;
+  pointer-events: none;
+}
+.rb-bot.waiting .rb-svg {
+  opacity: 0.8;
+}
+.rb-bot.waiting::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -2%;
+  height: 10%;
+  border-radius: 50%;
+  border: 3px dotted #fff;
+  animation: rb-pulse 0.8s ease-in-out infinite;
+}
+.rb-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5%;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.rb-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid #fff;
+}
+.rb-dot.on {
+  background: #fde047;
+}
+.rb-popin {
+  animation: rb-popin 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rb-level .rb-dots {
+  animation: rb-pulse 0.4s ease-out;
+}
+.rb-slot.holding .rb-bot {
+  transition: filter 0.7s;
+  filter: brightness(1.25);
+}
+.is-carried {
+  opacity: 0.3;
+}
+.rb-ghost {
+  z-index: 40;
+  opacity: 0.95;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.4));
+}
+.rb-ghost.rb-bot {
+  left: 0;
+  right: auto;
+}
+.rb-carry {
+  display: block;
+}
+.rb-carry .rb-shelf-art {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- shelf ---- */
+.stage .rb-shelf {
+  flex: none;
+  height: calc(var(--item) + 22px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  background: rgba(0, 0, 0, 0.32);
+  border-top: 3px solid rgba(255, 255, 255, 0.2);
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.rb-shelf::-webkit-scrollbar {
+  display: none;
+}
+.rb-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  width: max-content;
+  padding: 0 14px;
+}
+.stage .rb-item {
+  position: relative;
+  flex: none;
+  width: var(--item);
+  height: var(--item);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--c) 28%, rgba(255, 255, 255, 0.08));
+  border: 3px solid color-mix(in srgb, var(--c) 70%, #fff);
+  touch-action: pan-x;
+  cursor: grab;
+  transition:
+    transform 0.15s,
+    opacity 0.2s;
+}
+.stage .rb-item * {
+  touch-action: pan-x;
+}
+.rb-shelf-art {
+  position: absolute;
+  inset: 4px 6px 2px;
+  pointer-events: none;
+}
+.rb-shelf-art .rb-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.rb-item.picked {
+  transform: translateY(-6px) scale(1.06);
+  border-color: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.5);
+}
+.rb-item.on-stage {
+  opacity: 0.25;
+  filter: grayscale(0.8);
+  pointer-events: none;
+}
+.rb-new {
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  font-size: 24px;
+  display: none;
+}
+.rb-item.fresh .rb-new {
+  display: block;
+  animation: rb-pulse 0.8s ease-in-out infinite;
+}
+.rb-item.nudge {
+  animation: rb-wobble 0.7s ease-in-out 4;
+  border-color: #fde047;
+  box-shadow: 0 0 20px #fde047;
+}
+
+/* ---- rewards ---- */
+.rb-reward-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 30;
+}
+.rb-reward {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px 26px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.94);
+  animation: rb-reward 2.8s ease-in-out forwards;
+}
+.rb-reward-sticker {
+  font-size: clamp(56px, 13vmin, 96px);
+  line-height: 1;
+}
+.rb-reward-star {
+  position: absolute;
+  top: -18px;
+  right: -14px;
+  font-size: 54px;
+  animation: rb-spin 1.2s linear infinite;
+}
+.rb-reward-new {
+  display: flex;
+  gap: 8px;
+}
+.rb-reward-bot {
+  width: clamp(54px, 12vmin, 90px);
+  height: clamp(60px, 14vmin, 100px);
+}
+.rb-reward-bot .rb-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- finale: every bulb on ---- */
+.rb-stage.finale .rb-beam {
+  background: linear-gradient(180deg, hsl(0, 95%, 65%), transparent 88%);
+  animation: rb-rainbow 2s linear infinite;
+}
+.rb-stage.finale .rb-bot {
+  filter: brightness(1.15) saturate(1.2);
+}
+
+@keyframes rb-rainbow {
+  from {
+    filter: hue-rotate(0deg);
+  }
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+@keyframes rb-pulse {
+  50% {
+    transform: scale(1.12);
+    opacity: 0.7;
+  }
+}
+@keyframes rb-popin {
+  from {
+    opacity: 0;
+    margin-top: -30%;
+  }
+}
+@keyframes rb-wobble {
+  25% {
+    transform: rotate(-7deg) scale(1.05);
+  }
+  75% {
+    transform: rotate(7deg) scale(1.05);
+  }
+}
+@keyframes rb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes rb-reward {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  12% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  20% {
+    transform: scale(1);
+  }
+  85% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-40vh) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rb-popin,
+  .rb-again,
+  .rb-item.fresh .rb-new {
+    animation: none;
+  }
+}

@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -9,7 +9,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 
 | | |
 |---|---|
-| 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
+| 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay · 🤖 Ban nhạc robot |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
@@ -24,6 +24,8 @@ Vài trò nổi bật:
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
 - **🎭 Biến hình** — bật camera trước như một chiếc gương, bé đội mặt nạ gấu, mèo, thỏ, khủng long… lên mặt; bấm nút to để đổi mặt nạ và nghe tiếng con vật. Mặt nạ đi theo mặt bé nếu trình duyệt có `FaceDetector`, không thì nằm giữa màn hình để bé tự đưa mặt vào. Không có camera thì chơi với gương hoạt hình.
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
+
+- **🤖 Ban nhạc robot** — kéo các bạn robot (mỗi bạn một nhạc cụ: trống, bass, piano, ghi-ta, sáo, kèn, vi-ô-lông…) lên sân khấu 8 chỗ; ban nhạc luôn hoà âm vì mọi robot chơi theo cùng một nhịp, một tông và chuỗi hợp âm 4 ô nhịp. Chạm robot để đổi kiểu chơi (dễ/vừa/rộn), kéo xuống kệ hoặc chạm giữ để tạm biệt, nút to đổi bài (vui / disco / êm). Robot nhảy đúng nhịp, giọng đọc chậm dạy tên nhạc cụ, màu, số lượng, nhóm nhạc cụ; nhiệm vụ bằng hình mở khoá thêm robot (5 → 15). Ảnh gia đình ở Góc phụ huynh hiện làm mặt robot và phông sân khấu.
 
 Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô màu.
 

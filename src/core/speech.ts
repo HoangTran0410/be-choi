@@ -3,6 +3,11 @@
  * voice is usually available offline. When there is no Vietnamese voice we stay
  * silent instead of reading Vietnamese with an English voice.
  */
+export interface SpeakOptions {
+  interrupt?: boolean;
+  rate?: number;
+}
+
 export interface SpeechPart {
   text: string;
   /** Speaking speed; default {@link SEQ_RATE}. */
@@ -20,7 +25,7 @@ export interface Speech {
   /** True when a Vietnamese voice exists. */
   available(): boolean;
   /** `interrupt` (default true) cancels whatever is currently being spoken. `rate` defaults to 0.95. */
-  speak(text: string, opts?: { interrupt?: boolean; rate?: number }): void;
+  speak(text: string, opts?: SpeakOptions): void;
   /**
    * Say several parts one after another, slowly, with a quiet gap after each
    * (waits for the utterance to end, with a timeout in case the engine never
@@ -85,7 +90,7 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
     if (!Ctor) return null;
     const u = new Ctor(text);
     u.lang = 'vi-VN';
-    u.rate = rate;
+    u.rate = Number.isFinite(rate) ? Math.min(2, Math.max(0.3, rate)) : 0.95;
     u.pitch = 1.1;
     if (voice) u.voice = voice;
     return u;
