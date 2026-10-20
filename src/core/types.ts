@@ -44,11 +44,22 @@ export interface GameMeta {
 }
 
 export interface HintScheduler {
-  /** Call `fn` after `ms` (default 6000) of inactivity, then again every `ms` until cleared. */
+  /**
+   * Call `fn` after at least `ms` (default 6000) of inactivity, then again, each time after a longer
+   * wait (the core stretches it: 12 s, 24 s, 45 s, then 90 s; `ms` can only make it longer) until cleared.
+   * Words `fn` speaks are limited (see `QUIET_POLICY` in core/hint.ts): after two spoken hints with
+   * no touch only the picture / wiggle part of `fn` is seen.
+   */
   arm(fn: () => void, ms?: number): void;
-  /** The child interacted: restart the countdown. */
+  /** The child interacted: restart the countdown (and the spoken-hint allowance). */
   touch(): void;
   clear(): void;
+  /** True while an idle hint callback runs (and for the rest of that tick). */
+  readonly active?: boolean;
+  /** Bumped by every touch. */
+  readonly epoch?: number;
+  /** Bumped by every hint firing. */
+  readonly fireId?: number;
 }
 
 export interface GameContext {
