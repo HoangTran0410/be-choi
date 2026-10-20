@@ -1,5 +1,6 @@
 import { h, svgEl } from '../../core/dom';
 import { basketSvg } from '../colors/logic';
+import { FALLBACK_BOX, countLayout } from './countgrid';
 import type { Visual } from './types';
 
 /** Draw any picture the game shows. Sizes come from CSS (`font-size` / container), never fixed pixels. */
@@ -35,15 +36,57 @@ export function renderVisual(v: Visual): HTMLElement {
       el.style.backgroundImage = `url("${v.url}")`;
       return el;
     }
-    case 'group': {
-      const size = v.n <= 3 ? 'big' : v.n <= 6 ? 'mid' : 'small';
-      return h(
-        'span',
-        { class: `lv lv-group lv-group-${size}`, 'data-n': v.n },
-        ...Array.from({ length: v.n }, () => h('span', { class: 'lv-g' }, v.v)),
+    case 'group':
+      return countGrid(
+        Array.from({ length: v.n }, () => h('span', { class: 'lv-g' }, v.v)),
+        { 'data-n': v.n },
       );
+    case 'row': {
+      const el = h('span', { class: 'lv lv-row' }, ...v.items.map(renderVisual));
+      el.style.setProperty('--n', String(Math.max(1, v.items.length)));
+      return el;
     }
-    case 'row':
-      return h('span', { class: 'lv lv-row' }, ...v.items.map(renderVisual));
   }
+}
+
+/**
+ * Lay countable cells out in rows of five that always fit the box they are put in (see
+ * countgrid.ts). The returned element fills its parent (give the parent a definite size in CSS);
+ * it re-fits itself whenever that size changes. Each cell stays its own element, so a tap on a
+ * single picture still lands on that picture.
+ */
+export function countGrid(cells: HTMLElement[], attrs: Record<string, string | number> = {}): HTMLElement {
+  const wrap = h('span', { class: 'lv-gwrap' });
+  const box = h('span', { class: 'lv lv-group', ...attrs }, wrap);
+  let last = '';
+  const fit = (): void => {
+    const w = box.clientWidth || FALLBACK_BOX.w;
+    const hh = box.clientHeight || FALLBACK_BOX.h;
+    const l = countLayout(cells.length, w, hh);
+    const key = `${l.cell}|${l.rows.join(',')}|${l.rowsAcross}`;
+    if (key === last) return;
+    last = key;
+    box.style.setProperty('--cell', `${l.cell}px`);
+    box.style.setProperty('--gap', `${l.gap}px`);
+    box.style.setProperty('--rgap', `${l.rowGap}px`);
+    box.style.setProperty('--pad', `${l.pad}px`);
+    box.style.setProperty('--across', String(l.rowsAcross));
+    box.classList.toggle('framed', l.framed);
+    let at = 0;
+    wrap.replaceChildren(
+      ...l.rows.map((count) => {
+        const row = h('span', { class: 'lv-gg' }, ...cells.slice(at, at + count));
+        at += count;
+        return row;
+      }),
+    );
+  };
+  fit();
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      if (box.isConnected) fit();
+    });
+    ro.observe(box);
+  }
+  return box;
 }
