@@ -242,6 +242,35 @@ describe('quiet voice', () => {
     g.dispose();
   });
 
+  it('a line from a game that is already gone is not said', async () => {
+    const calls: string[] = [];
+    const g = gateSpeech({
+      hint: createHint(),
+      speak: (t) => void calls.push(t),
+      speakSeq: () => Promise.resolve(true),
+      stopSpeech: () => undefined,
+    });
+    g.dispose();
+    g.speak('Chào bé');
+    expect(await g.speakSeq([{ text: 'Chào bé' }])).toBe(false);
+    vi.advanceTimersByTime(QUIET_POLICY.openingWaitMs + 200);
+    expect(calls).toEqual([]);
+  });
+
+  it('a hint that throws does not end the hints', () => {
+    const hint = createHint();
+    let n = 0;
+    hint.arm(() => {
+      n++;
+      throw new Error('game bug');
+    });
+    expect(() => vi.advanceTimersByTime(10 * S)).toThrow('game bug');
+    expect(n).toBe(1);
+    expect(() => vi.advanceTimersByTime(20 * S)).toThrow('game bug');
+    expect(n).toBe(2);
+    hint.clear();
+  });
+
   it('nothing is left running after cleanup', () => {
     const ctx = fakeContext({ quiet: true });
     idleGame(ctx);

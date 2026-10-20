@@ -84,8 +84,9 @@ export function createHint(opts: HintOptions = {}): HintScheduler {
         fn?.();
       } finally {
         active = false;
+        // Even if the game's callback throws, the next hint is still due.
+        schedule();
       }
-      schedule();
     }, delay());
   };
 
@@ -263,8 +264,12 @@ export function gateSpeech(deps: SpeechGateDeps): SpeechGate {
     });
   };
 
+  /** After the game is gone, a late line from it (a leaked timer) must not talk over the next one. */
+  let disposed = false;
+
   return {
     speak(text, opts) {
+      if (disposed) return;
       const interrupt = opts?.interrupt ?? true;
       if (opening()) {
         abortSilent();
@@ -282,6 +287,7 @@ export function gateSpeech(deps: SpeechGateDeps): SpeechGate {
       deps.speak(text, opts);
     },
     speakSeq(parts) {
+      if (disposed) return Promise.resolve(false);
       if (opening()) {
         abortSilent();
         return new Promise<boolean>((resolve) => {
@@ -305,6 +311,7 @@ export function gateSpeech(deps: SpeechGateDeps): SpeechGate {
       lastTouchAt = now();
     },
     dispose() {
+      disposed = true;
       abortSilent();
       abortWait();
     },

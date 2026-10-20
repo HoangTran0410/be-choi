@@ -399,7 +399,10 @@ export function createAudio(): AudioEngine {
           .catch(() => undefined),
       );
     }
-    const job = Promise.all(jobs).then(() => undefined);
+    const job = Promise.all(jobs).then(() => {
+      // Nothing landed (offline, a bad response): forget the attempt so the next tap tries again.
+      if (!takes.get(kind)?.length) loading.delete(kind);
+    });
     loading.set(kind, job);
     return job;
   }
@@ -1221,9 +1224,11 @@ export function createAudio(): AudioEngine {
       let stopped = false;
       void job.then((buf) => {
         // Too late to be in time: a missing note is better than one out of time.
-        if (!buf || stopped || c.currentTime > t0 + LATE_NOTE_S) return;
+        if (stopped || c.currentTime > t0 + LATE_NOTE_S) return;
         try {
-          voice = strike(c, buf, level, Math.max(t0, c.currentTime), dur, damp);
+          // No buffer back (the worker died): still in time, so render it here.
+          const ready = buf ?? keepInst(key, c, renderInstrument(id, f, v, c.sampleRate, { dur }));
+          voice = strike(c, ready, level, Math.max(t0, c.currentTime), dur, damp);
         } catch {
           /* the context went away while it rendered */
         }
@@ -1282,7 +1287,11 @@ export function createAudio(): AudioEngine {
     if (!job) return null;
     const done = job.then((data) => {
       instJobs.delete(key);
-      return data ? keepInst(key, c, data) : null;
+      try {
+        return data ? keepInst(key, c, data) : null;
+      } catch {
+        return null; // the context closed or ran out of memory while it rendered
+      }
     });
     instJobs.set(key, done);
     return done;
@@ -1348,7 +1357,11 @@ export function createAudio(): AudioEngine {
     if (!job) return null;
     const done = job.then((data) => {
       catJobs.delete(key);
-      return data ? keepCat(key, c, data) : null;
+      try {
+        return data ? keepCat(key, c, data) : null;
+      } catch {
+        return null; // the context closed or ran out of memory while it rendered
+      }
     });
     catJobs.set(key, done);
     return done;
@@ -1483,7 +1496,11 @@ export function createAudio(): AudioEngine {
       job = fetch(`${import.meta.env.BASE_URL}${url}`)
         .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
         .then((raw) => c.decodeAudioData(raw))
-        .catch(() => null);
+        .catch(() => {
+          // A failed fetch is not kept: the next time this loop is wanted it is fetched again.
+          if (loops.get(url) === job) loops.delete(url);
+          return null;
+        });
     loops.set(url, job);
     while (loops.size > LOOPS_KEPT) loops.delete(loops.keys().next().value as string);
     return job;
