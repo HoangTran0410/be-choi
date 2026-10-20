@@ -14,6 +14,27 @@
 
 export type Backend = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
+/**
+ * Key aliases: while one is set, everything that reads or writes `from` really
+ * touches `to`. A game that folds older games together uses this to run their
+ * code unchanged on its own copy of their data, so the older games' saves are
+ * never modified. `onWrite` hears every write to the alias (the new raw text).
+ */
+const aliases = new Map<string, { to: string; onWrite?: (raw: string) => void }>();
+
+/** Point `from` at `to` until the returned function is called. */
+export function aliasKey(from: string, to: string, onWrite?: (raw: string) => void): () => void {
+  const entry = { to, onWrite };
+  aliases.set(from, entry);
+  return () => {
+    if (aliases.get(from) === entry) aliases.delete(from);
+  };
+}
+
+function resolve(key: string): string {
+  return aliases.get(key)?.to ?? key;
+}
+
 function defaultBackend(): Backend | null {
   try {
     return typeof localStorage !== 'undefined' ? localStorage : null;
@@ -25,7 +46,7 @@ function defaultBackend(): Backend | null {
 /** Raw string under `key`, or null if absent or storage is unavailable. */
 export function readRaw(key: string, storage: Backend | null = defaultBackend()): string | null {
   try {
-    return storage?.getItem(key) ?? null;
+    return storage?.getItem(resolve(key)) ?? null;
   } catch {
     return null;
   }
@@ -35,7 +56,12 @@ export function readRaw(key: string, storage: Backend | null = defaultBackend())
 export function writeRaw(key: string, value: string, storage: Backend | null = defaultBackend()): boolean {
   try {
     if (!storage) return false;
-    storage.setItem(key, value);
+    storage.setItem(resolve(key), value);
+    try {
+      aliases.get(key)?.onWrite?.(value);
+    } catch {
+      /* a listener must never break a save */
+    }
     return true;
   } catch {
     return false;
@@ -46,7 +72,7 @@ export function writeRaw(key: string, value: string, storage: Backend | null = d
 export function removeRaw(key: string, storage: Backend | null = defaultBackend()): boolean {
   try {
     if (!storage) return false;
-    storage.removeItem(key);
+    storage.removeItem(resolve(key));
     return true;
   } catch {
     return false;

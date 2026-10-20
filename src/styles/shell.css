@@ -23,9 +23,13 @@
   font-size: clamp(15px, 3.2vmin, 26px);
   font-weight: 800;
   color: var(--ink);
-  white-space: nowrap;
+  /* A long name (Thế giới nhỏ của bé) takes two lines rather than ending in "…". */
+  line-height: 1.15;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /*

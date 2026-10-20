@@ -14,17 +14,19 @@ import { createSpeech } from './speech';
 
 function fakeSynth(voices: { lang: string; name: string }[]) {
   const spoken: string[] = [];
+  const rates: number[] = [];
   const cancel = vi.fn();
   const synth = {
     getVoices: () => voices as SpeechSynthesisVoice[],
     speak: (u: SpeechSynthesisUtterance) => {
       spoken.push(u.text);
+      rates.push(u.rate);
     },
     cancel,
     addEventListener: vi.fn(),
     speaking: false,
   } as unknown as SpeechSynthesis;
-  return { synth, spoken, cancel };
+  return { synth, spoken, cancel, rates };
 }
 
 describe('speech', () => {
@@ -53,5 +55,13 @@ describe('speech', () => {
     s.setEnabled(false);
     s.speak('ba');
     expect(spoken).toEqual(['một', 'hai']);
+  });
+  it('speaks slower on request and keeps the rate within sane bounds', () => {
+    const { synth, rates } = fakeSynth([{ lang: 'vi-VN', name: 'Linh' }]);
+    const s = createSpeech(synth);
+    s.speak('a');
+    s.speak('b', { rate: 0.7 });
+    s.speak('c', { rate: 0.01 });
+    expect(rates).toEqual([0.95, 0.7, 0.4]);
   });
 });

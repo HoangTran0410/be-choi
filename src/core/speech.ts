@@ -9,8 +9,11 @@ export interface Speech {
   setEnabled(on: boolean): void;
   /** True when a Vietnamese voice exists. */
   available(): boolean;
-  /** `interrupt` (default true) cancels whatever is currently being spoken. */
-  speak(text: string, opts?: { interrupt?: boolean }): void;
+  /**
+   * `interrupt` (default true) cancels whatever is currently being spoken.
+   * `rate` is the speed (default 0.95); games that teach a name or a count go slower.
+   */
+  speak(text: string, opts?: { interrupt?: boolean; rate?: number }): void;
   cancel(): void;
 }
 
@@ -38,12 +41,12 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
     /* older engines expose onvoiceschanged only */
   }
 
-  function makeUtterance(text: string): SpeechSynthesisUtterance | null {
+  function makeUtterance(text: string, rate = 0.95): SpeechSynthesisUtterance | null {
     const Ctor = (globalThis as { SpeechSynthesisUtterance?: typeof SpeechSynthesisUtterance }).SpeechSynthesisUtterance;
     if (!Ctor) return null;
     const u = new Ctor(text);
     u.lang = 'vi-VN';
-    u.rate = 0.95;
+    u.rate = Math.min(1.2, Math.max(0.4, Number.isFinite(rate) ? rate : 0.95));
     u.pitch = 1.1;
     if (voice) u.voice = voice;
     return u;
@@ -73,7 +76,7 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
       if (!voice) return;
       try {
         if (opts.interrupt ?? true) synth.cancel();
-        const u = makeUtterance(text);
+        const u = makeUtterance(text, opts.rate);
         if (u) synth.speak(u);
       } catch {
         /* ignore */

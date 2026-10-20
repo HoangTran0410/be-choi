@@ -54,8 +54,11 @@ export interface GameContext {
   /** Play area. `position: relative`, `touch-action: none`, fills the screen under the top bar. */
   stage: HTMLElement;
   audio: AudioEngine;
-  /** Vietnamese text-to-speech. No-op when voice is off or unavailable. */
-  speak(text: string): void;
+  /**
+   * Vietnamese text-to-speech. No-op when voice is off or unavailable.
+   * `rate` slows the voice down (default 0.95) for names and counting.
+   */
+  speak(text: string, opts?: { rate?: number }): void;
   /** Confetti + jingle + praise. Resolves after ~1.6 s. */
   celebrate(): Promise<void>;
   hint: HintScheduler;
