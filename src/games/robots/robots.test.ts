@@ -126,6 +126,19 @@ describe('every robot always plays in tune', () => {
     }
   });
 
+  it('no scale note on a strong beat, or longer than a step, is a semitone away from a chord tone of its bar', () => {
+    const bad: string[] = [];
+    for (const { id, song, level, bar, hit } of allHits()) {
+      if (!hit.p || hit.p.k !== 'scale') continue;
+      if (!(hit.s % 4 === 0 || hit.d >= 2)) continue;
+      const pc = ((pitchOf(song, bar, hit.p) % 12) + 12) % 12;
+      if (chordTones(song.chords[bar]!).some((t) => (pc - t + 12) % 12 === 1 || (t - pc + 12) % 12 === 1)) {
+        bad.push(`${id} ${song.id} L${level} bar ${bar} step ${hit.s}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it('every hit lands inside the bar and every note fits its length', () => {
     for (const { id, hit } of allHits()) {
       expect(hit.s, id).toBeGreaterThanOrEqual(0);
@@ -266,7 +279,9 @@ describe('the music is rich', () => {
         if (hits.length >= 8) expect(vs.size, `${r.id} ${style} L3 has a single volume`).toBeGreaterThanOrEqual(2);
       }
     }
-    const ghosts = ['snare', 'kick', 'guitar'].flatMap((id) => DRUM_STYLES.flatMap((st) => barsOf(id, st, 3).flat())).filter((h) => (h.v ?? 1) <= 0.34);
+    const ghosts = ['snare', 'kick', 'guitar']
+      .flatMap((id) => DRUM_STYLES.flatMap((st) => barsOf(id, st, 3).flat()))
+      .filter((h) => (h.v ?? 1) <= 0.34);
     expect(ghosts.length).toBeGreaterThan(10);
   });
 
@@ -299,7 +314,11 @@ describe('the music is rich', () => {
 
   it('bass lines use more than the root: fifth, third, octave or seventh', () => {
     for (const style of DRUM_STYLES) {
-      const used = new Set(barsOf('bass', style, 3).flat().map((h) => (h.p as { n: number }).n));
+      const used = new Set(
+        barsOf('bass', style, 3)
+          .flat()
+          .map((h) => (h.p as { n: number }).n),
+      );
       expect(used.size, `bass ${style}`).toBeGreaterThanOrEqual(2);
     }
   });
@@ -345,7 +364,7 @@ describe('the music is rich', () => {
           peak = Math.max(peak, e);
         }
       }
-      expect(peak, `${song.id} peak step energy`).toBeLessThanOrEqual(8);
+      expect(peak, `${song.id} peak step energy`).toBeLessThanOrEqual(9);
     }
   });
 

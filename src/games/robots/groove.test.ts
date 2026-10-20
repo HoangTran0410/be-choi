@@ -109,19 +109,19 @@ describe('harmony', () => {
         expect(new Set(chordTones(c)).size).toBe(4);
       }
     }
-    // Dominant seventh on G in the pop loop: F natural; major seventh on C: B.
+    // Dominant seventh on G in the pop loop: F natural; C gets its sixth (A) rather than a clashing B.
     expect(chordTones(song('fun').chords[3]!)).toEqual([7, 11, 2, 5]);
-    expect(chordTones(song('fun').chords[0]!)).toEqual([0, 4, 7, 11]);
+    expect(chordTones(song('fun').chords[0]!)).toEqual([0, 4, 7, 9]);
     // The sus-2 chord replaces the third with the second.
     expect(chordPcs({ root: 2, quality: 'sus' })).toEqual([2, 4, 9]);
   });
 
   it('reads the colour tone and the third and colour tone in the bass', () => {
     const fun = song('fun');
-    expect(pitchOf(fun, 0, { k: 'ext', oct: 0 })).toBe(71); // B over C
+    expect(pitchOf(fun, 0, { k: 'ext', oct: 0 })).toBe(69); // A (the sixth) over C
     expect(pitchOf(fun, 3, { k: 'ext', oct: 0 })).toBe(65); // F over G
     expect(pitchOf(fun, 0, { k: 'bass', n: 3, oct: 0 })).toBe(52); // E
-    expect(pitchOf(fun, 0, { k: 'bass', n: 4, oct: 0 })).toBe(59); // B
+    expect(pitchOf(fun, 0, { k: 'bass', n: 4, oct: 0 })).toBe(57); // A
     expect(pitchOf(fun, 1, { k: 'bass', n: 3, oct: 0 })).toBe(48); // C over A minor
   });
 });
@@ -469,7 +469,11 @@ describe('groove scheduler', () => {
 
 describe('the sound of the groove', () => {
   it('plays a robot with the instrument of the song, and falls back to its timbre', () => {
-    for (const [songId, voice] of [['fun', 'marimba'], ['calm', 'kalimba'], ['east', 'handpan']] as const) {
+    for (const [songId, voice] of [
+      ['fun', 'marimba'],
+      ['calm', 'kalimba'],
+      ['east', 'handpan'],
+    ] as const) {
       const r = rig();
       const g = createGroove(r.deps);
       g.setSong(songId);

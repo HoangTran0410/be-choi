@@ -60,14 +60,14 @@ const min = (root: number, ext?: number): Chord => ({ root, quality: 'min', ext 
 const sus = (root: number, ext?: number): Chord => ({ root, quality: 'sus', ext });
 
 export const SONGS: readonly Song[] = [
-  // I – vi – IV – V(7): the classic pop loop
-  { id: 'fun', icon: '🎈', bpm: 112, tonic: 0, chords: [maj(0, 11), min(9, 10), maj(5, 11), maj(7, 10)], style: 'pop', swing: 0 },
+  // I(6) – vi7 – IV(6) – V7: the classic pop loop
+  { id: 'fun', icon: '🎈', bpm: 112, tonic: 0, chords: [maj(0, 9), min(9, 10), maj(5, 9), maj(7, 10)], style: 'pop', swing: 0 },
   // vi – IV – I – V in D with a four-on-the-floor kick
-  { id: 'disco', icon: '🪩', bpm: 120, tonic: 2, chords: [min(11, 10), maj(7, 11), maj(2, 9), maj(9, 10)], style: 'disco', swing: 0 },
-  // a lazy lo-fi / lullaby loop: I – V7 – vi – IV with sevenths and a lilt
-  { id: 'calm', icon: '🌙', bpm: 78, tonic: 5, chords: [maj(5, 11), maj(0, 10), min(2, 10), maj(10, 11)], style: 'soft', swing: 0.42 },
-  // ii – V – I – vi in G: the bossa / samba turnaround
-  { id: 'latin', icon: '💃', bpm: 104, tonic: 7, chords: [min(9, 10), maj(2, 10), maj(7, 11), min(4, 10)], style: 'latin', swing: 0 },
+  { id: 'disco', icon: '🪩', bpm: 120, tonic: 2, chords: [min(11, 10), maj(7, 9), maj(2, 9), maj(9, 10)], style: 'disco', swing: 0 },
+  // a lazy lo-fi / lullaby loop: I – V – vi – IV with sixths and a lilt
+  { id: 'calm', icon: '🌙', bpm: 78, tonic: 5, chords: [maj(5, 9), maj(0, 9), min(2, 10), maj(10, 9)], style: 'soft', swing: 0.42 },
+  // ii7 – V7 – I(6) – iii7 in G: the bossa / samba turnaround
+  { id: 'latin', icon: '💃', bpm: 104, tonic: 7, chords: [min(9, 10), maj(2, 10), maj(7, 9), min(4, 10)], style: 'latin', swing: 0 },
   // five-note (ngũ cung) tune over open sus-2 chords in A
   { id: 'east', icon: '🏮', bpm: 92, tonic: 9, chords: [maj(9, 9), min(6, 10), sus(2, 9), sus(4, 9)], style: 'east', swing: 0 },
 ];
@@ -198,7 +198,9 @@ function voicings(song: Song, sev: boolean): number[][] {
   const cands = song.chords.map((c) => candidates(sev ? chordTones(c) : chordPcs(c)));
   const cost = (a: number[], b: number[]): number => a.reduce((t, n, i) => t + Math.abs(n - (b[i] as number)), 0);
   const mean = (a: number[]): number => a.reduce((t, n) => t + n, 0) / a.length;
-  let cur: number[][] = cands.map((cs) => [...cs].sort((a, b) => Math.abs(mean(a) - VOICE_CENTER) - Math.abs(mean(b) - VOICE_CENTER))[0] as number[]);
+  let cur: number[][] = cands.map(
+    (cs) => [...cs].sort((a, b) => Math.abs(mean(a) - VOICE_CENTER) - Math.abs(mean(b) - VOICE_CENTER))[0] as number[],
+  );
   // Go round the loop a few times so the last bar also leads back into the first.
   for (let pass = 0; pass < 3; pass++) {
     cur = cur.map((_, b) => {
@@ -206,7 +208,10 @@ function voicings(song: Song, sev: boolean): number[][] {
       const next = cur[(b + 1) % BARS] as number[];
       return [...(cands[b] as number[][])].sort(
         (x, y) =>
-          cost(x, prev) + 0.7 * cost(x, next) + 0.25 * Math.abs(mean(x) - VOICE_CENTER) - (cost(y, prev) + 0.7 * cost(y, next) + 0.25 * Math.abs(mean(y) - VOICE_CENTER)),
+          cost(x, prev) +
+          0.7 * cost(x, next) +
+          0.25 * Math.abs(mean(x) - VOICE_CENTER) -
+          (cost(y, prev) + 0.7 * cost(y, next) + 0.25 * Math.abs(mean(y) - VOICE_CENTER)),
       )[0] as number[];
     });
   }
@@ -499,7 +504,8 @@ export function createGroove(deps: GrooveDeps): Groove {
           const voice: Voice = sp.player.voice?.(song.id) ?? sp.player.timbre;
           const freq = midiFreq(midi);
           const len = Math.max(MIN_NOTE_S, ((h.d * ms) / 1000) * RING);
-          if (isInstrument(voice) && deps.audio.inst) deps.audio.inst(voice, freq, hard, Math.max(len, MIN_STRUCK_S), late, true, vol * BAND_GAIN);
+          if (isInstrument(voice) && deps.audio.inst)
+            deps.audio.inst(voice, freq, hard, Math.max(len, MIN_STRUCK_S), late, true, vol * BAND_GAIN);
           else deps.audio.note(freq, len, isInstrument(voice) ? sp.player.timbre : voice, late, mix);
           hits.push({ slot, midi });
         }
@@ -602,7 +608,7 @@ export function createGroove(deps: GrooveDeps): Groove {
     phase(now) {
       if (!last) return null;
       const frac = Math.min(1.5, Math.max(0, (now - last.t) / last.ms));
-      return { beat: (((last.step + frac) / 4) % 4 + 4) % 4, bar: last.bar, song: last.song, idx: last.idx };
+      return { beat: ((((last.step + frac) / 4) % 4) + 4) % 4, bar: last.bar, song: last.song, idx: last.idx };
     },
     tick,
   };

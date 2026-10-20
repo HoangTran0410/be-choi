@@ -69,7 +69,13 @@ export function hintLines(what: Missing): Line[] {
   return [{ text: text[what], rate: 0.8, gap: 0 }];
 }
 
-const SONG_NAMES = { fun: 'Bài vui.', disco: 'Disco robot.', calm: 'Nhạc êm.', latin: 'Nhạc nhảy Latin.', east: 'Nhạc phương Đông.' } as const;
+const SONG_NAMES = {
+  fun: 'Bài vui.',
+  disco: 'Disco robot.',
+  calm: 'Nhạc êm.',
+  latin: 'Nhạc nhảy Latin.',
+  east: 'Nhạc phương Đông.',
+} as const;
 
 /** The name of the song just chosen. */
 export function songLines(id: keyof typeof SONG_NAMES): Line[] {

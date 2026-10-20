@@ -11,7 +11,19 @@ import { makeTappable } from '../../core/tap';
 import type { GameContext } from '../../core/types';
 import { createRig } from './art';
 import { createDnd, type Drop, type Source } from './dnd';
-import { SONGS, createGroove, findSong, midiFreq, pitchOf, stepMs, type Level, type SongId } from './groove';
+import {
+  BAND_GAIN,
+  DEFAULT_VEL,
+  SONGS,
+  createGroove,
+  findSong,
+  isInstrument,
+  midiFreq,
+  pitchOf,
+  stepMs,
+  type Level,
+  type SongId,
+} from './groove';
 import { createLineup } from './lineup';
 import { QUESTS, currentQuest, loadProgress, newlyDone, saveProgress, unlockedIds, type Progress, type Quest } from './quests';
 import { barsOf, findRobot, playerFor, type RobotDef, type Role } from './robots';
@@ -198,10 +210,24 @@ export function mountBand(ctx: GameContext): void {
     const ms = stepMs(song);
     let hits = (barsOf(def.id, song.style, 2)[0] ?? []).filter((x) => x.s < 8);
     if (groove.running) hits = hits.slice(0, 1);
+    // The robot as it will sound in this song: its instrument for the song and its place in the mix.
+    const player = playerFor(def);
+    const voice = player.voice?.(song.id) ?? def.timbre;
+    const vol = typeof player.vol === 'function' ? player.vol(song.id) : (player.vol ?? 1);
+    const level = Math.min(1.2, vol * BAND_GAIN * 2);
     for (const x of hits) {
       const delay = (x.s * ms) / 1000;
-      if (x.drum) ctx.audio.drum(x.drum, delay);
-      else if (x.p) ctx.audio.note(midiFreq(pitchOf(song, 0, x.p)), Math.max(0.15, (x.d * ms) / 1000), def.timbre, delay);
+      const hard = x.v ?? DEFAULT_VEL;
+      if (x.drum) {
+        const world = player.perc?.(song.id, x.drum);
+        if (world) ctx.audio.inst(world, undefined, hard, undefined, delay, false, level);
+        else ctx.audio.drum(x.drum, delay, hard * level);
+      } else if (x.p) {
+        const freq = midiFreq(pitchOf(song, 0, x.p));
+        const len = Math.max(0.15, (x.d * ms) / 1000);
+        if (isInstrument(voice)) ctx.audio.inst(voice, freq, hard, Math.max(len, 0.45), delay, true, level);
+        else ctx.audio.note(freq, len, voice, delay, hard * level);
+      }
     }
   }
 
