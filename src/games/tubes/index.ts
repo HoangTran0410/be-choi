@@ -46,8 +46,8 @@ interface Press {
  * so the board can never be locked up. Finishing one bumps the level: more balls,
  * more tubes, more colours.
  */
-function start(ctx: GameContext): void {
-  let level = 0;
+export function startTubes(ctx: GameContext, startLevel = 0): void {
+  let level = startLevel;
   /** Balls per colour, and the capacity of one tube. */
   let height = 0;
   let board: Board = [];
@@ -343,6 +343,10 @@ function start(ctx: GameContext): void {
   });
 
   deal();
+}
+
+function start(ctx: GameContext): void {
+  startTubes(ctx);
 }
 
 const game: GameModule = { ...meta, start };

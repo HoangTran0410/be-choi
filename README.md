@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -11,11 +11,13 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 |---|---|
 | 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
-| 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
+| 🧩 **Suy nghĩ** | 🧠 Trí nhớ & suy nghĩ · 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
 
 Vài trò nổi bật:
+
+- **🧠 Trí nhớ & suy nghĩ** — một "đảo kho báu" có 5 trạm trong cùng một khung: lật thẻ tìm đôi (có cả ảnh gia đình của bé nếu bố mẹ đã thêm), xếp bi màu, nhớ dãy hình/màu/con vật có tiếng, tìm đồ biến mất, tìm khác biệt. Độ khó tự tăng khi bé làm tốt liên tiếp và nhẹ đi khi bé vấp; mỗi 3 ⭐ mở trạm/đảo/bạn đồng hành/đồ nghề mới. Không thua, không đếm giờ; tiến độ được lưu. Các game lẻ cũ (Lật thẻ, Xếp bi màu…) vẫn chơi được ở nhóm "Game lẻ".
 
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
 - **🌦️ Bé tạo cảnh** — 47 âm thanh nền (mưa, tuyết, sóng biển, thác nước, vườn ong, hội chợ, vũ trụ…) trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, tuyết phủ đồi, pháo hoa có đuôi, đu quay quay, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
