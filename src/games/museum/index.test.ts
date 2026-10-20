@@ -83,10 +83,29 @@ describe('museum: a table', () => {
     expect(ctx.stage.querySelector('.inst svg')).not.toBeNull();
     expect(ctx.stage.querySelectorAll('.mu-pill').length).toBe(4);
     vi.advanceTimersByTime(500);
-    expect(ctx.sequenced.join(' ')).toContain('đàn, ma, rim, ba');
+    // only the name of the instrument: no "Đây là", no group
+    expect(ctx.sequenced).toEqual(['đàn, ma, rim, ba']);
     click(ctx.stage.querySelector('.mu-back'));
     expect(ctx.stage.querySelector('.mu-room')).not.toBeNull();
     expect(ctx.stage.querySelector('.mu-table')).toBeNull();
+  });
+
+  it('says nothing while the child plays: the music is the point', () => {
+    game.start(ctx);
+    click(tileOf('marimba'));
+    vi.advanceTimersByTime(500);
+    const said = ctx.sequenced.length;
+    const spoken = ctx.spoken.length;
+    const root = ctx.stage.querySelector('.inst')!;
+    for (let i = 0; i < 12; i++) {
+      now += 300;
+      root.dispatchEvent(ptr('pointerdown', 60 + (i % 3) * 20, 80 + i * 30));
+      root.dispatchEvent(ptr('pointermove', 90, 200 + i * 10));
+      root.dispatchEvent(ptr('pointerup', 90, 200));
+      vi.advanceTimersByTime(300);
+    }
+    expect(ctx.sequenced.length).toBe(said);
+    expect(ctx.spoken.length).toBe(spoken);
   });
 
   it('earns the stamp by playing: three places, fast, slow, soft and loud', () => {

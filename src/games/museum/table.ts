@@ -1,6 +1,6 @@
 import { h } from '../../core/dom';
-import { sayText, sayWord } from '../../core/say';
-import { findEntry, groupOf, nameParts, thumbSvg } from './catalog';
+import { sayText } from '../../core/say';
+import { findEntry, nameParts, thumbSvg } from './catalog';
 import { createInstrument } from './instruments';
 import { placeOf, addStamp, createMissions, hasStamp, MISSIONS, type MissionId } from './logic';
 import { button, timers, type Deps, type View } from './ui';
@@ -29,17 +29,11 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
   }
   const t = timers();
   let alive = true;
-  const group = groupOf(en.group);
 
   const back = button('mu-back', 'Về phòng bảo tàng', '←', () => go.room());
   const thumb = h('span', { class: 'mu-name-thumb' });
   thumb.innerHTML = thumbSvg(en.kind);
-  const name = h(
-    'div',
-    { class: 'mu-name', 'aria-label': en.name },
-    thumb,
-    h('span', { class: 'mu-name-g', 'aria-hidden': 'true' }, group.emoji),
-  );
+  const name = h('div', { class: 'mu-name', 'aria-label': en.name }, thumb);
   const speakBtn = button('mu-say', 'Nghe tên nhạc cụ', '🔊', () => say());
   const pills = new Map<MissionId, HTMLElement>();
   const pillBox = h('div', { class: 'mu-missions', 'aria-hidden': 'true' });
@@ -74,7 +68,7 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
   }
 
   function say(): void {
-    void ctx.speakSeq(nameParts(en!, group));
+    void ctx.speakSeq(nameParts(en!));
   }
 
   function award(): void {
@@ -84,7 +78,7 @@ export function mountTable(host: HTMLElement, entryId: string, deps: Deps): View
     overlay.hidden = false;
     overlay.innerHTML = `<div class="mu-stamp"><span class="mu-stamp-art">${thumbSvg(en!.kind)}</span><span class="mu-stamp-star">⭐</span></div>`;
     ctx.audio.jingle();
-    void sayWord(ctx, en!.say, ['Giỏi quá!', 'Bé được một tem nhé.']);
+    void sayText(ctx, 'Giỏi quá!');
     void ctx.celebrate().then(() => undefined);
     t.later(() => {
       overlay.hidden = true;

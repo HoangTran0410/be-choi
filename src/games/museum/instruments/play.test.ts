@@ -64,12 +64,7 @@ describe('createInstrument', () => {
   it('plays the note under the finger, and a slide across the keys plays each key crossed', () => {
     const note = vi.spyOn(ctx.audio, 'note');
     const { inst, events, root } = make('piano');
-    const keys = inst
-      .board()
-      .zones.filter((z) => !z.small)
-      .sort((a, b) => at(a).x - at(b).x);
-    const w = inst.board().portrait;
-    expect(w).toBe(true); // jsdom has no layout, so the fallback board is portrait
+    expect(inst.board().portrait).toBe(true); // jsdom has no layout, so the fallback board is portrait
     const sorted = inst
       .board()
       .zones.filter((z) => !z.small)
@@ -77,10 +72,43 @@ describe('createInstrument', () => {
     down(root, sorted[0]!);
     expect(note).toHaveBeenCalledTimes(1);
     expect(voiceMidi(events[0]!.voice!)).toBe(60);
+    // along the middle of the keys the finger runs over the black keys too, like a real glissando
     for (let i = 1; i < 4; i++) move(root, at(sorted[i]!).x, at(sorted[i]!).y);
     up(root);
-    expect(events.map((e) => voiceMidi(e.voice!))).toEqual([60, 62, 64, 65]);
-    void keys;
+    vi.advanceTimersByTime(300);
+    expect(events.map((e) => voiceMidi(e.voice!))).toEqual([60, 61, 62, 63, 64, 65]);
+  });
+
+  it('a flick that jumps over many keys still plays every key in between, in order, one after another', () => {
+    const { inst, events, root } = make('piano');
+    const white = inst
+      .board()
+      .zones.filter((z) => !z.small)
+      .sort((a, b) => at(b).y - at(a).y);
+    // slide along the bottom end of the keys (no black keys there) in one single jump from C to the next C
+    const edge = (z: Zone) => ({ x: z.shape.t === 'rect' ? z.shape.x + z.shape.w * 0.92 : 0, y: at(z).y });
+    root.dispatchEvent(ptr('pointerdown', edge(white[0]!).x, edge(white[0]!).y));
+    move(root, edge(white[7]!).x, edge(white[7]!).y);
+    expect(events.length).toBeLessThan(8); // not all at once: the rest follow a moment later
+    vi.advanceTimersByTime(400);
+    up(root);
+    expect(events.map((e) => voiceMidi(e.voice!))).toEqual([60, 62, 64, 65, 67, 69, 71, 72]);
+  });
+
+  it('a finger that jitters across the edge of a key does not stutter the note', () => {
+    let t = 50_000;
+    vi.spyOn(performance, 'now').mockImplementation(() => t);
+    const { inst, events, root } = make('marimba');
+    const bars = inst.board().zones;
+    const a = at(bars[0]!);
+    const b = at(bars[1]!);
+    down(root, bars[0]!);
+    for (let i = 0; i < 6; i++) {
+      t += 8;
+      move(root, i % 2 ? a.x : b.x, i % 2 ? a.y : b.y);
+    }
+    up(root);
+    expect(events.length).toBeLessThanOrEqual(3);
   });
 
   it('plays quick taps louder than slow ones', () => {
