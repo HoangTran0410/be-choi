@@ -1136,11 +1136,16 @@ export function createAudio(): AudioEngine {
     });
   }
 
+  /** How late a note rendered off the main thread may still start (s). */
+  const LATE_NOTE_S = 0.03;
+  /** OfflineAudioContext where it exists: offline renders (the level scripts) render notes in place. */
+  const OfflineAudioContextCtor = (): typeof OfflineAudioContext =>
+    (globalThis as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext ?? (class {} as unknown as typeof OfflineAudioContext);
+
   /** Rendered notes, most recently used last: a repeated tap costs no DSP. */
   const instCache = new Map<string, AudioBuffer>();
   const INST_KEPT = 128;
 
-  const instPending = new Set<string>();
 
   function keepInst(key: string, c: Ctx, data: Float32Array): AudioBuffer {
     const buf = c.createBuffer(1, data.length, c.sampleRate);
@@ -1158,61 +1163,88 @@ export function createAudio(): AudioEngine {
       const f = freq > 0 ? freq : INSTRUMENT_REF[id];
       // Only the held instruments (organ, reeds, pan flute) render differently for a different length.
       const key = `${id}|${Math.round(f * 10)}|${v}|${dur && HELD.has(id) ? (Math.round(dur * 20) / 20).toFixed(2) : ''}`;
-      let buf = instCache.get(key);
-      if (buf) instCache.delete(key);
-      else {
-        const job = renderOffThread({ kind: 'inst', inst: id, freq: f, vel: v, sampleRate: c.sampleRate, dur });
-        if (job) {
-          // Not rendered yet: ask for it, and let this first strike be a plain struck tone.
-          if (!instPending.has(key)) {
-            instPending.add(key);
-            void job.then((data) => {
-              instPending.delete(key);
-              if (data) keepInst(key, c, data);
-            });
-          }
-          tone('triangle', f, Math.min(0.5, dur ?? 0.4), { gain: 0.4, attack: 0.003 });
-          return null;
-        }
-        buf = keepInst(key, c, renderInstrument(id, f, v, c.sampleRate, { dur }));
-      }
-      instCache.delete(key);
-      instCache.set(key, buf);
-      while (instCache.size > INST_KEPT) instCache.delete(instCache.keys().next().value as string);
-      const src = c.createBufferSource();
-      src.buffer = buf;
-      // A hair of random pitch and level, so ten taps are not one sample ten times.
-      src.playbackRate.value = 1 + (Math.random() - 0.5) * 0.006;
-      const g = c.createGain();
-      g.gain.value = trim * (0.95 + Math.random() * 0.1);
-      src.connect(g).connect(master);
+      const level = trim * (0.95 + Math.random() * 0.1);
       const t0 = startTime(c);
-      src.start(t0);
-      if (damp && dur && dur > 0) {
-        // A struck note rings on; let it go when its written length is up so chords stay clean.
-        const level = g.gain.value;
-        g.gain.setValueAtTime(level, t0 + dur);
-        g.gain.linearRampToValueAtTime(0, t0 + dur + 0.3);
-        src.stop(t0 + dur + 0.35);
+      const cached = instCache.get(key);
+      if (cached) {
+        instCache.delete(key);
+        instCache.set(key, cached);
+        return strike(c, cached, level, t0, dur, damp);
       }
+      // A note asked for ahead of time (a sequencer's) is rendered off the main thread and
+      // started at its time when ready; one for right now (a tap) is rendered here, so the
+      // child hears the instrument and not a stand-in.
+      const job = shift > 0 && !(c instanceof OfflineAudioContextCtor()) ? renderInst(key, c, id, f, v, dur) : null;
+      if (!job) return strike(c, keepInst(key, c, renderInstrument(id, f, v, c.sampleRate, { dur })), level, t0, dur, damp);
+      let voice: InstVoice | null = null;
       let stopped = false;
+      void job.then((buf) => {
+        // Too late to be in time: a missing note is better than one out of time.
+        if (!buf || stopped || c.currentTime > t0 + LATE_NOTE_S) return;
+        try {
+          voice = strike(c, buf, level, Math.max(t0, c.currentTime), dur, damp);
+        } catch {
+          /* the context went away while it rendered */
+        }
+      });
       return {
         stop() {
-          if (stopped) return;
           stopped = true;
-          try {
-            const now = c.currentTime;
-            g.gain.setValueAtTime(g.gain.value, now);
-            g.gain.linearRampToValueAtTime(0, now + 0.06);
-            src.stop(now + 0.08);
-          } catch {
-            /* already over */
-          }
+          voice?.stop();
         },
       };
     } catch {
       return null;
     }
+  }
+
+  /** One rendered note into the mix at `t0`. */
+  function strike(c: Ctx, buf: AudioBuffer, level: number, t0: number, dur: number | undefined, damp: boolean): InstVoice | null {
+    if (!master) return null;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    // A hair of random pitch and level, so ten taps are not one sample ten times.
+    src.playbackRate.value = 1 + (Math.random() - 0.5) * 0.006;
+    const g = c.createGain();
+    g.gain.value = level;
+    src.connect(g).connect(master);
+    src.start(t0);
+    if (damp && dur && dur > 0) {
+      // A struck note rings on; let it go when its written length is up so chords stay clean.
+      g.gain.setValueAtTime(level, t0 + dur);
+      g.gain.linearRampToValueAtTime(0, t0 + dur + 0.3);
+      src.stop(t0 + dur + 0.35);
+    }
+    let stopped = false;
+    return {
+      stop() {
+        if (stopped) return;
+        stopped = true;
+        try {
+          const now = c.currentTime;
+          g.gain.setValueAtTime(g.gain.value, now);
+          g.gain.linearRampToValueAtTime(0, now + 0.06);
+          src.stop(now + 0.08);
+        } catch {
+          /* already over */
+        }
+      },
+    };
+  }
+
+  /** The same note asked for twice while it renders shares one job. */
+  const instJobs = new Map<string, Promise<AudioBuffer | null>>();
+  function renderInst(key: string, c: Ctx, id: InstrumentId, freq: number, vel: number, dur?: number): Promise<AudioBuffer | null> | null {
+    const running = instJobs.get(key);
+    if (running) return running;
+    const job = renderOffThread({ kind: 'inst', inst: id, freq, vel, sampleRate: c.sampleRate, dur });
+    if (!job) return null;
+    const done = job.then((data) => {
+      instJobs.delete(key);
+      return data ? keepInst(key, c, data) : null;
+    });
+    instJobs.set(key, done);
+    return done;
   }
 
   function inst(id: InstrumentId, freq?: number, vel = 1, dur?: number, delay = 0, damp = false, gain = 1): InstVoice | null {
