@@ -59,13 +59,16 @@ hoặc chưa ai nghe/nhìn trên máy thật. **Chưa ai thử trên iPad thật
 1. **User nghe lại âm thanh** (robots: trống cái, guitar; bài hát piano; dàn nhạc) sau đợt `BY_EAR_DB` + `MAKEUP`.
    Probe đo "pumping" (hợp âm bị dìm dưới mỗi cú kick) ở scratchpad phiên trước; đầu ngày 3,3 dB, bản -19 4,7 dB.
    Nếu vẫn ngộp: cân nhắc giảm exciter (`BASS_MIX`/`BASS_DRIVE` trong `core/audio.ts`) hoặc hạ kick robots.
-2. `cooking` còn thẻ/ô trông như nút mà không có hành động (`cooking-card`, `cooking-need`, `cooking-dot`).
-3. jam: khi đủ 4 vòng thu có 6 nút; bảng 🥁 trộn ô nhịp và tốc độ.
-4. Aquarium vẫn nặng nhất (tia nắng động, cá, decor).
-5. Accordion (bảo tàng) có 1 khung ~200 ms khi chạm dồn (CPU x4), chưa rõ nguyên nhân.
-6. `.stage` đặt `touch-action: none` cho mọi thứ: cuộn cảm ứng phải tự làm (letters `dragscroll.ts`, kệ robots).
-7. README có các dòng bảng bị lặp (merge cũ) — chưa dọn.
-8. Chưa thử WebKit/iPad Safari cho bất kỳ thay đổi nào.
+2. **`node scripts/robots-mix.mjs --check` báo FAIL** ngay sau lần sinh lại mix.ts cuối (lệnh chạy chỉ in dòng
+   cuối nên chưa biết robot/đội hình nào; đoán là một đội hình 8 robot chạm peak ≥ 0,95 vì gain MAKEUP — chưa xác minh).
+   Chạy lại `--check` để xem, rồi hạ `HOUSE_SHIFT_DB` trong scripts/robots-mix.mjs hoặc `BAND_GAIN` nếu là peak.
+3. `cooking` còn thẻ/ô trông như nút mà không có hành động (`cooking-card`, `cooking-need`, `cooking-dot`).
+4. jam: khi đủ 4 vòng thu có 6 nút; bảng 🥁 trộn ô nhịp và tốc độ.
+5. Aquarium vẫn nặng nhất (tia nắng động, cá, decor).
+6. Accordion (bảo tàng) có 1 khung ~200 ms khi chạm dồn (CPU x4), chưa rõ nguyên nhân.
+7. `.stage` đặt `touch-action: none` cho mọi thứ: cuộn cảm ứng phải tự làm (letters `dragscroll.ts`, kệ robots).
+8. README có các dòng bảng bị lặp (merge cũ) — chưa dọn.
+9. Chưa thử WebKit/iPad Safari cho bất kỳ thay đổi nào.
 
 ## Lệnh hay dùng
 ```bash
