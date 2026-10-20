@@ -1,4 +1,6 @@
 import { h, replay } from '../../core/dom';
+import { onHold } from '../../core/hold';
+import { showPhotoPicker, type PickerChoice } from '../../core/photoPicker';
 import { fitsScale, noteFreq, scaleIndex, schedule, SONGS, type Song } from '../../core/music';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
@@ -60,17 +62,29 @@ function start(ctx: GameContext): void {
 
   const root = h('div', { class: 'xylo' });
   const strip = h('div', { class: 'xylo-songs' });
-  const songEls = SONGBOOK.map((s, i) =>
-    h('button', { class: 'xylo-song', type: 'button', 'data-index': i, 'aria-label': s.title }, s.icon),
-  );
+  // One button shows the song in hand and opens the panel of songs.
+  const pickBtn = h('button', { class: 'xylo-pick', type: 'button', 'aria-label': 'Chọn bài hát' }, '🎼');
   const playBtn = h('button', { class: 'xylo-play', type: 'button', 'aria-label': 'Phát bài hát' }, '▶');
-  const recBtn = h('button', { class: 'xylo-rec', type: 'button', 'aria-label': 'Ghi âm' }, '⏺');
+  // ⏺ only while there is nothing saved (or while recording); 🔁 once there is. Hold 🔁 to record again.
+  const recBtn = h('button', { class: 'xylo-rec', type: 'button', 'aria-label': 'Ghi âm', hidden: saved.length > 0 }, '⏺');
   const replayBtn = h('button', { class: 'xylo-replay', type: 'button', 'aria-label': 'Nghe lại', hidden: saved.length === 0 }, '🔁');
-  strip.append(...songEls, playBtn, recBtn, replayBtn);
-  SONGBOOK.forEach((s, i) => makeTappable(songEls[i] as HTMLElement, () => selectSong(s), { cooldownMs: 0, ctx }));
+  strip.append(pickBtn, playBtn, recBtn, replayBtn);
+  let closePicker: (() => void) | null = null;
+  function openSongs(): void {
+    closePicker?.();
+    ctx.audio.tick();
+    const choices: PickerChoice[] = SONGBOOK.map((s, i) => ({ id: String(i), emoji: s.icon, label: s.title }));
+    closePicker = showPhotoPicker(root, choices, (choice) => {
+      closePicker = null;
+      const s = choice ? SONGBOOK[Number(choice.id)] : undefined;
+      if (s) selectSong(s);
+    });
+  }
+  makeTappable(pickBtn, openSongs, { cooldownMs: 0, ctx });
   makeTappable(playBtn, togglePlay, { cooldownMs: 0, ctx });
   makeTappable(recBtn, toggleRec, { cooldownMs: 0, ctx });
   makeTappable(replayBtn, toggleReplay, { cooldownMs: 0, ctx });
+  ctx.onCleanup(onHold(replayBtn, 900, startRec));
 
   const bars = h('div', { class: 'xylo-bars' });
   const barEls = BARS.map((_, i) =>
@@ -141,7 +155,7 @@ function start(ctx: GameContext): void {
   function leaveSongMode(): void {
     song = null;
     index = 0;
-    for (const el of songEls) el.classList.remove('active');
+    pickBtn.textContent = '🎼';
     ctx.hint.clear();
     showExpected();
   }
@@ -150,7 +164,7 @@ function start(ctx: GameContext): void {
     stop();
     song = s;
     index = 0;
-    songEls.forEach((el, i) => el.classList.toggle('active', SONGBOOK[i] === s));
+    pickBtn.textContent = s.icon;
     ctx.speak(s.title);
     showExpected();
     // One short spoken nudge per quiet spell; later hints only wiggle.
@@ -284,11 +298,15 @@ function start(ctx: GameContext): void {
 
   function setRecording(on: boolean): void {
     recBtn.classList.toggle('xylo-recording', on);
+    recBtn.textContent = on ? '⏹' : '⏺';
     recBtn.setAttribute('aria-label', on ? 'Dừng ghi' : 'Ghi âm');
   }
 
   function startRec(): void {
     stopReplay();
+    stop();
+    recBtn.hidden = false;
+    replayBtn.hidden = true;
     const r = { t0: performance.now(), events: [] as RecEvent[] };
     rec = r;
     setRecording(true);
@@ -304,10 +322,14 @@ function start(ctx: GameContext): void {
     const events = rec.events;
     rec = null;
     setRecording(false);
+    if (events.length > 0) {
+      saved = events;
+      saveRec(saved);
+    }
+    // Back to the single 🔁 (or ⏺ when there is still nothing to replay).
+    recBtn.hidden = saved.length > 0;
+    replayBtn.hidden = saved.length === 0;
     if (events.length === 0) return;
-    saved = events;
-    saveRec(saved);
-    replayBtn.hidden = false;
     if (alive) ctx.speak('Ghi xong rồi, bé nghe lại nhé');
   }
 
@@ -383,6 +405,7 @@ function start(ctx: GameContext): void {
     stop();
     stopReplay();
     stopRec();
+    closePicker?.();
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);

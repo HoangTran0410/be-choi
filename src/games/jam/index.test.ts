@@ -39,10 +39,21 @@ function q(ctx: Ctx, sel: string): HTMLElement {
 
 const pad = (ctx: Ctx, i: number) => q(ctx, `.jam-pad[data-index="${i}"]`);
 const kitBtn = (ctx: Ctx, id: string) => q(ctx, `.jam-kit[data-id="${id}"]`);
-const beatBtn = (ctx: Ctx, id: string) => q(ctx, `.jam-beat[data-id="${id}"]`);
+const machine = (ctx: Ctx) => q(ctx, '.jam-machine');
+/** Open the 🥁 panel and pick a tile ('beat:vui', 'beat:stop', 'tempo:2'). */
+function choose(ctx: Ctx, id: string): void {
+  down(machine(ctx));
+  q(ctx, `.pp-tile[data-id="${id}"]`).dispatchEvent(new Event('pointerup', { bubbles: true }));
+}
 const recBtn = (ctx: Ctx) => q(ctx, '.jam-rec');
 const root = (ctx: Ctx) => q(ctx, '.jam');
 const layerDots = (ctx: Ctx) => ctx.stage.querySelectorAll<HTMLElement>('.jam-layer');
+
+/** A short tap on a loop dot (the release matters: a long hold wipes the loops). */
+function tapDot(el: HTMLElement): void {
+  down(el);
+  el.dispatchEvent(new Event('pointerup', { bubbles: true }));
+}
 
 const BPM = BEATS[0]!.bpm;
 /** Fake time for `n` sixteenth steps (whole ms, so every step has fired). */
@@ -84,16 +95,22 @@ describe('jam game', () => {
     expect(ctx.stage.querySelectorAll('.jam-pad').length).toBe(12);
     expect(ctx.stage.querySelectorAll('.jam-pad-emoji').length).toBe(12);
     expect(ctx.stage.querySelectorAll('.jam-dancer').length).toBe(3);
-    expect(ctx.stage.querySelectorAll('.jam-beat').length).toBe(1 + BEATS.length);
-    expect(ctx.stage.querySelectorAll('.jam-tempo').length).toBe(1);
+    expect(ctx.stage.querySelectorAll('.jam-machine').length).toBe(1);
+    expect(ctx.stage.querySelectorAll('.jam-beat, .jam-tempo, .jam-clear').length).toBe(0);
     expect(ctx.stage.querySelectorAll('.jam-rec').length).toBe(1);
     expect(ctx.stage.querySelectorAll('.jam-layers').length).toBe(1);
-    expect(ctx.stage.querySelectorAll('.jam-clear').length).toBe(1);
+    expect(q(ctx, '.jam-layers').hidden).toBe(true);
     expect(layerDots(ctx).length).toBe(0);
     for (const k of KITS) expect(kitBtn(ctx, k.id).textContent).toBe(k.emoji);
-    for (const b of BEATS) expect(beatBtn(ctx, b.id).textContent).toBe(b.emoji);
-    expect(beatBtn(ctx, 'stop').textContent).toBe('⏹');
-    expect(q(ctx, '.jam-tempo').textContent).toBe('🙂');
+    expect(machine(ctx).textContent).toBe('🥁');
+    down(machine(ctx));
+    expect([...ctx.stage.querySelectorAll<HTMLElement>('.pp-tile')].map((t) => t.dataset.id)).toEqual([
+      'beat:stop',
+      ...BEATS.map((b) => `beat:${b.id}`),
+      ...TEMPO_FACTORS.map((_, i) => `tempo:${i}`),
+    ]);
+    q(ctx, '.pp-close').dispatchEvent(new Event('pointerup', { bubbles: true }));
+    expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     expect(recBtn(ctx).textContent).toBe('⏺');
     // The drum kit is up first: every pad shows its emoji, label and colour.
     expect(kitBtn(ctx, 'drums').classList.contains('active')).toBe(true);
@@ -105,7 +122,7 @@ describe('jam game', () => {
     });
     // No voices for drums, so the voice button is hidden; ⏹ is the selected "beat".
     expect(q(ctx, '.jam-voice').hidden).toBe(true);
-    expect(beatBtn(ctx, 'stop').classList.contains('active')).toBe(true);
+    expect(machine(ctx).classList.contains('active')).toBe(false);
     expect(q(ctx, '.jam-count').hidden).toBe(true);
     // Silent and still until the child touches something.
     vi.advanceTimersByTime(steps(STEPS * 2));
@@ -259,10 +276,9 @@ describe('jam game', () => {
     const drum = vi.spyOn(ctx.audio, 'drum');
     const note = vi.spyOn(ctx.audio, 'note');
     game.start(ctx);
-    down(beatBtn(ctx, 'vui'));
-    expect(beatBtn(ctx, 'vui').classList.contains('active')).toBe(true);
-    expect(beatBtn(ctx, 'vui').getAttribute('aria-pressed')).toBe('true');
-    expect(beatBtn(ctx, 'stop').classList.contains('active')).toBe(false);
+    choose(ctx, 'beat:vui');
+    expect(machine(ctx).classList.contains('active')).toBe(true);
+    expect(machine(ctx).textContent).toBe(BEATS.find((b) => b.id === 'vui')!.emoji);
     expect(root(ctx).classList.contains('jam-playing')).toBe(true);
     expect(root(ctx).style.getPropertyValue('--jam-beat')).toBe(`${stepMs(BPM) * 4}ms`);
 
@@ -287,16 +303,15 @@ describe('jam game', () => {
 
     // 🕺 takes over at once: claps arrive, four-on-the-floor.
     drum.mockClear();
-    down(beatBtn(ctx, 'nhay'));
-    expect(beatBtn(ctx, 'nhay').classList.contains('active')).toBe(true);
-    expect(beatBtn(ctx, 'vui').classList.contains('active')).toBe(false);
+    choose(ctx, 'beat:nhay');
+    expect(machine(ctx).textContent).toBe(BEATS.find((b) => b.id === 'nhay')!.emoji);
     vi.advanceTimersByTime(steps(STEPS, 128));
     expect(count('clap')).toBeGreaterThanOrEqual(2);
     expect(count('kick')).toBeGreaterThanOrEqual(4);
 
-    down(beatBtn(ctx, 'stop'));
-    expect(beatBtn(ctx, 'stop').classList.contains('active')).toBe(true);
-    expect(beatBtn(ctx, 'nhay').classList.contains('active')).toBe(false);
+    choose(ctx, 'beat:stop');
+    expect(machine(ctx).classList.contains('active')).toBe(false);
+    expect(machine(ctx).textContent).toBe('🥁');
     expect(root(ctx).classList.contains('jam-playing')).toBe(false);
     expect(root(ctx).classList.contains('jam-onbeat')).toBe(false);
     const d = drum.mock.calls.length;
@@ -424,7 +439,7 @@ describe('jam game', () => {
     expect(drum).toHaveBeenCalledTimes(1);
     expect(drum).toHaveBeenLastCalledWith('snare');
 
-    down(layerDots(ctx)[0]!);
+    tapDot(layerDots(ctx)[0]!);
     expect(layerDots(ctx)[0]!.classList.contains('muted')).toBe(true);
     expect(layerDots(ctx)[0]!.getAttribute('aria-pressed')).toBe('false');
     drum.mockClear();
@@ -432,7 +447,7 @@ describe('jam game', () => {
     expect(drum).not.toHaveBeenCalled();
     // The clock keeps running so un-muting lands back in time.
     expect(root(ctx).classList.contains('jam-playing')).toBe(true);
-    down(layerDots(ctx)[0]!);
+    tapDot(layerDots(ctx)[0]!);
     expect(layerDots(ctx)[0]!.classList.contains('muted')).toBe(false);
     vi.advanceTimersByTime(steps(STEPS));
     expect(drum).toHaveBeenCalledTimes(1);
@@ -482,7 +497,7 @@ describe('jam game', () => {
     const fx = vi.spyOn(ctx.audio, 'fx');
     const boing = vi.spyOn(ctx.audio, 'boing');
     game.start(ctx);
-    down(beatBtn(ctx, 'ru'));
+    choose(ctx, 'beat:ru');
     down(kitBtn(ctx, 'animals'));
     vi.advanceTimersByTime(steps(6, 88)); // somewhere inside the bar
     down(recBtn(ctx));
@@ -510,7 +525,7 @@ describe('jam game', () => {
     ctx.cleanup();
   });
 
-  it('holding ✖ for 700 ms clears every layer; a short press does not', () => {
+  it('holding a loop dot for 700 ms clears every layer; a short press does not', () => {
     vi.useFakeTimers();
     const ctx = fakeContext();
     const drum = vi.spyOn(ctx.audio, 'drum');
@@ -520,7 +535,7 @@ describe('jam game', () => {
     vi.advanceTimersByTime(steps(STEPS));
     recordLayer(ctx, 1);
     expect(layerDots(ctx).length).toBe(2);
-    const clear = q(ctx, '.jam-clear');
+    const clear = layerDots(ctx)[0]!;
 
     clear.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     vi.advanceTimersByTime(300);
@@ -534,7 +549,7 @@ describe('jam game', () => {
     expect(layerDots(ctx).length).toBe(2);
     vi.advanceTimersByTime(60);
     expect(layerDots(ctx).length).toBe(0);
-    expect(clear.querySelector('.hold-ring')).toBeNull();
+    expect(q(ctx, '.jam-layers').hidden).toBe(true);
     expect(recBtn(ctx).classList.contains('jam-full')).toBe(false);
     expect(root(ctx).classList.contains('jam-playing')).toBe(false);
     drum.mockClear();
@@ -543,13 +558,12 @@ describe('jam game', () => {
     ctx.cleanup();
   });
 
-  it('the tempo button cycles 🙂 → 🐇 → 🐢 and re-times the running clock', () => {
+  it('the 🥁 panel sets the speed 🙂 → 🐇 → 🐢 and re-times the running clock', () => {
     vi.useFakeTimers();
     const ctx = fakeContext();
     const drum = vi.spyOn(ctx.audio, 'drum');
     game.start(ctx);
-    down(beatBtn(ctx, 'vui'));
-    const tempo = q(ctx, '.jam-tempo');
+    choose(ctx, 'beat:vui');
     const WINDOW = 8000;
     const hitsIn = (ms: number) => {
       const before = drum.mock.calls.length;
@@ -558,20 +572,17 @@ describe('jam game', () => {
     };
     const normal = hitsIn(WINDOW);
 
-    down(tempo);
-    expect(tempo.textContent).toBe('🐇');
+    choose(ctx, 'tempo:2');
     expect(root(ctx).style.getPropertyValue('--jam-beat')).toBe(`${stepMs(BPM, TEMPO_FACTORS[2]!) * 4}ms`);
     const fast = hitsIn(WINDOW);
     expect(fast).toBeGreaterThan(normal);
 
-    down(tempo);
-    expect(tempo.textContent).toBe('🐢');
+    choose(ctx, 'tempo:0');
     expect(root(ctx).style.getPropertyValue('--jam-beat')).toBe(`${stepMs(BPM, TEMPO_FACTORS[0]!) * 4}ms`);
     const slow = hitsIn(WINDOW);
     expect(slow).toBeLessThan(normal);
 
-    down(tempo);
-    expect(tempo.textContent).toBe('🙂');
+    choose(ctx, 'tempo:1');
     // Still the same beat, only its speed changed.
     expect(new Set(drum.mock.calls.map((c) => c[0]))).toEqual(new Set(['kick', 'snare', 'hat']));
     ctx.cleanup();
@@ -620,7 +631,7 @@ describe('jam game', () => {
     const drum = vi.spyOn(ctx.audio, 'drum');
     const note = vi.spyOn(ctx.audio, 'note');
     game.start(ctx);
-    down(beatBtn(ctx, 'nhay'));
+    choose(ctx, 'beat:nhay');
     armAndCountIn(ctx);
     down(pad(ctx, 0));
     vi.advanceTimersByTime(steps(3, 128));

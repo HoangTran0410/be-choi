@@ -77,42 +77,45 @@ describe('paint game', () => {
     const canvas = ctx.stage.querySelector<HTMLCanvasElement>('canvas.paint-canvas');
     expect(canvas).not.toBeNull();
     const swatches = [...ctx.stage.querySelectorAll<HTMLElement>('.paint-swatch')];
-    const sizes = [...ctx.stage.querySelectorAll<HTMLElement>('.paint-size')];
-    const stamps = [...ctx.stage.querySelectorAll<HTMLElement>('.paint-stamp')];
+    const sizeBtn = ctx.stage.querySelector<HTMLElement>('.paint-size')!;
+    const stampBtn = ctx.stage.querySelector<HTMLElement>('.paint-stamp')!;
     const eraser = ctx.stage.querySelector<HTMLElement>('.paint-eraser');
     const trash = ctx.stage.querySelector<HTMLElement>('.paint-trash');
     expect(swatches.length).toBe(PALETTE.length);
     expect(swatches.length).toBe(8);
-    expect(sizes.length).toBe(BRUSHES.length);
-    expect(sizes.length).toBe(3);
-    expect(stamps.length).toBe(STAMPS.length);
-    expect(stamps.length).toBe(4);
+    expect(ctx.stage.querySelectorAll('.paint-size').length).toBe(1);
+    expect(ctx.stage.querySelectorAll('.paint-stamp').length).toBe(1);
+    // 8 colours + size + stamp + eraser + trash: the whole toolbar.
+    expect(ctx.stage.querySelectorAll('.paint-tools button').length).toBe(12);
     expect(eraser).not.toBeNull();
     expect(trash).not.toBeNull();
 
     // Default: first colour, middle size.
     expect(swatches[0]?.classList.contains('selected')).toBe(true);
-    expect(sizes[1]?.classList.contains('selected')).toBe(true);
+    expect(sizeBtn.style.getPropertyValue('--paint-dot')).toBe(`${BRUSHES[1]}px`);
     expect(ctx.spoken).toEqual([]);
 
     // Picking a colour moves the ring and names the colour.
     swatches[3]?.dispatchEvent(ptr('pointerdown'));
     expect(swatches[0]?.classList.contains('selected')).toBe(false);
     expect(swatches[3]?.classList.contains('selected')).toBe(true);
-    expect(sizes[1]?.classList.contains('selected')).toBe(true);
+    expect(sizeBtn.style.getPropertyValue('--paint-dot')).toBe(`${BRUSHES[1]}px`);
     expect(ctx.spoken).toEqual(['màu xanh lá']);
 
     // A stamp drops the colour ring; a size keeps the stamp; the eraser drops the stamp.
-    stamps[1]?.dispatchEvent(ptr('pointerdown'));
-    expect(stamps[1]?.classList.contains('selected')).toBe(true);
+    stampBtn.dispatchEvent(ptr('pointerup'));
+    ctx.stage.querySelectorAll<HTMLElement>('.pp-tile')[1]?.dispatchEvent(ptr('pointerup'));
+    expect(stampBtn.textContent).toBe(STAMPS[1]);
+    expect(stampBtn.classList.contains('selected')).toBe(true);
     expect(swatches.some((s) => s.classList.contains('selected'))).toBe(false);
-    sizes[2]?.dispatchEvent(ptr('pointerdown'));
-    expect(sizes[2]?.classList.contains('selected')).toBe(true);
-    expect(sizes[1]?.classList.contains('selected')).toBe(false);
-    expect(stamps[1]?.classList.contains('selected')).toBe(true);
+    sizeBtn.dispatchEvent(ptr('pointerdown'));
+    expect(sizeBtn.style.getPropertyValue('--paint-dot')).toBe(`${BRUSHES[2]}px`);
+    sizeBtn.dispatchEvent(ptr('pointerdown'));
+    expect(sizeBtn.style.getPropertyValue('--paint-dot')).toBe(`${BRUSHES[0]}px`);
+    expect(stampBtn.classList.contains('selected')).toBe(true);
     eraser?.dispatchEvent(ptr('pointerdown'));
     expect(eraser?.classList.contains('selected')).toBe(true);
-    expect(stamps[1]?.classList.contains('selected')).toBe(false);
+    expect(stampBtn.classList.contains('selected')).toBe(false);
     swatches[0]?.dispatchEvent(ptr('pointerdown'));
     expect(eraser?.classList.contains('selected')).toBe(false);
     expect(swatches[0]?.classList.contains('selected')).toBe(true);
@@ -124,7 +127,6 @@ describe('paint game', () => {
     canvas?.dispatchEvent(ptr('pointermove', 20, 20, 1));
     canvas?.dispatchEvent(ptr('pointerup', 20, 20, 1));
     canvas?.dispatchEvent(ptr('pointercancel', 50, 50, 2));
-    stamps[0]?.dispatchEvent(ptr('pointerdown'));
     canvas?.dispatchEvent(ptr('pointerdown', 30, 30, 1));
     expect(ctx.stars).toBe(0);
 
@@ -319,29 +321,22 @@ describe('paint game', () => {
     vi.useRealTimers();
   });
 
-  it('offers every unlocked sticker behind the 🎁 button', () => {
+  it('offers every stamp and unlocked sticker behind one stamp button', () => {
     const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
     const ctx = fakeContext();
     ctx.stickers = () => ['🐻', '🦊'];
     game.start(ctx);
 
-    // The toolbar keeps the everyday stamps; the collection lives in the picker,
-    // however big it grows.
-    const stamps = [...ctx.stage.querySelectorAll<HTMLElement>('.paint-stamp')];
-    expect(stamps.map((s) => s.dataset.emoji)).toEqual([...STAMPS]);
-
-    const more = ctx.stage.querySelector<HTMLElement>('.paint-stamp-more')!;
-    expect(more.hidden).toBe(false);
-    more.dispatchEvent(ptr('pointerup'));
+    const stamp = ctx.stage.querySelector<HTMLElement>('.paint-stamp')!;
+    stamp.dispatchEvent(ptr('pointerup'));
 
     const tiles = [...ctx.stage.querySelectorAll<HTMLElement>('.pp-tile')];
     expect(tiles.map((t) => t.dataset.id)).toEqual([...STAMPS, '🐻', '🦊']);
 
     tiles[4]?.dispatchEvent(ptr('pointerup'));
     expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
-    expect(more.textContent).toBe('🐻');
-    expect(more.classList.contains('selected')).toBe(true);
-    expect(stamps.filter((s) => s.classList.contains('selected')).length).toBe(0);
+    expect(stamp.textContent).toBe('🐻');
+    expect(stamp.classList.contains('selected')).toBe(true);
     expect([...ctx.stage.querySelectorAll('.paint-swatch.selected')].length).toBe(0);
     expect(ctx.stage.querySelector('.paint-eraser')?.classList.contains('selected')).toBe(false);
 

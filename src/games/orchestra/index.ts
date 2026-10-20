@@ -79,8 +79,6 @@ function start(ctx: GameContext): void {
     grooveBtns.set(g.id, btn);
     bottom.append(btn);
   }
-  const stopBtn = h('button', { class: 'orchestra-stop btn-round', type: 'button', 'aria-label': 'Dừng' }, '⏹');
-  bottom.append(stopBtn);
   root.append(stageEl, bottom);
   ctx.stage.append(root);
 
@@ -231,19 +229,15 @@ function start(ctx: GameContext): void {
 
   bottom.addEventListener('pointerdown', (e: Event) => {
     if (!(e.target instanceof Element)) return;
-    if (e.target.closest('.orchestra-stop')) {
-      e.preventDefault();
-      ctx.audio.tick();
-      stopAll();
-      return;
-    }
     const el = e.target.closest<HTMLElement>('.orchestra-groove');
     if (!el) return;
     e.preventDefault();
     const g = GROOVES.find((x) => x.id === el.dataset.id);
     if (!g) return;
     ctx.audio.tick();
-    setGroove(g);
+    // Touching the groove that is already playing turns the band off.
+    if (g === groove && seq !== null) stopAll();
+    else setGroove(g);
   });
 
   setGroove(groove);

@@ -38,7 +38,7 @@ describe('orchestra game', () => {
     vi.useRealTimers();
   });
 
-  it('mounts 6 animals, 3 grooves and a stop button; everyone starts silent and greyed; nothing is spoken', () => {
+  it('mounts 6 animals, 3 grooves and no stop button; everyone starts silent and greyed; nothing is spoken', () => {
     vi.useFakeTimers();
     const ctx = fakeContext();
     const note = vi.spyOn(ctx.audio, 'note');
@@ -47,7 +47,7 @@ describe('orchestra game', () => {
     expect(ctx.stage.querySelectorAll('.orchestra-animal').length).toBe(6);
     expect(ctx.stage.querySelectorAll('.orchestra-emoji').length).toBe(6);
     expect(ctx.stage.querySelectorAll('.orchestra-groove').length).toBe(3);
-    expect(ctx.stage.querySelectorAll('.orchestra-stop').length).toBe(1);
+    expect(ctx.stage.querySelectorAll('.orchestra-stop').length).toBe(0);
     expect(ctx.stage.querySelectorAll('.orchestra-active').length).toBe(0);
     for (const p of PARTS) {
       const t = tile(ctx, p.id);
@@ -223,7 +223,7 @@ describe('orchestra game', () => {
     ctx.cleanup();
   });
 
-  it('⏹ clears every animal and stops the sequencer', () => {
+  it('touching the playing groove clears every animal and stops the sequencer', () => {
     vi.useFakeTimers();
     const ctx = fakeContext();
     const drum = vi.spyOn(ctx.audio, 'drum');
@@ -238,7 +238,7 @@ describe('orchestra game', () => {
     expect(drum).toHaveBeenCalled();
     expect(note).toHaveBeenCalled();
 
-    down(ctx.stage.querySelector('.orchestra-stop'));
+    down(grooveBtn(ctx, 'vui'));
     expect(tick).toHaveBeenCalledTimes(4);
     expect(ctx.stage.querySelectorAll('.orchestra-active').length).toBe(0);
     expect(ctx.stage.querySelectorAll('.orchestra-dance').length).toBe(0);
