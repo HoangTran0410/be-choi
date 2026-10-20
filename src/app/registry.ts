@@ -46,6 +46,7 @@ import { meta as sortout } from '../games/sortout/meta';
 import { meta as feelings } from '../games/feelings/meta';
 import { meta as dressup } from '../games/dressup/meta';
 import { meta as mask } from '../games/mask/meta';
+import { meta as harvest } from '../games/harvest/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -101,6 +102,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...feelings, load: () => import('../games/feelings/index') },
   { ...dressup, load: () => import('../games/dressup/index') },
   { ...mask, load: () => import('../games/mask/index') },
+  { ...harvest, load: () => import('../games/harvest/index') },
 ];
 
 /**
