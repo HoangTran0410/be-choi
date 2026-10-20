@@ -35,6 +35,7 @@ import {
 } from './logic';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 const MAX_STEP = 0.05;
 
@@ -841,7 +842,15 @@ function start(ctx: GameContext): void {
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Chọn hạt rồi trồng xuống đất nhé!');
     const ripe = plots.find(isRipe);
     if (ripe) {
       ripe.sway += 0.4;

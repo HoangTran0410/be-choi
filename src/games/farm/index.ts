@@ -27,6 +27,7 @@ import {
 } from './logic';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 /** Longest frame the yard will take in one step. */
 const MAX_STEP = 0.05;
@@ -703,7 +704,15 @@ function start(ctx: GameContext): void {
     { ctx },
   );
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Chạm vào các bạn thú nhé!');
     replay(feed, 'anim-wiggle');
     const a = animals[Math.floor(Math.random() * animals.length)];
     if (a) a.happy = 0.8;

@@ -31,6 +31,7 @@ import {
 } from './logic';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
+import { sayText } from '../../core/say';
 
 const TAB_KEY = 'be-choi:videos-tab';
 /** Sideways, the controls fade after this long without a touch while a video plays. */
@@ -667,8 +668,16 @@ function start(ctx: GameContext): void {
   }
 
   show(shelf);
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
     if (player || adder) return;
+    nudge('Bé chọn một video nhé!');
     const cards = [...list.querySelectorAll<HTMLElement>('.vd-card')];
     const el = cards[Math.floor(Math.random() * Math.min(cards.length, 6))];
     if (el) replay(el, 'anim-wiggle');

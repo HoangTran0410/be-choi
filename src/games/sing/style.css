@@ -209,6 +209,8 @@
   justify-content: space-evenly;
   align-items: flex-end;
   padding-bottom: 0.5vmin;
+  /* Keep the front row clear of the microphone and mirror buttons in the corner. */
+  padding-right: calc(var(--tap) + 3vmin);
   pointer-events: none;
 }
 .sing-fan {

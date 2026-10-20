@@ -7,6 +7,7 @@ import { LOOP_IDS, loopUrl } from './files';
 import { createScene } from './scene';
 import { readJson, writeJson } from '../../core/save';
 import './style.css';
+import { sayText } from '../../core/say';
 
 const SAVE_KEY = 'be-choi:ambience';
 /** Mixing this many at once for the first time earns a star. */
@@ -287,7 +288,15 @@ function start(ctx: GameContext): void {
   }
   paint();
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Chạm vào một âm thanh nào!');
     const quiet = [...tiles.querySelectorAll<HTMLElement>('.amb-tile:not(.amb-on)')];
     const el = quiet[Math.floor(Math.random() * quiet.length)];
     if (el) replay(el, 'anim-wiggle');

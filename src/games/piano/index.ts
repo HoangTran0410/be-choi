@@ -1,4 +1,5 @@
 import { h, replay } from '../../core/dom';
+import { sayText } from '../../core/say';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { KEYS, keyAt } from './logic';
@@ -10,7 +11,7 @@ const NOTE_MS = 700;
 /**
  * Animal piano: eight rainbow keys, one octave. Every touch plays a note and
  * bounces the animal; sliding a finger across the keys plays each one it
- * crosses. Multi-touch, no rounds, no stars, no hint.
+ * crosses. Multi-touch, no rounds, no stars. Left alone it wiggles a key and says one nudge.
  */
 function start(ctx: GameContext): void {
   const piano = h('div', { class: 'piano' });
@@ -120,6 +121,15 @@ function start(ctx: GameContext): void {
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
   window.addEventListener('blur', releaseAll);
+
+  let nudged = -1;
+  ctx.hint.arm(() => {
+    const glyph = keyEls[Math.floor(Math.random() * keyEls.length)]?.firstElementChild;
+    if (glyph) replay(glyph, 'anim-wiggle');
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, 'Chạm vào phím đàn nhé!');
+  });
 
   ctx.onCleanup(() => {
     window.removeEventListener('pointermove', onMove);

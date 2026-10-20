@@ -7,6 +7,7 @@ import { SOUND_IDS, soundUrl } from './sounds';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 const SAVE_KEY = 'be-choi:soundbook-page';
 /** The name is said this long after the sound ends, so the two never talk over each other. */
@@ -167,7 +168,15 @@ function start(ctx: GameContext): void {
   }
 
   show(page);
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Chạm vào một bạn để nghe tiếng nhé!');
     const quiet = [...scene.querySelectorAll<HTMLElement>('.sb-thing:not(.sb-heard)')];
     const el = quiet[Math.floor(Math.random() * quiet.length)] ?? scene.querySelector<HTMLElement>('.sb-thing');
     if (el) replay(el, 'anim-wiggle');

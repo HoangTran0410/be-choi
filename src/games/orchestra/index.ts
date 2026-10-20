@@ -18,6 +18,7 @@ import {
   type Part,
 } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** Active tiles bump on every quarter-note beat for this long. */
 const BEAT_MS = 120;
@@ -248,7 +249,15 @@ function start(ctx: GameContext): void {
   setGroove(groove);
 
   // Nothing is spoken here: iOS ducks Web Audio while TTS speaks. The nudge is visual.
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Chạm vào một bạn để chơi nhạc nhé!');
     if (!alive) return;
     const idle = PARTS.filter((p) => !active.has(p.id));
     if (idle.length === 0) return;

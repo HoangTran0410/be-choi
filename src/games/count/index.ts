@@ -4,6 +4,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makeCountRound, minDistFor, numberWord } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** Pause between the total appearing and the celebration. */
 const TOTAL_MS = 700;
@@ -76,7 +77,15 @@ function start(ctx: GameContext): void {
     board.replaceChildren(...fruits);
     ctx.speak(`Đếm ${r.item.name} nào!`);
 
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
+      nudge('Chạm vào từng quả để đếm nhé!');
       const next = fruits.find((f) => !f.classList.contains('counted'));
       if (next) replay(next, 'anim-wiggle');
     });

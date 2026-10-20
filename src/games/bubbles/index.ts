@@ -5,6 +5,7 @@ import { meta } from './meta';
 import { MAX_ALIVE, makeBubble, popPitch, SPAWN_MS, starEvery } from './logic';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 interface Live {
   el: HTMLElement;
@@ -105,6 +106,16 @@ function start(ctx: GameContext): void {
   spawn(true);
   const timer = setInterval(spawn, SPAWN_MS);
   startLoop(ctx, frame);
+
+  // Nothing touched for a while: wiggle a bubble and say so once (later hints only wiggle).
+  let nudged = -1;
+  ctx.hint.arm(() => {
+    const target = live.find((b) => !b.popped);
+    if (target?.el.firstElementChild) replay(target.el.firstElementChild, 'anim-wiggle');
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, 'Chạm vào bong bóng nhé!');
+  });
 
   ctx.onCleanup(() => clearInterval(timer));
 }

@@ -4,6 +4,7 @@ import { meta } from './meta';
 import { type Card, FLIP_BACK_MS, isMatch, makeDeck, pairCount } from './logic';
 import './style.css';
 import { makeTappable } from '../../core/tap';
+import { sayText } from '../../core/say';
 
 const PASTELS = ['#fecaca', '#fed7aa', '#fef08a', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fbcfe8', '#a5f3fc'];
 
@@ -109,7 +110,15 @@ function start(ctx: GameContext): void {
       }, FLIP_BACK_MS);
     }
 
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
+      nudge('Lật hai thẻ giống nhau nhé!');
       const down = slots.filter(faceDown);
       if (down.length === 0) return;
       const single = open.length === 1 ? open[0] : undefined;

@@ -5,6 +5,7 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { BIRD_X, makeWorld, NOTES_PER_ROUND, roundDone, step, type Item } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** Lift a held finger gives, for a child playing with no microphone. */
 const TOUCH_LEVEL = 0.6;
@@ -172,7 +173,15 @@ function start(ctx: GameContext): void {
   });
   micBtn.addEventListener('pointerup', () => void onMic());
 
+  // One short spoken nudge per quiet spell; later hints only wiggle.
+  let nudged = -1;
+  const nudge = (t: string): void => {
+    if (nudged === (ctx.hint.epoch ?? 0)) return;
+    nudged = ctx.hint.epoch ?? 0;
+    void sayText(ctx, t);
+  };
   ctx.hint.arm(() => {
+    nudge('Bé hát cho chim nghe nhé!');
     replay(micOff ? bird : micBtn, 'anim-wiggle');
   });
 

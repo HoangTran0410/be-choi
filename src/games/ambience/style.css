@@ -126,7 +126,7 @@
 /* ---- the tray: shelves, then the switches on the chosen shelf ---- */
 .amb-tray {
   /* Seven shelves must fit across the narrowest phone standing up. */
-  --tab: min(calc(var(--tap) * 0.72), 12vw);
+  --tab: max(56px, min(calc(var(--tap) * 0.72), 12vw));
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -144,13 +144,14 @@
 .amb-tabs {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   gap: 1.2vmin;
   justify-content: center;
 }
 /* Sideways the shelves stack two rows deep, so the switches beside them keep their size. */
 @media (orientation: landscape) {
   .amb-tray {
-    --tab: min(calc(var(--tap) * 0.62), 11vh);
+    --tab: max(56px, min(calc(var(--tap) * 0.62), 11vh));
   }
   .amb-tabs {
     display: grid;

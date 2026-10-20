@@ -22,7 +22,7 @@
 .xylo-play,
 .xylo-rec,
 .xylo-replay {
-  --xylo-btn: clamp(44px, 9vmin, 80px);
+  --xylo-btn: clamp(56px, 9vmin, 80px);
   flex: 0 0 auto;
   width: var(--xylo-btn);
   height: var(--xylo-btn);

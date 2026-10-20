@@ -14,6 +14,7 @@ import {
   type Mood,
 } from './logic';
 import './style.css';
+import { sayText } from '../../core/say';
 
 /** How long the friend beams before the next mood comes along. */
 const HAPPY_MS = 2600;
@@ -143,7 +144,15 @@ function start(ctx: GameContext): void {
   }
 
   function armHint(): void {
+    // One short spoken nudge per quiet spell; later hints only wiggle.
+    let nudged = -1;
+    const nudge = (t: string): void => {
+      if (nudged === (ctx.hint.epoch ?? 0)) return;
+      nudged = ctx.hint.epoch ?? 0;
+      void sayText(ctx, t);
+    };
     ctx.hint.arm(() => {
+      nudge('Dỗ bé nào!');
       const c = COMFORTS[Math.floor(Math.random() * COMFORTS.length)];
       const btn = c && buttons.get(c);
       if (btn) replay(btn, 'anim-wiggle');

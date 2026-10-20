@@ -51,7 +51,7 @@
   z-index: 2;
 }
 .sb-tab {
-  --size: min(calc(var(--tap) * 0.82), 13vw);
+  --size: max(56px, min(calc(var(--tap) * 0.82), 13vw));
   width: var(--size);
   height: var(--size);
   flex: 0 0 auto;

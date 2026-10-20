@@ -90,9 +90,9 @@
  */
 .fly-star {
   position: absolute;
-  width: max(40px, 6vmin);
-  height: max(40px, 6vmin);
-  margin: max(-20px, -3vmin) 0 0 max(-20px, -3vmin);
+  width: max(56px, 6vmin);
+  height: max(56px, 6vmin);
+  margin: min(-28px, -3vmin) 0 0 min(-28px, -3vmin);
   display: grid;
   place-items: center;
 }
@@ -340,7 +340,7 @@
   bottom: 2%;
   /* Drawn slim, but the box a finger has to land in is most of a tap wide. */
   width: calc(var(--tap) * 0.8);
-  height: calc(var(--stick, var(--fly-stick)) + var(--tap) * 0.4);
+  height: max(56px, calc(var(--stick, var(--fly-stick)) + var(--tap) * 0.4));
   margin-left: calc(var(--tap) * -0.4);
   display: flex;
   justify-content: center;

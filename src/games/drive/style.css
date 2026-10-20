@@ -42,8 +42,8 @@
 }
 .drive-night {
   top: 2.5vmin;
-  width: calc(var(--tap) * 0.72);
-  height: calc(var(--tap) * 0.72);
+  width: max(56px, calc(var(--tap) * 0.72));
+  height: max(56px, calc(var(--tap) * 0.72));
   font-size: calc(var(--tap) * 0.36);
 }
 .drive-horn {

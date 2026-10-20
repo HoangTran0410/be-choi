@@ -9,7 +9,7 @@
 .jam {
   --jam-gap: 1.2vmin;
   /* Kit, beat, tempo and ⏺ buttons. */
-  --jam-btn: clamp(48px, 11vmin, 88px);
+  --jam-btn: clamp(56px, 11vmin, 88px);
   /* Loop dots and ✖: a little smaller, never under a finger. */
   --jam-dot: max(48px, calc(var(--jam-btn) * 0.8));
   /* One quarter-note beat; set from the tempo by the game. */
