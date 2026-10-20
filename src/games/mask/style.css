@@ -104,6 +104,28 @@
   opacity: 0.5;
 }
 
+/* Sideways: the big button sits at the right edge, out of the way of the mask over the face. */
+@media (orientation: landscape) {
+  .mask-next {
+    left: auto;
+    right: max(3vmin, env(safe-area-inset-right));
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .mask-next:active {
+    transform: translateY(-50%) scale(0.92);
+  }
+  .mask-next.hint {
+    animation-name: mask-pulse-side;
+  }
+}
+@keyframes mask-pulse-side {
+  50% {
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
 @keyframes mask-pop {
   0% {
     transform: translate(-50%, -50%) scale(0.5) rotate(-12deg);

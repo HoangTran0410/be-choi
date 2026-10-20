@@ -49,6 +49,8 @@ function start(ctx: GameContext): void {
   let round: DressRound | null = null;
   let left = 0;
   const worn: Partial<Record<Slot, Garment>> = {};
+  /** Only the row of the chosen place on the body is shown, so the child never faces nine pieces at once. */
+  let active: Slot = 'hat';
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const pieceDisposers: Array<() => void> = [];
 
@@ -62,7 +64,10 @@ function start(ctx: GameContext): void {
       'data-slot': slot,
       'aria-label': `${SLOT_LABEL[slot]} của bạn nhỏ`,
     });
-    el.addEventListener('click', () => takeOff(slot));
+    el.addEventListener('click', () => {
+      takeOff(slot);
+      if (phase === 'dress') showSlot(slot);
+    });
     slotEls[slot] = el;
   }
   const kid = h('div', { class: 'dressup-kid' }, slotEls.hat, head, slotEls.top, slotEls.shoes);
@@ -162,6 +167,14 @@ function start(ctx: GameContext): void {
     }
   }
 
+  function showSlot(slot: Slot): void {
+    active = slot;
+    for (const s of SLOTS) slotEls[s].classList.toggle('active', s === slot);
+    for (const row of tray.querySelectorAll<HTMLElement>('.dressup-row')) {
+      row.classList.toggle('active', row.dataset.slot === slot);
+    }
+  }
+
   function giggle(): void {
     head.textContent = HEAD_GIGGLE;
     replay(head, 'anim-wiggle');
@@ -189,7 +202,12 @@ function start(ctx: GameContext): void {
       setPhase('dressed');
       ctx.hint.clear();
       later(startTidy, DRESSED_MS);
-    } else armHint();
+    } else {
+      // On to the next bare place, so the next row is the one on show.
+      const next = SLOTS.find((s) => !worn[s]);
+      if (next) showSlot(next);
+      armHint();
+    }
   }
 
   function takeOff(slot: Slot): void {
@@ -208,8 +226,7 @@ function start(ctx: GameContext): void {
       if (phase === 'dress') ctx.speak('Kéo đồ cho bạn nhỏ mặc nhé');
       else if (phase === 'tidy') ctx.speak('Cất đồ chơi vào hộp nhé');
       if (phase === 'dress') {
-        const empty = SLOTS.filter((s) => !worn[s]);
-        const slot = oneOf(empty.length > 0 ? empty : SLOTS);
+        const slot = active;
         const garments = tray.querySelectorAll(`.dressup-garment[data-slot="${slot}"]`);
         const g = garments[Math.floor(Math.random() * garments.length)];
         if (g) replay(g, 'anim-wiggle');
@@ -246,6 +263,7 @@ function start(ctx: GameContext): void {
       tray.append(row);
     }
     setPhase('dress');
+    showSlot('hat');
     ctx.speak(round.scenario.say);
     armHint();
   }

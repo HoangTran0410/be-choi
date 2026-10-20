@@ -6,7 +6,7 @@
   --bricks-rows: 8;
   /* Cell of the template bricks in the tray. */
   --bricks-tcell: clamp(18px, 4.5vmin, 44px);
-  --bricks-btn: clamp(44px, 9vmin, 72px);
+  --bricks-btn: clamp(56px, 9vmin, 72px);
   --bricks-gap: clamp(2px, 0.8vmin, 8px);
   position: absolute;
   inset: 0;
@@ -215,7 +215,7 @@
 /* Landscape phone (short screen): the tray column would be taller than the screen. Wider, tighter, smaller buttons. */
 @media (orientation: landscape) and (max-height: 460px) {
   .bricks {
-    --bricks-btn: 40px;
+    --bricks-btn: 56px;
     --bricks-gap: 3px;
     --bricks-tcell: 16px;
   }
@@ -229,7 +229,37 @@
     overflow: hidden;
   }
   .bricks-piece {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 56px;
+    min-height: 56px;
   }
+}
+
+/* ---- paint button and its palette ---- */
+.bricks-paint {
+  background: var(--bricks-color, #ef4444);
+  border: 3px solid #fff;
+}
+.bricks-palette {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  place-items: center;
+  background: rgba(59, 47, 47, 0.35);
+}
+.bricks[data-palette='open'] .bricks-palette {
+  display: grid;
+}
+.bricks-palette-card {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+.bricks-palette .bricks-color {
+  width: 64px;
+  height: 64px;
 }

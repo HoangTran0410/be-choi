@@ -434,7 +434,7 @@
     grid-row: 1;
     /* Three rows have to fit the height left over above the tray. On a phone held
        sideways that is less than a full tap, and a smaller button beats a cut one. */
-    --birthday-btn: min(var(--tap), 16dvh);
+    --birthday-btn: max(56px, min(var(--tap), 16dvh));
     display: grid;
     grid-template-columns: repeat(2, var(--birthday-btn));
     grid-auto-rows: var(--birthday-btn);

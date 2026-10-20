@@ -31,7 +31,7 @@ export function showMap(app: App, root: HTMLElement, scope: Scope): void {
 
   const greeting = h('p', { class: 'lm-say' }, 'Chọn một trạm nhé!');
   const wardrobe = h('div', { class: 'lm-wardrobe' });
-  const exploreBtn = h('button', { class: 'lm-explore', type: 'button' }, h('span', { class: 'lm-explore-ico' }, '🔍'), h('span', null, 'Khám phá'));
+  const exploreBtn = h('button', { class: 'lm-explore', type: 'button', 'aria-label': 'Khám phá' }, h('span', { class: 'lm-explore-ico' }, '🔍'));
   const head = h('div', { class: 'lm-head' }, app.teacher.el, h('div', { class: 'lm-bubble' }, greeting), exploreBtn);
   const path = h('div', { class: 'lm-path' });
   const lines = h('div', { class: 'lm-lines' });
@@ -70,14 +70,13 @@ export function showMap(app: App, root: HTMLElement, scope: Scope): void {
           'button',
           { class: 'lm-st', type: 'button', 'data-topic': t.id, 'aria-label': t.title },
           h('span', { class: 'lm-st-disc' }, h('span', { class: 'lm-st-ico' }, t.icon)),
-          h('span', { class: 'lm-st-name' }, t.title),
           h('span', { class: 'lm-st-stars' }),
         );
       el.classList.toggle('done', runs > 0);
       el.classList.toggle('suggest', t.id === suggest && !locked);
       el.classList.toggle('locked', locked);
       el.style.setProperty('--hue', String(Math.round((i * 36 + 190) % 360)));
-      (el.querySelector('.lm-st-stars') as HTMLElement).textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+      (el.querySelector('.lm-st-stars') as HTMLElement).textContent = '⭐'.repeat(stars);
       if (!stations.has(t.id)) {
         stations.set(t.id, el);
         scope.onDispose(

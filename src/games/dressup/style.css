@@ -107,6 +107,14 @@
   touch-action: none;
   cursor: grab;
 }
+.dressup-row:not(.active) {
+  display: none;
+}
+.dressup-slot.active:not(.on) {
+  border-style: solid;
+  border-color: rgba(190, 24, 93, 0.7);
+  background: #fff;
+}
 .dressup-garment.worn {
   opacity: 0.45;
 }

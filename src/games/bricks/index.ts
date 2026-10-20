@@ -397,8 +397,23 @@ function start(ctx: GameContext): void {
     return btn;
   });
 
+  // One round paint button shows the colour in use; the six colours only open when it is tapped.
+  const paintBtn = h('button', { class: 'bricks-btn bricks-paint', 'aria-label': 'chọn màu' });
+  paintBtn.style.setProperty('--bricks-color', color);
+  const palette = h('div', { class: 'bricks-palette' }, h('div', { class: 'bricks-palette-card' }, ...colorBtns));
+  function setPalette(open: boolean): void {
+    root.dataset.palette = open ? 'open' : 'closed';
+  }
+  setPalette(false);
+  makeTappable(paintBtn, () => setPalette(root.dataset.palette !== 'open'), { cooldownMs: 0, ctx });
+  palette.addEventListener('click', (e) => {
+    if (e.target === palette) setPalette(false);
+  });
+
   function pickColor(c: string): void {
     color = c;
+    paintBtn.style.setProperty('--bricks-color', c);
+    setPalette(false);
     for (const b of colorBtns) b.classList.toggle('active', b.dataset.color === c);
     for (const t of templates) t.querySelector<HTMLElement>('.bricks-brick')?.style.setProperty('--bricks-color', c);
     ctx.hint.touch();
@@ -418,7 +433,7 @@ function start(ctx: GameContext): void {
     { cooldownMs: 0, ctx },
   );
 
-  colors.append(...colorBtns, trash, modeBtn);
+  colors.append(paintBtn, trash, modeBtn, palette);
   for (const b of colorBtns) b.classList.toggle('active', b.dataset.color === color);
 
   // ---- idle hint ----
@@ -431,6 +446,7 @@ function start(ctx: GameContext): void {
         if (s.color !== color) {
           const dot = colorBtns.find((b) => b.dataset.color === s.color);
           if (dot) replay(dot, 'anim-wiggle');
+          replay(paintBtn, 'anim-wiggle');
           return;
         }
         const t = templates.find((p) => Number(p.dataset.w) === s.w && Number(p.dataset.h) === s.h);
