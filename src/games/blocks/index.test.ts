@@ -17,7 +17,10 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  const e = new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true, bubbles: true });
+  // A finger: the shared drag-and-drop treats a mouse move with no button down as a release.
+  Object.assign(e, { pointerType: 'touch' });
+  return e;
 }
 
 /** jsdom has no layout: give outline `i` the rect x ∈ [i·200, i·200+100], y ∈ [0, 100]. */
@@ -96,7 +99,8 @@ describe('blocks game', () => {
     expect(boing).toHaveBeenCalledTimes(1);
     expect(ding).not.toHaveBeenCalled();
     expect(piece.classList.contains('placed')).toBe(false);
-    expect(piece.classList.contains('spring-back')).toBe(true);
+    expect(piece.classList.contains('is-carried')).toBe(false);
+    expect(ctx.stage.querySelector('.blocks-layer .dd-ghost')).not.toBeNull(); // gliding back
     expect(piece.parentElement?.classList.contains('blocks-tray')).toBe(true);
     expect(ctx.stage.querySelectorAll('.blocks-fill path').length).toBe(0);
     expect(outlines[wrong]!.classList.contains('blocks-done')).toBe(false);
@@ -169,6 +173,33 @@ describe('blocks game', () => {
     expect(outline.classList.contains('anim-pulse')).toBe(true);
     vi.advanceTimersByTime(1500);
     expect(outline.classList.contains('anim-pulse')).toBe(false);
+    ctx.cleanup();
+    vi.useRealTimers();
+  });
+});
+
+describe('blocks: shared drag-and-drop', () => {
+  it('leaving mid-drag removes the floating copy', () => {
+    const { ctx, pieces } = mount();
+    const piece = pieces[0]!;
+    piece.dispatchEvent(ptr('pointerdown', 0, 0));
+    piece.dispatchEvent(ptr('pointermove', 300, 300));
+    expect(ctx.stage.querySelectorAll('.blocks-layer .dd-ghost').length).toBe(1);
+    expect(piece.classList.contains('is-carried')).toBe(true);
+    ctx.cleanup();
+    expect(document.querySelectorAll('.dd-ghost').length).toBe(0);
+  });
+
+  it('a tap does not pick up; the idle hint says what to do', () => {
+    vi.useFakeTimers();
+    const { ctx, pieces } = mount();
+    const piece = pieces[0]!;
+    piece.dispatchEvent(ptr('pointerdown', 0, 0));
+    piece.dispatchEvent(ptr('pointerup', 0, 0));
+    expect(ctx.stage.querySelectorAll('.dd-ghost').length).toBe(0);
+    expect(piece.classList.contains('placed')).toBe(false);
+    vi.advanceTimersByTime(6000);
+    expect(ctx.sequenced.some((t) => t.includes('Kéo khối'))).toBe(true);
     ctx.cleanup();
     vi.useRealTimers();
   });

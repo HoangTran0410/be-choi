@@ -17,7 +17,10 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 function ptr(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  const e = new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true, bubbles: true });
+  // A finger: the shared drag-and-drop treats a mouse move with no button down as a release.
+  Object.assign(e, { pointerType: 'touch' });
+  return e;
 }
 
 /** Board side in the stubbed layout. */
@@ -181,7 +184,8 @@ describe('jigsaw game', () => {
     expect(boing).toHaveBeenCalledTimes(1);
     expect(ding).not.toHaveBeenCalled();
     expect(piece.classList.contains('placed')).toBe(false);
-    expect(item.classList.contains('spring-back')).toBe(true);
+    expect(item.classList.contains('is-carried')).toBe(false);
+    expect(ctx.stage.querySelector('.jigsaw-layer .dd-ghost')).not.toBeNull(); // gliding back
     expect(item.parentElement?.classList.contains('jigsaw-tray')).toBe(true);
     expect(wrong.classList.contains('filled')).toBe(false);
 
@@ -492,5 +496,27 @@ describe('jigsaw game', () => {
     expect(ctx.spoken.length).toBe(2);
     await vi.waitFor(() => expect(ctx.stars).toBe(1));
     ctx.cleanup();
+  });
+});
+
+describe('jigsaw: shared drag-and-drop', () => {
+  it('leaving mid-drag removes the floating copy', () => {
+    const { ctx, items } = mount();
+    const item = items[0]!;
+    item.dispatchEvent(ptr('pointerdown', 0, 0));
+    item.dispatchEvent(ptr('pointermove', 300, 300));
+    expect(ctx.stage.querySelectorAll('.jigsaw-layer .dd-ghost').length).toBe(1);
+    expect(item.classList.contains('is-carried')).toBe(true);
+    ctx.cleanup();
+    expect(document.querySelectorAll('.dd-ghost').length).toBe(0);
+  });
+
+  it('the idle hint says what to do', () => {
+    vi.useFakeTimers();
+    const { ctx } = mount();
+    vi.advanceTimersByTime(6000);
+    expect(ctx.sequenced.some((t) => t.includes('Kéo mảnh'))).toBe(true);
+    ctx.cleanup();
+    vi.useRealTimers();
   });
 });

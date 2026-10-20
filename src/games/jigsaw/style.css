@@ -155,3 +155,22 @@
     height: 100%;
   }
 }
+
+/* ---- the piece in the child's hand (a copy that floats; see core/dragdrop.ts) ---- */
+.jigsaw-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.jigsaw-item.is-carried {
+  opacity: 0.25;
+}
+.jigsaw-ghost-piece {
+  display: grid;
+  place-items: center;
+}
+/* The place the piece would land in if let go now. */
+.jigsaw-slot.jigsaw-near {
+  background: rgba(255, 255, 255, 0.6);
+}

@@ -545,7 +545,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     0 2px 4px rgba(0, 0, 0, 0.18);
   touch-action: none;
-  will-change: transform;
   transform-origin: bottom center;
 }
 .bw-brick::before {
@@ -907,4 +906,38 @@
   .bw-cab-name {
     max-width: 30vw;
   }
+}
+
+/* ---- what is in the child's hand: a copy that floats (see core/dragdrop.ts) ---- */
+.bw-dd-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.bw-pz-item.is-carried,
+.bw-sh-piece.is-carried {
+  opacity: 0.25;
+}
+.bw-bk-piece.is-carried {
+  opacity: 0.4;
+}
+.bw-brick.is-carried {
+  opacity: 0;
+}
+.bw-pz-ghost-piece {
+  display: grid;
+  place-items: center;
+}
+/* The place (or the plate) the piece would land on if let go now. */
+.bw-pz-slot.bw-near {
+  background: rgba(255, 255, 255, 0.6);
+}
+.bw-sh-shadow path.bw-hover {
+  fill: #64748b;
+}
+.bw-bk-plate.bw-over {
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.9),
+    0 8px 24px rgba(59, 47, 47, 0.16);
 }

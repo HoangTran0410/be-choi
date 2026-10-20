@@ -1,8 +1,9 @@
 import { h, replay, svgEl } from '../../core/dom';
-import { hitTest, makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
+import { speakText } from '../../core/say';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { blockPath, blockTransform, congruent, makeBlocksRound, pieceOrder, type Block } from './logic';
+import { blockPath, blockTransform, congruent, makeBlocksRound, pieceOrder, type Block, type Picture } from './logic';
 import './style.css';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -63,7 +64,9 @@ function start(ctx: GameContext): void {
   // Names the picture being built, so a parent can read it out between rounds.
   const title = h('div', { class: 'blocks-title' });
   const main = h('div', { class: 'blocks-main' }, board, tray);
-  const root = h('div', { class: 'blocks' }, title, main);
+  // The copy of the piece in the child's hand floats here (see core/dragdrop.ts).
+  const layer = h('div', { class: 'blocks-layer' });
+  const root = h('div', { class: 'blocks' }, title, main, layer);
   ctx.stage.append(root);
 
   /** Tray pieces are sized from the picture's on-screen size (see style.css). */
@@ -78,18 +81,113 @@ function start(ctx: GameContext): void {
     disposers.forEach((d) => d());
   });
 
+  /** Slots of the round on screen; the piece being carried and how far from an outline still counts. */
+  let slots: Slot[] = [];
+  let carried: Slot | null = null;
+  let tolerance = 0;
+  /** The outline under the finger, lit while the piece hovers over it. */
+  let lit: Slot | null = null;
+  const light = (slot: Slot | null): void => {
+    if (lit === slot) return;
+    lit?.path.classList.remove('blocks-near');
+    lit = slot;
+    lit?.path.classList.add('blocks-near');
+  };
+
+  const dd = createDragDrop<Slot>({
+    layer,
+    // Any open outline of the same shape and size will do: twin blocks (two wheels, two eyes) look
+    // identical, so the child must not be told off for swapping them.
+    targets: () =>
+      carried
+        ? slots
+            .filter((s) => !s.placed && congruent(s.block, carried!.block))
+            .map((s) => ({ id: String(s.index), rect: s.path.getBoundingClientRect() }))
+        : [],
+    resolve: (p, targets) => pickTarget(p, targets, { tolerance }),
+    ghost(src, el) {
+      carried = src;
+      tolerance = el.getBoundingClientRect().width * 0.3;
+      el.classList.remove('anim-wiggle');
+      ctx.hint.touch();
+      const g = el.cloneNode(true) as HTMLElement;
+      g.classList.remove('anim-wiggle');
+      return g;
+    },
+    onHover: (id) => light(id === null ? null : (slots[Number(id)] ?? null)),
+    onTap(src, el) {
+      // A tap shows where this one goes; the words come from the idle hint, not from every touch.
+      ctx.hint.touch();
+      replay(el, 'anim-wiggle');
+      pulse(src);
+    },
+    onDrop(src, hit, el) {
+      light(null);
+      const slot = hit === null ? undefined : slots[Number(hit)];
+      if (!slot || slot.placed) {
+        ctx.audio.boing();
+        return false;
+      }
+      accept(el, src.block, slot);
+      return true;
+    },
+    onEnd() {
+      carried = null;
+      light(null);
+    },
+    ctx,
+  });
+
+  function pulse(slot: Slot): void {
+    replay(slot.path, 'anim-pulse');
+    setTimeout(() => slot.path.classList.remove('anim-pulse'), 1500);
+  }
+
+  function accept(piece: HTMLElement, block: Block, slot: Slot): void {
+    slot.placed = true;
+    slot.path.classList.add('blocks-done');
+    fillLayer.append(
+      blockNode(slot.block, { fill: block.color, stroke: 'rgba(0,0,0,.15)', 'stroke-width': '2', class: 'blocks-placed' }).g,
+    );
+    piece.classList.add('placed');
+    ctx.audio.ding();
+    navigator.vibrate?.(15);
+    placed++;
+    if (placed === slots.length) finish();
+  }
+
+  let placed = 0;
+  let picture!: Picture;
+  let pieces: HTMLElement[] = [];
+
+  function finish(): void {
+    replay(svg, 'anim-bounce');
+    title.textContent = `${picture.name} xong rồi!`;
+    replay(title, 'anim-bounce');
+    ctx.speak(picture.name);
+    ctx.hint.clear();
+    void ctx.celebrate().then(() => {
+      if (!alive) return;
+      ctx.addStar();
+      round++;
+      play();
+    });
+  }
+
   function play(): void {
     disposers.forEach((d) => d());
     disposers = [];
-    const picture = makeBlocksRound(round, undefined, lastId);
+    picture = makeBlocksRound(round, undefined, lastId);
     lastId = picture.id;
     root.dataset.picture = picture.id;
     root.classList.toggle('blocks-many', picture.blocks.length > 4);
     svg.classList.remove('anim-bounce');
     outlineLayer.replaceChildren();
     fillLayer.replaceChildren();
+    placed = 0;
+    light(null);
 
-    const slots: Slot[] = picture.blocks.map((block, index) => {
+    slots = picture.blocks.map((block, index) => {
       const { g, path } = blockNode(block, {
         fill: 'rgba(255,255,255,.55)',
         stroke: 'rgba(59,47,47,.4)',
@@ -101,8 +199,7 @@ function start(ctx: GameContext): void {
       return { index, block, path, placed: false };
     });
 
-    let placed = 0;
-    const pieces = pieceOrder(picture).flatMap((index) => {
+    pieces = pieceOrder(picture).flatMap((index) => {
       const slot = slots[index];
       return slot ? [pieceFor(slot)] : [];
     });
@@ -111,80 +208,30 @@ function start(ctx: GameContext): void {
     measure();
     ctx.speak(`Xếp ${picture.name} nào!`);
 
-    function pieceFor({ block, index }: Slot): HTMLElement {
-      const piece = h(
-        'div',
-        {
-          class: `g-item blocks-piece ${block.w >= block.h ? 'blocks-wide' : 'blocks-tall'}`,
-          'data-index': String(index),
-          style: `--blocks-frac:${Math.max(block.w, block.h) / 100}`,
-        },
-        pieceSvg(block),
-      );
-      disposers.push(
-        makeDraggable(piece, {
-          onStart(el) {
-            el.classList.remove('anim-wiggle');
-            ctx.hint.touch();
-          },
-          onDrop(el, p) {
-            // Any open outline of the same shape and size will do: twin blocks (two wheels,
-            // two eyes) look identical, so the child must not be told off for swapping them.
-            const open = slots
-              .filter((s) => !s.placed && congruent(s.block, block))
-              .map((s) => ({ id: String(s.index), rect: s.path.getBoundingClientRect() }));
-            const tolerance = el.getBoundingClientRect().width * 0.3;
-            const hit = hitTest(p, open, tolerance);
-            const slot = hit === null ? undefined : slots[Number(hit)];
-            if (!slot) {
-              ctx.audio.boing();
-              return false;
-            }
-            accept(el, block, slot);
-            return true;
-          },
-        }),
-      );
-      return piece;
-    }
-
-    function accept(piece: HTMLElement, block: Block, slot: Slot): void {
-      slot.placed = true;
-      slot.path.classList.add('blocks-done');
-      fillLayer.append(
-        blockNode(slot.block, { fill: block.color, stroke: 'rgba(0,0,0,.15)', 'stroke-width': '2', class: 'blocks-placed' }).g,
-      );
-      piece.classList.add('placed');
-      piece.style.transform = '';
-      ctx.audio.ding();
-      navigator.vibrate?.(15);
-      placed++;
-      if (placed === slots.length) finish();
-    }
-
-    function finish(): void {
-      replay(svg, 'anim-bounce');
-      title.textContent = `${picture.name} xong rồi!`;
-      replay(title, 'anim-bounce');
-      ctx.speak(picture.name);
-      ctx.hint.clear();
-      void ctx.celebrate().then(() => {
-        if (!alive) return;
-        ctx.addStar();
-        round++;
-        play();
-      });
-    }
-
     ctx.hint.arm(() => {
       const piece = pieces.find((p) => !p.classList.contains('placed'));
       if (!piece) return;
       replay(piece, 'anim-wiggle');
       const slot = slots[Number(piece.dataset.index)];
       if (!slot) return;
-      replay(slot.path, 'anim-pulse');
-      setTimeout(() => slot.path.classList.remove('anim-pulse'), 1500);
+      pulse(slot);
+      speakText(ctx, `Kéo khối này vào hình ${picture.name} nhé`);
     });
+  }
+
+  function pieceFor(slot: Slot): HTMLElement {
+    const { block, index } = slot;
+    const piece = h(
+      'div',
+      {
+        class: `g-item blocks-piece ${block.w >= block.h ? 'blocks-wide' : 'blocks-tall'}`,
+        'data-index': String(index),
+        style: `--blocks-frac:${Math.max(block.w, block.h) / 100}`,
+      },
+      pieceSvg(block),
+    );
+    disposers.push(dd.attach(piece, () => (piece.classList.contains('placed') ? null : slot)));
+    return piece;
   }
 
   play();

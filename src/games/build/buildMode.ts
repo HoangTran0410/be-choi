@@ -1,5 +1,5 @@
 import { h, replay } from '../../core/dom';
-import { hitTest, makeDraggable } from '../../core/drag';
+import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import { onHold } from '../../core/hold';
 import { readRaw, writeRaw } from '../../core/save';
 import { makeTappable } from '../../core/tap';
@@ -110,7 +110,9 @@ export function createBuildMode(w: Workshop): ModeCtl {
   const tools = h('div', { class: 'bw-bk-tools' }, actions);
   const tray = h('div', { class: 'bw-bk-tray' }, pieces, tools);
   const dock = h('div', { class: 'bw-bk-dock' }, tray, palette);
-  const el = h('section', { class: 'bw-mode bw-bk', 'data-sub': sub }, area, dock);
+  // The copy of the brick in the child's hand floats here (see core/dragdrop.ts).
+  const dragLayer = h('div', { class: 'bw-dd-layer' });
+  const el = h('section', { class: 'bw-mode bw-bk', 'data-sub': sub }, area, dock, dragLayer);
 
   // ---- geometry ----
 
@@ -149,75 +151,119 @@ export function createBuildMode(w: Workshop): ModeCtl {
   };
 
   const plateCell = (rect: DOMRect): number => (rect.width > 0 ? rect.width / board.cols : 0);
-  const overPlate = (p: { x: number; y: number }, rect: DOMRect, cell: number): boolean =>
-    cell > 0 && hitTest(p, [{ id: 'plate', rect }], cell * 0.5) !== null;
   const clampCol = (col: number, bw: number): number => Math.max(0, Math.min(board.cols - bw, col));
   const withDims = (b: Board): Board => (b.cols === board.cols && b.rows === board.rows ? b : refitBoard(b, board.cols, board.rows));
 
   // ---- bricks on the plate ----
 
+  /** What a finger can pick up: a template from the dock, or a brick already on the plate. */
+  type Src = { kind: 'template'; size: BrickSize } | { kind: 'brick'; id: number };
+  /** The brick lifted off the plate while the child carries it (out of `board` until it lands). */
+  let lifted: Brick | null = null;
+  let tolerance = 0;
+
+  const dd = createDragDrop<Src>({
+    layer: dragLayer,
+    targets: () => [{ id: 'plate', rect: plate.getBoundingClientRect() }],
+    resolve: (p, targets) => pickTarget(p, targets, { tolerance }),
+    ghost(src, node) {
+      tolerance = plateCell(plate.getBoundingClientRect()) * 0.5;
+      ctx.hint.touch();
+      const g = node.cloneNode(true) as HTMLElement;
+      g.classList.remove('anim-wiggle', 'bw-land', 'is-carried', 'sel', 'next');
+      if (src.kind === 'brick') {
+        g.style.bottom = 'auto';
+        g.style.setProperty('--x', '0');
+        g.style.setProperty('--y', '0');
+      }
+      return g;
+    },
+    onPickUp(src, node) {
+      node.classList.remove('anim-wiggle');
+      if (src.kind !== 'brick') return;
+      lifted = board.bricks.find((k) => k.id === src.id) ?? null;
+      if (lifted) board = removeBrick(board, lifted.id);
+    },
+    onHover: (id) => plate.classList.toggle('bw-over', id !== null),
+    onTap(src, node) {
+      ctx.hint.touch();
+      // A tap on a brick of the dock picks it: a tap on the plate then puts it down there.
+      if (src.kind === 'template') {
+        selectPiece(src.size);
+        replay(node, 'anim-wiggle');
+      }
+    },
+    onDrop(src, hit, node, p) {
+      const r = plate.getBoundingClientRect();
+      const cell = plateCell(r);
+      if (src.kind === 'template') {
+        if (hit === null || cell <= 0) {
+          ctx.audio.boing();
+          return false;
+        }
+        const col = clampCol(Math.round((p.x - r.left) / cell - src.size.w / 2), src.size.w);
+        if (!dropTemplate(src.size, col)) ctx.audio.boing();
+        // The template always glides back; the plate got its own brick.
+        return false;
+      }
+      const b = lifted;
+      lifted = null;
+      if (!b) return false;
+      if (hit === null || cell <= 0) {
+        // Lifted off the plate: the brick goes back in the box.
+        discard(node);
+        ctx.audio.pop(0.7);
+        navigator.vibrate?.(10);
+        afterChange();
+        return true;
+      }
+      const col = clampCol(Math.round((p.x - r.left) / cell - b.w / 2), b.w);
+      let x = col;
+      let y = dropY(board, col, b.w, b.h);
+      if (y === null) {
+        if (!canPlace(board, b.x, b.y, b.w, b.h)) {
+          discard(node);
+          ctx.audio.pop(0.7);
+          afterChange();
+          return true;
+        }
+        x = b.x;
+        y = b.y;
+        ctx.audio.boing();
+      } else {
+        ctx.audio.tick();
+        ctx.audio.pop(1.4);
+        navigator.vibrate?.(10);
+      }
+      discard(node);
+      board = place(board, { x, y, w: b.w, h: b.h, color: b.color });
+      addBrickEl(board.bricks[board.bricks.length - 1] as Brick, true);
+      afterChange();
+      return true;
+    },
+    onCancel(src, node) {
+      // The system took the finger: a lifted brick goes back where it was.
+      const b = lifted;
+      lifted = null;
+      if (src.kind !== 'brick' || !b || !canPlace(board, b.x, b.y, b.w, b.h)) return;
+      discard(node);
+      board = place(board, { x: b.x, y: b.y, w: b.w, h: b.h, color: b.color });
+      addBrickEl(board.bricks[board.bricks.length - 1] as Brick, false);
+    },
+    onEnd() {
+      lifted = null;
+      plate.classList.remove('bw-over');
+    },
+    ctx,
+  });
+
   function addBrickEl(brick: Brick, land: boolean): HTMLElement {
     const node = brickNode(brick, brick.color, brick.x, brick.y);
     node.dataset.id = String(brick.id);
-    let grabDx = 0;
-    let lifted: Brick | null = null;
-    const down = (e: PointerEvent): void => {
-      const b = board.bricks.find((k) => k.id === Number(node.dataset.id));
-      if (!b) return;
-      const r = plate.getBoundingClientRect();
-      const cell = plateCell(r);
-      grabDx = cell > 0 ? e.clientX - (r.left + b.x * cell) : 0;
-    };
-    node.addEventListener('pointerdown', down);
-    const dispose = makeDraggable(node, {
-      onStart() {
-        ctx.hint.touch();
-        lifted = board.bricks.find((k) => k.id === Number(node.dataset.id)) ?? null;
-        if (lifted) board = removeBrick(board, lifted.id);
-      },
-      onDrop(_n, p) {
-        const b = lifted;
-        lifted = null;
-        if (!b) return false;
-        const r = plate.getBoundingClientRect();
-        const cell = plateCell(r);
-        if (!overPlate(p, r, cell)) {
-          // Lifted off the plate: the brick goes back in the box.
-          discard(node);
-          ctx.audio.pop(0.7);
-          navigator.vibrate?.(10);
-          afterChange();
-          return false;
-        }
-        const col = clampCol(Math.round((p.x - grabDx - r.left) / cell), b.w);
-        let x = col;
-        let y = dropY(board, col, b.w, b.h);
-        if (y === null) {
-          if (!canPlace(board, b.x, b.y, b.w, b.h)) {
-            discard(node);
-            ctx.audio.pop(0.7);
-            afterChange();
-            return false;
-          }
-          x = b.x;
-          y = b.y;
-          ctx.audio.boing();
-        } else {
-          ctx.audio.tick();
-          ctx.audio.pop(1.4);
-          navigator.vibrate?.(10);
-        }
-        discard(node);
-        board = place(board, { x, y, w: b.w, h: b.h, color: b.color });
-        addBrickEl(board.bricks[board.bricks.length - 1] as Brick, true);
-        afterChange();
-        return false;
-      },
-    });
-    brickDisposers.set(node, () => {
-      node.removeEventListener('pointerdown', down);
-      dispose();
-    });
+    brickDisposers.set(
+      node,
+      dd.attach(node, () => ({ kind: 'brick', id: Number(node.dataset.id) })),
+    );
     if (land) node.classList.add('bw-land');
     layer.append(node);
     return node;
@@ -389,37 +435,8 @@ export function createBuildMode(w: Workshop): ModeCtl {
       { class: 'bw-bk-piece', 'data-w': size.w, 'data-h': size.h, 'aria-label': `gạch ${size.w} nhân ${size.h}` },
       brickNode(size, color),
     );
-    let downAt = { x: 0, y: 0 };
-    const mark = (e: PointerEvent): void => {
-      downAt = { x: e.clientX, y: e.clientY };
-    };
-    piece.addEventListener('pointerdown', mark);
-    disposers.push(() => piece.removeEventListener('pointerdown', mark));
-    disposers.push(
-      makeDraggable(piece, {
-        onStart(node) {
-          node.classList.remove('anim-wiggle');
-          ctx.hint.touch();
-        },
-        onDrop(_n, p) {
-          // A tap, not a drag: pick this brick, then a tap on the plate puts it down.
-          if (Math.hypot(p.x - downAt.x, p.y - downAt.y) < 10) {
-            selectPiece(size);
-            return false;
-          }
-          const r = plate.getBoundingClientRect();
-          const cell = plateCell(r);
-          if (!overPlate(p, r, cell)) {
-            ctx.audio.boing();
-            return false;
-          }
-          const col = clampCol(Math.round((p.x - r.left) / cell - size.w / 2), size.w);
-          if (!dropTemplate(size, col)) ctx.audio.boing();
-          // The template always springs back; the plate got its own brick.
-          return false;
-        },
-      }),
-    );
+    // The dock scrolls sideways when the bricks do not fit: a sideways swipe scrolls it, anything else picks the brick up.
+    disposers.push(dd.attach(piece, () => ({ kind: 'template', size }), { scroller: { el: pieces, axis: 'x' } }));
     return piece;
   });
   pieces.append(...templates);
@@ -596,6 +613,7 @@ export function createBuildMode(w: Workshop): ModeCtl {
       }
       const t = templates[Math.floor(Math.random() * templates.length)];
       if (t) replay(t, 'anim-wiggle');
+      speakText(ctx, 'Kéo gạch lên nền xanh nhé');
     });
   }
 
