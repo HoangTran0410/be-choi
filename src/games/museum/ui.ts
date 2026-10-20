@@ -9,6 +9,8 @@ export interface Deps {
   album: Album;
   /** Write the album to storage. */
   save(): void;
+  /** Where the child is in the main room: a cabinet's id, or null in the lobby. Kept so "back" returns there. */
+  nav: { group: string | null };
   go: {
     room(): void;
     table(entryId: string): void;

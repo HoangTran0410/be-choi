@@ -58,68 +58,99 @@
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
-.mu-room.wide {
-  display: block;
-  column-count: 2;
-  column-gap: 8px;
+/* The lobby: four big doors, and the album and the band's door small by the floor. */
+.mu-doors {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 10px;
 }
-.mu-room.wide > * {
-  break-inside: avoid;
-  margin-bottom: 8px;
+@media (orientation: landscape) {
+  .mu-doors {
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: auto;
+  }
+}
+.mu-roomdoor {
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%), var(--cab, #fde68a);
+  border: 5px solid #92400e;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.15);
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+.mu-roomdoor-ico {
+  font-size: clamp(56px, 18vmin, 130px);
+  line-height: 1;
 }
 .mu-foyer {
   display: flex;
+  justify-content: space-between;
   gap: 8px;
-  height: 88px;
   flex: none;
 }
 .mu-door,
 .mu-albumbtn {
   position: relative;
-  min-height: 80px;
+  width: 84px;
+  height: 72px;
   border-radius: 20px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 0;
   background: #fff;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.13);
 }
 .mu-door {
-  flex: 1;
   background: linear-gradient(180deg, #fef3c7, #fcd34d);
-  border: 4px solid #92400e;
+  border: 3px solid #92400e;
 }
 .mu-door.locked {
   background: linear-gradient(180deg, #e7e5e4, #d6d3d1);
   border-color: #78716c;
 }
-.mu-albumbtn {
-  flex: 0 0 120px;
-  flex-direction: column;
-  gap: 0;
-}
 .mu-door-ico {
-  font-size: 40px;
+  font-size: 30px;
   line-height: 1;
 }
 .mu-count {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 800;
   color: #92400e;
 }
 .mu-dots {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 .mu-dots i {
-  width: 14px;
-  height: 14px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.15);
 }
 .mu-dots i.on {
   background: #f59e0b;
+}
+/* Inside one cabinet: the way back, then its shelf filling the rest. */
+.mu-cab-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mu-cab-head .mu-cab-label {
+  position: static;
+}
+.mu-room.inside .mu-cab {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  align-items: center;
 }
 
 .mu-cab {

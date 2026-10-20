@@ -118,7 +118,9 @@ function start(ctx: GameContext): void {
   function place(x: Element | Pt | string): Pt | null {
     if (typeof x !== 'string') return centerOf(x);
     const chip = basket.el.querySelector(`[data-item="${x}"]`);
-    return centerOf(chip ?? basket.el);
+    // A closed tray has no size: fruit flies into the store button instead.
+    const open = basket.el.classList.contains('open');
+    return centerOf((open ? chip : null) ?? basket.el.querySelector('.hv-kho') ?? basket.el);
   }
 
   const hud = createHud(env);
@@ -141,6 +143,7 @@ function start(ctx: GameContext): void {
     root.dataset.tab = tab;
     for (const t of TABS) setClass(views[t].el, 'on', t === tab);
     tabs.setActive(tab);
+    basket.el.classList.remove('open');
     views[tab].sync();
     basket.sync();
     if (changed) {

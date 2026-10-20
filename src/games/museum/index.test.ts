@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetFrameLoop } from '../../core/frame';
 import { fakeContext, type FakeContext } from '../../core/testing';
-import { ENTRIES } from './catalog';
+import { ENTRIES, entriesOf, GROUPS } from './catalog';
 import game from './index';
 import { emptyAlbum, SAVE_KEY, stepMs, TRACKS } from './logic';
 
@@ -25,7 +25,16 @@ const click = (el: Element | null): void => {
   for (const type of ['pointerdown', 'pointerup'])
     el!.dispatchEvent(new PointerEvent(type, { clientX: 5, clientY: 5, pointerId: 7, isPrimary: true, button: 0, bubbles: true }));
 };
-const tileOf = (id: string) => ctx.stage.querySelector(`.mu-tile[data-id="${id}"]`);
+/** The tile of an instrument; steps into its cabinet first if the lobby is showing. */
+const tileOf = (id: string) => {
+  const find = () => ctx.stage.querySelector(`.mu-tile[data-id="${id}"]`);
+  if (!find()) {
+    if (ctx.stage.querySelector('.mu-cab')) click(ctx.stage.querySelector('.mu-back'));
+    const en = ENTRIES.find((e) => e.id === id)!;
+    click(ctx.stage.querySelector(`.mu-roomdoor[data-g="${en.group}"]`));
+  }
+  return find();
+};
 const ptr = (type: string, x: number, y: number) =>
   new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, isPrimary: true, button: 0, bubbles: true });
 
@@ -51,13 +60,31 @@ afterEach(() => {
 });
 
 describe('museum: the room', () => {
-  it('shows four cabinets with every instrument, a locked door and the album', () => {
+  it('opens on four cabinet doors, a small locked door and the album; a cabinet shows its instruments', () => {
     game.start(ctx);
-    expect(ctx.stage.querySelectorAll('.mu-cab').length).toBe(4);
-    expect(ctx.stage.querySelectorAll('.mu-tile').length).toBe(ENTRIES.length);
+    expect(ctx.stage.querySelectorAll('.mu-roomdoor').length).toBe(4);
+    expect(ctx.stage.querySelectorAll('.mu-tile').length).toBe(0);
     expect(ctx.stage.querySelector('.mu-door.locked')).not.toBeNull();
     expect(ctx.stage.querySelector('.mu-albumbtn')).not.toBeNull();
-    for (const el of ctx.stage.querySelectorAll('.mu-tile')) expect((el as HTMLElement).getAttribute('aria-label')).toBeTruthy();
+    let total = 0;
+    for (const g of GROUPS) {
+      click(ctx.stage.querySelector(`.mu-roomdoor[data-g="${g.id}"]`));
+      const tiles = ctx.stage.querySelectorAll('.mu-tile');
+      expect(tiles.length).toBe(entriesOf(g.id).length);
+      total += tiles.length;
+      for (const el of tiles) expect((el as HTMLElement).getAttribute('aria-label')).toBeTruthy();
+      click(ctx.stage.querySelector('.mu-back'));
+    }
+    expect(total).toBe(ENTRIES.length);
+  });
+
+  it('coming back from a table returns to the same cabinet', () => {
+    game.start(ctx);
+    click(ctx.stage.querySelector('.mu-roomdoor[data-g="keys"]'));
+    click(ctx.stage.querySelector('.mu-tile'));
+    expect(ctx.stage.querySelector('.mu-table')).not.toBeNull();
+    click(ctx.stage.querySelector('.mu-back'));
+    expect(ctx.stage.querySelector('.mu-cab[data-g="keys"]')).not.toBeNull();
   });
 
   it('a locked door explains itself kindly and does not open', () => {

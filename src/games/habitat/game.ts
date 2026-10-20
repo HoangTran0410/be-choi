@@ -16,7 +16,7 @@ import { openDecor, type PhotoAction } from './decorPanel';
 import { createForest } from './forest';
 import { addToHome } from './homes';
 import { createHud, type Tool } from './hud';
-import { type Panel } from './panel';
+import { onTile, openPanel, type Panel } from './panel';
 import { createPhotoLayer } from './photos';
 import { createPond } from './pond';
 import { complete, feedEgg, hatchKey, progress, questById, refill, type QuestDef, type QuestEvent, type Reward } from './quests';
@@ -65,11 +65,7 @@ export function createGame(ctx: GameContext): void {
   const arrivals: Record<Realm, string[]> = { fresh: [], sea: [], forest: [] };
 
   const hud = createHud((fn) => ctx.onCleanup(fn), {
-    onWorld: () => openWorldPicker(),
-    onBook: () => {
-      syncLiving();
-      openPanel_(openBook({ host: root, save, audio: ctx.audio, speak: (t) => speakText(ctx, t) }));
-    },
+    onMenu: () => openMenu(),
     onTool: (tool) => useTool(tool),
     onChip: (q) => {
       say(q.say);
@@ -263,6 +259,24 @@ export function createGame(ctx: GameContext): void {
     say(worldById(id)!.name);
     emit({ kind: 'visit', world: id });
     armHint();
+  }
+
+  /** The corner button: two big pictures, the worlds and the book of friends. */
+  function openMenu(): void {
+    const opened = Date.now();
+    const worlds = h('button', { class: 'hb-menu-tile hb-world-btn', type: 'button', 'aria-label': 'đổi thế giới' }, worldById(save.world)?.icon ?? '🐠');
+    const book = h('button', { class: 'hb-menu-tile hb-book-btn', type: 'button', 'aria-label': 'sổ bạn bè' }, '📖');
+    const menu = openPanel(root, 'hb-menu-overlay', h('div', { class: 'hb-menu' }, worlds, book));
+    ctx.audio.tick();
+    onTile(worlds, opened, () => {
+      menu.close();
+      openWorldPicker();
+    });
+    onTile(book, opened, () => {
+      menu.close();
+      syncLiving();
+      openPanel_(openBook({ host: root, save, audio: ctx.audio, speak: (t) => speakText(ctx, t) }));
+    });
   }
 
   function openWorldPicker(): void {

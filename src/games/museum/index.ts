@@ -24,6 +24,7 @@ function start(ctx: GameContext): void {
     ctx,
     album,
     save: () => void saveAlbum(album),
+    nav: { group: null },
     go: {
       room: () => show((host) => mountRoom(host, deps)),
       table: (id) => show((host) => mountTable(host, id, deps)),

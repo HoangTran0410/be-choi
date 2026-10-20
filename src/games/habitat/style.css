@@ -67,7 +67,7 @@
   display: flex;
   gap: 6px;
 }
-.hb-book-btn .hb-badge {
+.hb-menu-btn .hb-badge {
   position: absolute;
   left: 50%;
   bottom: -6px;
@@ -83,6 +83,27 @@
 }
 .hb-badge:empty {
   display: none;
+}
+
+/* The corner button opens two big pictures: the worlds and the book. */
+.hb-menu {
+  display: flex;
+  gap: 4vmin;
+  justify-content: center;
+}
+.hb-menu-tile {
+  width: clamp(110px, 28vmin, 220px);
+  aspect-ratio: 1;
+  border-radius: 28px;
+  background: #e0f2fe;
+  box-shadow: 0 6px 0 var(--btn-shadow);
+  font-size: clamp(56px, 15vmin, 110px);
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.hb-menu-tile:active {
+  transform: scale(0.96);
 }
 
 /* Errands: a picture and a few dots, down the left edge under the two top buttons. */
@@ -532,7 +553,7 @@
 @media (orientation: landscape) and (max-height: 520px) {
   .hb-quests {
     flex-direction: row;
-    left: calc(2.5vmin + var(--tap) * 2 + 18px);
+    left: calc(2.5vmin + var(--tap) + 12px);
     top: 2.5vmin;
   }
   .hb-pond .hb-quests {
