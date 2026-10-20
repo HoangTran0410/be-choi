@@ -1,3 +1,4 @@
+import type { VoicePitch } from '../core/speech';
 import { readRaw, writeRaw } from '../core/save';
 
 export type Theme = 'auto' | 'light' | 'dark';
@@ -25,6 +26,9 @@ export interface Settings {
   breakMinutes: number;
   /** Show the "Hôm nay chơi gì" row of three suggestions on the home screen. */
   todayPick: boolean;
+  /** Chosen Vietnamese voice (the engine's voiceURI); '' lets the app pick. */
+  voiceId: string;
+  voicePitch: VoicePitch;
 }
 
 export interface Store {
@@ -74,6 +78,8 @@ const DEFAULTS: Settings = {
   age: 0,
   breakMinutes: 0,
   todayPick: true,
+  voiceId: '',
+  voicePitch: 'normal',
 };
 
 /**

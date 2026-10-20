@@ -18,9 +18,25 @@ export interface SpeechPart {
   onStart?: () => void;
 }
 
+/** A Vietnamese voice the device offers. */
+export interface VoiceOption {
+  /** Stable id (the engine's voiceURI). */
+  id: string;
+  name: string;
+}
+
+/** How high the voice sits: children listen better to a bright voice, some parents prefer it calmer. */
+export const VOICE_PITCHES = { low: 0.9, normal: 1.1, high: 1.35 } as const;
+export type VoicePitch = keyof typeof VOICE_PITCHES;
+
 export interface Speech {
   /** Speak an empty utterance inside a user gesture so iOS allows later speech. */
   warm(): void;
+  /** Vietnamese voices on this device (may fill in a moment after start). */
+  voices?(): VoiceOption[];
+  /** Use this voice; null or an id the device no longer has picks the best one itself. */
+  setVoice?(id: string | null): void;
+  setPitch?(pitch: VoicePitch): void;
   setEnabled(on: boolean): void;
   /** True when a Vietnamese voice exists. */
   available(): boolean;
@@ -56,15 +72,26 @@ function silentMs(text: string): number {
 export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null): Speech {
   let enabled = true;
   let voice: SpeechSynthesisVoice | null = null;
+  let preferred: string | null = null;
+  let pitch: number = VOICE_PITCHES.normal;
   /** Bumped by anything that cancels; a running sequence stops when its token is stale. */
   let token = 0;
   let stopSeq: (() => void) | null = null;
+
+  function viVoices(): SpeechSynthesisVoice[] {
+    try {
+      return synth ? synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith('vi')) : [];
+    } catch {
+      return [];
+    }
+  }
 
   function findVoice(): void {
     if (!synth) return;
     try {
       const voices = synth.getVoices();
       voice =
+        (preferred ? voices.find((v) => v.voiceURI === preferred && v.lang.toLowerCase().startsWith('vi')) : undefined) ??
         voices.find((v) => v.lang.toLowerCase().startsWith('vi') && v.localService) ??
         voices.find((v) => v.lang.toLowerCase().startsWith('vi')) ??
         null;
@@ -93,7 +120,7 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
     const u = new Ctor(text);
     u.lang = 'vi-VN';
     u.rate = Number.isFinite(rate) ? Math.min(2, Math.max(0.3, rate)) : 0.95;
-    u.pitch = 1.1;
+    u.pitch = pitch;
     if (voice) u.voice = voice;
     return u;
   }
@@ -107,6 +134,16 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
       } catch {
         /* ignore */
       }
+    },
+    voices() {
+      return viVoices().map((v) => ({ id: v.voiceURI, name: v.name }));
+    },
+    setVoice(id) {
+      preferred = id;
+      findVoice();
+    },
+    setPitch(p) {
+      pitch = VOICE_PITCHES[p] ?? VOICE_PITCHES.normal;
     },
     setEnabled(on) {
       enabled = on;

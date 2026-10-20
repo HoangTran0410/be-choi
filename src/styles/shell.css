@@ -232,6 +232,15 @@
   display: flex;
   gap: 8px;
 }
+/* Voice names are long and their number depends on the device: let them wrap. */
+.panel-seg-wrap {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.panel-seg-wrap .panel-seg-btn {
+  flex: 1 1 auto;
+  padding: 0 12px;
+}
 .panel-seg-btn {
   flex: 1;
   min-height: 48px;

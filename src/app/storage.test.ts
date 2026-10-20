@@ -51,6 +51,8 @@ describe('store', () => {
       age: 0,
       breakMinutes: 0,
       todayPick: true,
+      voiceId: '',
+      voicePitch: 'normal',
     });
     expect(a.setSettings({ voice: false }).voice).toBe(false);
     expect(createStore(s).settings()).toEqual({
@@ -62,6 +64,8 @@ describe('store', () => {
       age: 0,
       breakMinutes: 0,
       todayPick: true,
+      voiceId: '',
+      voicePitch: 'normal',
     });
     expect(a.setSettings({ theme: 'dark' }).theme).toBe('dark');
     // A parent who turned the sticker announcement off should not find it back on.

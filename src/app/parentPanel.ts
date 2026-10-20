@@ -1,5 +1,6 @@
 import { h } from '../core/dom';
 import { MAX_NAME, MAX_PHOTOS } from '../core/photos';
+import type { VoicePitch } from '../core/speech';
 import { currentBuild, formatBuildTime } from './buildTime';
 import type { AgeFilter } from './ages';
 import type { AppDeps } from './deps';
@@ -171,6 +172,71 @@ export function openParentPanel(deps: AppDeps): void {
     ),
   );
   const themeRow = h('div', { class: 'panel-section' }, h('h3', null, '🎨 Giao diện'), h('div', { class: 'panel-seg' }, ...themeBtns));
+
+  // ---- which voice reads to the child, and how high ----
+  const SAMPLE = 'Xin chào bé! Mình cùng chơi nhé.';
+  const voiceBtns = h('div', { class: 'panel-seg panel-seg-wrap' });
+  const drawVoices = (): void => {
+    const list = speech.voices?.() ?? [];
+    const current = store.settings().voiceId;
+    const choices = [{ id: '', name: 'Tự chọn' }, ...list];
+    voiceBtns.replaceChildren(
+      ...choices.map((v) =>
+        h(
+          'button',
+          {
+            class: `panel-seg-btn${current === v.id ? ' active' : ''}`,
+            type: 'button',
+            onClick: () => {
+              store.setSettings({ voiceId: v.id });
+              speech.setVoice?.(v.id || null);
+              drawVoices();
+              speech.speak(SAMPLE);
+            },
+          },
+          v.name,
+        ),
+      ),
+    );
+  };
+  drawVoices();
+  // Voices often arrive a moment after the page starts.
+  if (!(speech.voices?.() ?? []).length) setTimeout(drawVoices, 800);
+  const PITCHES: { id: VoicePitch; label: string }[] = [
+    { id: 'low', label: 'Trầm' },
+    { id: 'normal', label: 'Vừa' },
+    { id: 'high', label: 'Cao' },
+  ];
+  const pitchBtns = PITCHES.map((p) =>
+    h(
+      'button',
+      {
+        class: `panel-seg-btn${settings.voicePitch === p.id ? ' active' : ''}`,
+        type: 'button',
+        onClick: () => {
+          store.setSettings({ voicePitch: p.id });
+          speech.setPitch?.(p.id);
+          pitchBtns.forEach((b, i) => b.classList.toggle('active', PITCHES[i]?.id === p.id));
+          speech.speak(SAMPLE);
+        },
+      },
+      p.label,
+    ),
+  );
+  const voiceRow = speech.voices
+    ? h(
+        'div',
+        { class: 'panel-section' },
+        h('h3', null, '🗣️ Giọng đọc'),
+        voiceBtns,
+        h('div', { class: 'panel-seg' }, ...pitchBtns),
+        h(
+          'p',
+          { class: 'panel-note' },
+          'Bấm một giọng để nghe thử. Danh sách là các giọng tiếng Việt có trên máy. iPad: Cài đặt → Trợ năng → Nội dung đọc → Giọng nói → Tiếng Việt để tải thêm giọng (bản "Nâng cao" nghe tự nhiên hơn), rồi mở lại app.',
+        ),
+      )
+    : null;
 
   // ---- child's age: hides games that are still too hard (0 = show all) ----
   const AGES: { id: AgeFilter; label: string }[] = [
@@ -376,6 +442,7 @@ export function openParentPanel(deps: AppDeps): void {
     }),
     settings.todayPick ? null : h('p', { class: 'panel-note' }, 'Màn hình chính không còn hàng 3 game gợi ý mỗi ngày.'),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
+    voiceRow,
     installRow,
     ageRow,
     breakRow,

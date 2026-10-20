@@ -32,6 +32,8 @@ const photos = createPhotoStore();
 const settings = store.settings();
 audio.setEnabled(settings.sound);
 speech.setEnabled(settings.voice);
+speech.setVoice?.(settings.voiceId || null);
+speech.setPitch?.(settings.voicePitch);
 applyTheme(settings.theme);
 watchSystemTheme(() => store.settings().theme);
 
