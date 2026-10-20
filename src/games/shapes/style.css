@@ -25,3 +25,11 @@
 .piece.placed {
   pointer-events: none;
 }
+
+/* The piece being carried stays in the tray as a faint mark; the ghost follows the finger. */
+.piece.is-carried {
+  opacity: 0.3;
+}
+.shapes-board .hole.is-hover {
+  transform: scale(1.08);
+}

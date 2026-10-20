@@ -57,3 +57,10 @@
 .sizes-piece.placed .sizes-piece-emoji {
   font-size: calc(var(--sizes-box) * 0.4);
 }
+/* The piece being carried stays in the tray as a faint mark; the ghost follows the finger. */
+.sizes-piece.is-carried {
+  opacity: 0.3;
+}
+.sizes-box.is-hover {
+  transform: scale(1.06);
+}

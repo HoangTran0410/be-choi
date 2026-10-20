@@ -26,3 +26,11 @@
 .shadows-piece.placed {
   pointer-events: none;
 }
+
+/* The animal being carried stays in the tray as a faint mark; the ghost follows the finger. */
+.shadows-piece.is-carried {
+  opacity: 0.3;
+}
+.shadows-shadow.is-hover {
+  transform: scale(1.08);
+}

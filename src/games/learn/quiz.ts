@@ -162,35 +162,40 @@ export function showQuiz(app: App, topic: TopicId, root: HTMLElement, scope: Sco
   }
 
   function dragView(dq: DragQuestion): AnswerView {
-    return renderDrag(answers, dq, {
-      onPlaced(item, bin) {
-        ctx.hint.touch();
-        ctx.audio.ding();
-        navigator.vibrate?.(10);
-        record(item.concept, !slipped.has(item.id));
-        app.sayer.say([`${capText(item.name)}`, `vào ${bin.name}`]);
+    return renderDrag(
+      answers,
+      dq,
+      {
+        onPlaced(item, bin) {
+          ctx.hint.touch();
+          ctx.audio.ding();
+          navigator.vibrate?.(10);
+          record(item.concept, !slipped.has(item.id));
+          app.sayer.say([`${capText(item.name)}`, `vào ${bin.name}`]);
+        },
+        onWrongDrop(item, _hit, right) {
+          ctx.hint.touch();
+          slipped.add(item.id);
+          ctx.audio.boing();
+          app.teacher.think();
+          app.sayer.say([{ text: 'Đây là', gap: 250 }, item.name, `Mình bỏ vào ${right.name} nhé`]);
+        },
+        onTap(item) {
+          ctx.hint.touch();
+          ctx.audio.pop(1);
+          app.sayer.say([capText(item.name)]);
+        },
+        onAllPlaced() {
+          locked = true;
+          ctx.hint.clear();
+          app.teacher.cheer();
+          scope.later(() => {
+            app.sayer.say(['Giỏi quá!'], { onDone: () => scope.later(next, NEXT_PAUSE_MS) });
+          }, 500);
+        },
       },
-      onWrongDrop(item, _hit, right) {
-        ctx.hint.touch();
-        slipped.add(item.id);
-        ctx.audio.boing();
-        app.teacher.think();
-        app.sayer.say([{ text: 'Đây là', gap: 250 }, item.name, `Mình bỏ vào ${right.name} nhé`]);
-      },
-      onTap(item) {
-        ctx.hint.touch();
-        ctx.audio.pop(1);
-        app.sayer.say([capText(item.name)]);
-      },
-      onAllPlaced() {
-        locked = true;
-        ctx.hint.clear();
-        app.teacher.cheer();
-        scope.later(() => {
-          app.sayer.say(['Giỏi quá!'], { onDone: () => scope.later(next, NEXT_PAUSE_MS) });
-        }, 500);
-      },
-    });
+      { layer: ctx.stage },
+    );
   }
 
   function next(): void {

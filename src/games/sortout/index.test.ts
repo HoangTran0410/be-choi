@@ -15,7 +15,15 @@ if (!('PointerEvent' in globalThis)) {
 }
 
 const ptr = (type: string, x: number, y: number) =>
-  new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true, bubbles: true });
+  new PointerEvent(type, {
+    clientX: x,
+    clientY: y,
+    pointerId: 1,
+    button: 0,
+    buttons: type === 'pointerup' ? 0 : 1,
+    isPrimary: true,
+    bubbles: true,
+  });
 
 function rect(el: Element, left: number, top: number, w = 100, h = 100) {
   el.getBoundingClientRect = () =>
@@ -70,12 +78,12 @@ describe('sortout game', () => {
     const other = [...ctx.stage.querySelectorAll<HTMLElement>('.sortout-bin')].find((b) => b.dataset.cat !== cat)!;
     drag(piece, binX(ctx.stage, other.dataset.cat!), 50);
     expect(piece.classList.contains('placed')).toBe(false);
-    expect(piece.classList.contains('spring-back')).toBe(true);
-    expect(ctx.spoken).toEqual([]);
+    expect(piece.classList.contains('is-carried')).toBe(false);
+    expect(ctx.spoken.length).toBe(1); // only the opening line
     drag(piece, binX(ctx.stage, cat), 50);
     expect(piece.classList.contains('placed')).toBe(true);
     expect(piece.parentElement?.parentElement?.dataset.cat).toBe(cat);
-    expect(ctx.spoken.length).toBe(1);
+    expect(ctx.spoken.length).toBe(2);
     ctx.cleanup();
   });
 

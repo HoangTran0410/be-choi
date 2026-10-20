@@ -59,3 +59,10 @@
   height: calc(var(--tap) * 0.6);
   font-size: calc(var(--tap) * 0.45);
 }
+
+.sortout-piece.is-carried {
+  opacity: 0.3;
+}
+.sortout-bin.is-hover {
+  transform: scale(1.06);
+}
