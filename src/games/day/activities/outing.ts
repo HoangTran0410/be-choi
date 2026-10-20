@@ -2,6 +2,7 @@ import { h, mulberry32, replay } from '../../../core/dom';
 import { fall } from '../ambient';
 import { visitorBubble } from '../art';
 import { OUTING_COUNT, outingPool, take, visitorLine } from '../day';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 const NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
@@ -30,8 +31,16 @@ export const outing: Activity = (env) => {
   const basket = h('div', { class: 'out-basket', 'aria-hidden': 'true' }, ...Array.from({ length: total }, () => h('span', { class: 'out-slot' })));
   const root = h('div', { class: `out out-${plan.weather}` }, h('span', { class: 'out-theme' }, THEME[plan.weather]), field, h('div', { class: 'out-kid' }, me), basket);
   env.host.append(root);
+  const fin = createFinisher(env);
   if (plan.weather === 'rainy') fall(root, scope, '💧', 12);
   else if (plan.weather === 'cold') fall(root, scope, '❄️', 8);
+
+  scope.tap(me, () => {
+    fin.touch();
+    ctx.hint.touch();
+    replay(me, 'anim-wiggle');
+    ctx.audio.pop(1.1);
+  }, 300);
 
   const cells = take(
     [
@@ -48,6 +57,7 @@ export const outing: Activity = (env) => {
 
   function collect(el: HTMLElement, glyph: string): void {
     ctx.hint.touch();
+    fin.touch();
     if (el.classList.contains('got')) return;
     el.classList.add('got');
     const slot = basket.children[got];
@@ -58,7 +68,7 @@ export const outing: Activity = (env) => {
     if (got >= total) {
       ctx.hint.clear();
       scope.later(() => env.say('Vui quá!… Chơi xong rồi!'), 700);
-      scope.later(() => env.finish(), 3000);
+      fin.ready();
     }
   }
 

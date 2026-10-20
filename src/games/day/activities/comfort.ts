@@ -1,5 +1,6 @@
 import { h, replay } from '../../../core/dom';
 import { COMFORTS, MOOD_LINE, REACTIONS, giggleLine, nextMood, soothedLine, type Comfort, type Mood as FeelMood } from '../../feelings/logic';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 /** Moods soothed before the friend is calm enough to sleep. */
@@ -31,6 +32,7 @@ export const comfort: Activity = (env) => {
     bar.append(b);
   }
   env.host.append(h('div', { class: 'comfort' }, hearts, stage, bar));
+  const fin = createFinisher(env);
 
   function floatUp(items: readonly string[]): void {
     items.forEach((emoji, i) => {
@@ -67,6 +69,7 @@ export const comfort: Activity = (env) => {
 
   function give(c: Comfort): void {
     ctx.hint.touch();
+    fin.touch();
     const r = REACTIONS[c];
     replay(buttons.get(c) as HTMLElement, 'anim-pop');
     sound(c);
@@ -89,8 +92,8 @@ export const comfort: Activity = (env) => {
     if (busy) return;
     busy = true;
     if (soothed >= SOOTHES) {
-      scope.later(() => env.say('Bạn nhỏ hết buồn rồi!'), 1500);
-      scope.later(() => env.finish(), 3400);
+      scope.later(() => env.say('Bạn nhỏ hết buồn rồi!… Bấm dấu xanh nhé!'), 1500);
+      fin.ready();
     } else scope.later(upset, HAPPY_MS);
   }
 

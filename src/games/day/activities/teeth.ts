@@ -1,6 +1,7 @@
 import { h, mulberry32, replay } from '../../../core/dom';
 import { hitTest } from '../../../core/drag';
 import { CHEERS, JOBS, JOB_ICON, NUDGES, SCRUBS_TO_CLEAN, allClean, makeMouth, scrub, type Job } from '../../teeth/logic';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 /** Distance the brush must travel for the next stroke to count. */
@@ -8,7 +9,8 @@ const STROKE_PX = 14;
 
 /**
  * Đánh răng: squeeze the paste, brush every dirty tooth (a swipe, or taps) and rinse with
- * the cup — in any order. Done when all three are done.
+ * the cup — in any order. When all three are done a big ✓ shows; brushing and the rest keep
+ * working until the child presses it (or stops playing for a while).
  */
 export const teeth: Activity = (env) => {
   const { ctx, scope, plan, days } = env;
@@ -36,8 +38,10 @@ export const teeth: Activity = (env) => {
     }),
   );
   env.host.append(h('div', { class: 'teeth' }, row, jaw, h('div', { class: 'teeth-tools' }, paste, rinse)));
+  const fin = createFinisher(env);
 
   function setJob(j: Job): void {
+    fin.touch();
     if (done.has(j)) return;
     done.add(j);
     ticks.get(j)?.classList.add('done');
@@ -46,7 +50,7 @@ export const teeth: Activity = (env) => {
     if (done.size === JOBS.length) {
       ctx.hint.clear();
       scope.later(() => env.say('Răng sạch bóng rồi!'), 1200);
-      scope.later(() => env.finish(), 3200);
+      fin.ready();
     }
   }
 
@@ -91,6 +95,7 @@ export const teeth: Activity = (env) => {
   };
   jaw.addEventListener('pointerdown', (e) => {
     ctx.hint.touch();
+    fin.touch();
     from = { x: e.clientX, y: e.clientY };
     place(e);
     brushAt(e.clientX, e.clientY);

@@ -1565,3 +1565,75 @@
     top: 8%;
   }
 }
+
+/* ---- the big ✓ that ends a job (the child decides) ---- */
+.day-ok {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 6;
+  width: 84px;
+  height: 84px;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.18);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  animation: day-ok-breathe 2.4s ease-in-out infinite;
+}
+.day-ok[hidden] {
+  display: none;
+}
+.day-ok.pressed {
+  animation: none;
+  transform: scale(1.25);
+}
+@keyframes day-ok-breathe {
+  50% {
+    transform: scale(1.1);
+  }
+}
+.day-act.leaving {
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.day-home.arriving {
+  animation: day-arrive 0.5s ease-out;
+}
+@keyframes day-arrive {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-ok {
+    animation: none;
+  }
+}
+
+/* ---- how far along a job is (dress: hat, top, shoes) ---- */
+.dress-dots {
+  margin-top: 22px;
+  display: flex;
+  gap: 10px;
+}
+.dress-dots i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.14);
+  border: 3px solid #fff;
+  transition: background 0.3s, transform 0.3s;
+}
+.dress-dots i.on {
+  background: #22c55e;
+  transform: scale(1.25);
+}
