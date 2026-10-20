@@ -4,9 +4,12 @@
  * a user gesture (browser autoplay policy) or when sound is disabled.
  */
 import { LOUDNESS } from './loudness';
+import { FILE_TRIM } from './loudness-files';
 import { SFX_TAKES, sfxUrl } from './sfx';
 import { VOICE_HZ } from './voicepitch';
 import { renderCatNote } from './catvoice';
+import { SCALE_C, noteFreq } from './music';
+import type { RenderReply, RenderRequest } from './renderWorker';
 import { HELD, INSTRUMENT_IDS, INSTRUMENT_REF, renderInstrument, type InstrumentId } from './instruments';
 
 export type { InstrumentId };
@@ -107,7 +110,9 @@ export type SoundId =
    * normalises them against each other, so they only need bringing to the
    * house level as a group.
    */
-  | 'sample';
+  | 'sample'
+  /** The cat that sings a note (catvoice.ts): synthesized, so it has a trim of its own. */
+  | 'cat';
 
 export interface AudioEngine {
   readonly enabled: boolean;
@@ -226,6 +231,9 @@ const STAND_IN: Readonly<Record<Exclude<FxKind, SynthFx>, SynthFx>> = {
  * missing fundamental back by itself; the untouched low end still goes out to the
  * dry path, so a real speaker still thumps.
  */
+/** The dip at the master that takes the sting out of 2-5 kHz: where, and how deep (dB). */
+const SOFTEN_HZ = 3400;
+const SOFTEN_DB = -2.5;
 /** Everything below this is what a small speaker cannot play. */
 const BASS_SPLIT_HZ = 160;
 /** How hard that band is driven into the clipper. Higher = richer, grittier. */
@@ -249,6 +257,11 @@ function saturationCurve(n = 1024): Float32Array<ArrayBuffer> {
     curve[i] = Math.tanh(x >= 0 ? x : x * 0.5);
   }
   return curve;
+}
+
+/** What a recording is multiplied by: the shared sample trim, then its own (see loudness-files.ts). */
+function fileGain(url: string | undefined): number {
+  return LOUDNESS.sample * (url ? (FILE_TRIM[url] ?? 1) : 1);
 }
 
 /** iPhone/iPad, including iPadOS reporting itself as a Mac. */
@@ -323,6 +336,8 @@ export function createAudio(): AudioEngine {
   const takes = new Map<FxKind, AudioBuffer[]>();
   /** The measured pitch of a decoded take, when it has one (see voicepitch.ts). */
   const takeHz = new WeakMap<AudioBuffer, number>();
+  /** Which file a decoded take came from, for its trim (see loudness-files.ts). */
+  const takeUrl = new WeakMap<AudioBuffer, string>();
   /** One load per voice, started the first time it is asked for. */
   const loading = new Map<FxKind, Promise<void>>();
 
@@ -351,6 +366,7 @@ export function createAudio(): AudioEngine {
             else takes.set(kind, [buf]);
             const hz = VOICE_HZ[kind]?.[i];
             if (hz) takeHz.set(buf, hz);
+            takeUrl.set(buf, sfxUrl(kind, i));
           })
           .catch(() => undefined),
       );
@@ -388,8 +404,30 @@ export function createAudio(): AudioEngine {
         comp.ratio.value = 3;
         comp.attack.value = 0.003;
         comp.release.value = 0.2;
-        comp.connect(ctx.destination);
-        tone.connect(comp);
+        // A ceiling behind the compressor. 3:1 above -12 dB still lets a drum roll, a full
+        // orchestra bar or a stack of chords past 0 dBFS (measured: +3 dB over, in the
+        // orchestra and the jam beats), and a phone speaker or its DAC then clips them
+        // into a rasp. Fast attack, a ratio high enough to be a wall, and the compressor's
+        // own look-ahead keep the peaks out without the pumping of a slow limiter; the
+        // knee is hard because nothing below the ceiling should be touched.
+        const limit = ctx.createDynamicsCompressor();
+        limit.threshold.value = -3;
+        limit.knee.value = 0;
+        limit.ratio.value = 20;
+        limit.attack.value = 0.001;
+        limit.release.value = 0.1;
+        limit.connect(ctx.destination);
+        comp.connect(limit);
+        // Small speakers are sharpest at 2-5 kHz and a child's ear is most tender there.
+        // A broad dip of a couple of dB keeps whistles, chirps and cymbals from stinging
+        // without taking the top off them (the lowpass above already trims the hiss).
+        const soften = ctx.createBiquadFilter();
+        soften.type = 'peaking';
+        soften.frequency.value = SOFTEN_HZ;
+        soften.Q.value = 0.8;
+        soften.gain.value = SOFTEN_DB;
+        soften.connect(comp);
+        tone.connect(soften);
         sink = tone;
       } catch {
         /* no compressor: connect straight to the destination */
@@ -697,7 +735,10 @@ export function createAudio(): AudioEngine {
         noise(0.06, { gain: 0.2, at: 0.05, filter: { type: 'highpass', freq: 5000 } });
         return;
       case 'wood':
-        tone('sine', 1100, 0.07, { gain: 0.9, attack: 0.001, slideTo: 700 });
+        // Long enough to carry some energy: at 70 ms it was so short that reaching the house
+        // level took a trim that put its peak against the master's ceiling.
+        tone('sine', 1100, 0.14, { gain: 0.7, attack: 0.001, slideTo: 700 });
+        tone('sine', 1650, 0.05, { gain: 0.2, attack: 0.001, slideTo: 1050 });
         return;
       case 'ride':
         // A ride is mostly the stick: a defined ping, then a short shimmer of metal.
@@ -724,14 +765,14 @@ export function createAudio(): AudioEngine {
         return;
       case 'honk':
         tone('square', 230, 0.4, {
-          gain: 0.3,
+          gain: 0.18,
           attack: 0.02,
           sustain: true,
           release: 0.1,
           filter: { type: 'lowpass', freq: 900 },
           vibrato: { hz: 7, depth: 6 },
         });
-        tone('sawtooth', 345, 0.4, { gain: 0.12, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 1200 } });
+        tone('sawtooth', 345, 0.4, { gain: 0.07, attack: 0.02, sustain: true, release: 0.1, filter: { type: 'lowpass', freq: 1200 } });
         return;
       case 'siren': {
         // Two-tone fire engine: a fourth apart, four swaps, kept soft by a lowpass
@@ -1014,9 +1055,71 @@ export function createAudio(): AudioEngine {
     at(`note:${timbre}`, () => playNote(freq, dur, timbre), delay, vel);
   }
 
+  /**
+   * A worker that renders the computed notes (sung cats, world instruments) so that the
+   * first time each is played costs the main thread a message, not tens to hundreds of
+   * milliseconds of arithmetic in the middle of a game. Null where there are no workers
+   * (tests, very old browsers) or once one has failed: those render in place, as before.
+   */
+  let worker: Worker | null | undefined;
+  let nextJob = 1;
+  const waiting = new Map<number, (data: Float32Array | null) => void>();
+
+  type Job = Omit<Extract<RenderRequest, { kind: 'cat' }>, 'id'> | Omit<Extract<RenderRequest, { kind: 'inst' }>, 'id'>;
+
+  function giveUpWorker(): void {
+    worker?.terminate();
+    worker = null;
+    for (const resolve of waiting.values()) resolve(null);
+    waiting.clear();
+  }
+
+  /** Resolves with the samples, or null if the worker could not make them; null at once when there is no worker. */
+  function renderOffThread(job: Job): Promise<Float32Array | null> | null {
+    if (worker === undefined) {
+      worker = null;
+      if (typeof Worker !== 'undefined') {
+        try {
+          const w = new Worker(new URL('./renderWorker.ts', import.meta.url), { type: 'module' });
+          w.onmessage = (e: MessageEvent<RenderReply>) => {
+            const resolve = waiting.get(e.data.id);
+            waiting.delete(e.data.id);
+            resolve?.(e.data.data);
+          };
+          w.onerror = giveUpWorker;
+          worker = w;
+        } catch {
+          worker = null;
+        }
+      }
+    }
+    const w = worker;
+    if (!w) return null;
+    const id = nextJob++;
+    return new Promise((resolve) => {
+      waiting.set(id, resolve);
+      try {
+        w.postMessage({ ...job, id } as RenderRequest);
+      } catch {
+        waiting.delete(id);
+        resolve(null);
+      }
+    });
+  }
+
   /** Rendered notes, most recently used last: a repeated tap costs no DSP. */
   const instCache = new Map<string, AudioBuffer>();
   const INST_KEPT = 128;
+
+  const instPending = new Set<string>();
+
+  function keepInst(key: string, c: Ctx, data: Float32Array): AudioBuffer {
+    const buf = c.createBuffer(1, data.length, c.sampleRate);
+    buf.getChannelData(0).set(data);
+    instCache.set(key, buf);
+    while (instCache.size > INST_KEPT) instCache.delete(instCache.keys().next().value as string);
+    return buf;
+  }
 
   function playInst(id: InstrumentId, freq: number, vel: number, dur?: number, damp = false): InstVoice | null {
     const c = getCtx();
@@ -1029,10 +1132,22 @@ export function createAudio(): AudioEngine {
       let buf = instCache.get(key);
       if (buf) instCache.delete(key);
       else {
-        const data = renderInstrument(id, f, v, c.sampleRate, { dur });
-        buf = c.createBuffer(1, data.length, c.sampleRate);
-        buf.getChannelData(0).set(data);
+        const job = renderOffThread({ kind: 'inst', inst: id, freq: f, vel: v, sampleRate: c.sampleRate, dur });
+        if (job) {
+          // Not rendered yet: ask for it, and let this first strike be a plain struck tone.
+          if (!instPending.has(key)) {
+            instPending.add(key);
+            void job.then((data) => {
+              instPending.delete(key);
+              if (data) keepInst(key, c, data);
+            });
+          }
+          tone('triangle', f, Math.min(0.5, dur ?? 0.4), { gain: 0.4, attack: 0.003 });
+          return null;
+        }
+        buf = keepInst(key, c, renderInstrument(id, f, v, c.sampleRate, { dur }));
       }
+      instCache.delete(key);
       instCache.set(key, buf);
       while (instCache.size > INST_KEPT) instCache.delete(instCache.keys().next().value as string);
       const src = c.createBufferSource();
@@ -1093,7 +1208,7 @@ export function createAudio(): AudioEngine {
       const src = c.createBufferSource();
       src.buffer = buf;
       const g = c.createGain();
-      g.gain.value = LOUDNESS.sample;
+      g.gain.value = fileGain(takeUrl.get(buf));
       src.connect(g).connect(master);
       src.start(c.currentTime);
       return true;
@@ -1106,6 +1221,45 @@ export function createAudio(): AudioEngine {
   const sung = new Map<string, AudioBuffer>();
   const SUNG_KEPT = 48;
 
+  const sungPending = new Set<string>();
+  let catScaleWarmed = false;
+
+  function catKey(hz: number, dur: number): string {
+    return `${Math.round(hz * 10)}|${dur.toFixed(2)}`;
+  }
+
+  function keepCat(key: string, c: Ctx, data: Float32Array): AudioBuffer {
+    const buf = c.createBuffer(1, data.length, c.sampleRate);
+    buf.getChannelData(0).set(data);
+    sung.set(key, buf);
+    while (sung.size > SUNG_KEPT) sung.delete(sung.keys().next().value as string);
+    return buf;
+  }
+
+  /** Start rendering a cat note on the worker. False when there is no worker (the caller renders it). */
+  function requestCat(c: Ctx, hz: number, dur: number): boolean {
+    const key = catKey(hz, dur);
+    if (sungPending.has(key)) return worker != null;
+    const job = renderOffThread({ kind: 'cat', hz, sampleRate: c.sampleRate, dur });
+    if (!job) return false;
+    sungPending.add(key);
+    void job.then((data) => {
+      sungPending.delete(key);
+      if (data) keepCat(key, c, data);
+    });
+    return true;
+  }
+
+  /**
+   * The first cat note is a request to the worker; so are the rest of the scale, queued
+   * behind it, because a tune is about to want them all.
+   */
+  function warmCatScale(c: Ctx): void {
+    if (catScaleWarmed) return;
+    catScaleWarmed = true;
+    for (const name of SCALE_C) requestCat(c, noteFreq(name) * 2, 0.7);
+  }
+
   /**
    * A cat singing ONE steady note (see catvoice.ts). Not a retuned recording: a real
    * meow glides by a couple of semitones, so shifting it gives no note to hear.
@@ -1114,20 +1268,24 @@ export function createAudio(): AudioEngine {
     const c = getCtx();
     if (!c || !master) return;
     try {
-      const key = `${Math.round(hz * 10)}|${dur.toFixed(2)}`;
+      const key = catKey(hz, dur);
       let buf = sung.get(key);
       if (buf) sung.delete(key);
       else {
-        const data = renderCatNote(hz, { sampleRate: c.sampleRate, dur });
-        buf = c.createBuffer(1, data.length, c.sampleRate);
-        buf.getChannelData(0).set(data);
+        if (requestCat(c, hz, dur)) {
+          // Being rendered on the worker: this first note is a plain sung tone.
+          at('cat', () => tone('sawtooth', hz, Math.min(dur, 0.6), { gain: 0.25 * gain, attack: 0.03, sustain: true, release: 0.15, filter: { type: 'bandpass', freq: 1300, q: 1.5 } }));
+          warmCatScale(c);
+          return;
+        }
+        buf = keepCat(key, c, renderCatNote(hz, { sampleRate: c.sampleRate, dur }));
       }
       sung.set(key, buf);
       while (sung.size > SUNG_KEPT) sung.delete(sung.keys().next().value as string);
       const src = c.createBufferSource();
       src.buffer = buf;
       const g = c.createGain();
-      g.gain.value = LOUDNESS.sample * gain;
+      g.gain.value = LOUDNESS.cat * gain;
       src.connect(g).connect(master);
       src.start(c.currentTime);
     } catch {
@@ -1159,7 +1317,7 @@ export function createAudio(): AudioEngine {
       src.buffer = buf;
       src.playbackRate.value = rate;
       const g = c.createGain();
-      const level = LOUDNESS.sample * gain;
+      const level = fileGain(takeUrl.get(buf)) * gain;
       const len = Math.min(maxDur, buf.duration / rate);
       const t0 = c.currentTime;
       g.gain.setValueAtTime(level, t0);
@@ -1224,7 +1382,7 @@ export function createAudio(): AudioEngine {
       src.buffer = buf;
       src.loop = true;
       const g = c.createGain();
-      const level = (v: number) => Math.max(0, v) * LOUDNESS.sample;
+      const level = (v: number) => Math.max(0, v) * fileGain(url);
       g.gain.setValueAtTime(0, c.currentTime);
       g.gain.linearRampToValueAtTime(level(volume), c.currentTime + 0.8);
       src.connect(g).connect(master);
@@ -1267,7 +1425,7 @@ export function createAudio(): AudioEngine {
       const src = c.createBufferSource();
       src.buffer = buf;
       const g = c.createGain();
-      g.gain.value = LOUDNESS.sample;
+      g.gain.value = fileGain(url);
       src.connect(g).connect(master);
       src.start(c.currentTime);
       return {

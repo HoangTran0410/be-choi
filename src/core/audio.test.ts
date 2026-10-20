@@ -135,8 +135,10 @@ describe('the loudness table', () => {
     ...DRUMS.map((d): SoundId => `drum:${d}`),
     ...FX.map((f): SoundId => `fx:${f}`),
     ...INSTRUMENTS.map((i): SoundId => `inst:${i}`),
-    // The recorded animal voices are levelled as one group.
+    // Recordings carry a trim each (loudness-files.ts); this is the shared unity they sit on.
     'sample',
+    // The sung cat (catvoice.ts) is synthesized, so it has its own.
+    'cat',
   ];
 
   it('gives every sound a level, and has no entries for sounds that no longer exist', () => {
