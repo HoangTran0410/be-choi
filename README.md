@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -16,6 +16,8 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
 
 Vài trò nổi bật:
+
+- **🎨 Xưởng vẽ của bé** — một xưởng vẽ gộp *Tô màu* và *Tập vẽ* (hai game cũ vẫn chơi được ở "Game lẻ"), 4 cách vẽ chỉ có hình, không có chữ: *Tập vẽ* (theo nét, nối chấm, tô vùng, 24 tranh), *Tô tranh* (tranh nét hoặc **ảnh của bé/người thân chuyển thành nét vẽ**, có xô đổ màu), *Vẽ tự do* (bút, bút sáp, cầu vồng, lấp lánh, tem, tẩy) và *Vẽ theo mẫu* (mẫu mờ, bé vẽ phủ lên, nét nào gần mẫu thì sáng lên và tô màu giúp — không chấm điểm). Mọi tác phẩm tự lưu vào **quyển vở** (lật xem, "triển lãm" có vỗ tay, chọn làm phông nền; xoá phải giữ lâu, dành cho ba mẹ). Vẽ xong được mở thêm tranh, màu, bút, bộ hình dán; dùng tem lần đầu thì vào **bộ sưu tập**.
 
 - **📣 Bấm nghe tiếng** — sách âm thanh 6 trang: bấm con bò thì bò rống, bấm xe cứu hoả thì còi hú, bấm em bé thì bé cười.
 - **🌦️ Bé tạo cảnh** — 47 âm thanh nền (mưa, tuyết, sóng biển, thác nước, vườn ong, hội chợ, vũ trụ…) trộn lại với nhau, cái nào cũng hiện lên màn hình: mưa rơi, tuyết phủ đồi, pháo hoa có đuôi, đu quay quay, trời tối có sao cho tiếng dế. Chọn được ảnh thật làm phông.
