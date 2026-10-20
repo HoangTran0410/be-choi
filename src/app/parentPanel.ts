@@ -1,5 +1,5 @@
 import { h } from '../core/dom';
-import { MAX_PHOTOS } from '../core/photos';
+import { MAX_NAME, MAX_PHOTOS } from '../core/photos';
 import { currentBuild, formatBuildTime } from './buildTime';
 import type { AgeFilter } from './ages';
 import type { AppDeps } from './deps';
@@ -49,29 +49,78 @@ export function openParentPanel(deps: AppDeps): void {
   const photoCount = h('span', { class: 'photo-count' });
   const photoGrid = h('div', { class: 'photo-grid' });
   const photoStatus = h('p', { class: 'panel-status' });
+  /** Names a parent is most likely to give; shown as one-tap chips under a photo that has no name yet. */
+  const QUICK_NAMES = ['Mẹ', 'Ba', 'Bà', 'Ông', 'Bé'];
   const renderPhotos = async () => {
     const list = await photos.list();
     photoCount.textContent = `${list.length}/${MAX_PHOTOS}`;
     photoGrid.replaceChildren(
-      ...list.map((ph) =>
-        h(
+      ...list.map((ph) => {
+        const nameInput = h('input', {
+          class: 'photo-name',
+          type: 'text',
+          maxlength: MAX_NAME,
+          placeholder: 'Tên (Mẹ, Ba…)',
+          'aria-label': 'Tên người trong ảnh',
+          value: ph.name ?? '',
+        }) as HTMLInputElement;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const save = () => {
+          if (timer) clearTimeout(timer);
+          timer = null;
+          void photos.rename(ph.id, nameInput.value);
+        };
+        // `change` fires on leaving the box; the short delay also keeps a name typed just
+        // before the panel is closed.
+        nameInput.addEventListener('input', () => {
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(save, 400);
+        });
+        nameInput.addEventListener('change', save);
+        const chips = ph.name
+          ? null
+          : h(
+              'div',
+              { class: 'photo-chips' },
+              ...QUICK_NAMES.map((n) =>
+                h(
+                  'button',
+                  {
+                    class: 'photo-chip',
+                    type: 'button',
+                    onClick: async () => {
+                      await photos.rename(ph.id, n);
+                      await renderPhotos();
+                    },
+                  },
+                  n,
+                ),
+              ),
+            );
+        return h(
           'div',
-          { class: 'photo-thumb', style: `background-image:url("${ph.url}")` },
+          { class: 'photo-item' },
           h(
-            'button',
-            {
-              class: 'photo-remove',
-              type: 'button',
-              'aria-label': 'Xoá ảnh',
-              onClick: async () => {
-                await photos.remove(ph.id);
-                await renderPhotos();
+            'div',
+            { class: 'photo-thumb', style: `background-image:url("${ph.url}")` },
+            h(
+              'button',
+              {
+                class: 'photo-remove',
+                type: 'button',
+                'aria-label': 'Xoá ảnh',
+                onClick: async () => {
+                  await photos.remove(ph.id);
+                  await renderPhotos();
+                },
               },
-            },
-            '✕',
+              '✕',
+            ),
           ),
-        ),
-      ),
+          nameInput,
+          chips,
+        );
+      }),
     );
   };
   photoInput.addEventListener('change', async () => {
@@ -88,7 +137,7 @@ export function openParentPanel(deps: AppDeps): void {
     'div',
     { class: 'panel-section' },
     h('h3', null, '📷 Ảnh của bé ', photoCount),
-    h('p', { class: 'panel-note' }, 'Dùng cho Ghép tranh, Tô màu, Sinh nhật. Ảnh chỉ lưu trên máy này, không gửi đi đâu.'),
+    h('p', { class: 'panel-note' }, 'Dùng cho Ghép tranh, Tô màu, Sinh nhật và Học cùng bé. Gõ tên (Mẹ, Ba, Bà…) dưới ảnh để bé tập nhận ra người thân. Ảnh chỉ lưu trên máy này, không gửi đi đâu.'),
     h('button', { class: 'panel-btn primary', type: 'button', onClick: () => photoInput.click() }, '➕ Thêm ảnh / chụp ảnh'),
     photoInput,
     photoGrid,

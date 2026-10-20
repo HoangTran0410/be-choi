@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createPhotoStore, lineArtPixels, MAX_PHOTOS } from './photos';
+import { cleanName, createPhotoStore, lineArtPixels, MAX_NAME, MAX_PHOTOS } from './photos';
 
 const fakeResize = vi.fn(async (file: Blob) => `data:image/jpeg;base64,${file.size}`);
 
@@ -29,6 +29,38 @@ describe('photo store (memory fallback)', () => {
     const added = await store.add(files);
     expect(added.length).toBe(MAX_PHOTOS);
     expect((await store.list()).length).toBe(MAX_PHOTOS);
+  });
+});
+
+describe('photo names', () => {
+  it('starts without a name, so photos saved before names existed still work', async () => {
+    const store = createPhotoStore(fakeResize);
+    const [p] = await store.add([new Blob(['a'])]);
+    expect(p!.name).toBeUndefined();
+    expect((await store.list())[0]!.name).toBeUndefined();
+  });
+  it('renames, trims, clears and notifies; unknown ids do nothing', async () => {
+    const store = createPhotoStore(fakeResize);
+    const [p] = await store.add([new Blob(['a'])]);
+    const seen: Array<string | undefined> = [];
+    store.onChange((list) => seen.push(list[0]?.name));
+    await store.rename(p!.id, '  Mẹ  ');
+    expect((await store.list())[0]!.name).toBe('Mẹ');
+    await store.rename(p!.id, '   ');
+    expect((await store.list())[0]!.name).toBeUndefined();
+    await store.rename('nope', 'Ba');
+    expect(seen).toEqual(['Mẹ', undefined]);
+  });
+  it('keeps the name when more photos are added', async () => {
+    const store = createPhotoStore(fakeResize);
+    const [p] = await store.add([new Blob(['a'])]);
+    await store.rename(p!.id, 'Ba');
+    await store.add([new Blob(['bb'])]);
+    expect((await store.list()).map((x) => x.name)).toEqual(['Ba', undefined]);
+  });
+  it('cleanName collapses spaces and caps the length', () => {
+    expect(cleanName('  Bà   ngoại ')).toBe('Bà ngoại');
+    expect(cleanName('x'.repeat(40)).length).toBe(MAX_NAME);
   });
 });
 

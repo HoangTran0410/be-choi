@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -11,6 +11,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 |---|---|
 | 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
+| 🦉 **Học cùng bé** | Một cô giáo cú hỏi chậm bằng giọng và hình, mười trạm trên bản đồ: chữ cái · số · màu · hình · to nhỏ · con vật · cái bóng · quy luật · phân loại · người thân (ảnh gia đình). Độ khó tự tăng khi bé đúng liên tiếp; sai thì cô dạy chứ không phạt. Có chế độ Khám phá (chạm là nghe, không hỏi). |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc |
@@ -30,7 +31,7 @@ Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô m�
 ## Cho bố mẹ
 
 - **Cài lên máy:** iOS mở bằng Safari → Chia sẻ → *Thêm vào MH chính*. Android: menu ⋮ → *Cài đặt ứng dụng*.
-- **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé.
+- **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé (đặt tên Mẹ/Ba/Bà… dưới mỗi ảnh để *Học cùng bé* hỏi "Ai đây?").
 - **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic và camera tắt. *Biến hình* không chụp, không lưu, không gửi hình đi đâu — chỉ hiện lên màn hình.
 - **Giọng đọc tiếng Việt** dùng giọng có sẵn của máy (iOS: Cài đặt → Trợ năng → Nội dung đọc → Giọng nói → Tiếng Việt).
 
