@@ -29,6 +29,7 @@ const SETUP: Record<string, Setup> = {
   sing: { mic: true },
   parrot: { mic: true },
   birdsong: { mic: true },
+  singalong: { mic: true },
   bubbles: { mic: true },
   jam: { mic: true },
   band: { mic: true },

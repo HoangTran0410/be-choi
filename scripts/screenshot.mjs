@@ -70,6 +70,7 @@ const GAMES = [
   'build',
   'brain',
   'harvest',
+  'singalong',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
