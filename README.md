@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**47 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**48 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -9,7 +9,7 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 
 | | |
 |---|---|
-| 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
+| 🎵 **Âm nhạc** | 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎻 Bảo tàng nhạc cụ · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
 | 🧩 **Suy nghĩ** | 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
@@ -23,6 +23,7 @@ Vài trò nổi bật:
 - **🐠 Bể cá / 🦎 Bể cạn** — bể của riêng bé, tự sống, nhớ giữa các lần chơi. Bắt, thả, cho ăn, bật đèn đêm.
 - **🚗 Bé lái xe** — con đường không bao giờ lặp: núi tuyết, biển, rừng, tàu hoả chạy qua, tắc đường thì bấm còi.
 - **🎭 Biến hình** — bật camera trước như một chiếc gương, bé đội mặt nạ gấu, mèo, thỏ, khủng long… lên mặt; bấm nút to để đổi mặt nạ và nghe tiếng con vật. Mặt nạ đi theo mặt bé nếu trình duyệt có `FaceDetector`, không thì nằm giữa màn hình để bé tự đưa mặt vào. Không có camera thì chơi với gương hoạt hình.
+- **🎻 Bảo tàng nhạc cụ** — 29 nhạc cụ trong 4 tủ trưng bày (gõ · gảy · phím & thổi · lắc & rung), mỗi cái là một *bàn chơi* vẽ như đồ thật: phím piano trắng/đen, thanh marimba dài ngắn có ống cộng hưởng, dây đàn guitar/ukulele/banjo có ô hợp âm trên cần và quẹt ngang để gảy, đàn hạc lướt ngón, vĩ violin, sáo/kèn có lỗ để bấm và chỗ thổi, bộ trống, trống djembe, steel drum, handpan, cồng chiêng (giữ tay để tắt tiếng), maracas lắc (kéo ngón qua lại hoặc lắc máy)… Mỗi bàn có 4 nhiệm vụ nhẹ không chữ (thử 3 chỗ, gõ nhanh, gõ chậm, nhẹ rồi mạnh) → được một **tem** vào album. Đủ 5 tem mở **Dàn nhạc của bé**: bài nền tự phát (trống + hợp âm), chọn tới 4 nhạc cụ đã sưu tầm, nhạc cụ đang cầm chơi theo thang ngũ cung C nên chạm kiểu nào cũng hay, các nhạc cụ còn lại tự đệm. Âm thanh các nhạc cụ mới do máy **tổng hợp** (gần giống, không phải bản thu).
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
 
 Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô màu.
@@ -52,6 +53,8 @@ npm run typecheck
 node scripts/screenshot.mjs [game…]    # chụp mọi game ở 3 cỡ màn hình, báo lỗi tràn
 npm run e2e                            # chơi thật các game trong Chromium headless
 npm run loudness:check                 # kiểm tra âm lượng các âm thanh đều nhau
+node scripts/instruments.mjs [kind…]      # vẽ mọi nhạc cụ mô phỏng (dọc + ngang) ra PNG để xem
+node scripts/museum.mjs [bàn…]           # chụp phòng, bàn chơi, album, dàn nhạc của Bảo tàng + kiểm tra tràn / nút < 72px
 node scripts/sfx.mjs [kind…]           # tìm lại tiếng con vật/xe dùng chung (cần ffmpeg + uv)
 node scripts/soundbook.mjs [id…]       # tìm lại âm thanh cho Bấm nghe tiếng
 node scripts/ambience.mjs [id…]        # cắt lại âm thanh nền của Bé tạo cảnh (iFocus + Freesound CC0)

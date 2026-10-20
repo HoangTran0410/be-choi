@@ -68,7 +68,8 @@ const check = process.argv.includes('--check');
 
 /** Runs in the page: renders and measures every sound, correcting as it goes. */
 async function levelInPage(cfg) {
-  const { createAudio, FX, DRUMS, TIMBRES } = await import('/src/core/audio.ts');
+  const { createAudio, FX, DRUMS, TIMBRES, INSTRUMENTS } = await import('/src/core/audio.ts');
+  const { INSTRUMENT_REF } = await import('/src/core/instruments.ts');
   const { LOUDNESS } = await import('/src/core/loudness.ts');
   const { SFX_TAKES } = await import('/src/core/sfx.ts');
   const SR = 48000;
@@ -152,6 +153,7 @@ async function levelInPage(cfg) {
     ...TIMBRES.map((t) => [`note:${t}`, (a) => a.note(440, 0.5, t)]),
     ...DRUMS.map((d) => [`drum:${d}`, (a) => a.drum(d)]),
     ...FX.map((f) => [`fx:${f}`, (a) => a.fx(f)]),
+    ...INSTRUMENTS.map((i) => [`inst:${i}`, (a) => a.inst(i, INSTRUMENT_REF[i], 1)]),
   ];
 
   // The recorded voices are already level with each other, so one of them stands
@@ -252,6 +254,7 @@ try {
       ['interface and rewards', (id) => !id.includes(':')],
       ['musical notes, per instrument', (id) => id.startsWith('note:')],
       ['the drum kit', (id) => id.startsWith('drum:')],
+      ['world instruments (museum)', (id) => id.startsWith('inst:')],
       ['effects and animal voices', (id) => id.startsWith('fx:')],
     ];
     let body = '';

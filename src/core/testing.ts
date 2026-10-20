@@ -21,6 +21,7 @@ export function fakeAudio(): AudioEngine {
     jingle: noop,
     note: noop,
     drum: noop,
+    inst: () => null,
     fx: noop,
     puff: noop,
     ready: () => Promise.resolve(),
