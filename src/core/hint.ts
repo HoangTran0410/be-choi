@@ -7,15 +7,23 @@ import type { GameContext, HintScheduler } from './types';
  */
 export const QUIET_POLICY = {
   /** Wait before idle hint #1, #2, #3 of one quiet spell (ms). A game's own `ms` can only make it longer. */
-  hintSchedule: [12_000, 24_000, 45_000],
+  hintSchedule: [10_000, 20_000, 40_000],
   /** Wait before every idle hint after those (ms). */
-  hintSteadyMs: 90_000,
+  hintSteadyMs: 60_000,
   /** Idle hints that may SPEAK in a row without the child doing anything. Later ones are picture / wiggle only. */
-  maxSpokenHints: 2,
+  maxSpokenHints: 3,
   /** Least time between two spoken idle hints (ms). */
-  spokenHintGapMs: 20_000,
+  spokenHintGapMs: 15_000,
   /** Speech that is not an answer to the child: at most one per this long (ms). */
-  autoSpeechGapMs: 15_000,
+  autoSpeechGapMs: 8_000,
+  /**
+   * The first moments of a game (ms): its welcome and first instruction are always said, waiting
+   * for the shell's spoken title to finish instead of being dropped, so a child who has just opened
+   * a game is told what to do.
+   */
+  openingMs: 10_000,
+  /** Longest a line waits for the voice to be free during the opening (ms). */
+  openingWaitMs: 6_000,
   /** A press on the stage this recently means speech is the child's own doing, always allowed (ms). */
   touchWindowMs: 1_500,
   /**
@@ -23,7 +31,7 @@ export const QUIET_POLICY = {
    * ("Đúng rồi!" ... then the next question): not rate limited, and free to cut. Past it, speech
    * is automatic and must be rare and polite.
    */
-  engagedMs: 6_000,
+  engagedMs: 10_000,
 };
 
 export type QuietPolicy = typeof QUIET_POLICY;
@@ -141,6 +149,9 @@ const mutedMs = (p: SpeechPart): number => (p.text ? 500 + p.text.length * 70 : 
  *    until the child touches something. Later hints still run (their picture / wiggle) but are mute.
  *  - Words within `touchWindowMs` of a press: always said at once.
  *  - Words within `engagedMs` of a press: said (they follow the child's move), not rate limited.
+ *  - Words in the first `openingMs` of the game: always said; if the shell's title is still being
+ *    read they wait for it (up to `openingWaitMs`) rather than being dropped. A newer line replaces
+ *    one still waiting.
  *  - Any other words: at most one per `autoSpeechGapMs`, and never over a line being said.
  * Muted `speakSeq` calls still step through their parts silently (`onStart` fires) and resolve `true`.
  * The game's greeting and `celebrate` do not go through here, so they are never limited.
@@ -151,6 +162,7 @@ export function gateSpeech(deps: SpeechGateDeps): SpeechGate {
   const now = deps.now ?? Date.now;
   const busy = deps.busy ?? (() => false);
 
+  const openUntil = now() + policy.openingMs;
   let lastTouchAt = -Infinity;
   let lastAutoAt = -Infinity;
   let lastHintAt = -Infinity;
@@ -169,6 +181,33 @@ export function gateSpeech(deps: SpeechGateDeps): SpeechGate {
     silentDrop = null;
     d?.();
   };
+
+  /** A line held back during the opening until the voice is free. */
+  let waitTimer: ReturnType<typeof setTimeout> | null = null;
+  let waitDrop: (() => void) | null = null;
+  const abortWait = (): void => {
+    if (waitTimer) clearTimeout(waitTimer);
+    waitTimer = null;
+    const d = waitDrop;
+    waitDrop = null;
+    d?.();
+  };
+  const whenFree = (go: () => void, drop: () => void): void => {
+    abortWait();
+    const giveUpAt = now() + policy.openingWaitMs;
+    waitDrop = drop;
+    const poll = (): void => {
+      if (!busy() || now() >= giveUpAt) {
+        waitTimer = null;
+        waitDrop = null;
+        go();
+        return;
+      }
+      waitTimer = setTimeout(poll, 150);
+    };
+    poll();
+  };
+  const opening = (): boolean => hint.active !== true && now() < openUntil;
 
   const mayTalk = (interrupt: boolean): boolean => {
     const t = now();
@@ -227,22 +266,47 @@ export function gateSpeech(deps: SpeechGateDeps): SpeechGate {
   return {
     speak(text, opts) {
       const interrupt = opts?.interrupt ?? true;
+      if (opening()) {
+        abortSilent();
+        whenFree(
+          () => deps.speak(text, opts),
+          () => {},
+        );
+        return;
+      }
       if (!mayTalk(interrupt)) return;
-      if (interrupt) abortSilent();
+      if (interrupt) {
+        abortSilent();
+        abortWait();
+      }
       deps.speak(text, opts);
     },
     speakSeq(parts) {
+      if (opening()) {
+        abortSilent();
+        return new Promise<boolean>((resolve) => {
+          whenFree(
+            () => void deps.speakSeq(parts).then(resolve, () => resolve(false)),
+            () => resolve(false),
+          );
+        });
+      }
       if (!mayTalk(true)) return silent(parts);
       abortSilent();
+      abortWait();
       return deps.speakSeq(parts);
     },
     stopSpeech() {
       abortSilent();
+      abortWait();
       deps.stopSpeech();
     },
     touched() {
       lastTouchAt = now();
     },
-    dispose: abortSilent,
+    dispose() {
+      abortSilent();
+      abortWait();
+    },
   };
 }

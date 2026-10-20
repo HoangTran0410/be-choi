@@ -57,8 +57,9 @@
 /*
  * Phone held sideways: height is the scarce thing, so the bar turns into a slim
  * column on the left. Home sits at the top and the parent gate at the bottom,
- * the two as far apart as the screen allows; the title is dropped (the game
- * shows what it is). The album keeps its ordinary strip.
+ * the two as far apart as the screen allows; the title runs down the column
+ * between them (icon upright, name turned on its side). The album keeps its
+ * ordinary strip.
  */
 @media (orientation: landscape) and (max-height: 500px) {
   .shell {
@@ -72,7 +73,20 @@
     padding: 12px 0 12px env(safe-area-inset-left);
   }
   .shell > .topbar .topbar-title {
-    display: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-height: 0;
+    padding: 10px 0;
+    font-size: 14px;
+  }
+  .shell > .topbar .topbar-name {
+    writing-mode: vertical-rl;
+    min-height: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .shell > .stage {
     min-width: 0;

@@ -57,7 +57,7 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
   const shell = h(
     'div',
     { class: entry.night ? 'shell shell-night' : 'shell' },
-    h('header', { class: 'topbar' }, homeBtn, h('span', { class: 'topbar-title' }, `${entry.icon} ${entry.title}`), parentBtn),
+    h('header', { class: 'topbar' }, homeBtn, h('span', { class: 'topbar-title' }, h('span', { class: 'topbar-icon' }, entry.icon), ' ', h('span', { class: 'topbar-name' }, entry.title)), parentBtn),
     stage,
   );
   root.replaceChildren(shell);

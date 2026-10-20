@@ -19,26 +19,26 @@ describe('hint stretching', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('waits 12 s, 24 s, 45 s, then 90 s; a touch starts over', () => {
+  it('waits 10 s, 20 s, 40 s, then 60 s; a touch starts over', () => {
     const fn = vi.fn();
     const hint = createHint();
     hint.arm(fn); // the game default of 6000 is only a floor
-    vi.advanceTimersByTime(11_999);
+    vi.advanceTimersByTime(9_999);
     expect(fn).toHaveBeenCalledTimes(0);
     vi.advanceTimersByTime(1);
     expect(fn).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(23_999);
+    vi.advanceTimersByTime(19_999);
     expect(fn).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(1);
     expect(fn).toHaveBeenCalledTimes(2);
-    vi.advanceTimersByTime(45_000);
+    vi.advanceTimersByTime(40_000);
     expect(fn).toHaveBeenCalledTimes(3);
-    vi.advanceTimersByTime(89_999);
+    vi.advanceTimersByTime(59_999);
     expect(fn).toHaveBeenCalledTimes(3);
     vi.advanceTimersByTime(1);
     expect(fn).toHaveBeenCalledTimes(4);
     hint.touch();
-    vi.advanceTimersByTime(11_999);
+    vi.advanceTimersByTime(9_999);
     expect(fn).toHaveBeenCalledTimes(4);
     vi.advanceTimersByTime(1);
     expect(fn).toHaveBeenCalledTimes(5);
@@ -75,28 +75,30 @@ describe('quiet voice', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('child idle for 10 minutes: only two spoken hints, but every hint still runs its picture part', () => {
+  it('child idle for 10 minutes: only three spoken hints, but every hint still runs its picture part', () => {
     const ctx = fakeContext({ quiet: true });
     const w = idleGame(ctx);
     vi.advanceTimersByTime(10 * 60 * S);
-    expect(ctx.spoken.length).toBe(2);
-    expect(ctx.sequenced.length).toBe(2);
-    // hints at 12, 36, 81, 171, 261 ... 591 s
-    expect(w.n).toBeGreaterThanOrEqual(7);
+    expect(ctx.spoken.length).toBe(3);
+    expect(ctx.sequenced.length).toBe(3);
+    // hints at 10, 30, 70, 130, 190 ... 550 s
+    expect(w.n).toBeGreaterThanOrEqual(10);
     ctx.cleanup();
   });
 
-  it('first spoken hint at 12 s, second 24 s later, then silence', () => {
+  it('first spoken hint at 10 s, then 20 s and 40 s later, then silence', () => {
     const ctx = fakeContext({ quiet: true });
     idleGame(ctx);
-    vi.advanceTimersByTime(11_999);
+    vi.advanceTimersByTime(9_999);
     expect(ctx.spoken.length).toBe(0);
     vi.advanceTimersByTime(1);
     expect(ctx.spoken.length).toBe(1);
-    vi.advanceTimersByTime(24 * S);
+    vi.advanceTimersByTime(20 * S);
     expect(ctx.spoken.length).toBe(2);
-    vi.advanceTimersByTime(60 * S);
-    expect(ctx.spoken.length).toBe(2);
+    vi.advanceTimersByTime(40 * S);
+    expect(ctx.spoken.length).toBe(3);
+    vi.advanceTimersByTime(120 * S);
+    expect(ctx.spoken.length).toBe(3);
     ctx.cleanup();
   });
 
@@ -104,10 +106,10 @@ describe('quiet voice', () => {
     const ctx = fakeContext({ quiet: true });
     idleGame(ctx);
     vi.advanceTimersByTime(5 * 60 * S);
-    expect(ctx.spoken.length).toBe(2);
-    ctx.tap();
-    vi.advanceTimersByTime(12 * S);
     expect(ctx.spoken.length).toBe(3);
+    ctx.tap();
+    vi.advanceTimersByTime(10 * S);
+    expect(ctx.spoken.length).toBe(4);
     ctx.cleanup();
   });
 
@@ -122,8 +124,9 @@ describe('quiet voice', () => {
     ctx.cleanup();
   });
 
-  it('a follow-up just after a touch is said; a game repeating itself every 2.5 s is held to one per 15 s', () => {
+  it('a follow-up just after a touch is said; a game repeating itself every 2.5 s is held to one per 8 s', () => {
     const ctx = fakeContext({ quiet: true });
+    vi.advanceTimersByTime(QUIET_POLICY.openingMs);
     ctx.tap();
     vi.advanceTimersByTime(3 * S);
     ctx.speak('Câu hỏi tiếp theo');
@@ -136,7 +139,8 @@ describe('quiet voice', () => {
     vi.advanceTimersByTime(5 * 60 * S);
     clearInterval(id);
     expect(repeats).toBeGreaterThan(100);
-    expect(ctx.spoken.length).toBeLessThanOrEqual(1 + Math.ceil((5 * 60) / 15));
+    // the follow-up, two more inside the engaged window, then one per 8 s
+    expect(ctx.spoken.length).toBeLessThanOrEqual(3 + Math.ceil((5 * 60) / 8));
     expect(ctx.spoken.length).toBeGreaterThan(5);
     ctx.cleanup();
   });
@@ -172,7 +176,7 @@ describe('quiet voice', () => {
     let n = 0;
     ctx.hint.arm(() => {
       n++;
-      if (n <= 2) {
+      if (n <= 3) {
         ctx.speak('x');
         return;
       }
@@ -183,9 +187,9 @@ describe('quiet voice', () => {
         ])
         .then((r) => (result = r));
     });
-    vi.advanceTimersByTime((12 + 24) * S);
-    expect(ctx.spoken.length).toBe(2);
-    vi.advanceTimersByTime(45 * S); // third hint: muted
+    vi.advanceTimersByTime((10 + 20 + 40) * S);
+    expect(ctx.spoken.length).toBe(3);
+    vi.advanceTimersByTime(60 * S); // fourth hint: muted
     expect(started).toEqual(['1']);
     expect(ctx.sequenced).toEqual([]);
     vi.advanceTimersByTime(5 * S);
@@ -193,6 +197,49 @@ describe('quiet voice', () => {
     expect(started).toEqual(['1', '2']);
     expect(result).toBe(true);
     ctx.cleanup();
+  });
+
+  it('the welcome waits for the spoken title instead of being dropped', async () => {
+    let busy = true;
+    const calls: string[] = [];
+    const g = gateSpeech({
+      hint: createHint(),
+      speak: (t) => void calls.push(t),
+      speakSeq: (parts) => {
+        calls.push(parts.map((p) => p.text).join(' '));
+        return Promise.resolve(true);
+      },
+      stopSpeech: () => undefined,
+      busy: () => busy,
+    });
+    g.speak('Kéo robot lên sân khấu');
+    let done: boolean | null = null;
+    void g.speakSeq([{ text: 'Chào bé' }]).then((r) => (done = r));
+    vi.advanceTimersByTime(1000);
+    expect(calls).toEqual([]);
+    busy = false;
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    await Promise.resolve();
+    // the newer line replaces the one still waiting
+    expect(calls).toEqual(['Chào bé']);
+    expect(done).toBe(true);
+    g.dispose();
+  });
+
+  it('a welcome is said even if the title never seems to end', () => {
+    const calls: string[] = [];
+    const g = gateSpeech({
+      hint: createHint(),
+      speak: (t) => void calls.push(t),
+      speakSeq: () => Promise.resolve(true),
+      stopSpeech: () => undefined,
+      busy: () => true,
+    });
+    g.speak('Chào bé');
+    vi.advanceTimersByTime(QUIET_POLICY.openingWaitMs + 200);
+    expect(calls).toEqual(['Chào bé']);
+    g.dispose();
   });
 
   it('nothing is left running after cleanup', () => {
@@ -204,11 +251,11 @@ describe('quiet voice', () => {
   });
 
   it('keeps the constants in one table', () => {
-    expect(QUIET_POLICY.hintSchedule).toEqual([12_000, 24_000, 45_000]);
-    expect(QUIET_POLICY.hintSteadyMs).toBe(90_000);
-    expect(QUIET_POLICY.maxSpokenHints).toBe(2);
-    expect(QUIET_POLICY.spokenHintGapMs).toBe(20_000);
-    expect(QUIET_POLICY.autoSpeechGapMs).toBe(15_000);
+    expect(QUIET_POLICY.hintSchedule).toEqual([10_000, 20_000, 40_000]);
+    expect(QUIET_POLICY.hintSteadyMs).toBe(60_000);
+    expect(QUIET_POLICY.maxSpokenHints).toBe(3);
+    expect(QUIET_POLICY.spokenHintGapMs).toBe(15_000);
+    expect(QUIET_POLICY.autoSpeechGapMs).toBe(8_000);
     expect(QUIET_POLICY.touchWindowMs).toBe(1_500);
   });
 });
