@@ -1,16 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { findSong } from '../../core/music';
 import { fakeContext } from '../../core/testing';
-import {
-  CAT_COUNT,
-  SAVE_KEY,
-  SONG_UNLOCKS,
-  catHz,
-  chordCats,
-  songSteps,
-  STYLES,
-  type SongStep,
-} from './logic';
+import { CAT_COUNT, SAVE_KEY, SONG_UNLOCKS, catHz, chordCats, songSteps, STYLES, type SongStep } from './logic';
 import game from './index';
 
 type Ctx = ReturnType<typeof fakeContext>;
@@ -243,7 +234,13 @@ describe('catband game', () => {
   it('puts a family photo on the chosen cat as its face, and keeps it', async () => {
     const photo = { id: 'p1', url: 'data:image/jpeg;base64,AAAA', createdAt: 0 };
     const ctx = fakeContext();
-    ctx.photos = { list: () => Promise.resolve([photo]), add: () => Promise.resolve([photo]), remove: () => Promise.resolve(), onChange: () => () => undefined };
+    ctx.photos = {
+      list: () => Promise.resolve([photo]),
+      add: () => Promise.resolve([photo]),
+      remove: () => Promise.resolve(),
+      rename: () => Promise.resolve(),
+      onChange: () => () => undefined,
+    };
     const pitched = vi.fn();
     ctx.audio.pitched = pitched;
     game.start(ctx);
