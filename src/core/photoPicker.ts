@@ -7,6 +7,8 @@ export interface PickerChoice {
   emoji?: string;
   /** Vietnamese label, used for aria-label only (children do not read). */
   label: string;
+  /** Choices of another group start on a new row, under a thin line (e.g. beats, then speeds). */
+  group?: string;
 }
 
 /**
@@ -64,7 +66,12 @@ export function showPhotoPicker(
     e.preventDefault();
     finish(null);
   });
-  const panel = h('div', { class: 'pp-panel' }, h('div', { class: 'pp-grid' }, ...tiles));
+  const cells: HTMLElement[] = [];
+  tiles.forEach((tile, i) => {
+    if (i > 0 && choices[i]?.group !== choices[i - 1]?.group) cells.push(h('div', { class: 'pp-break', 'aria-hidden': 'true' }));
+    cells.push(tile);
+  });
+  const panel = h('div', { class: 'pp-panel' }, h('div', { class: 'pp-grid' }, ...cells));
   const overlay = h('div', { class: 'pp-overlay' }, panel, close);
   overlay.addEventListener('pointerdown', (e) => {
     from = { x: e.clientX, y: e.clientY };

@@ -239,6 +239,7 @@
   opacity: 0.45;
   filter: grayscale(1);
 }
+.jam-rec[hidden],
 .jam-layers[hidden] {
   display: none;
 }

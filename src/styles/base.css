@@ -338,6 +338,12 @@ button {
 .pp-tile:active {
   transform: scale(0.94);
 }
+.pp-break {
+  grid-column: 1 / -1;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(127, 127, 127, 0.25);
+}
 .pp-close {
   position: absolute;
   top: 2vmin;

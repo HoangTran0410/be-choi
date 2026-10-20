@@ -109,6 +109,9 @@ describe('jam game', () => {
       ...BEATS.map((b) => `beat:${b.id}`),
       ...TEMPO_FACTORS.map((_, i) => `tempo:${i}`),
     ]);
+    // beats on one row, speeds on the next: one line between them, right before the first speed
+    expect(ctx.stage.querySelectorAll('.pp-break').length).toBe(1);
+    expect((q(ctx, '.pp-break').nextElementSibling as HTMLElement).dataset.id).toBe('tempo:0');
     q(ctx, '.pp-close').dispatchEvent(new Event('pointerup', { bubbles: true }));
     expect(ctx.stage.querySelector('.pp-overlay')).toBeNull();
     expect(recBtn(ctx).textContent).toBe('⏺');
@@ -518,6 +521,7 @@ describe('jam game', () => {
     expect(layerDots(ctx).length).toBe(MAX_LAYERS);
     expect(recBtn(ctx).classList.contains('jam-full')).toBe(true);
     expect(recBtn(ctx).getAttribute('aria-disabled')).toBe('true');
+    expect(recBtn(ctx).hidden).toBe(true);
     down(recBtn(ctx));
     expect(boing).toHaveBeenCalledTimes(1);
     expect(recBtn(ctx).classList.contains('jam-armed')).toBe(false);

@@ -92,7 +92,8 @@ function start(ctx: GameContext): void {
     targets: () => {
       const place = phase === 'add' ? bowl : mouth;
       const r = place.getBoundingClientRect();
-      const pad = (phase === 'add' ? (tray.firstElementChild?.getBoundingClientRect().width ?? 0) : dish.getBoundingClientRect().width) * DROP_SLACK;
+      const pad =
+        (phase === 'add' ? (tray.firstElementChild?.getBoundingClientRect().width ?? 0) : dish.getBoundingClientRect().width) * DROP_SLACK;
       return [{ id: 'place', rect: { left: r.left - pad, top: r.top - pad, width: r.width + pad * 2, height: r.height + pad * 2 } }];
     },
     resolve: (p, t) => pickTarget(p, t),

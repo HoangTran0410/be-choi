@@ -17,6 +17,7 @@
 }
 
 /* ---- recipe card ---- */
+/* Display only: flat, see-through, no shadow, so neither the card nor its pictures read as buttons. */
 .cooking-card {
   justify-self: center;
   display: flex;
@@ -26,8 +27,8 @@
   margin: 1.5vmin 2vmin 0;
   padding: 1vmin 2vmin;
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
 }
 .cooking-card-dish {
   font-size: calc(var(--emoji) * 0.9);
@@ -46,9 +47,6 @@
   place-items: center;
   font-size: calc(var(--cooking-need) * 0.68);
   line-height: 1;
-  border-radius: 30%;
-  background: #fff7ed;
-  box-shadow: inset 0 0 0 2px rgba(59, 47, 47, 0.12);
   transition: opacity 0.2s;
 }
 .cooking-need.done {
@@ -193,8 +191,7 @@
   width: calc(var(--tap) * 0.25);
   height: calc(var(--tap) * 0.25);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: inset 0 0 0 3px rgba(59, 47, 47, 0.15);
+  background: rgba(59, 47, 47, 0.15);
   transition:
     background 0.2s,
     transform 0.2s;

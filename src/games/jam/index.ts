@@ -207,9 +207,12 @@ function start(ctx: GameContext): void {
     }
     layersEl.classList.toggle('jam-empty', layers.length === 0);
     layersEl.hidden = layers.length === 0;
+    // With every loop taken the record button has nothing to do, so it steps aside (machine + 4 dots);
+    // holding a dot to wipe the loops brings it back.
     const full = layers.length >= MAX_LAYERS;
     recBtn.classList.toggle('jam-full', full);
     recBtn.setAttribute('aria-disabled', String(full));
+    recBtn.hidden = full && rec === null;
   }
 
   function setBeatButtons(): void {
@@ -221,9 +224,9 @@ function start(ctx: GameContext): void {
   function openMachine(): void {
     closePanel?.();
     const choices: PickerChoice[] = [
-      { id: 'beat:stop', emoji: '⏹', label: 'Tắt nhịp' },
-      ...BEATS.map((b) => ({ id: `beat:${b.id}`, emoji: b.emoji, label: `Nhịp ${b.name}` })),
-      ...TEMPO_EMOJIS.map((emoji, i) => ({ id: `tempo:${i}`, emoji, label: 'Nhanh chậm' })),
+      { id: 'beat:stop', emoji: '⏹', label: 'Tắt nhịp', group: 'beat' },
+      ...BEATS.map((b) => ({ id: `beat:${b.id}`, emoji: b.emoji, label: `Nhịp ${b.name}`, group: 'beat' })),
+      ...TEMPO_EMOJIS.map((emoji, i) => ({ id: `tempo:${i}`, emoji, label: 'Nhanh chậm', group: 'tempo' })),
     ];
     closePanel = showPhotoPicker(root, choices, (choice) => {
       closePanel = null;
