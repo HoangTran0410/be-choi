@@ -120,6 +120,7 @@ export function showQuiz(app: App, topic: TopicId, root: HTMLElement, scope: Sco
     stim.replaceChildren(...(stimulus ? [renderVisual(stimulus)] : []));
     stim.hidden = !stimulus;
     screen.classList.toggle('lq-has-stim', !!stimulus);
+    screen.classList.toggle('lq-count', stimulus?.k === 'group');
     screen.dataset.kind = q.type;
     replay(bubble, 'lq-pop');
     view = q.type === 'choose' ? chooseView(q) : dragView(q);

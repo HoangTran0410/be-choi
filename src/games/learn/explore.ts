@@ -20,7 +20,7 @@ import {
 import type { Part } from './say';
 import type { Scope } from './scope';
 import type { Env, Visual } from './types';
-import { renderVisual } from './visual';
+import { countGrid, renderVisual } from './visual';
 
 export interface Tile {
   id: string;
@@ -187,18 +187,28 @@ export function showExplore(app: App, root: HTMLElement, scope: Scope): void {
       card.replaceChildren(h('p', { class: 'le-hint' }, 'Chạm vào một hình nhé!'));
       return;
     }
+    const chips = tile.gallery.length > 0 && tile.gallery.every((g) => g.visual.k === 'chip');
+    // Every picture gets its own cell; the cells are fitted into the gallery box, so ten of them
+    // are simply smaller than three and the card never grows.
+    const labelled = tile.gallery.length <= 3;
     const slots = tile.gallery.map((g, i) => {
       const on = shown.includes(i);
       return h(
         'div',
-        { class: `le-pic${on ? ' on' : ''}`, 'data-i': i },
+        { class: `lv-g le-pic${on ? ' on' : ''}${chips ? ' le-chip-slot' : ''}`, 'data-i': i },
         on ? renderVisual(g.visual) : h('span', { class: 'le-pic-dot' }),
-        on && g.label ? h('span', { class: 'le-pic-label' }, g.label) : null,
+        on && g.label && labelled ? h('span', { class: 'le-pic-label' }, g.label) : null,
       );
     });
     card.replaceChildren(
       h('div', { class: 'le-face' }, renderVisual(tile.face)),
-      h('div', { class: `le-gallery lv-n${Math.min(10, slots.length)}` }, ...slots),
+      slots.length === 0
+        ? ''
+        : h(
+            'div',
+            { class: `le-gallery${chips ? ' le-chips' : ''}${labelled ? ' le-labelled' : ''}`, 'data-n': slots.length },
+            chips ? slots[0]! : countGrid(slots),
+          ),
     );
   }
 
@@ -222,7 +232,10 @@ export function showExplore(app: App, root: HTMLElement, scope: Scope): void {
           if (slot) {
             const g = tile.gallery[r]!;
             slot.classList.add('on');
-            slot.replaceChildren(renderVisual(g.visual), ...(g.label ? [h('span', { class: 'le-pic-label' }, g.label)] : []));
+            slot.replaceChildren(
+              renderVisual(g.visual),
+              ...(g.label && tile.gallery.length <= 3 ? [h('span', { class: 'le-pic-label' }, g.label)] : []),
+            );
             replay(slot, 'lq-pop');
           }
         },

@@ -136,7 +136,9 @@
   width: 0.8em;
   height: 0.8em;
   border-radius: 50%;
-  background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 38%), radial-gradient(circle at 50% 50%, var(--ball) 55%, rgba(0, 0, 0, 0.28) 130%), var(--ball);
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 38%),
+    radial-gradient(circle at 50% 50%, var(--ball) 55%, rgba(0, 0, 0, 0.28) 130%), var(--ball);
   box-shadow: 0 0.04em 0.06em rgba(0, 0, 0, 0.25);
 }
 .lv-basket,
@@ -158,19 +160,42 @@
   background-position: center;
 }
 .lv-group {
-  flex-wrap: wrap;
-  gap: 0.02em 0.04em;
+  /* fills whatever box holds it; the cells inside are sized in px by visual.ts (countgrid.ts) */
+  position: relative;
   width: 100%;
-  padding: 0.04em;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
-.lv-group-big .lv-g {
-  font-size: 0.34em;
+.lv-gwrap {
+  display: grid;
+  grid-template-columns: repeat(var(--across, 1), max-content);
+  gap: var(--rgap, 4px);
+  justify-content: center;
+  align-content: center;
+  align-items: start;
+  max-width: 100%;
+  max-height: 100%;
 }
-.lv-group-mid .lv-g {
-  font-size: 0.25em;
+.lv-gg {
+  display: flex;
+  gap: var(--gap, 2px);
+  padding: var(--pad, 0);
+  border-radius: calc(var(--cell, 20px) * 0.3);
 }
-.lv-group-small .lv-g {
-  font-size: 0.19em;
+.lv-group.framed .lv-gg {
+  box-shadow: inset 0 0 0 max(2px, calc(var(--cell, 20px) * 0.05)) rgba(79, 70, 229, 0.28);
+  background: rgba(238, 242, 255, 0.7);
+}
+.lv-g {
+  flex: none;
+  width: var(--cell, 20px);
+  height: var(--cell, 20px);
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--cell, 20px) * 0.8);
+  line-height: 1;
 }
 .lv-row {
   flex-wrap: wrap;
@@ -447,13 +472,15 @@
 }
 .lq-dots {
   flex: 1;
+  min-width: 0;
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 .lq-dot {
-  width: 18px;
-  height: 18px;
+  flex: none;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.7);
   border: 3px solid #fff;
@@ -511,13 +538,30 @@
 .lq-stim[hidden] {
   display: none;
 }
-.lq-stim .lv-group {
-  width: auto;
-  max-width: 100%;
-  justify-content: center;
+/* things to count: the stimulus is a box of known height and the pictures are fitted into it (countgrid.ts) */
+.lq-count {
+  --stim-h: clamp(64px, calc(100vh - 520px), 190px);
+  --room: calc(100vh - 280px - var(--stim-h));
 }
-.lq-stim .lv-group .lv-g {
-  font-size: 0.6em;
+.lq-count .lq-stim {
+  width: 100%;
+  height: var(--stim-h);
+  font-size: 0;
+}
+.lq-count .lq-stim .lv-group {
+  width: 100%;
+  height: 100%;
+}
+@media (orientation: portrait) {
+  .lq-count .lq-n2 {
+    --ow: max(72px, min(64vw, calc(var(--room) / 2 - 4px), 280px));
+  }
+  .lq-count .lq-n3 {
+    --ow: max(72px, min(60vw, calc((var(--room) - 24px) / 3), 200px));
+  }
+  .lq-count .lq-n4 {
+    --ow: max(72px, min(41vw, calc((var(--room) - 8px) / 2), 190px));
+  }
 }
 .lq-stim .lv-row {
   justify-content: center;
@@ -525,7 +569,13 @@
   gap: 0.06em;
 }
 .lq-stim:has(.lv-row) {
+  width: 100%;
+  container-type: inline-size;
   font-size: min(clamp(26px, 8vmin, 54px), 6.4vw);
+}
+/* a pattern is never wider than the bubble it sits in, however many pieces it has */
+.lq-stim .lv-row {
+  font-size: min(1em, calc(100cqw / (var(--n, 5) * 1.3 + 0.7)));
 }
 .lq-stim .lv-row .lv-chip {
   font-size: 0.8em;
@@ -607,7 +657,10 @@
   box-shadow: 0 5px 0 rgba(79, 70, 229, 0.22);
 }
 .lq-opt-group {
-  font-size: calc(var(--ow) * 0.7);
+  grid-template-columns: 100%;
+  grid-template-rows: 100%;
+  padding: 8px;
+  box-sizing: border-box;
 }
 .lq-opt-chip {
   font-size: calc(var(--ow) * 0.7);
@@ -759,6 +812,29 @@
   .lq-teach {
     align-items: flex-start;
   }
+  .lq-count {
+    --stim-h: clamp(64px, calc(100vh - 262px), 260px);
+  }
+  /* the head shares a narrow column: smaller dots, and no spare icon, so the replay button never slips under the answers */
+  .lq-head {
+    min-width: 0;
+  }
+  .lq-dots {
+    min-width: 0;
+    gap: 5px;
+  }
+  .lq-dot {
+    width: 13px;
+    height: 13px;
+    border-width: 2px;
+  }
+}
+@media (orientation: landscape) and (max-width: 820px) {
+  .lq-topic {
+    display: none;
+  }
+}
+@media (orientation: landscape) {
   .lq-opts {
     --ow: min(26vw, 62vh, 320px);
   }
@@ -772,6 +848,8 @@
 
 /* ---------- Khám phá ---------- */
 .le {
+  --card-h: clamp(150px, 26vh, 230px);
+  --face: min(clamp(96px, 22vmin, 150px), calc(var(--card-h) - 16px));
   position: absolute;
   inset: 0;
   display: grid;
@@ -821,7 +899,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 120px;
+  /* fixed height: what is in the card never changes the size of the screen around it */
+  height: var(--card-h);
   padding: 8px 12px;
   border-radius: 26px;
   background: #fff;
@@ -835,11 +914,11 @@
 }
 .le-face {
   flex: none;
-  width: clamp(96px, 22vmin, 150px);
-  height: clamp(96px, 22vmin, 150px);
+  width: var(--face);
+  height: var(--face);
   display: grid;
   place-items: center;
-  font-size: clamp(70px, 16vmin, 110px);
+  font-size: calc(var(--face) * 0.72);
   line-height: 1;
   border-radius: 24px;
   background: #eef2ff;
@@ -850,66 +929,69 @@
   height: 100%;
 }
 .le-gallery {
+  /* a box of fixed size: the pictures are fitted into it by countGrid (countgrid.ts), whatever their number */
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-content: center;
-  gap: 6px 10px;
-  font-size: clamp(34px, 8.5vmin, 54px);
+  align-self: stretch;
+  position: relative;
 }
-.le-gallery.lv-n4,
-.le-gallery.lv-n5,
-.le-gallery.lv-n6 {
-  font-size: clamp(28px, 6.5vmin, 42px);
-}
-.le-gallery.lv-n7,
-.le-gallery.lv-n8,
-.le-gallery.lv-n9,
-.le-gallery.lv-n10 {
-  font-size: clamp(24px, 5vmin, 34px);
+.le-gallery .lv-group {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
 }
 .le-pic {
-  min-width: 52px;
-  min-height: 52px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
   line-height: 1;
 }
 .le-pic.on {
   animation: lq-pop 0.35s ease-out;
 }
 .le-pic-dot {
-  width: 14px;
-  height: 14px;
+  width: 26%;
+  height: 26%;
   border-radius: 50%;
   background: #c7d2fe;
 }
+.le-labelled .le-pic.on {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: center;
+  justify-content: center;
+}
+.le-labelled .le-pic.on .lv-emoji {
+  font-size: 0.66em;
+}
 .le-pic-label {
-  font-size: clamp(12px, 2.4vmin, 16px);
+  font-size: max(11px, calc(var(--cell, 60px) * 0.17));
   font-weight: 800;
   text-align: center;
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.le-gallery.lv-n4 .le-pic-label,
-.le-gallery.lv-n5 .le-pic-label,
-.le-gallery.lv-n6 .le-pic-label,
-.le-gallery.lv-n7 .le-pic-label,
-.le-gallery.lv-n8 .le-pic-label,
-.le-gallery.lv-n9 .le-pic-label,
-.le-gallery.lv-n10 .le-pic-label {
-  display: none;
-}
-.le-gallery .lv-photo {
-  width: 1.5em;
-  height: 1.5em;
+.le-pic .lv-photo {
+  width: 100%;
+  height: 100%;
   border-radius: 14px;
 }
-.le-gallery .lv-chip {
-  font-size: 0.7em;
+/* animal sounds: one word, as large as the box allows */
+.le-chips {
+  display: grid;
+  place-items: center;
+}
+.le-chips .le-pic {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  font-size: clamp(22px, 6vmin, 40px);
+}
+.le-chips .lv-chip {
+  font-size: 1em;
+  padding: 0.1em 0.3em;
 }
 .le-grid {
   grid-area: grid;
@@ -950,6 +1032,7 @@
 }
 @media (orientation: landscape) {
   .le {
+    --card-h: clamp(96px, calc(100vh - 272px), 230px);
     grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas: 'tabs grid' 'card grid';
@@ -957,7 +1040,6 @@
     align-content: start;
   }
   .le-card {
-    min-height: 0;
     align-self: start;
   }
   .le-tabs {
