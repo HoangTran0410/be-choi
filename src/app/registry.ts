@@ -53,6 +53,7 @@ import { meta as museum } from '../games/museum/meta';
 import { meta as learn } from '../games/learn/meta';
 import { meta as build } from '../games/build/meta';
 import { meta as brain } from '../games/brain/meta';
+import { meta as harvest } from '../games/harvest/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -115,6 +116,7 @@ export const GAMES: readonly GameEntry[] = [
   { ...learn, load: () => import('../games/learn/index') },
   { ...build, load: () => import('../games/build/index') },
   { ...brain, load: () => import('../games/brain/index') },
+  { ...harvest, load: () => import('../games/harvest/index') },
 ];
 
 /**
