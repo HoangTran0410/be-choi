@@ -1,6 +1,7 @@
 import { h, mulberry32 } from '../../../core/dom';
 import { perf } from '../../../core/frame';
 import { CLEAN_DONE, DIRT_COLOR, blobPixels, cleanRatio, makeWashRound, type DirtBlob } from '../../wash/logic';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 const BRUSH_R = 0.09;
@@ -20,6 +21,7 @@ export const bath: Activity = (env) => {
   const wrap = h('div', { class: 'bath-kid' }, me, canvas);
   const root = h('div', { class: 'bath' }, wrap);
   env.host.append(root);
+  const fin = createFinisher(env);
 
   const c2 = canvas.getContext('2d', { willReadFrequently: true });
   let finished = false;
@@ -71,10 +73,15 @@ export const bath: Activity = (env) => {
   }
 
   function rubAt(e: PointerEvent): void {
-    if (finished) return;
     ctx.hint.touch();
+    fin.touch();
     const r = canvas.getBoundingClientRect();
     bubble(e.clientX, e.clientY);
+    // Squeaky clean already: more bubbles are still welcome, there is just no more mud.
+    if (finished) {
+      if (++rubs % 7 === 0) ctx.audio.tick();
+      return;
+    }
     rubs++;
     if (c2 && canvas.width > 0 && r.width > 0) {
       const sx = canvas.width / r.width;
@@ -114,7 +121,7 @@ export const bath: Activity = (env) => {
     wrap.classList.add('clean');
     ctx.audio.fx('sparkle');
     env.say('Sạch bong rồi!… Thơm quá!');
-    scope.later(() => env.finish(), 2800);
+    fin.ready();
   }
 
   let down = false;

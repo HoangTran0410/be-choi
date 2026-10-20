@@ -3,6 +3,7 @@ import { h, mulberry32, replay, shuffle } from '../../../core/dom';
 import { centerOf } from '../../../core/drag';
 import { STIR_TURNS, TRAY_DECOYS, sillyLine, turnDelta } from '../../cooking/logic';
 import { recipePool, take } from '../day';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 /** A tap on the pot counts for this much of a turn, for fingers that cannot circle yet. */
@@ -24,6 +25,7 @@ export const breakfast: Activity = (env) => {
 
   const root = h('div', { class: 'cook' });
   env.host.append(root);
+  const fin = createFinisher(env);
   let added = 0;
   let turns = 0;
   let stage: 'cook' | 'stir' | 'serve' | 'eaten' = 'cook';
@@ -46,6 +48,7 @@ export const breakfast: Activity = (env) => {
 
   function put(it: Item, b: HTMLElement): void {
     ctx.hint.touch();
+    fin.touch();
     if (stage !== 'cook') return;
     const isIngredient = recipe!.ingredients.some((x) => x.emoji === it.emoji);
     if (!isIngredient) {
@@ -116,6 +119,13 @@ export const breakfast: Activity = (env) => {
     root.replaceChildren(kidBox, h('div', { class: 'cook-plate' }, dish));
     root.dataset.stage = 'serve';
     scope.piece(dish, () => me, () => eat(dish, me));
+    // Tapping the friend afterwards is always fine: a giggle.
+    scope.tap(kidBox, () => {
+      fin.touch();
+      ctx.hint.touch();
+      replay(me, 'anim-wiggle');
+      ctx.audio.pop(1.1);
+    }, 300);
     ctx.hint.arm(() => replay(dish, 'anim-wiggle'));
   }
 
@@ -129,6 +139,6 @@ export const breakfast: Activity = (env) => {
     replay(me, 'anim-bounce');
     kid.set({ mood: 'happy' });
     env.say('Ngon quá!');
-    scope.later(() => env.finish(), 2400);
+    fin.ready();
   }
 };

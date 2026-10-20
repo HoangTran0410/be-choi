@@ -2,6 +2,7 @@ import { h, mulberry32, replay } from '../../../core/dom';
 import { findSong, noteFreq, schedule, SONGS } from '../../../core/music';
 import { CHEERS, JOBS, JOB_ICON, LULLABY_BPM, LULLABY_NOTES, NUDGES, TOYS, type Job } from '../../bedtime/logic';
 import { take } from '../day';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 const LULLABY = findSong('twinkle') ?? SONGS[0];
@@ -14,7 +15,7 @@ const TOY_SPOTS: ReadonlyArray<readonly [number, number]> = [
 /**
  * Ru bạn nhỏ đi ngủ: put the toys in their basket, switch the lamp off, pull the blanket up and
  * sing the lullaby to the moon — in any order, and the lamp and blanket can be undone. When all
- * four are done the little friend falls asleep.
+ * four are done the little friend falls asleep and the ✓ shows — undo one and the friend wakes.
  */
 export const bed: Activity = (env) => {
   const { ctx, scope, kid, plan } = env;
@@ -50,14 +51,19 @@ export const bed: Activity = (env) => {
   );
   const room = h('div', { class: 'bed' }, h('div', { class: 'bed-room' }), row, lamp, moon, bedEl, ...toys, basket);
   env.host.append(room);
+  const fin = createFinisher(env);
 
   function setJob(j: Job, on: boolean): void {
+    fin.touch();
     if (on) {
       if (done.has(j)) return;
       done.add(j);
       ctx.audio.ding();
       env.say(CHEERS[j]);
-    } else done.delete(j);
+    } else {
+      done.delete(j);
+      if (asleep) wake();
+    }
     ticks.get(j)?.classList.toggle('done', on);
     if (done.size === JOBS.length) sleep();
   }
@@ -99,7 +105,7 @@ export const bed: Activity = (env) => {
   scope.tap(moon, () => {
     ctx.hint.touch();
     replay(moon, 'anim-bounce');
-    if (singing || asleep) return;
+    if (singing) return;
     const notes = (LULLABY?.notes ?? []).slice(0, LULLABY_NOTES);
     if (notes.length === 0) {
       setJob('lullaby', true);
@@ -128,7 +134,14 @@ export const bed: Activity = (env) => {
     kid.set({ asleep: true, mood: 'sleepy' });
     room.classList.add('dark');
     scope.later(() => env.say('Bạn nhỏ ngủ rồi… chúc ngủ ngon!'), 900);
-    scope.later(() => env.finish(), 4200);
+    fin.ready();
+  }
+
+  function wake(): void {
+    asleep = false;
+    kid.set({ asleep: false, mood: 'happy' });
+    room.classList.toggle('dark', dark);
+    fin.unready();
   }
 
   env.say('Tối rồi… đi ngủ thôi!');

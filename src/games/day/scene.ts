@@ -205,7 +205,9 @@ export function runDay(ctx: GameContext): void {
 
   // ---- jobs ----
   function open(id: TaskId): void {
-    if (job || over || !banner.hidden) return;
+    if (job || over) return;
+    // A banner is only a greeting: a tap on a job just lets it go instead of being swallowed.
+    if (!banner.hidden) banner.click();
     ctx.hint.clear();
     const def = taskDef(id);
     const s = createScope();
@@ -257,7 +259,9 @@ export function runDay(ctx: GameContext): void {
     ctx.hint.clear();
     actHost.replaceChildren();
     actHost.hidden = true;
+    actHost.classList.remove('leaving');
     home.hidden = false;
+    replay(home, 'arriving');
     hud.inJob(false);
     delete root.dataset.job;
     refresh();

@@ -70,6 +70,10 @@ describe('Ngày của bạn nhỏ', () => {
       await vi.advanceTimersByTimeAsync(100);
     }
     await vi.advanceTimersByTimeAsync(4500);
+    // the child decides: still dressing, with a big ✓ to press when ready
+    expect(ctx.stage.querySelector<HTMLElement>('.day-act')!.hidden).toBe(false);
+    press(ctx.stage.querySelector('.day-ok')!);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(ctx.stage.querySelector<HTMLElement>('.day-act')!.hidden).toBe(true);
     expect(ctx.stage.querySelector('[data-task="dress"]')!.classList.contains('done')).toBe(true);
   });

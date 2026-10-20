@@ -3,13 +3,15 @@ import { noteFreq, schedule } from '../../../core/music';
 import { FLAVORS, HAPPY_BIRTHDAY, HAPPY_BIRTHDAY_BPM, TOPPINGS, candleWord } from '../../birthday/logic';
 import { visitorBubble } from '../art';
 import { BIRTHDAY_AGE, take } from '../day';
+import { createFinisher } from '../done';
 import type { Activity } from '../env';
 
 const MAX_TOPPINGS = 6;
 
 /**
  * Làm bánh / sinh nhật: pick the cake (tap it to change the flavour), decorate it, put on
- * candles, light them and blow them out. On a birthday there are three candles, the friend
+ * candles, light them and blow them out (then light them again, as often as wanted; the ✓
+ * ends it). On a birthday there are three candles, the friend
  * sings, and a visitor may be at the table. Candles, light and blowing work in any order.
  */
 export const party: Activity = (env) => {
@@ -48,6 +50,7 @@ export const party: Activity = (env) => {
   const row1 = h('div', { class: 'party-row' }, ...tops);
   const row2 = h('div', { class: 'party-row' }, addCandle, light, blow);
   env.host.append(h('div', { class: 'party' }, stage, h('div', { class: 'party-tools' }, row1, row2)));
+  const fin = createFinisher(env);
 
   function paintCake(): void {
     const f = FLAVORS[flavor % FLAVORS.length] ?? FLAVORS[0]!;
@@ -66,6 +69,7 @@ export const party: Activity = (env) => {
 
   scope.tap(cake, () => {
     ctx.hint.touch();
+    fin.touch();
     flavor = (flavor + 1) % FLAVORS.length;
     paintCake();
     replay(cake, 'anim-bounce');
@@ -75,6 +79,7 @@ export const party: Activity = (env) => {
 
   function decorate(emoji: string, btn: HTMLElement): void {
     ctx.hint.touch();
+    fin.touch();
     replay(btn, 'anim-bounce');
     if (decor.children.length >= MAX_TOPPINGS) decor.firstElementChild?.remove();
     const n = decor.children.length;
@@ -84,7 +89,7 @@ export const party: Activity = (env) => {
 
   scope.tap(addCandle, () => {
     ctx.hint.touch();
-    if (out) return;
+    fin.touch();
     if (candles >= need + 2) {
       env.say('Đủ nến rồi!');
       return;
@@ -97,13 +102,15 @@ export const party: Activity = (env) => {
 
   scope.tap(light, () => {
     ctx.hint.touch();
+    fin.touch();
     replay(light, 'anim-bounce');
     if (candles < need) {
       env.say(birthday ? `Cần ${candleWord(need)} cây nến nhé!` : 'Thêm nến đã nhé!');
       return;
     }
-    if (lit || out) return;
+    if (lit && !out) return;
     lit = true;
+    out = false;
     paintCandles();
     ctx.audio.fx('sparkle');
     sing();
@@ -129,6 +136,7 @@ export const party: Activity = (env) => {
 
   scope.tap(blow, () => {
     ctx.hint.touch();
+    fin.touch();
     replay(blow, 'anim-bounce');
     if (!lit || out) {
       env.say(lit ? 'Hết nến rồi!' : 'Phù phù!');
@@ -140,7 +148,7 @@ export const party: Activity = (env) => {
     ctx.hint.clear();
     replay(cake, 'anim-bounce');
     env.say(birthday ? 'Hoan hô!… Bạn nhỏ ba tuổi rồi!' : 'Hoan hô!… Bánh ngon quá!');
-    scope.later(() => env.finish(), 3800);
+    fin.ready();
   });
 
   env.say(birthday ? 'Sinh nhật bạn nhỏ!… Làm bánh nào!' : 'Làm bánh nào!… Chạm vào bánh để đổi vị.');
