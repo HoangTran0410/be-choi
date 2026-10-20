@@ -93,6 +93,23 @@ describe('the hall', () => {
     expect(ctx.spoken).toEqual([]);
   });
 
+  it('does not talk over the music: taps, songs and mode changes are silent (text only)', async () => {
+    game.start(ctx);
+    await settle(4000); // past the shell’s introduction window
+    ctx.sequenced.length = 0;
+    ctx.spoken.length = 0;
+    for (const id of ['bird', 'perform', 'echo', 'song']) {
+      await tap(mode(id));
+      await settle(300);
+      await tap(q(ctx, '.sa-singer'));
+    }
+    await tap(q(ctx, `.sa-song[data-song="${SINGABLE[0]!.id}"]`));
+    await vi.advanceTimersByTimeAsync(8000); // the song is under way: the title, the count-in and the first words
+    expect(ctx.sequenced).toEqual([]);
+    expect(ctx.spoken).toEqual([]);
+    expect(q(ctx, '.sa-bubble').textContent).toContain(SINGABLE[0]!.title);
+  });
+
   it('moves between the four modes in any order', async () => {
     game.start(ctx);
     for (const id of ['bird', 'perform', 'echo', 'song', 'perform']) {

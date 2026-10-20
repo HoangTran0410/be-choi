@@ -546,24 +546,3 @@ export function memoryCheck(seq: readonly number[], pos: number, cat: number): '
  * ------------------------------------------------------------------------ */
 
 export const NUMBER_WORDS: readonly string[] = ['một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám'];
-
-/**
- * A slow, broken-up line for a cat the child just touched. Short sentences with
- * full stops, because the voice pauses at each one: "Mèo. Mèo cam." The three
- * kinds take turns (name, number, high or low) so the same cat is never described
- * the same way twice running.
- */
-export function catLine(cat: number, design: Design, round: number): string {
-  const kind = ((round % 3) + 3) % 3;
-  const number = NUMBER_WORDS[cat] ?? '';
-  if (kind === 0) return `Mèo. ${design.say}.`;
-  if (kind === 1) return `${design.say}. Số ${number}.`;
-  if (cat <= 1) return `${design.say}. Mèo to. Tiếng trầm.`;
-  if (cat >= CAT_COUNT - 2) return `${design.say}. Mèo nhỏ. Tiếng cao.`;
-  return `${design.say}. Mèo thứ ${number}.`;
-}
-
-/** What to say after the cats have been counted up (or down) the scale. */
-export function scaleLine(up: boolean): string {
-  return up ? 'Mèo nhỏ. Tiếng cao.' : 'Mèo to. Tiếng trầm.';
-}

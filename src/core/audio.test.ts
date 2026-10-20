@@ -50,7 +50,9 @@ describe('recorded voices load lazily', () => {
       createDynamicsCompressor = node;
       createWaveShaper = node;
       createOscillator = () => ({ ...node(), type: '', start() {}, stop() {} });
-      createBuffer = () => ({ getChannelData: () => new Float32Array(1) });
+      createBuffer = (_ch: number, len: number) => {
+        return { getChannelData: () => new Float32Array(len) };
+      };
       createBufferSource = () => ({
         ...node(),
         buffer: null,
@@ -217,6 +219,7 @@ describe('pitched voices', () => {
   const rates: number[] = [];
   const oscillators: number[] = [];
   const stops: number[] = [];
+  const buffers: number[] = [];
 
   function fakeContext() {
     const param = (v = 1) => ({ value: v, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} });
@@ -234,7 +237,10 @@ describe('pitched voices', () => {
         oscillators.push(1);
         return { ...node(), type: '', start() {}, stop() {} };
       };
-      createBuffer = () => ({ getChannelData: () => new Float32Array(1) });
+      createBuffer = (_ch: number, len: number) => {
+        buffers.push(len);
+        return { getChannelData: () => new Float32Array(len) };
+      };
       createBufferSource = () => {
         const playbackRate = param();
         return {
@@ -258,6 +264,7 @@ describe('pitched voices', () => {
     rates.length = 0;
     oscillators.length = 0;
     stops.length = 0;
+    buffers.length = 0;
     vi.stubGlobal('AudioContext', fakeContext());
     vi.stubGlobal(
       'fetch',
@@ -266,45 +273,33 @@ describe('pitched voices', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('sings a synthesized meow at once, before the recording has loaded', () => {
+  it('sings a cat note at once, with no recording needed: one buffer, played at its own speed', () => {
     const a = createAudio();
     a.unlock();
     a.pitched('meow', 700);
-    expect(rates).toEqual([]);
-    expect(oscillators.length).toBeGreaterThan(0);
+    expect(rates).toEqual([1]);
+    expect(oscillators).toEqual([]);
+    expect(buffers.length).toBe(1);
+    expect(buffers[0]).toBeGreaterThan(44100 * 0.3);
   });
 
-  it('retunes a loaded take by playing it faster or slower: an octave up is twice as fast', async () => {
+  it('renders each note once and reuses it, and a different note is another buffer', () => {
     const a = createAudio();
     a.unlock();
-    a.pitched('meow', 700);
-    await a.ready();
-    const hz = VOICE_HZ.meow ?? [];
-    expect(hz.length).toBe(SFX_TAKES.meow);
-    for (let i = 0; i < 30; i++) a.pitched('meow', 500);
-    for (let i = 0; i < 30; i++) a.pitched('meow', 1000);
-    const low = rates.slice(0, 30);
-    const high = rates.slice(30);
-    expect(low.length).toBe(30);
-    // Each take lands on its own measured pitch: rate × take pitch = the pitch asked for.
-    for (const r of low) expect(hz.some((base) => Math.abs(r * base - 500) < 0.01)).toBe(true);
-    for (const r of high) expect(hz.some((base) => Math.abs(r * base - 1000) < 0.01)).toBe(true);
-    expect(Math.min(...high)).toBeGreaterThan(Math.max(...low) * 0.99);
+    for (let i = 0; i < 5; i++) a.pitched('meow', 700);
+    expect(buffers.length).toBe(1);
+    a.pitched('meow', 880);
+    expect(buffers.length).toBe(2);
+    expect(rates.length).toBe(6);
   });
 
-  it('cuts a stretched low voice short, and does nothing for silly input', async () => {
+  it('does nothing for silly input', () => {
     const a = createAudio();
     a.unlock();
-    a.pitched('meow', 700);
-    await a.ready();
-    rates.length = 0;
-    stops.length = 0;
-    a.pitched('meow', 200, { maxDur: 0.8 });
-    expect(rates.length).toBe(1);
-    expect(stops[0]).toBeLessThan(0.9);
     a.pitched('meow', 0);
     a.pitched('meow', Number.NaN);
-    expect(rates.length).toBe(1);
+    a.pitched('meow', -3);
+    expect(rates).toEqual([]);
   });
 
   it('is silent when sound is off and never throws without AudioContext', () => {
@@ -314,7 +309,7 @@ describe('pitched voices', () => {
     a.setEnabled(false);
     a.pitched('meow', 600);
     expect(rates).toEqual([]);
-    expect(oscillators).toEqual([]);
+    expect(buffers).toEqual([]);
   });
 
   it('a voice with no measured pitch plays untuned instead of guessing', async () => {
@@ -327,9 +322,10 @@ describe('pitched voices', () => {
     expect(rates).toEqual([1]);
   });
 
-  it('knows the pitch rate of every take', () => {
-    expect(pitchRate('meow', 0, VOICE_HZ.meow![0]! * 2)).toBeCloseTo(2, 5);
+  it('has no retuning for a voice without a measured pitch', () => {
+    // The meow is sung by catvoice.ts, not retuned, so it has no recorded pitch.
+    expect(VOICE_HZ.meow).toBeUndefined();
+    expect(pitchRate('meow', 0, 600)).toBe(1);
     expect(pitchRate('bark', 0, 300)).toBe(1);
-    expect(pitchRate('meow', 99, 300)).toBe(1);
   });
 });

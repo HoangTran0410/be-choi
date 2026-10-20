@@ -18,7 +18,6 @@ import {
   barEvents,
   buildFinale,
   catHz,
-  catLine,
   catScale,
   chorusBar,
   createGuide,
@@ -30,7 +29,6 @@ import {
   memoryStart,
   loadCatSave,
   newCatsFor,
-  scaleLine,
   songSteps,
   songUnlocked,
   storeCatSave,
@@ -51,7 +49,6 @@ const IDLE_MS = 6000;
 /** Bars the cats keep singing along after the last touch. */
 const HARMONY_BARS = 12;
 /** The same words are not repeated more often than this. */
-const SPEAK_GAP_MS = 2200;
 /** One step of the count-up scale. */
 const SCALE_STEP_MS = 720;
 /** A cat lit again after its own note, so a repeated note is a new light. */
@@ -72,11 +69,12 @@ interface Particle {
 
 /**
  * Dàn mèo hát: eight cats on a shelf, from a big low voice to a tiny high one. A
- * touch makes that cat meow its own note (a real recording of a meow played faster
- * or slower to land on the note), over a band of drums, bass and chords that the
+ * touch makes that cat sing its own steady note (a synthesized "meo" at the exact
+ * pitch, see core/catvoice.ts, so tapping the cats in order plays the tune), over a band of drums, bass and chords that the
  * child picks. Leave them alone a while and the cats join in by themselves, only
  * ever on notes that belong to the chord. In the song mode a tune lights its cats
  * one by one and waits for the child; the whole band sings it when it is done.
+ * Nothing is spoken when a cat is touched: the point is to hear the music.
  */
 function start(ctx: GameContext): void {
   let alive = true;
@@ -113,9 +111,7 @@ function start(ctx: GameContext): void {
   /** "Nhớ giai điệu": the cats sing a phrase, the child sings it back. */
   let mem: { seq: number[]; pos: number; len: number; rounds: number; listening: boolean } | null = null;
   let scaleUp = true;
-  let speakRound = 0;
   let tapCount = 0;
-  let lastSpeak = -Infinity;
   const taps = new Array<number>(CAT_COUNT).fill(0);
 
   /* ---------------------------------------------------------------- DOM */
@@ -245,10 +241,12 @@ function start(ctx: GameContext): void {
     progressFill.style.width = `${Math.round(Math.max(0, Math.min(1, p)) * 100)}%`;
   };
 
-  function say(text: string, force = false): void {
-    const now = Date.now();
-    if (!force && now - lastSpeak < SPEAK_GAP_MS) return;
-    lastSpeak = now;
+  /**
+   * The game is for listening: the voice never talks over the cats or the band. It
+   * speaks only at a big moment (the first time in, a new cat or song, a song
+   * finished), a few words each, never when a cat is tapped or a mode is chosen.
+   */
+  function say(text: string): void {
     void sayText(ctx, text);
   }
 
@@ -284,7 +282,6 @@ function start(ctx: GameContext): void {
       }
       assigning = choice.id;
       setCaption('📷 Chạm vào mèo muốn đeo mặt này');
-      say('Chạm vào mèo nhé.', true);
     });
   }
 
@@ -416,7 +413,6 @@ function start(ctx: GameContext): void {
     ctx.audio.tick();
     if (!finale) startBacking();
     else syncButtons();
-    say(`${style.name}.`, true);
     setCaption(`${style.emoji} Nhạc ${style.name.toLowerCase()}`);
   }
 
@@ -437,7 +433,6 @@ function start(ctx: GameContext): void {
     if (!alive) return;
     touched = true;
     ctx.hint.touch();
-    ctx.audio.preloadFx(['meow']);
     taps[cat] = (taps[cat] ?? 0) + 1;
 
     if (assigning) {
@@ -488,7 +483,6 @@ function start(ctx: GameContext): void {
       const design = designs[cat];
       if (design) {
         setCaption(`${design.name} · số ${NUMBER_WORDS[cat]}`);
-        if (Date.now() - lastSpeak >= SPEAK_GAP_MS) say(catLine(cat, design, speakRound++));
       }
     }
   }
@@ -506,7 +500,6 @@ function start(ctx: GameContext): void {
       const lit = guide.lit;
       if (lit !== null) {
         replay(cells[lit] as HTMLElement, 'cb-nudge');
-        say('Chạm mèo sáng nhé.');
       }
       return;
     }
@@ -547,7 +540,6 @@ function start(ctx: GameContext): void {
       setCaption('Chạm vào mèo nhé!');
       if (playing) startBacking();
       syncButtons();
-      say('Chơi tự do. Chạm mèo nhé.', true);
     } else if (next === 'song') {
       cancelFinale();
       openPicker();
@@ -569,7 +561,6 @@ function start(ctx: GameContext): void {
     setCaption('Chọn một bài hát nhé!');
     if (playing) startBacking();
     syncButtons();
-    say('Chọn một bài hát nhé.', true);
   }
 
   function renderPicker(): void {
@@ -615,7 +606,6 @@ function start(ctx: GameContext): void {
           } else {
             replay(b, 'cb-nudge');
             ctx.audio.pop(0.8);
-            say('Hát thêm bài để mở nhé.', true);
           }
         },
         { ctx, cooldownMs: 300 },
@@ -635,7 +625,6 @@ function start(ctx: GameContext): void {
     light();
     if (!musicOff) startBacking();
     syncButtons();
-    say(`${s.title}. Chạm mèo sáng nhé.`, true);
   }
 
   /** The whole tune, sung by the cats over the whole band. */
@@ -649,7 +638,6 @@ function start(ctx: GameContext): void {
     chorus = [];
     setCaption('🎶 Cả dàn mèo hát!');
     syncButtons();
-    say('Cả dàn mèo hát nhé.', true);
     const beatMs = 60000 / s.bpm;
     const base = seq.now() + 700;
     for (const e of events) {
@@ -676,13 +664,14 @@ function start(ctx: GameContext): void {
       const fresh = designs[seat];
       if (fresh) {
         setCaption(`🎉 Mèo mới! ${fresh.name}`);
-        later(1900, () => say(`Mèo mới! ${fresh.say}.`, true));
+        later(1900, () => say(`Mèo mới! ${fresh.say}.`));
       }
     } else if (SONG_UNLOCKS.filter((x) => songUnlocked(x.id, save.stars)).length > songsBefore) {
       setCaption('🎉 Bài hát mới!');
-      later(1900, () => say('Có bài hát mới rồi.', true));
+      later(1900, () => say('Có bài hát mới rồi.'));
     } else {
       setCaption('🎉 Giỏi quá!');
+      later(1200, () => say('Giỏi quá.'));
     }
     later(gotCat ? 4200 : 3200, () => {
       if (mode === 'song' && !guide && !finale) openPicker();
@@ -705,7 +694,6 @@ function start(ctx: GameContext): void {
     root.classList.add('cb-guiding');
     setProgress(0);
     syncButtons();
-    say('Nhớ giai điệu. Nghe mèo hát nhé.', true);
     playMemory(false);
   }
 
@@ -736,8 +724,7 @@ function start(ctx: GameContext): void {
         unlight();
         m.listening = false;
         setCaption(`🐱 Đến lượt bé! ${m.seq.length} nốt`);
-        say('Đến lượt bé.');
-      },
+          },
       'mem',
     );
   }
@@ -799,7 +786,6 @@ function start(ctx: GameContext): void {
           sing(cat);
           unlight();
           cells[cat]?.classList.add('cb-lit');
-          say(`${NUMBER_WORDS[cat]}.`, true);
           setCaption(`${designs[cat]?.name ?? 'Mèo'} · số ${NUMBER_WORDS[cat]}`);
         },
         'scale',
@@ -809,7 +795,6 @@ function start(ctx: GameContext): void {
       base + CAT_COUNT * SCALE_STEP_MS + 200,
       () => {
         unlight();
-        say(scaleLine(up), true);
         setCaption(up ? 'Mèo nhỏ · tiếng cao' : 'Mèo to · tiếng trầm');
       },
       'scale',
@@ -822,7 +807,8 @@ function start(ctx: GameContext): void {
   lowCls(perf.low);
   const offPerf = onPerfChange(lowCls);
 
-  ctx.audio.preloadFx(['meow']);
+  // The one welcome, for a child who has not finished a song yet.
+  if (save.stars === 0) later(700, () => say('Chạm vào mèo nhé.'));
   syncButtons();
 
   ctx.onCleanup(() => {

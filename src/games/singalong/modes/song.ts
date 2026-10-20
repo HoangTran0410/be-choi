@@ -8,8 +8,8 @@ import { beatMsOf, wordTiming } from './lyrics';
 import { fillSongCards } from './songCards';
 import type { Env, Mode } from './types';
 
-/** Wait after the spoken title before the music starts, so the voice is finished (iOS ducks Web Audio while it speaks). */
-const INTRO_MS = 4600;
+/** Count-in before the music starts. The title is only shown, not spoken, so there is no voice to wait for. */
+const INTRO_MS = 3200;
 const COUNT_IN = ['3', '2', '1'];
 const COUNT_IN_FROM_MS = 1500;
 
