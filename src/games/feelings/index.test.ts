@@ -4,8 +4,13 @@ import game from './index';
 
 const FACES = ['😢', '😠', '😮', '🥱'];
 
+let clock = 0;
 function press(stage: HTMLElement, comfort: string): void {
-  stage.querySelector<HTMLElement>(`[data-comfort="${comfort}"]`)!.click();
+  // A finger: the stage cancels touches, so a phone never sends a click here.
+  const btn = stage.querySelector<HTMLElement>(`[data-comfort="${comfort}"]`)!;
+  clock += 1000; // past the double-press guard, which reads performance.now
+  vi.spyOn(performance, 'now').mockReturnValue(clock);
+  btn.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
 }
 const face = (stage: HTMLElement) => stage.querySelector('.feel-face')!.textContent!;
 

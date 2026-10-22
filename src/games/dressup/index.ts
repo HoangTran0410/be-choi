@@ -1,6 +1,7 @@
 import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import { h, replay } from '../../core/dom';
 import type { GameContext, GameModule } from '../../core/types';
+import { makeTappable } from '../../core/tap';
 import { meta } from './meta';
 import {
   CHEER_FIT,
@@ -64,10 +65,14 @@ function start(ctx: GameContext): void {
       'data-slot': slot,
       'aria-label': `${SLOT_LABEL[slot]} của bạn nhỏ`,
     });
-    el.addEventListener('click', () => {
-      takeOff(slot);
-      if (phase === 'dress') showSlot(slot);
-    });
+    makeTappable(
+      el,
+      () => {
+        takeOff(slot);
+        if (phase === 'dress') showSlot(slot);
+      },
+      { ctx },
+    );
     slotEls[slot] = el;
   }
   const kid = h('div', { class: 'dressup-kid' }, slotEls.hat, head, slotEls.top, slotEls.shoes);

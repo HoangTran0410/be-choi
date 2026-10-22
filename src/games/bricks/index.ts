@@ -406,7 +406,7 @@ function start(ctx: GameContext): void {
   }
   setPalette(false);
   makeTappable(paintBtn, () => setPalette(root.dataset.palette !== 'open'), { cooldownMs: 0, ctx });
-  palette.addEventListener('click', (e) => {
+  palette.addEventListener('pointerdown', (e) => {
     if (e.target === palette) setPalette(false);
   });
 

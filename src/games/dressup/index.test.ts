@@ -90,7 +90,7 @@ describe('dressup game', () => {
     expect(slot.textContent).toBe(a!.dataset.emoji);
     b!.click();
     expect(slot.textContent).toBe(b!.dataset.emoji);
-    slot.click();
+    slot.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
     expect(slot.textContent).toBe('');
     ctx.cleanup();
   });

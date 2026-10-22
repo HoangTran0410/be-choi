@@ -15,6 +15,7 @@ import {
 } from './logic';
 import './style.css';
 import { sayText } from '../../core/say';
+import { makeTappable } from '../../core/tap';
 
 /** How long the friend beams before the next mood comes along. */
 const HAPPY_MS = 2600;
@@ -42,10 +43,11 @@ function start(ctx: GameContext): void {
     const r = REACTIONS[c];
     const btn = h(
       'button',
-      { class: 'feel-btn', type: 'button', 'data-comfort': c, 'aria-label': r.label, onclick: () => comfort(c) },
+      { class: 'feel-btn', type: 'button', 'data-comfort': c, 'aria-label': r.label },
       h('span', { class: 'feel-btn-icon' }, r.icon),
       h('span', { class: 'feel-btn-label' }, r.label),
     );
+    makeTappable(btn, () => comfort(c), { ctx });
     buttons.set(c, btn);
   }
   const tray = h('div', { class: 'g-tray feel-tray' }, ...buttons.values());

@@ -95,11 +95,11 @@ describe('sortout game', () => {
     tap(piece);
     expect(piece.classList.contains('selected')).toBe(true);
     const bins = [...ctx.stage.querySelectorAll<HTMLElement>('.sortout-bin')];
-    bins.find((b) => b.dataset.cat !== piece.dataset.cat)!.click();
+    tap(bins.find((b) => b.dataset.cat !== piece.dataset.cat)!);
     expect(piece.classList.contains('placed')).toBe(false);
     expect(piece.classList.contains('selected')).toBe(false);
     tap(piece);
-    bins.find((b) => b.dataset.cat === piece.dataset.cat)!.click();
+    tap(bins.find((b) => b.dataset.cat === piece.dataset.cat)!);
     expect(piece.classList.contains('placed')).toBe(true);
     ctx.cleanup();
   });

@@ -1,6 +1,7 @@
 import { h, replay } from '../../core/dom';
 import { createDragDrop, pickTarget } from '../../core/dragdrop';
 import type { GameContext, GameModule } from '../../core/types';
+import { makeTappable } from '../../core/tap';
 import { meta } from './meta';
 import { makeSortRound, type CategoryId } from './logic';
 import './style.css';
@@ -137,8 +138,7 @@ function start(ctx: GameContext): void {
           reject(piece);
         }
       };
-      b.el.addEventListener('click', onTap);
-      disposers.push(() => b.el.removeEventListener('click', onTap));
+      disposers.push(makeTappable(b.el, onTap, { cooldownMs: 0 }));
     }
 
     ctx.hint.arm(() => {
