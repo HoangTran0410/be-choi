@@ -23,7 +23,7 @@
   --c-blue: #3b82f6;
   --c-purple: #a855f7;
   --c-pink: #ec4899;
-  --font: -apple-system, 'SF Pro Rounded', 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  --font: ui-rounded, -apple-system, 'SF Pro Rounded', 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -6,6 +6,7 @@ import { GAMES, isLegacy, type GameEntry } from './registry';
 import { hrefFor } from './router';
 import { suitsAge } from './ages';
 import { buzz } from './haptics';
+import { tileStyle } from './tileColor';
 import { dateKeyOf, pickToday } from './today';
 import { openParentPanel, SETTINGS_CHANGED, STARS_CHANGED } from './parentPanel';
 import '../styles/home.css';
@@ -87,7 +88,7 @@ export function todaysGames(deps: AppDeps, now: Date = new Date()): GameEntry[] 
 function todayTile(entry: GameEntry, deps: AppDeps): HTMLElement {
   const el = h(
     'button',
-    { class: 'today-tile', style: `background:${entry.color}`, 'aria-label': entry.title, onClick: () => openGame(el, entry, deps) },
+    { class: 'today-tile', style: tileStyle(entry.color), 'aria-label': entry.title, onClick: () => openGame(el, entry, deps) },
     entry.icon,
   );
   return el;
@@ -119,7 +120,7 @@ function tile(entry: GameEntry, deps: AppDeps, onFavorite: () => void): HTMLElem
     'button',
     {
       class: 'tile',
-      style: `background:${entry.color}`,
+      style: tileStyle(entry.color),
       'aria-label': entry.title,
       onClick: () => openGame(el, entry, deps),
     },
@@ -167,7 +168,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
       'button',
       {
         class: 'tile tile-resume',
-        style: `background:${entry.color}`,
+        style: tileStyle(entry.color),
         'aria-label': `Chơi tiếp ${entry.title}`,
         onClick: () => {
           deps.audio.pop();
