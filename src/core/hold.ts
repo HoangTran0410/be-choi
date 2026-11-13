@@ -1,16 +1,18 @@
+import { onFrame } from './frame';
+
 /**
  * Long-press helper used for the parent gate and destructive buttons. Shows a
  * `.hold-ring` progress ring while the pointer is held. Returns a dispose function.
  */
 export function onHold(el: HTMLElement, ms: number, cb: () => void): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  let raf = 0;
+  let stopRing: (() => void) | null = null;
   let ring: HTMLSpanElement | null = null;
   let fired = false;
 
   const cleanupVisual = () => {
-    if (raf) cancelAnimationFrame(raf);
-    raf = 0;
+    stopRing?.();
+    stopRing = null;
     ring?.remove();
     ring = null;
   };
@@ -29,13 +31,14 @@ export function onHold(el: HTMLElement, ms: number, cb: () => void): () => void 
     ring.className = 'hold-ring';
     el.append(ring);
     const t0 = performance.now();
-    const tickRing = () => {
-      if (!ring) return;
-      const p = Math.min(1, (performance.now() - t0) / ms);
-      ring.style.setProperty('--hold-progress', p.toFixed(3));
-      if (p < 1) raf = requestAnimationFrame(tickRing);
-    };
-    if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(tickRing);
+    if (typeof requestAnimationFrame === 'function') {
+      stopRing = onFrame(() => {
+        if (!ring) return false;
+        const p = Math.min(1, (performance.now() - t0) / ms);
+        ring.style.setProperty('--hold-progress', p.toFixed(3));
+        return p < 1;
+      });
+    }
     timer = setTimeout(() => {
       timer = null;
       fired = true;

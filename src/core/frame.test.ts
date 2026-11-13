@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { onFrame, startLoop, onPerfChange, perf, resetFrameLoop } from './frame';
+import { onFrame, startLoop, onPerfChange, perf, resetFrameLoop, initPerf, looksWeak } from './frame';
 
 /** A hand-cranked requestAnimationFrame. */
 let queue: Map<number, FrameRequestCallback>;
@@ -35,6 +35,11 @@ beforeEach(() => {
 
 afterEach(() => {
   resetFrameLoop();
+  try {
+    localStorage.clear();
+  } catch {
+    /* none */
+  }
   vi.unstubAllGlobals();
 });
 
@@ -178,5 +183,49 @@ describe('frame rate watch', () => {
     run(1, 50);
     run(2, 16);
     expect(perf.low).toBe(false);
+  });
+
+  it('persists a measured low and clears it after a long good spell', () => {
+    onFrame(() => undefined);
+    run(1.2, 16);
+    run(3, 50);
+    expect(perf.low).toBe(true);
+    expect(localStorage.getItem('bechoi.lowperf')).toBe('1');
+    expect(document.documentElement.dataset.lite).toBe('');
+    run(5, 16);
+    expect(perf.low).toBe(false);
+    expect('lite' in document.documentElement.dataset).toBe(false);
+    expect(localStorage.getItem('bechoi.lowperf')).toBe('1'); // short recovery keeps the memory
+    run(65, 16);
+    expect(localStorage.getItem('bechoi.lowperf')).toBeNull();
+  });
+
+  it('boot: a remembered device starts low and stays low until a long good spell', () => {
+    localStorage.setItem('bechoi.lowperf', '1');
+    initPerf();
+    expect(perf.low).toBe(true);
+    expect(document.documentElement.dataset.lite).toBe('');
+    onFrame(() => undefined);
+    run(1.2, 16);
+    run(10, 16);
+    expect(perf.low).toBe(true);
+    run(60, 16);
+    expect(perf.low).toBe(false);
+    expect(localStorage.getItem('bechoi.lowperf')).toBeNull();
+  });
+
+  it('boot: fresh device with unknown hardware starts normal', () => {
+    initPerf();
+    expect(perf.low).toBe(false);
+  });
+});
+
+describe('looksWeak', () => {
+  it('flags small memory or few cores, ignores unknown', () => {
+    expect(looksWeak({ deviceMemory: 2 })).toBe(true);
+    expect(looksWeak({ hardwareConcurrency: 4 })).toBe(true);
+    expect(looksWeak({ deviceMemory: 4, hardwareConcurrency: 8 })).toBe(false);
+    expect(looksWeak({})).toBe(false);
+    expect(looksWeak(undefined)).toBe(false);
   });
 });

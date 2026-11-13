@@ -48,11 +48,25 @@ describe('soundbook game', () => {
     const cow = things(ctx).find((el) => el.dataset.id === 'cow')!;
     cow.dispatchEvent(ptr());
     await vi.advanceTimersByTimeAsync(0);
-    expect(played).toEqual(['sounds/cow.m4a']);
+    expect(played).toHaveLength(1);
+    expect(played[0]).toMatch(/^sounds\/cow-\d\.m4a$/);
     expect(cow.classList.contains('sb-on')).toBe(true);
     await vi.advanceTimersByTimeAsync(1300);
     expect(ctx.spoken.at(-1)).toBe('Con bò');
     expect(cow.classList.contains('sb-on')).toBe(false);
+    ctx.cleanup();
+  });
+
+  it('plays a different recording of the same thing each press', async () => {
+    const { ctx, played } = mount();
+    const cow = things(ctx).find((el) => el.dataset.id === 'cow')!;
+    for (let i = 0; i < 40; i++) {
+      cow.dispatchEvent(ptr());
+      await vi.advanceTimersByTimeAsync(0);
+    }
+    expect(played).toHaveLength(40);
+    for (let i = 1; i < played.length; i++) expect(played[i]).not.toBe(played[i - 1]);
+    expect(new Set(played).size).toBeGreaterThan(2);
     ctx.cleanup();
   });
 

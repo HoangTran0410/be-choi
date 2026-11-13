@@ -4,6 +4,9 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { holeSvg, makeShapeRound, shapeDef, shapeSvg } from './logic';
 import './style.css';
+import { firstTryTracker } from '../../core/mastery';
+import { echoEnglish } from '../../core/english';
+const tries = firstTryTracker();
 
 /** Shape sorter: drag each colored shape onto the hole with the same outline. */
 function start(ctx: GameContext): void {
@@ -41,6 +44,7 @@ function start(ctx: GameContext): void {
       ctx.hint.touch();
       const hole = holes.find((x) => x.dataset.shape === piece.dataset.shape);
       if (!hole || hit !== piece.dataset.shape) {
+        if (hit) tries.miss(piece);
         ctx.audio.boing();
         return false;
       }
@@ -58,7 +62,11 @@ function start(ctx: GameContext): void {
     ctx.audio.ding();
     navigator.vibrate?.(15);
     const shape = piece.dataset.shape;
-    if (shape) ctx.speak(shapeDef(shape as never).name);
+    if (shape) {
+      ctx.speak(shapeDef(shape as never).name);
+      tries.hit(`shape:${shape}`, piece);
+      echoEnglish(shapeDef(shape as never).name);
+    }
     placed++;
     if (placed === holes.length) {
       ctx.hint.clear();

@@ -24,7 +24,8 @@ function deps(): AppDeps {
 }
 
 function btn(label: string): HTMLButtonElement {
-  const found = [...document.querySelectorAll('.panel button')].find((b) => b.textContent?.includes(label));
+  const all = [...document.querySelectorAll('.panel button')];
+  const found = all.find((b) => b.textContent?.trim() === label) ?? all.find((b) => b.textContent?.includes(label));
   if (!found) throw new Error(`no button ${label}`);
   return found as HTMLButtonElement;
 }

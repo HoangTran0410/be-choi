@@ -1,0 +1,86 @@
+/* ---- gentle rest reminder (sleepy friend) ---- */
+.break-friend {
+  position: relative;
+  font-size: clamp(40px, 9vmin, 72px);
+  line-height: 1;
+}
+.break-friend .break-emoji {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translateX(-50%) scale(0.5);
+  font-size: inherit;
+}
+.break-banner.asleep .break-friend {
+  animation: break-breathe 3s ease-in-out infinite;
+}
+.break-zzz {
+  font-size: clamp(24px, 5vmin, 40px);
+  animation: break-float 2.6s ease-in-out infinite;
+}
+@keyframes break-breathe {
+  50% { transform: scale(1.06); }
+}
+@keyframes break-float {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-1.5vmin); opacity: 1; }
+}
+
+/* ---- parent report ---- */
+.report-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 800;
+}
+.report-days {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 90px;
+  margin: 8px 0;
+}
+.report-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  font-size: 11px;
+  color: var(--section);
+}
+.report-day-bar {
+  width: 100%;
+  min-height: 3px;
+  border-radius: 6px 6px 0 0;
+  background: var(--c-green);
+}
+.report-day.today .report-day-bar {
+  background: var(--c-red);
+}
+.report-row {
+  display: grid;
+  grid-template-columns: 1.6em minmax(5em, 9em) 1fr auto;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 14px;
+}
+.report-track {
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.2);
+  overflow: hidden;
+}
+.report-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: var(--c-green);
+}
+.report-sub {
+  margin: 10px 0 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--section);
+}

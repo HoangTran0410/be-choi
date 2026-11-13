@@ -5,6 +5,8 @@ import { renderChoose, type AnswerView } from './choose';
 import { QUESTIONS_PER_STATION, topicOf } from './curriculum';
 import { renderDrag } from './drag';
 import { recordAnswer, stationRng } from './picker';
+import { dueSkills, recordSkill } from '../../core/mastery';
+import { skillId } from './skillId';
 import { REWARDS, isWorn, toggleWear, totalRuns } from './progress';
 import { buildQuestion, planStation } from './questions';
 import type { Scope } from './scope';
@@ -27,7 +29,8 @@ export function showQuiz(app: App, topic: TopicId, root: HTMLElement, scope: Sco
   const info = topicOf(topic);
   const plays = state.runs[topic] ?? 0;
   const rng = stationRng(topic, plays, state.turn);
-  const plan = planStation(topic, state.mastery, state.turn, app.env, rng);
+  const dueSet = new Set(dueSkills());
+  const plan = planStation(topic, state.mastery, state.turn, app.env, rng, (id) => dueSet.has(skillId(id)));
 
   const dots = Array.from({ length: QUESTIONS_PER_STATION }, () => h('span', { class: 'lq-dot' }));
   const back = h('button', { class: 'lq-back', type: 'button', 'aria-label': 'Về bản đồ' }, '🗺️');
@@ -68,6 +71,7 @@ export function showQuiz(app: App, topic: TopicId, root: HTMLElement, scope: Sco
   function record(concept: string, right: boolean): void {
     state.turn++;
     state.mastery = recordAnswer(state.mastery, concept, right, state.turn);
+    recordSkill(skillId(concept), right);
     app.save();
   }
 

@@ -13,8 +13,10 @@ import { applyTheme } from './theme';
 import { watchBreaks } from './breakTimer';
 import { buzz } from './haptics';
 import '../styles/shell.css';
+import '../styles/shellHold.css';
 
 const PARENT_HOLD_MS = 1500;
+const HOME_HOLD_MS = 500;
 /** Browser chrome colour while a night game is open. Matches the top of its sky. */
 const NIGHT_CHROME = '#0a1226';
 
@@ -28,19 +30,29 @@ export function mountShell(root: HTMLElement, entry: GameEntry, deps: AppDeps): 
   const cleanups: Array<() => void> = [];
   const hint = createHint();
 
+  // Going home needs a short press-and-hold: a 3-year-old's stray tap must not end the game.
   const homeBtn = h(
     'button',
     {
       class: 'btn-round home',
-      'aria-label': 'Về trang chính',
-      onClick: () => {
-        audio.tick();
-        buzz();
-        location.hash = hrefFor({ name: 'home' });
+      'aria-label': 'Về trang chính (giữ)',
+      onClick: (e: Event) => {
+        // Keyboard / screen reader "click" has no pointer: go straight home.
+        if ((e as MouseEvent).detail === 0) {
+          goHome();
+          return;
+        }
+        // A quick tap does nothing (like the parent button): only a hold goes home.
       },
     },
     '🏠',
   );
+  const goHome = () => {
+    audio.tick();
+    buzz();
+    location.hash = hrefFor({ name: 'home' });
+  };
+  cleanups.push(onHold(homeBtn, HOME_HOLD_MS, goHome));
   const parentBtn = h('button', { class: 'btn-round parent', 'aria-label': 'Phụ huynh (giữ)' }, '👪');
   cleanups.push(
     onHold(parentBtn, PARENT_HOLD_MS, () => {

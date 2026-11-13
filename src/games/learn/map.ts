@@ -1,7 +1,8 @@
 import { h, replay } from '../../core/dom';
+import { readJson } from '../../core/save';
 import { makeTappable } from '../../core/tap';
 import type { App } from './app';
-import { TOPICS, familyReady } from './curriculum';
+import { TOPICS, familyReady, visibleTopics, type Topic } from './curriculum';
 import { isWorn, nextReward, toggleWear, totalRuns, unlocked } from './progress';
 import type { Scope } from './scope';
 import type { TopicId } from './types';
@@ -12,11 +13,22 @@ export function starsFor(runs: number): number {
 }
 
 /** The station to point at: the one visited least (family only when it can be played). */
-export function suggestedStation(runs: Partial<Record<TopicId, number>>, familyOk: boolean): TopicId {
-  const open = TOPICS.filter((t) => t.id !== 'family' || familyOk);
+export function suggestedStation(runs: Partial<Record<TopicId, number>>, familyOk: boolean, topics: readonly Topic[] = TOPICS): TopicId {
+  const open = topics.filter((t) => t.id !== 'family' || familyOk);
   let best = open[0]!;
   for (const t of open) if ((runs[t.id] ?? 0) < (runs[best.id] ?? 0)) best = t;
   return best.id;
+}
+
+/** The parent's age setting (2 to 6, 0 = not set). Read only: the parent panel owns it. */
+export function parentAge(): number {
+  try {
+    const raw = readJson('be-choi:v1', null) as { settings?: { age?: unknown } } | null;
+    const a = raw?.settings?.age;
+    return typeof a === 'number' && a >= 2 && a <= 6 ? a : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -26,7 +38,8 @@ export function suggestedStation(runs: Partial<Record<TopicId, number>>, familyO
 export function showMap(app: App, root: HTMLElement, scope: Scope): void {
   const { state, ctx } = app;
   const familyOk = familyReady(app.env);
-  const suggest = suggestedStation(state.runs, familyOk);
+  const topics = visibleTopics(parentAge(), state.runs, totalRuns(state));
+  const suggest = suggestedStation(state.runs, familyOk, topics);
   const stage = ctx.stage;
 
   const greeting = h('p', { class: 'lm-say' }, 'Chọn một trạm nhé!');
@@ -56,9 +69,9 @@ export function showMap(app: App, root: HTMLElement, scope: Scope): void {
   const stations = new Map<TopicId, HTMLElement>();
   function build(): void {
     const landscape = stage.clientWidth > stage.clientHeight * 1.05;
-    const cols = landscape ? 5 : 2;
+    const cols = landscape ? (topics.length > 10 ? 6 : 5) : topics.length > 10 ? 3 : 2;
     const rows: HTMLElement[] = [];
-    TOPICS.forEach((t, i) => {
+    topics.forEach((t, i) => {
       const r = Math.floor(i / cols);
       if (!rows[r]) rows[r] = h('div', { class: `lm-row${r % 2 ? ' rev' : ''}` });
       const runs = state.runs[t.id] ?? 0;
@@ -107,7 +120,7 @@ export function showMap(app: App, root: HTMLElement, scope: Scope): void {
   function drawRoad(): void {
     const box = path.getBoundingClientRect();
     if (box.width === 0) return;
-    const pts = TOPICS.map((t) => {
+    const pts = topics.map((t) => {
       const disc = stations.get(t.id)!.querySelector('.lm-st-disc')!.getBoundingClientRect();
       return { x: disc.left + disc.width / 2 - box.left, y: disc.top + disc.height / 2 - box.top };
     });

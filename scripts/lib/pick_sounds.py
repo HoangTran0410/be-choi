@@ -28,12 +28,39 @@ import sys
 import librosa
 import numpy as np
 import torch
-from transformers import ClapModel, ClapProcessor
+from transformers import ASTFeatureExtractor, ASTForAudioClassification, ClapModel, ClapProcessor
 
 MODEL = "laion/larger_clap_general"
+# AudioSet classifier: a second, independent opinion. CLAP is zero-shot and
+# can be talked into things; AST was trained on 2 M labelled clips and says
+# "Cat" or "Speech" with calibrated odds.
+AST_MODEL = "MIT/ast-finetuned-audioset-10-10-0.4593"
+AST_SR = 16000
+# Whatever the clip is, it must not be these (no voice, no music bed).
+AST_BAD = ["Speech", "Singing", "Male speech, man speaking", "Female speech, woman speaking", "Child speech, kid speaking", "Conversation"]
+AST_BAD_MAX = 0.25
+# Music bed: bells and chimes are musical, so this one is only for a clip that is mostly music.
+AST_MUSIC = "Music"
+AST_MUSIC_MAX = 0.55
+# The wanted class must be this likely, and among the classifier's top few.
+AST_HIT_MIN = 0.2
+AST_TOP = 6
+# Sure enough on its own, when CLAP prefers a look-alike (a donkey for a horse).
+AST_SURE = 0.5
+# Things an animal recording is often mistaken for. They are never an item of
+# the book, so no item competes with them, but a clip that sounds more like one
+# of these than like the animal it is meant to be is the wrong clip.
+VOCAB = [
+    "a rhinoceros snorting", "a hippopotamus grunting", "a tiger roaring", "a lion roaring", "a bear growling",
+    "a whale singing", "a seal barking", "a camel groaning", "a deer calling", "a crow cawing", "a seagull screaming",
+    "a goose honking", "a turkey gobbling", "a monster roar sound effect", "a didgeridoo", "a trumpet instrument",
+    "a foghorn", "a synthesizer", "a person imitating an animal", "a cartoon sound effect", "a cat purring",
+    "a dog whining", "a man shouting", "a baby crying", "an engine idling", "a lorry reversing",
+]
 SR = 48000
 # Things a clip can be instead of the thing it is supposed to be.
 JUNK = [
+    "a crowd of many animals making noise together",
     "people talking",
     "a man speaking",
     "wind noise on a microphone",
@@ -55,9 +82,13 @@ GAP_S = 0.3
 MIN_LEN = 0.9
 SHORT_PENALTY = 3.0
 # A second take has to score within this much of the best one to be kept.
-TAKE_SLACK = 3.0
+TAKE_SLACK = 6.0
+# Two takes this alike (cosine of CLAP embeddings) are one recording uploaded twice.
+SAME_EMBED = 0.965
+# A clip failing recognition is only ever used when nothing passes, and is marked so.
+UNVERIFIED = 100.0
 # At most this many windows are tried per recording.
-MAX_WINDOWS = 6
+MAX_WINDOWS = 4
 
 
 def spans(y: np.ndarray, sr: int) -> list[tuple[float, float]]:
@@ -100,6 +131,10 @@ def windows(y: np.ndarray, sr: int, max_len: float) -> list[tuple[float, float]]
     return wins or [(0.0, min(len(y) / sr, max_len))]
 
 
+def names_of(ast, probs, n: int = 2) -> str:
+    return ", ".join(f"{ast.config.id2label[i]} {float(probs[i]):.2f}" for i in probs.topk(n).indices.tolist())
+
+
 def embedding(out) -> torch.Tensor:
     """transformers 4 returns the projected embedding; 5 wraps it in an output object."""
     return out if isinstance(out, torch.Tensor) else out.pooler_output
@@ -109,8 +144,10 @@ def main() -> None:
     src, dst = sys.argv[1], sys.argv[2]
     job = json.load(open(src))
     items = job["items"]
-    prompts = [it["prompt"] for it in items] + JUNK + [CLEAN, NOISY]
+    prompts = [it["prompt"] for it in items] + JUNK + VOCAB + [CLEAN, NOISY]
     n_items = len(items)
+    index = {it["id"]: i for i, it in enumerate(items)}
+    n_named = len(prompts) - 2
 
     model = ClapModel.from_pretrained(MODEL).eval()
     proc = ClapProcessor.from_pretrained(MODEL)
@@ -119,6 +156,15 @@ def main() -> None:
         text = embedding(model.get_text_features(**t_in))
         text = text / text.norm(dim=-1, keepdim=True)
     scale = model.logit_scale_a.exp().item()
+
+    ast_fx = ASTFeatureExtractor.from_pretrained(AST_MODEL)
+    ast = ASTForAudioClassification.from_pretrained(AST_MODEL).eval()
+    names = {v: int(k) for k, v in ast.config.id2label.items()}
+    for it in items:
+        for label in it.get("labels", []) + AST_BAD + [AST_MUSIC]:
+            if label not in names:
+                sys.exit(f"{it['id']}: {label!r} is not an AudioSet class")
+    bad_ix = [names[b] for b in AST_BAD]
 
     picks = {}
     for idx, it in enumerate(items):
@@ -139,10 +185,12 @@ def main() -> None:
                 aud = embedding(model.get_audio_features(**a_in))
                 aud = aud / aud.norm(dim=-1, keepdim=True)
                 logits = scale * aud @ text.T
-                named = logits[:, : n_items + len(JUNK)]
+                named = logits[:, :n_named]
                 probs = named.softmax(dim=-1)
                 clean = logits[:, -2:].softmax(dim=-1)[:, 0]
-            for w, lg, p, c in zip(wins, named, probs, clean):
+                a_in = ast_fx([librosa.resample(c_, orig_sr=SR, target_sr=AST_SR) for c_ in clips], sampling_rate=AST_SR, return_tensors="pt")
+                ap = torch.sigmoid(ast(**a_in).logits)
+            for w, lg, p, c, emb, apr in zip(wins, named, probs, clean, aud, ap):
                 # Probabilities saturate: five good moos all score 0.99. The margin
                 # over the nearest other label keeps ranking them — how much more
                 # this is a cow than it is anything else — nudged by how clean it is.
@@ -151,6 +199,25 @@ def main() -> None:
                 score = margin + 4 * (float(c) - 0.5)
                 if w[1] - w[0] < it.get("minLen", MIN_LEN):
                     score -= SHORT_PENALTY
+                # Recognition: CLAP's top label over every neighbour and look-alike is this
+                # item (or one it says is as good), the classifier agrees, and nobody speaks.
+                right = {idx} | {index[a] for a in it.get("alike", []) if a in index}
+                top1 = int(lg.argmax())
+                clap_ok = top1 in right
+                voice = float(apr[bad_ix].max())
+                labels = it.get("labels", [])
+                ast_hit = max((float(apr[names[l]]) for l in labels), default=1.0)
+                top = apr.topk(AST_TOP).indices.tolist()
+                ast_ok = not labels or (ast_hit >= AST_HIT_MIN and any(names[l] in top for l in labels))
+                # CLAP naming it, or the classifier being sure of it (AST was trained on labelled clips, CLAP is zero-shot).
+                ast_sure = bool(labels) and ast_hit >= AST_SURE and any(names[l] in top[:2] for l in labels)
+                verified = (clap_ok or ast_sure) and ast_ok and voice < AST_BAD_MAX and float(apr[names[AST_MUSIC]]) < AST_MUSIC_MAX
+                # Where the models have no word for it and Freesound holds almost nothing (dolphins), the
+                # title is the evidence: someone named the recording, and nobody speaks in it.
+                if it.get("trust") and voice < AST_BAD_MAX:
+                    verified = True
+                if not verified:
+                    score -= UNVERIFIED
                 row = {
                     "id": cand["id"],
                     "start": w[0],
@@ -158,7 +225,12 @@ def main() -> None:
                     "score": round(score, 3),
                     "p": round(float(p[idx]), 3),
                     "clean": round(float(c), 3),
+                    "ok": verified,
+                    "clap": prompts[top1],
+                    "ast": names_of(ast, apr),
+                    "voice": round(voice, 2),
                     "path": cand["path"],
+                    "emb": emb.tolist(),
                 }
                 report.append(row)
                 if best is None or score > best["score"]:
@@ -168,14 +240,20 @@ def main() -> None:
             # One cut per recording: two slices of the same moo are not two takes.
             takes, used = [], set()
             for r in report:
+                if not r["ok"] and takes:
+                    break
                 if r["id"] in used or r["score"] < best["score"] - TAKE_SLACK or len(takes) >= it.get("takes", 1):
+                    continue
+                if any(float(np.dot(r["emb"], t["emb"])) > SAME_EMBED for t in takes):
                     continue
                 used.add(r["id"])
                 takes.append(r)
-            picks[it["id"]] = {**best, "takes": takes, "alternatives": report[1:6]}
+            n_ok = sum(1 for r in report if r["ok"])
+            strip = lambda r: {k: v for k, v in r.items() if k != "emb"}
+            picks[it["id"]] = {**strip(best), "takes": [strip(t) for t in takes], "alternatives": [strip(r) for r in report[1:6]]}
             print(
                 f"{it['id']:<14} {best['score']:6.2f}  p={best['p']:.2f} clean={best['clean']:.2f}  "
-                f"fs#{best['id']}  {best['start']:.2f}-{best['end']:.2f}s  ({len(takes)} take{'s' * (len(takes) > 1)})",
+                f"fs#{best['id']}  {best['start']:.2f}-{best['end']:.2f}s  ({len(takes)} take{'s' * (len(takes) > 1)}, {sum(t['ok'] for t in takes)} verified, {n_ok}/{len(report)} windows ok)  {best['clap'][:28]} | {best['ast']}",
                 flush=True,
             )
         else:

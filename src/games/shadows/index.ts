@@ -5,6 +5,9 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makeShadowRound } from './logic';
 import './style.css';
+import { firstTryTracker } from '../../core/mastery';
+import { echoEnglish } from '../../core/english';
+const tries = firstTryTracker();
 
 /** Shadow match: drag each coloured animal onto its black silhouette. */
 function start(ctx: GameContext): void {
@@ -40,6 +43,7 @@ function start(ctx: GameContext): void {
       ctx.hint.touch();
       const shadow = shadows.find((s) => s.dataset.emoji === piece.dataset.emoji);
       if (!shadow || hit !== piece.dataset.emoji) {
+        if (hit) tries.miss(piece);
         ctx.audio.boing();
         return false;
       }
@@ -56,7 +60,10 @@ function start(ctx: GameContext): void {
     replay(piece, 'anim-bounce');
     ctx.audio.ding();
     navigator.vibrate?.(15);
-    ctx.speak(names.get(piece.dataset.emoji ?? '') ?? '');
+    const shadowName = names.get(piece.dataset.emoji ?? '') ?? '';
+    ctx.speak(shadowName);
+    tries.hit(`shadow:${piece.dataset.emoji ?? ''}`, piece);
+    echoEnglish(shadowName);
     placed++;
     if (placed === shadows.length) {
       ctx.hint.clear();

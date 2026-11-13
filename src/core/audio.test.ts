@@ -346,3 +346,71 @@ describe('pitched voices', () => {
     expect(pitchRate('bark', 0, 300)).toBe(1);
   });
 });
+
+describe('sound groups', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('runs the function and gives a harmless stop without a context', () => {
+    const a = createAudio();
+    let ran = 0;
+    const g = a.group?.(() => {
+      ran++;
+      a.note(440, 0.3);
+    });
+    expect(ran).toBe(1);
+    g?.stop();
+    g?.stop(10);
+  });
+
+  it('puts what the function starts on one bus that stop() fades to silence', () => {
+    const ramps: Array<{ node: object; to: number }> = [];
+    const buses: object[] = [];
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        state = 'running';
+        currentTime = 0;
+        sampleRate = 44100;
+        destination = {};
+        param = (owner: object) => ({
+          value: 1,
+          setValueAtTime() {},
+          cancelScheduledValues() {},
+          linearRampToValueAtTime: (to: number) => ramps.push({ node: owner, to }),
+          exponentialRampToValueAtTime() {},
+        });
+        node = () => {
+          const n: Record<string, unknown> = { connect: (x: unknown) => x, disconnect() {} };
+          n.gain = this.param(n);
+          n.frequency = this.param(n);
+          n.Q = this.param(n);
+          n.detune = this.param(n);
+          return n;
+        };
+        createGain = () => {
+          const n = this.node();
+          buses.push(n);
+          return n;
+        };
+        createBiquadFilter = this.node;
+        createDynamicsCompressor = this.node;
+        createWaveShaper = this.node;
+        createOscillator = () => ({ ...this.node(), type: '', start() {}, stop() {} });
+        createBuffer = (_c: number, len: number) => ({ getChannelData: () => new Float32Array(len) });
+        createBufferSource = () => ({ ...this.node(), buffer: null, start() {}, stop() {} });
+        resume = () => Promise.resolve();
+      },
+    );
+    const a = createAudio();
+    a.unlock();
+    const before = buses.length;
+    const g = a.group?.(() => a.note(440, 0.3, 'piano', 0.5));
+    expect(buses.length).toBeGreaterThan(before);
+    const bus = buses[before]!;
+    ramps.length = 0;
+    g?.stop(40);
+    expect(ramps.some((r) => r.node === bus && r.to === 0)).toBe(true);
+    g?.stop(); // twice is fine
+    expect(ramps.filter((r) => r.node === bus).length).toBe(1);
+  });
+});

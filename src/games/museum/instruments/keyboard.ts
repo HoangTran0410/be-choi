@@ -1,4 +1,5 @@
 import { majorFrom, tune } from './scale';
+import { lg, type Stop } from './art';
 import { Frame, linGrad, rect, shade, wrap, zg } from './svg';
 import type { Board, Harmony, Zone } from './types';
 import { inst, note } from './voices';
@@ -34,46 +35,107 @@ export function layoutKeyboard(kind: 'piano' | 'organ', w: number, h: number, ha
 
   const zones: Zone[] = [];
   let art = '';
-  const defs = linGrad('kb-w', '#ffffff', '#e5e7eb') + linGrad('kb-b', '#3f3f46', '#09090b') + linGrad('kb-wood', '#b45309', '#78350f');
+  // gradients: `lenG` runs along a key (back → front), `widG` across the keyboard
+  const gx = portrait ? 1 : 0;
+  const gy = portrait ? 0 : 1;
+  const lenG = (id: string, s: Stop[]) => lg(id, s, 0, 0, gx, gy);
+  const widG = (id: string, s: Stop[]) => lg(id, s, 0, 0, gy, gx);
+  const defs =
+    lenG('kb-w', [
+      [0, '#cfcac0'],
+      [0.06, '#f4f1ea'],
+      [0.5, '#fffdf8'],
+      [0.88, '#f1ede4'],
+      [1, '#d8d3c8'],
+    ]) +
+    lenG('kb-w-dim', [
+      [0, '#a3a3a8'],
+      [1, '#d4d4d8'],
+    ]) +
+    lenG('kb-lip', [
+      [0, '#e9e5da'],
+      [0.4, '#c9c4b8'],
+      [1, '#9c978b'],
+    ]) +
+    widG('kb-b-body', [
+      [0, '#000'],
+      [0.25, '#2d2d33'],
+      [0.5, '#3a3a42'],
+      [0.75, '#222226'],
+      [1, '#000'],
+    ]) +
+    lenG('kb-b-top', [
+      [0, '#4a4a52'],
+      [0.7, '#202024'],
+      [1, '#0e0e10'],
+    ]) +
+    lenG('kb-b-bevel', [
+      [0, '#52525b'],
+      [0.45, '#18181b'],
+      [1, '#050506'],
+    ]) +
+    lenG('kb-case', [
+      [0, '#3a312c'],
+      [0.5, '#171210'],
+      [1, '#0a0807'],
+    ]) +
+    lenG('kb-felt', [
+      [0, '#b91c1c'],
+      [1, '#7f1d1d'],
+    ]) +
+    linGrad('kb-wood', '#c2761d', '#6b3410') +
+    widG('kb-pipe', [
+      [0, '#6b7280'],
+      [0.2, '#f8fafc'],
+      [0.45, '#b6bcc6'],
+      [0.75, '#f1f5f9'],
+      [1, '#6b7280'],
+    ]);
 
   // Case
-  art += rect(0, 0, w, h, 0, kind === 'piano' ? '#1f1a17' : 'url(#kb-wood)');
+  art += rect(0, 0, w, h, 0, kind === 'piano' ? 'url(#kb-case)' : 'url(#kb-wood)');
   if (kind === 'organ') {
     // pipes: tall, shorter toward the high end
     const n = 8;
     for (let i = 0; i < n; i++) {
       const pl = f.V * panel * (0.9 - i * 0.07);
       const pw = (f.U - pad * 2) / n;
-      art += f.rect(
-        u0 + i * pw + pw * 0.15,
-        pad,
-        pw * 0.7,
-        pl,
-        pw * 0.2,
-        i % 2 ? '#d6d3d1' : '#e7e5e4',
-        'stroke="#a8a29e" stroke-width="2"',
-      );
-      art += f.ell(u0 + i * pw + pw * 0.5, pad + pl * 0.82, pw * 0.16, pl * 0.1, '#44403c');
+      art += f.rect(u0 + i * pw + pw * 0.15 + 2, pad + 3, pw * 0.7, pl, pw * 0.2, 'rgba(0,0,0,.25)');
+      art += f.rect(u0 + i * pw + pw * 0.15, pad, pw * 0.7, pl, pw * 0.2, 'url(#kb-pipe)', 'stroke="#6b7280" stroke-width="1.5"');
+      art += f.ell(u0 + i * pw + pw * 0.5, pad + pl * 0.82, pw * 0.2, pl * 0.1, '#1c1917');
+      art += f.ell(u0 + i * pw + pw * 0.5, pad + pl * 0.82, pw * 0.2, pl * 0.1, 'none', 'stroke="#9ca3af" stroke-width="1"');
     }
   } else {
-    art += f.rect(u0, pad, f.U - pad * 2, f.V * panel - 2, 6, '#2b2420');
+    // the fallboard with a red felt strip, and a gloss line
+    art += f.rect(u0, pad, f.U - pad * 2, f.V * panel - 2, 6, '#1d1815', 'stroke="#000" stroke-opacity=".5" stroke-width="1.5"');
+    art += f.rect(u0 + 6, pad + 4, f.U - pad * 2 - 12, 3, 2, 'rgba(255,255,255,.14)');
+    art += f.rect(u0, v0 - 7, f.U - pad * 2, 7, 1, 'url(#kb-felt)');
+    art += f.rect(u0 + f.U * 0.4, pad + f.V * panel * 0.45, f.U * 0.2 - pad, 2, 1, 'rgba(212,175,55,.6)');
   }
 
+  const kd = Math.min(8, kw * 0.12);
   WHITE.forEach((m, i) => {
     const dim = harmony === 'pentatonic' && tune(m, harmony) !== m;
     const sh = f.shapeRect(u0 + i * kw, v0, kw, keyLen);
     zones.push({ id: `k${m}`, shape: sh, role: 'play', voices: [voiceOf(m)], dim });
+    const ku = u0 + i * kw + 1.5;
+    const kww = kw - 3;
+    // the key: square at the back, rounded at the front
+    const body = f.d([
+      ['M', ku, v0],
+      ['L', ku + kww, v0],
+      ['L', ku + kww, v0 + keyLen - kd],
+      ['Q', ku + kww, v0 + keyLen, ku + kww - kd, v0 + keyLen],
+      ['L', ku + kd, v0 + keyLen],
+      ['Q', ku, v0 + keyLen, ku, v0 + keyLen - kd],
+      ['Z'],
+    ]);
     art += zg(
       `k${m}`,
-      f.rect(
-        u0 + i * kw + 1.5,
-        v0,
-        kw - 3,
-        keyLen,
-        Math.min(10, kw * 0.12),
-        dim ? '#d4d4d8' : 'url(#kb-w)',
-        'stroke="#a1a1aa" stroke-width="1.5"',
-      ) + f.rect(u0 + i * kw + 3, v0 + keyLen * 0.88, kw - 6, keyLen * 0.08, 4, 'rgba(0,0,0,.07)'),
+      `<path d="${body}" fill="${dim ? 'url(#kb-w-dim)' : 'url(#kb-w)'}" stroke="#8a857a" stroke-width="1.2"/>` +
+        f.rect(ku, v0 + keyLen * 0.93, kww, keyLen * 0.07, 3, 'url(#kb-lip)') +
+        f.rect(ku + 2, v0 + 2, 2.5, keyLen * 0.9, 1, 'rgba(255,255,255,.9)') +
+        f.rect(ku + kww - 4.5, v0 + 2, 3, keyLen * 0.9, 1, 'rgba(0,0,0,.07)'),
     );
   });
   // Black keys are drawn and tested first so they win over the white key under them.
@@ -91,10 +153,16 @@ export function layoutKeyboard(kind: 'piano' | 'organ', w: number, h: number, ha
       small: true,
       dim,
     });
+    const bu = cu - bw / 2;
     art += zg(
       `k${m}`,
-      f.rect(cu - bw / 2, v0, bw, bl, Math.min(8, bw * 0.2), dim ? '#71717a' : 'url(#kb-b)') +
-        f.rect(cu - bw / 2 + bw * 0.15, v0 + 3, bw * 0.2, bl * 0.8, 3, 'rgba(255,255,255,.18)'),
+      f.rect(bu + 2.5, v0 + 4, bw, bl, Math.min(7, bw * 0.18), 'rgba(0,0,0,.28)') + // shadow on the white keys
+        f.rect(bu, v0, bw, bl, Math.min(7, bw * 0.18), dim ? '#71717a' : 'url(#kb-b-body)', 'stroke="#000" stroke-width="1.2"') +
+        (dim
+          ? ''
+          : f.rect(bu + bw * 0.14, v0 + 2, bw * 0.72, bl * 0.74, Math.min(5, bw * 0.12), 'url(#kb-b-top)') +
+            f.rect(bu + bw * 0.1, v0 + bl * 0.78, bw * 0.8, bl * 0.2, Math.min(5, bw * 0.12), 'url(#kb-b-bevel)') +
+            f.rect(bu + bw * 0.2, v0 + 5, bw * 0.12, bl * 0.62, 2, 'rgba(255,255,255,.2)')),
     );
   });
 

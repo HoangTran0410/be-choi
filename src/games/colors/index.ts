@@ -5,6 +5,9 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { ballSvg, basketSvg, makeColorRound } from './logic';
 import './style.css';
+import { firstTryTracker } from '../../core/mastery';
+import { echoEnglish } from '../../core/english';
+const tries = firstTryTracker();
 
 interface Basket {
   color: ColorDef;
@@ -48,6 +51,7 @@ function start(ctx: GameContext): void {
       ctx.hint.touch();
       const basket = baskets.find((k) => k.color.id === ball.dataset.color);
       if (!basket || hit !== basket.color.id) {
+        if (hit) tries.miss(ball);
         ctx.audio.boing();
         return false;
       }
@@ -64,6 +68,8 @@ function start(ctx: GameContext): void {
     ctx.audio.ding();
     navigator.vibrate?.(15);
     ctx.speak(basket.color.name);
+    tries.hit(`color:${basket.color.id}`, ball);
+    echoEnglish(basket.color.name);
     placed++;
     if (placed === balls.length) {
       ctx.hint.clear();

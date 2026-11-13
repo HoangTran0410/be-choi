@@ -38,7 +38,7 @@ export function renderVisual(v: Visual): HTMLElement {
     }
     case 'group':
       return countGrid(
-        Array.from({ length: v.n }, () => h('span', { class: 'lv-g' }, v.v)),
+        Array.from({ length: v.n }, (_, i) => h('span', { class: `lv-g${v.gone && i >= v.n - v.gone ? ' lv-fly' : ''}` }, v.v)),
         { 'data-n': v.n },
       );
     case 'row': {

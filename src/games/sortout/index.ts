@@ -5,6 +5,9 @@ import { makeTappable } from '../../core/tap';
 import { meta } from './meta';
 import { makeSortRound, type CategoryId } from './logic';
 import './style.css';
+import { firstTryTracker } from '../../core/mastery';
+import { echoEnglish } from '../../core/english';
+const tries = firstTryTracker();
 
 /**
  * Sort-out: drag (or tap an item, then tap a bin) to put toys in the box,
@@ -57,10 +60,14 @@ function start(ctx: GameContext): void {
       ctx.hint.touch();
       const it = items.find((x) => x.id === piece.dataset.id);
       if (it && hit === it.category) {
+        tries.hit(`sort:${it.category}`, piece);
         accept(piece, it.category, it.name);
         return true;
       }
-      if (hit) select(null);
+      if (hit) {
+        select(null);
+        tries.miss(piece);
+      }
       reject(piece);
       return false;
     },
@@ -78,6 +85,7 @@ function start(ctx: GameContext): void {
     ctx.audio.ding();
     navigator.vibrate?.(15);
     ctx.speak(name);
+    echoEnglish(name);
     placed++;
     if (placed === items.length) {
       ctx.hint.clear();

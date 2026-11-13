@@ -1209,7 +1209,7 @@ function start(ctx: GameContext): void {
   });
 
   build();
-  startLoop(ctx, loop);
+  startLoop(ctx, loop, { lowFps: 30 });
 }
 
 const game: GameModule = { ...meta, start };

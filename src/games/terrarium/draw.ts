@@ -1,4 +1,5 @@
 import { solveTwoBone, walkFoot, type Point } from '../../core/creature';
+import { perf } from '../../core/frame';
 import {
   bankScale,
   footDir,
@@ -910,7 +911,7 @@ export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: n
     g.rotate(Math.sin(scene.clock * 22) * 0.16);
     g.translate(-cr.x, -cr.y);
     g.shadowColor = 'rgba(41,25,17,0.45)';
-    g.shadowBlur = cr.length * 0.35;
+    if (!perf.low) g.shadowBlur = cr.length * 0.35;
   }
   if (isTopDown(cr.surface)) {
     // Up the cork at the back, where the animal faces us and we look down on it.

@@ -29,16 +29,63 @@
   touch-action: manipulation;
 }
 
-.album-grid {
+.album-sets {
   flex: 1;
   overflow-y: auto;
   touch-action: pan-y;
+  padding-bottom: 6vmin;
+}
+.album-set {
+  margin: 1vmin 0 2vmin;
+}
+.album-set-head {
+  display: flex;
+  align-items: center;
+  gap: 2vmin;
+  padding: 1vmin 4vmin 0;
+  font-size: clamp(18px, 4vmin, 30px);
+  font-weight: 800;
+  color: var(--section);
+}
+.album-set-icon {
+  font-size: 1.3em;
+}
+.album-dots {
+  display: inline-flex;
+  gap: 0.35em;
+  margin-left: auto;
+}
+.album-dots i {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  background: rgba(127, 127, 127, 0.3);
+}
+.album-dots i.on {
+  background: var(--c-green);
+}
+.album-set-badge {
+  font-size: 0.8em;
+}
+.album-set.near .album-set-badge {
+  animation: pulse 2.4s ease-in-out infinite;
+}
+.album-set.complete .album-sticker {
+  box-shadow: 0 6px 0 var(--c-green);
+}
+.album-silhouette .album-shape {
+  filter: brightness(0);
+  opacity: 0.22;
+}
+.album-grid {
+  overflow-y: visible;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(clamp(90px, 22vmin, 160px), 1fr));
   gap: 3vmin;
   padding: 2vmin 4vmin 6vmin;
   align-content: start;
 }
+.album > .album-grid { flex: 1; overflow-y: auto; }
 .album-sticker {
   aspect-ratio: 1;
   display: grid;

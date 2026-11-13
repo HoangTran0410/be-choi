@@ -72,26 +72,89 @@ export function starsToNext(total: number): number {
   return r === 0 ? STARS_PER_STICKER : STARS_PER_STICKER - r;
 }
 
-/** Call right after a star is added. Unlocks a random locked sticker every STARS_PER_STICKER stars. */
+/** A themed set of stickers. Collect them all for a little party. */
+export interface StickerSet {
+  id: string;
+  icon: string;
+  name: string;
+  emojis: readonly string[];
+}
+
+export const STICKER_SETS: readonly StickerSet[] = [
+  { id: 'forest', icon: '🌲', name: 'Rừng xanh', emojis: ['🐻', '🦊', '🐼', '🦁', '🐯', '🐨'] },
+  { id: 'sea', icon: '🌊', name: 'Biển xanh', emojis: ['🐙', '🐬', '🐳', '🐧'] },
+  { id: 'garden', icon: '🌷', name: 'Vườn hoa', emojis: ['🦋', '🐞', '🌸', '🌻', '🍄', '🌵'] },
+  { id: 'sky', icon: '🌤️', name: 'Bầu trời', emojis: ['🌈', '⭐', '🌙', '☀️'] },
+  { id: 'vehicles', icon: '🚦', name: 'Xe cộ', emojis: ['🚂', '🚁', '🚀', '⛵'] },
+  { id: 'friends', icon: '🏡', name: 'Bạn nhỏ', emojis: ['🐥', '🐰', '🐸', '🦜', '🦩'] },
+  { id: 'fairy', icon: '✨', name: 'Cổ tích', emojis: ['🦄', '🦖', '🦕', '🏰'] },
+  { id: 'party', icon: '🎉', name: 'Vui hội', emojis: ['🎈', '🎁', '🎪', '🎠'] },
+  { id: 'food', icon: '🍰', name: 'Đồ ngọt', emojis: ['🍦', '🍩', '🍭', '🎂'] },
+  { id: 'music', icon: '🎶', name: 'Nhạc & màu', emojis: ['🎸', '🥁', '🎨'] },
+  { id: 'treasure', icon: '💰', name: 'Kho báu', emojis: ['👑', '🏆', '💎', '🎯'] },
+];
+
+export function setOf(emoji: string): StickerSet | undefined {
+  return STICKER_SETS.find((s) => s.emojis.includes(emoji));
+}
+
+export interface SetProgress {
+  set: StickerSet;
+  have: number;
+  total: number;
+  complete: boolean;
+}
+
+export function setProgress(set: StickerSet, owned: ReadonlySet<string> | readonly string[]): SetProgress {
+  const o = owned instanceof Set ? owned : new Set(owned);
+  const have = set.emojis.filter((e) => o.has(e)).length;
+  return { set, have, total: set.emojis.length, complete: have === set.emojis.length };
+}
+
+/** Chance that a new sticker comes from a set the child has already started. */
+const FINISH_BIAS = 0.75;
+
+/**
+ * Call right after a star is added. Unlocks a locked sticker every STARS_PER_STICKER stars,
+ * most often one that brings a started set closer to full; sometimes a surprise from a new set.
+ */
 export function maybeUnlockSticker(store: Store, rng: () => number = Math.random): Sticker | null {
   const total = store.totalStars();
   if (total === 0 || total % STARS_PER_STICKER !== 0) return null;
   const owned = new Set(store.stickers());
   const locked = STICKERS.filter((s) => !owned.has(s.emoji));
-  const pick = locked[Math.floor(rng() * locked.length)];
-  if (!pick) return null;
+  if (!locked.length) return null;
+  let pool = locked;
+  if (rng() < FINISH_BIAS) {
+    // Closest-to-full started set wins; ties share.
+    const started = STICKER_SETS.map((s) => setProgress(s, owned)).filter((p) => p.have > 0 && !p.complete);
+    if (started.length) {
+      const fewest = Math.min(...started.map((p) => p.total - p.have));
+      const near = new Set(started.filter((p) => p.total - p.have === fewest).flatMap((p) => p.set.emojis));
+      pool = locked.filter((s) => near.has(s.emoji));
+    }
+  }
+  const pick = pool[Math.floor(rng() * pool.length)] ?? locked[0]!;
   store.addSticker(pick.emoji);
   return pick;
 }
 
+/** The set a sticker has just finished, if it was the last one missing. */
+export function completedSetBy(sticker: Sticker, owned: readonly string[]): StickerSet | null {
+  const set = setOf(sticker.emoji);
+  return set && setProgress(set, owned).complete ? set : null;
+}
+
 /** Full-screen "new sticker!" moment: big bouncing emoji, confetti, a spoken name. Closes on tap or after 3 s. */
 export function showStickerReveal(sticker: Sticker, deps: AppDeps): void {
+  const done = completedSetBy(sticker, deps.store.stickers());
   const card = h(
     'div',
     { class: 'sticker-reveal' },
     h('div', { class: 'sticker-reveal-title' }, '🎁 Sticker mới!'),
     h('div', { class: 'sticker-reveal-emoji anim-bounce' }, sticker.emoji),
     h('div', { class: 'sticker-reveal-name' }, sticker.name),
+    done ? h('div', { class: 'sticker-reveal-set anim-bounce' }, `${done.icon} Đủ bộ ${done.name}! ${done.emojis.join('')}`) : null,
   );
   const overlay = h('div', { class: 'overlay sticker-overlay' }, card);
   let closed = false;
@@ -102,7 +165,7 @@ export function showStickerReveal(sticker: Sticker, deps: AppDeps): void {
   };
   overlay.addEventListener('pointerdown', close);
   document.body.append(overlay);
-  deps.speech.speak(`Bé được sticker mới: ${sticker.name}!`);
+  deps.speech.speak(done ? `Bé được ${sticker.name}! Đủ bộ ${done.name} rồi, giỏi quá!` : `Bé được sticker mới: ${sticker.name}!`);
   void celebrate(overlay, deps.audio, () => undefined, { confetti: deps.store.settings().confetti });
-  setTimeout(close, 3200);
+  setTimeout(close, done ? 5000 : 3200);
 }

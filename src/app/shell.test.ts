@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createPhotoStore } from '../core/photos';
 import type { Speech } from '../core/speech';
 import { fakeAudio } from '../core/testing';
@@ -93,5 +93,31 @@ describe('game shell', () => {
     expect(chrome()).toBe('#0a1226');
     unmount();
     expect(chrome()).toBe('#1c1917');
+  });
+
+  it('a quick tap on home is silent; a half-second hold goes home', () => {
+    vi.useFakeTimers();
+    try {
+      location.hash = '#/g/test';
+      const spoken: string[] = [];
+      const d = deps();
+      d.speech.speak = (t: string) => void spoken.push(t);
+      const unmount = mountShell(root, entry(), d);
+      const home = root.querySelector<HTMLElement>('.btn-round.home')!;
+      home.dispatchEvent(new Event('pointerdown'));
+      home.dispatchEvent(new Event('pointerup'));
+      home.dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }));
+      vi.advanceTimersByTime(600);
+      expect(location.hash).toBe('#/g/test');
+      expect(spoken.some((t) => /giữ/i.test(t))).toBe(false);
+      expect(root.querySelector('.home-hint')).toBeNull();
+      home.dispatchEvent(new Event('pointerdown'));
+      expect(home.querySelector('.hold-ring')).not.toBeNull();
+      vi.advanceTimersByTime(600);
+      expect(location.hash).toBe('#/');
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createBreakTracker } from './breakTimer';
+import { BREAK_PRESETS, createBreakTracker } from './breakTimer';
 import { EDGE_PX, buzz, isEdgeTouch } from './haptics';
 
 const MIN = 60_000;
@@ -46,6 +46,12 @@ describe('break tracker', () => {
     b.enter();
     t = 33 * MIN;
     expect(b.due(10)).toBe(false);
+  });
+});
+
+describe('break presets', () => {
+  it('offers off plus 15/20/30/45 minutes', () => {
+    expect([...BREAK_PRESETS]).toEqual([0, 15, 20, 30, 45]);
   });
 });
 

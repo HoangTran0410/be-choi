@@ -18,6 +18,8 @@ const STAR_MS = 700;
  * the child can drum along. Multi-touch, no rounds, a star every 40 taps.
  */
 function start(ctx: GameContext): void {
+  // Fetch the recorded sounds ahead (falls back to the synth until they land).
+  ctx.audio.preloadInstruments?.(['drum:kick', 'drum:snare', 'drum:hat', 'drum:tom', 'drum:clap', 'drum:cowbell', 'drum:shaker', 'drum:wood', 'drum:ride', 'drum:triangle', 'drum:crash']);
   const root = h('div', { class: 'drums' });
   const grid = h('div', { class: 'drums-pads' });
   const padEls = new Map<DrumKind, HTMLButtonElement>();

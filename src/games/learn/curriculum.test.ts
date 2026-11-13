@@ -20,9 +20,11 @@ import {
 } from './curriculum';
 
 describe('curriculum data', () => {
-  it('has ten stations with distinct ids', () => {
-    expect(TOPICS.length).toBe(10);
-    expect(new Set(TOPICS.map((t) => t.id)).size).toBe(10);
+  it('has sixteen stations with distinct ids: ten for everyone, six that open with age or play', () => {
+    expect(TOPICS.length).toBe(16);
+    expect(new Set(TOPICS.map((t) => t.id)).size).toBe(16);
+    expect(TOPICS.slice(0, 10).every((t) => t.minAge === undefined)).toBe(true);
+    expect(TOPICS.slice(10).every((t) => t.minAge !== undefined && t.unlockRuns !== undefined)).toBe(true);
     expect(QUESTIONS_PER_STATION).toBe(5);
   });
 

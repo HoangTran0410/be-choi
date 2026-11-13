@@ -32,7 +32,13 @@ import type { Board, Family, Shape, Zone } from './types';
 
 const NS = 'http://www.w3.org/2000/svg';
 const canAnimate = typeof Element !== 'undefined' && typeof (Element.prototype as { animate?: unknown }).animate === 'function';
-const reducedMotion = (): boolean => {
+/**
+ * "Reduce motion" (iOS) / "Remove animations" (Android) is common on phones, and for a toy the
+ * movement IS the feedback for a child who cannot read: with it on the sound would be all there is.
+ * So it only makes everything calmer (smaller swings); nothing is switched off.
+ * (The same rule as `base.css`: hit feedback is untouched by reduced motion and lite mode.)
+ */
+const gentle = (): boolean => {
   try {
     return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   } catch {
@@ -431,7 +437,7 @@ export function createFx(env: FxEnv): Fx {
   let dead = false;
 
   const ani = (target: Element, frames: Keyframe[], opts: KeyframeAnimationOptions): Animation | null => {
-    if (!canAnimate || reducedMotion()) return null;
+    if (!canAnimate) return null;
     try {
       animations.get(target)?.cancel();
       const a = target.animate(frames, opts);
@@ -444,7 +450,7 @@ export function createFx(env: FxEnv): Fx {
 
   /** One-shot animation on a throwaway sprite. */
   const fly = (target: Element, frames: Keyframe[], opts: KeyframeAnimationOptions): void => {
-    if (!canAnimate || reducedMotion()) {
+    if (!canAnimate) {
       target.remove();
       return;
     }
@@ -546,7 +552,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function rings(zone: Zone, spec: Rings, x: number, y: number, vel: number, swipe: boolean): void {
-    if (!layer || reducedMotion() || !canAnimate) return;
+    if (!layer || !canAnimate) return;
     // a big ring repaints a lot of pixels each frame: never more than three alive at once
     if (spec === WAVE && layer.querySelectorAll('.wave').length >= 3) return;
     const n = swipe ? 1 : perf.low ? 1 : spec.n;
@@ -586,7 +592,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function wobble(zoneId: string, m: Motion, vel: number, k: number): void {
-    const v = clamp(0.45 + vel * 0.7, 0.3, 1.1) * k * ZONE_AMP;
+    const v = clamp(0.45 + vel * 0.7, 0.3, 1.1) * k * ZONE_AMP * (gentle() ? 0.6 : 1);
     env.zoneEls(zoneId).forEach((e, i) => {
       ani(
         e,
@@ -639,14 +645,14 @@ export function createFx(env: FxEnv): Fx {
     const now = performance.now();
     if (now - lastBody < (swipe ? 120 : 40)) return;
     lastBody = now;
-    const v = clamp(0.5 + vel * 0.7, 0.35, 1.2) * (swipe ? 0.6 : 1);
+    const v = clamp(0.5 + vel * 0.7, 0.35, 1.2) * (swipe ? 0.6 : 1) * (gentle() ? 0.5 : 1);
     svg.style.transformOrigin = m.origin ?? '50% 60%';
     ani(svg, wobbleFrames((u) => m.make(u, v, 0), m.cycles, m.decay, 22, m.swing ? 0 : Math.PI / 2), { duration: m.dur, easing: 'linear' });
   }
 
   /** A few sparks and a note fly out of the spot touched. */
   function burst(x: number, y: number, vel: number, swipe: boolean): void {
-    if (!burstG || !canAnimate || reducedMotion()) return;
+    if (!burstG || !canAnimate) return;
     if (swipe && perf.low) return;
     const n = swipe ? 1 : perf.low ? 2 : 4;
     const g = el('g', { transform: `translate(${r1(x)} ${r1(y)})` });
@@ -687,7 +693,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function mallet(x: number, y: number): void {
-    if (!layer || !canAnimate || reducedMotion() || perf.low) return;
+    if (!layer || !canAnimate || perf.low) return;
     const g = el('g', { transform: `translate(${r1(x)} ${r1(y)})` });
     const inner = el('g');
     inner.innerHTML =
@@ -707,7 +713,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function glowZone(zone: Zone): void {
-    if (!layer || !canAnimate || reducedMotion() || perf.low) return;
+    if (!layer || !canAnimate || perf.low) return;
     const g = shapeNode(zone.shape, 0.9);
     g.setAttribute('fill', '#ffffff');
     g.setAttribute('opacity', '0');
@@ -738,7 +744,7 @@ export function createFx(env: FxEnv): Fx {
 
   function pluck(idx: number, vel: number, at?: { x: number; y: number }): void {
     const s = strings.get(idx);
-    if (!s || dead || reducedMotion()) return;
+    if (!s || dead) return;
     const pos = at ? alongSegment(s.x1, s.y1, s.x2, s.y2, at.x, at.y) : 0.5;
     pluckString(s.st, s.maxAmp * (0.4 + 0.6 * clamp(vel, 0, 1)), pos);
     s.active = true;
@@ -755,7 +761,7 @@ export function createFx(env: FxEnv): Fx {
 
   function sweep(from: number, to: number, gap: number): void {
     // a thin pick-shaped streak that crosses the strings in the time they take to sound
-    if (!layer || !canAnimate || reducedMotion()) return;
+    if (!layer || !canAnimate) return;
     const a = strings.get(from);
     const b = strings.get(to);
     if (!a || !b) return;
@@ -944,7 +950,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function dust(x: number, y: number): void {
-    if (!layer || !canAnimate || reducedMotion()) return;
+    if (!layer || !canAnimate) return;
     const c = el('circle', {
       cx: r1(x + (Math.random() - 0.5) * 16),
       cy: r1(y + (Math.random() - 0.5) * 16),
@@ -973,7 +979,7 @@ export function createFx(env: FxEnv): Fx {
   const NOTE_COLORS = ['#ef4444', '#3b82f6', '#16a34a', '#a855f7', '#f97316'];
 
   function note(x: number, y: number, sx: number, sy: number): void {
-    if (!layer || !canAnimate || reducedMotion()) return;
+    if (!layer || !canAnimate) return;
     const g = el('g', { opacity: 0 });
     g.setAttribute('transform', `translate(${r1(x)} ${r1(y)})`);
     const inner = el('g');
@@ -1000,7 +1006,7 @@ export function createFx(env: FxEnv): Fx {
   }
 
   function puff(x: number, y: number, ux: number, uy: number): void {
-    if (!layer || !canAnimate || reducedMotion()) return;
+    if (!layer || !canAnimate) return;
     const ang = (Math.atan2(uy, ux) * 180) / Math.PI;
     const g = el('g', { transform: `translate(${r1(x)} ${r1(y)}) rotate(${r1(ang)})`, opacity: 0.9 });
     const p = el('path', {

@@ -4,6 +4,9 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makePatternRound, roundSpeech, STAR_EVERY } from './logic';
 import './style.css';
+import { firstTryTracker } from '../../core/mastery';
+import { echoEnglish } from '../../core/english';
+const tries = firstTryTracker();
 import { sayText } from '../../core/say';
 
 /** Pause after the missing slot is filled before the next pattern. */
@@ -53,6 +56,7 @@ function start(ctx: GameContext): void {
         () => {
           if (locked) return;
           if (item.emoji !== r.answer.emoji) {
+            tries.miss(r);
             btn.classList.remove('anim-wiggle');
             replay(btn, 'anim-shake');
             ctx.audio.boing();
@@ -95,6 +99,8 @@ function start(ctx: GameContext): void {
       ctx.audio.ding();
       navigator.vibrate?.(15);
       ctx.speak(r.answer.name);
+      tries.hit(`pattern:${r.type}`, r);
+      echoEnglish(r.answer.name);
 
       round++;
       later(() => {

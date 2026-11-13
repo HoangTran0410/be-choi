@@ -19,7 +19,7 @@ describe('the sound book', () => {
     const script = readFileSync('scripts/soundbook.mjs', 'utf8');
     for (const t of allThings()) {
       expect(SOUND_IDS.has(t.id), `${t.id} has no recording`).toBe(true);
-      expect(script, `${t.id} is not in scripts/soundbook.mjs`).toMatch(new RegExp(`\\n\\s+${t.id}: \\{`));
+      expect(script, `${t.id} is not in scripts/soundbook.mjs`).toMatch(new RegExp(`\\n\\s+${t.id}: [{\\d]`));
     }
   });
 });

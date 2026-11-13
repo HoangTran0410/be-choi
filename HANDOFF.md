@@ -93,3 +93,12 @@ npm run loudness:check && node scripts/robots-mix.mjs --check
 VP=390x844,844x390,1024x768 node scripts/overflow.mjs <game…>
 ```
 Chạy mấy script Playwright này **lần lượt**, không song song (mỗi script mở 1 Chromium + vite; máy dễ lag).
+
+## Phiên 2026-11-13 — nâng cấp cho bé 3–6 tuổi
+- **Home** (`src/app/home.ts`, `mascot.ts`, `dailyGift.ts`): thanh nhóm icon cố định (🏠 Tất cả · Thế giới · Nhạc · Xếp hình · Chơi vui) lọc lưới, **chỉ cuộn dọc** (chủ dự án không muốn cuộn ngang). Game lẻ **không ẩn**, nằm trong nhóm của nó; tuổi ≤3 xếp game đơn trước game gộp. Mascot chào 1 lần/lần mở app, quà 🎁 mỗi ngày (+1 sao, không streak).
+- **Nút 🏠 trong game** (`shell.ts`): giữ 0,5 s có vòng; chạm nhanh → bong bóng + "Giữ lâu để về nhà".
+- **Tuổi 0|2|3|4|5|6** (`ages.ts`), báo cáo "Bé đã chơi" + "Bé đã thuộc" trong Góc phụ huynh, nhắc nghỉ (mặc định tắt) gấu ngủ + ru, sticker 11 bộ chủ đề.
+- **Perf**: `initPerf()` (`core/frame.ts`) bật lite lúc khởi động khi deviceMemory ≤2 / cores ≤4 / nhớ từ lần trước (`bechoi.lowperf`); `<html data-lite>` + CSS cuối `styles/base.css`; `onFrame({lowFps:30})` cho cảnh ambient; backdrops nén -1,2 MB.
+- **Kho kỹ năng chung** `core/mastery.ts` (`be-choi:skills`, Leitner theo ngày 0/1/2/4/7/14). Gọi `recordSkill('color:red', firstTryRight)`; game kéo thả dùng `firstTryTracker()`. Đã nối: colors, shapes, sizes, shadows, sortout, pattern, learn.
+- **Tiếng Anh** `core/english.ts`: bật ở Góc phụ huynh (`be-choi:english`), `echoEnglish(tênViệt)` đọc từ Anh sau tiếng Việt, chỉ khi máy có giọng en.
+- **Chưa kiểm trên máy thật/iPad** cho mọi thứ trên; chưa nghe giọng đọc dấu thanh.

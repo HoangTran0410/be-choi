@@ -4,6 +4,9 @@ import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { makeSizeRound, sizeScale, sizeWord, type SizePiece } from './logic';
 import './style.css';
+import { firstTryTracker } from '../../core/mastery';
+import { echoEnglish } from '../../core/english';
+const tries = firstTryTracker();
 
 type SizeKey = 'big' | 'small';
 const keyOf = (big: boolean): SizeKey => (big ? 'big' : 'small');
@@ -43,6 +46,7 @@ function start(ctx: GameContext): void {
       ctx.hint.touch();
       const key = piece.dataset.size as SizeKey;
       if (!boxes || hit !== key) {
+        if (hit) tries.miss(piece);
         ctx.audio.boing();
         return false;
       }
@@ -61,6 +65,8 @@ function start(ctx: GameContext): void {
     ctx.audio.ding();
     navigator.vibrate?.(15);
     ctx.speak(sizeWord(big));
+    tries.hit(`size:${big ? 'big' : 'small'}`, piece);
+    echoEnglish(big ? 'to' : 'nhỏ');
     placed++;
     if (placed === pieces.length) {
       ctx.hint.clear();

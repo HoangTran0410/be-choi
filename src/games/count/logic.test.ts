@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FRUITS } from '../../core/content';
 import { mulberry32 } from '../../core/dom';
-import { makeCountRound, maxCount, MIN_DIST, minDistFor, numberWord, POS_MAX, POS_MIN, scatter, type Point } from './logic';
+import { CEILING, makeCountRound, maxCount, MIN_DIST, minDistFor, nextBonus, numberWord, POS_MAX, POS_MIN, scatter, type Point } from './logic';
 
 function minPairDist(pts: Point[]): number {
   let min = Infinity;
@@ -75,5 +75,43 @@ describe('count logic', () => {
     expect(landscapePhone).toBeGreaterThan(MIN_DIST);
     expect(landscapePhone * 320).toBeGreaterThanOrEqual(72);
     expect(minDistFor(100, 100, 72)).toBe(0.3);
+  });
+
+  it('the ceiling climbs from 5 to 10 with the bonus, but the first rounds stay easy', () => {
+    expect(maxCount(0, 5)).toBe(2);
+    expect(maxCount(1, 5)).toBe(3);
+    expect(maxCount(2, 0)).toBe(5);
+    expect(maxCount(2, 3)).toBe(8);
+    expect(maxCount(9, 5)).toBe(10);
+    expect(maxCount(9, 99)).toBe(CEILING);
+    expect(maxCount(9, -4)).toBe(5);
+  });
+
+  it('the bonus rises on a clean round and falls when the child needed a hint, never out of range', () => {
+    expect(nextBonus(0, false)).toBe(1);
+    expect(nextBonus(4, false)).toBe(5);
+    expect(nextBonus(5, false)).toBe(5);
+    expect(nextBonus(3, true)).toBe(2);
+    expect(nextBonus(0, true)).toBe(0);
+  });
+
+  it('rounds with a full bonus reach ten and keep every fruit apart', () => {
+    let top = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const r = makeCountRound(3, mulberry32(seed), undefined, MIN_DIST, 5);
+      top = Math.max(top, r.count);
+      expect(r.count).toBeLessThanOrEqual(10);
+      expect(r.positions.length).toBe(r.count);
+      expect(minPairDist(r.positions)).toBeGreaterThanOrEqual(MIN_DIST);
+    }
+    expect(top).toBe(10);
+  });
+
+  it('the fallback grid keeps up to ten points apart', () => {
+    for (let n = 1; n <= 10; n++) {
+      const pts = scatter(n, mulberry32(7), 0.95);
+      expect(pts.length).toBe(n);
+      expect(minPairDist(pts)).toBeGreaterThanOrEqual(MIN_DIST);
+    }
   });
 });

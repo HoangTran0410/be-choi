@@ -1,6 +1,7 @@
 /** Weather: rain, thunder and lightning, wind, snow. */
 import { pick, rand, type P } from './scene-data';
 import type { Ctx } from './context';
+import { perf } from '../../core/frame';
 
 // ---------- weather ----------
 export function drawRain(c: Ctx, dt: number): void {
@@ -65,7 +66,7 @@ export function drawThunder(c: Ctx, dt: number): void {
     g.strokeStyle = `rgba(254,249,195,${Math.max(0, c.bolt.life / 0.35)})`;
     g.lineWidth = 4;
     g.shadowColor = '#fef08a';
-    g.shadowBlur = 20;
+    g.shadowBlur = perf.low ? 0 : 20;
     g.beginPath();
     c.bolt.pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
     g.stroke();

@@ -1,6 +1,8 @@
 /**
- * Build the sounds for Bấm nghe tiếng (src/games/soundbook): one clean, close,
- * unmistakable recording per picture, found and cut by scripts/lib/freesound.mjs.
+ * Build the sounds for Bấm nghe tiếng (src/games/soundbook): clean, close,
+ * unmistakable recordings per picture, found, recognised (CLAP + AudioSet AST) and
+ * cut by scripts/lib/freesound.mjs. Animals, vehicles and things get several
+ * different recordings (`<id>-<n>.m4a`); the game never plays one twice in a row.
  *
  *   node scripts/soundbook.mjs            build what is missing
  *   node scripts/soundbook.mjs cow pig    rebuild just these
@@ -9,77 +11,80 @@
  * An item in PINS skips the search and uses exactly that recording and cut —
  * for when a person has listened and the model's choice was not the best one.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CACHE, cached, creditRow, encode, pick, withMeta } from './lib/freesound.mjs';
+import { CACHE, cached, creditRow, encode, pick, VOICES, withMeta } from './lib/freesound.mjs';
 
 const OUT_DIR = 'public/sounds';
 const MANIFEST = 'src/games/soundbook/sounds.ts';
 const CREDITS = join(OUT_DIR, 'CREDITS.md');
 const PICKS = join(CACHE, 'soundbook-picks.json');
 
-/** Every item in the book (see Source in scripts/lib/freesound.mjs). */
-const SOURCES = {
+/**
+ * Animals, vehicles and things: the voice they are looked for as (VOICES in
+ * scripts/lib/freesound.mjs) and the longest cut in seconds. Each gets TAKES
+ * different recordings, so pressing the same picture twenty times is not twenty
+ * copies of one moo.
+ */
+const VOICED = {
   // farm
-  cow: { q: ['cow moo', 'cow mooing'], prompt: 'a cow mooing', len: 2.5 },
-  pig: { q: ['pig oink', 'pig grunt'], prompt: 'a pig oinking and grunting', len: 2 },
-  sheep: { q: ['sheep baa', 'sheep bleat'], prompt: 'a sheep bleating baa', len: 2 },
-  goat: { q: ['goat bleat', 'goat', 'goat baa', 'goat meh'], prompt: 'a goat bleating', len: 2 },
-  rooster: { q: ['rooster crow', 'rooster'], prompt: 'a rooster crowing cock-a-doodle-doo', len: 3 },
-  hen: { q: ['chicken cluck', 'hen clucking'], prompt: 'a hen clucking', len: 2 },
-  chick: { q: ['chick peep', 'baby chicks'], prompt: 'baby chicks peeping', len: 2 },
-  duck: { q: ['duck quack', 'duck quacking'], prompt: 'a duck quacking', len: 1.8 },
-  horse: { q: ['horse neigh', 'horse whinny', 'horse neighing', 'horse'], prompt: 'a horse neighing and whinnying', len: 2.5 },
-  dog: { q: ['dog bark', 'dog barking'], prompt: 'a dog barking woof woof', len: 1.8 },
-  cat: { q: ['cat meow', 'kitten meow'], prompt: 'a cat meowing', len: 1.8 },
-  donkey: { q: ['donkey bray', 'donkey'], prompt: 'a donkey braying hee-haw', len: 3 },
+  cow: 2.5,
+  pig: 2,
+  sheep: 2,
+  goat: 2,
+  rooster: 2.5,
+  hen: 2,
+  chick: 2,
+  duck: 1.8,
+  horse: 2.5,
+  dog: 1.8,
+  cat: 1.8,
+  donkey: 2.5,
   // wild
-  lion: { q: ['lion roar', 'lion'], prompt: 'a lion roaring', len: 2.5 },
-  elephant: { q: ['elephant trumpet', 'elephant'], prompt: 'an elephant trumpeting', len: 2.5 },
-  monkey: { q: ['monkey', 'monkey chatter'], prompt: 'a monkey screeching ooh ooh aah aah', len: 2.5 },
-  wolf: { q: ['wolf howl', 'wolf howling'], prompt: 'a wolf howling', len: 3.5 },
-  bear: { q: ['bear growl', 'bear roar'], prompt: 'a bear growling', len: 2.5 },
-  frog: { q: ['frog croak', 'frog ribbit'], prompt: 'a frog croaking ribbit', len: 2 },
-  owl: { q: ['owl hoot', 'owl hooting'], prompt: 'an owl hooting', len: 2.5 },
-  bird: { q: ['bird chirp', 'bird tweet'], prompt: 'a small bird chirping tweet tweet', len: 2 },
-  snake: { q: ['snake hiss', 'hiss'], prompt: 'a snake hissing', len: 2 },
-  parrot: { q: ['parrot squawk', 'parrot'], prompt: 'a parrot squawking', len: 2 },
-  dolphin: { q: ['dolphin', 'dolphin click', 'dolphin whistle', 'dolphin sounds'], prompt: 'a dolphin clicking and whistling', len: 2.5 },
-  bee: { q: ['bee buzz', 'bee buzzing'], prompt: 'a bee buzzing', len: 2 },
-  // vehicles
-  firetruck: { q: ['fire truck siren', 'fire engine siren', 'fire engine', 'siren wail'], prompt: 'a fire engine siren wailing', len: 3.5 },
-  ambulance: { q: ['ambulance siren', 'ambulance'], prompt: 'an ambulance siren', len: 3.5 },
-  police: { q: ['police siren', 'police car siren'], prompt: 'a police car siren', len: 3.5 },
-  car: { q: ['car horn', 'car horn honk'], prompt: 'a car horn honking beep beep', len: 1.8 },
-  train: {
-    q: ['steam train whistle', 'train whistle', 'steam train', 'steam locomotive'],
-    prompt: 'a steam train whistling and chugging choo choo',
-    len: 3,
-  },
-  airplane: {
-    q: ['airplane flyby', 'jet plane', 'airplane take off', 'plane passing'],
-    prompt: 'a jet airplane engine roaring as it flies past',
-    len: 3.5,
-  },
-  helicopter: { q: ['helicopter', 'helicopter flyby'], prompt: 'a helicopter with spinning rotor blades', len: 3 },
-  motorbike: { q: ['motorcycle rev', 'motorbike'], prompt: 'a motorcycle engine revving vroom', len: 3 },
-  bicycle: { q: ['bicycle bell', 'bike bell'], prompt: 'a bicycle bell ringing ring ring', len: 1.8 },
-  ship: { q: ['ship horn', 'boat horn'], prompt: 'a big ship horn', len: 3 },
-  tractor: { q: ['tractor', 'tractor engine'], prompt: 'a tractor engine running', len: 3 },
-  rocket: { q: ['rocket launch', 'rocket'], prompt: 'a rocket launching whoosh', len: 3.5 },
+  lion: 2.5,
+  elephant: 2.5,
+  monkey: 2.5,
+  wolf: 2.5,
+  bear: 2.5,
+  frog: 2,
+  owl: 2.5,
+  bird: 2,
+  snake: 2,
+  parrot: 2,
+  dolphin: 2.5,
+  bee: 2,
+  // vehicles: sirens, trains and the like keep their longer cut
+  firetruck: 3,
+  ambulance: 3,
+  police: 3,
+  car: 1.5,
+  train: 3,
+  airplane: 3,
+  helicopter: 2.5,
+  motorbike: 2.5,
+  bicycle: 1.8,
+  ship: 3,
+  tractor: 2.5,
+  rocket: 3,
   // things
-  alarm: { q: ['alarm clock ring', 'alarm clock bell'], prompt: 'an alarm clock bell ringing', len: 2.5 },
-  clock: { q: ['clock ticking', 'clock tick tock'], prompt: 'a clock ticking tick tock', len: 2.5 },
-  phone: { q: ['old telephone ring', 'telephone ring'], prompt: 'an old telephone ringing', len: 2.5 },
-  doorbell: { q: ['doorbell ding dong', 'doorbell'], prompt: 'a doorbell ding dong', len: 2.5 },
-  knock: { q: ['door knock', 'knocking on door'], prompt: 'knocking on a wooden door', len: 1.8, minLen: 0.5 },
-  toilet: { q: ['toilet flush', 'toilet flushing'], prompt: 'a toilet flushing', len: 3.5 },
-  kettle: { q: ['kettle whistle', 'whistling kettle'], prompt: 'a whistling tea kettle', len: 3 },
-  balloon: { q: ['balloon pop', 'balloon burst'], prompt: 'a balloon popping', len: 1, minLen: 0.25 },
-  hammer: { q: ['hammer nail', 'hammering'], prompt: 'a hammer hitting a nail', len: 2 },
-  camera: { q: ['camera shutter', 'camera click'], prompt: 'a camera shutter click', len: 1, minLen: 0.25 },
-  scissors: { q: ['scissors cutting paper', 'scissors'], prompt: 'scissors cutting paper snip snip', len: 1.8 },
-  keys: { q: ['keys jingle', 'keys'], prompt: 'a bunch of keys jingling', len: 1.8 },
+  alarm: 2.5,
+  clock: 2.5,
+  phone: 2.5,
+  doorbell: 2.5,
+  knock: 1.8,
+  toilet: 2.5,
+  kettle: 2.5,
+  balloon: 1,
+  hammer: 2,
+  camera: 1,
+  scissors: 1.8,
+  keys: 1.8,
+};
+/** Different recordings per item above. */
+const TAKES = 4;
+
+/** Everything else in the book: one recording each (see Source in scripts/lib/freesound.mjs). */
+const SINGLE = {
   // people
   giggle: { q: ['baby laugh', 'baby laughing'], prompt: 'a baby laughing', len: 2.5 },
   cry: { q: ['baby cry', 'baby crying'], prompt: 'a baby crying', len: 2.5 },
@@ -103,6 +108,12 @@ const SOURCES = {
   stream: { ambience: true, q: ['stream water', 'brook'], prompt: 'a babbling brook, flowing water', len: 3 },
 };
 
+/** Every item in the book, with how many recordings it gets. */
+const SOURCES = {
+  ...Object.fromEntries(Object.entries(VOICED).map(([id, len]) => [id, { ...VOICES[id], len, takes: TAKES }])),
+  ...SINGLE,
+};
+
 /** Pinned picks after a human listened: `{ id: <Freesound id>, start, end }` in seconds. */
 const PINS = {};
 
@@ -112,40 +123,72 @@ const only = args.filter((a) => !a.startsWith('--'));
 for (const id of only) if (!SOURCES[id]) throw new Error(`unknown item: ${id}`);
 
 const ids = Object.keys(SOURCES);
-const todo = ids.filter((id) => (only.length ? only.includes(id) : force || !existsSync(join(OUT_DIR, `${id}.m4a`))));
+const takesOf = (id) => readdirSync(OUT_DIR).filter((f) => new RegExp(`^${id}-\\d+\\.m4a$`).test(f));
 
-/** What each built file was cut from, kept between runs for the credits. */
+// Before there were variants every item was `<id>.m4a`: it becomes take 0 until it is rebuilt.
+for (const id of ids) {
+  const old = join(OUT_DIR, `${id}.m4a`);
+  if (existsSync(old) && takesOf(id).length === 0) renameSync(old, join(OUT_DIR, `${id}-0.m4a`));
+}
+
+const todo = ids.filter((id) => (only.length ? only.includes(id) : force ? Boolean(SOURCES[id].takes) : takesOf(id).length === 0));
+
+/** What each built file was cut from, kept between runs for the credits: id -> takes. */
 const picks = existsSync(PICKS) ? JSON.parse(readFileSync(PICKS, 'utf8')) : {};
+for (const [id, p] of Object.entries(picks)) if (!Array.isArray(p)) picks[id] = [p];
 const fresh = await pick(
   SOURCES,
   todo.filter((id) => !PINS[id]),
   'soundbook',
 );
-for (const [id, takes] of Object.entries(fresh)) if (takes[0]) picks[id] = takes[0];
-for (const [id, pin] of Object.entries(PINS)) picks[id] = withMeta({ ...pin, path: cached(pin.id) });
+const rebuilt = new Set();
+for (const [id, takes] of Object.entries(fresh)) {
+  // Only recordings the models agreed on (see pick_sounds.py). An item with none keeps what it had.
+  const good = takes.filter((t) => t.ok);
+  if (good.length === 0) console.warn(`  ${id}: nothing passed recognition, keeping the old files`);
+  else {
+    picks[id] = good;
+    rebuilt.add(id);
+  }
+}
+for (const [id, pin] of Object.entries(PINS)) {
+  picks[id] = [withMeta({ ...pin, path: cached(pin.id) })];
+  rebuilt.add(id);
+}
 writeFileSync(PICKS, JSON.stringify(picks, null, 1));
 
-for (const id of todo) {
-  if (picks[id]) encode(picks[id], join(OUT_DIR, `${id}.m4a`));
-  else console.warn(`  ${id}: nothing usable`);
+for (const id of todo.filter((i) => rebuilt.has(i))) {
+  for (const f of takesOf(id)) rmSync(join(OUT_DIR, f));
+  picks[id].forEach((take, i) => encode(take, join(OUT_DIR, `${id}-${i}.m4a`), { rate: 32000, bitrate: '40k' }));
+}
+// Leftovers of items no longer in the book.
+for (const f of readdirSync(OUT_DIR)) {
+  if (!f.endsWith('.m4a')) continue;
+  const id = /^(\w+?)(?:-\d+)?\.m4a$/.exec(f)?.[1];
+  if (!id || !SOURCES[id]) rmSync(join(OUT_DIR, f));
 }
 
 // ---- manifest ----
-const built = ids.filter((id) => existsSync(join(OUT_DIR, `${id}.m4a`)));
+const counts = ids.map((id) => [id, takesOf(id).length]).filter(([, n]) => n > 0);
 writeFileSync(
   MANIFEST,
   `/**
- * Which items of the book have a recording, as \`public/sounds/<id>.m4a\`.
+ * How many recordings each item of the book has, as \`public/sounds/<id>-<n>.m4a\`.
+ * Several for an animal, a vehicle or a thing, so pressing the same picture twenty
+ * times is not twenty copies of one sound; the engine never plays one twice in a row.
  *
  * Generated by \`node scripts/soundbook.mjs\`. Do not edit by hand.
  */
-export const SOUND_IDS: ReadonlySet<string> = new Set([
-${built.map((id) => `  '${id}',`).join('\n')}
-]);
+export const SOUND_TAKES: Readonly<Record<string, number>> = {
+${counts.map(([id, n]) => `  ${id}: ${n},`).join('\n')}
+};
 
-/** Where one item's recording lives, relative to the app root. */
-export function soundUrl(id: string): string {
-  return \`sounds/\${id}.m4a\`;
+/** Items that have a recording at all. */
+export const SOUND_IDS: ReadonlySet<string> = new Set(Object.keys(SOUND_TAKES));
+
+/** Where one of an item's recordings lives, relative to the app root. */
+export function soundUrl(id: string, take = 0): string {
+  return \`sounds/\${id}-\${take}.m4a\`;
 }
 `,
 );
@@ -161,10 +204,8 @@ mỗi tiếng từ đâu ra và thay được khi cần.
 
 | Âm | Bản gốc | Người thu | Đoạn cắt |
 |---|---|---|---|
-${built
-  .filter((id) => picks[id])
-  .map((id) => creditRow(id, withMeta(picks[id])))
-  .join('\n')}
+${counts.flatMap(([id]) => (picks[id] ?? []).slice(0, takesOf(id).length).map((t, i) => creditRow(`${id}-${i}`, withMeta(t)))).join('\n')}
 `,
 );
-console.log(`\n${built.length}/${ids.length} sounds in ${OUT_DIR}.`);
+const total = counts.reduce((a, [, n]) => a + n, 0);
+console.log(`\n${counts.length}/${ids.length} items, ${total} recordings in ${OUT_DIR}.`);

@@ -1,7 +1,8 @@
-import { ANIMALS, COLORS, FRUITS, NUMBERS_VI, VEHICLES, VOICED_ANIMALS, type Item } from '../../core/content';
+import { ANIMALS, COLORS, FRUITS, VEHICLES, VOICED_ANIMALS, type Item } from '../../core/content';
 import { LETTERS } from '../letters/logic';
 import { SHAPES } from '../shapes/logic';
 import { CATEGORIES } from '../sortout/logic';
+import { LR_IDS, MATH_IDS, OPPOSITE_IDS, SAFETY_IDS, TIME_IDS, TONE_IDS } from './packs';
 import type { Env, Person, TopicId } from './types';
 
 export interface Topic {
@@ -11,9 +12,15 @@ export interface Topic {
   title: string;
   /** Some stations mix in drag-and-drop questions. */
   drag: boolean;
+  /**
+   * Youngest age (parent setting) the station is shown to. Left out: shown to everyone.
+   * Age 0 ("not set") shows a gated station only once the child has finished `unlockRuns` stations.
+   */
+  minAge?: number;
+  unlockRuns?: number;
 }
 
-/** The ten stations, in the order they sit on the map. */
+/** The stations, in the order they sit on the map: the first ten are for everyone, the rest open with age or play. */
 export const TOPICS: readonly Topic[] = [
   { id: 'letters', icon: '🔤', title: 'Chữ cái', drag: false },
   { id: 'numbers', icon: '🔢', title: 'Số', drag: false },
@@ -25,7 +32,25 @@ export const TOPICS: readonly Topic[] = [
   { id: 'pattern', icon: '🔴', title: 'Quy luật', drag: false },
   { id: 'sorting', icon: '🧺', title: 'Phân loại', drag: true },
   { id: 'family', icon: '👪', title: 'Người thân', drag: false },
+  { id: 'math', icon: '➕', title: 'Toán', drag: false, minAge: 4, unlockRuns: 3 },
+  { id: 'opposites', icon: '↔️', title: 'Trái nghĩa', drag: false, minAge: 4, unlockRuns: 4 },
+  { id: 'safety', icon: '⛑️', title: 'An toàn', drag: false, minAge: 4, unlockRuns: 5 },
+  { id: 'time', icon: '🌅', title: 'Thời gian', drag: false, minAge: 5, unlockRuns: 6 },
+  { id: 'leftright', icon: '👈', title: 'Trái phải', drag: false, minAge: 5, unlockRuns: 7 },
+  { id: 'tones', icon: '🗣️', title: 'Vần & dấu', drag: false, minAge: 5, unlockRuns: 8 },
 ];
+
+/**
+ * Which stations the map shows. A station the child has already played always stays. Otherwise
+ * it follows the parent's age setting; with no age set it opens once enough stations are done,
+ * so a three-year-old still sees ten friendly stations.
+ */
+export function visibleTopics(age: number, runs: Partial<Record<TopicId, number>>, total: number): Topic[] {
+  return TOPICS.filter((t) => {
+    if (t.minAge === undefined || (runs[t.id] ?? 0) > 0) return true;
+    return age > 0 ? age >= t.minAge : total >= (t.unlockRuns ?? 0);
+  });
+}
 
 export function topicOf(id: TopicId): Topic {
   const t = TOPICS.find((x) => x.id === id);
@@ -94,10 +119,37 @@ export const LETTER_LOOKALIKES: readonly (readonly string[])[] = [
 // ---- numbers ----
 
 export const NUMBER_IDS: readonly string[] = Array.from({ length: 10 }, (_, i) => `N:${i + 1}`);
+/** 11 to 20 join only once 1 to 10 are steady (see planStation). */
+export const BIG_NUMBER_IDS: readonly string[] = Array.from({ length: 10 }, (_, i) => `N:${i + 11}`);
 export const COUNT_THINGS: readonly Item[] = [...FRUITS.slice(0, 6), ...ANIMALS.slice(0, 8)];
 
+/** 0 to 20. "mười lăm" (not "mười năm"), "hai mươi". */
+export const NUMBER_WORDS: readonly string[] = [
+  'không',
+  'một',
+  'hai',
+  'ba',
+  'bốn',
+  'năm',
+  'sáu',
+  'bảy',
+  'tám',
+  'chín',
+  'mười',
+  'mười một',
+  'mười hai',
+  'mười ba',
+  'mười bốn',
+  'mười lăm',
+  'mười sáu',
+  'mười bảy',
+  'mười tám',
+  'mười chín',
+  'hai mươi',
+];
+
 export function numberWord(n: number): string {
-  return NUMBERS_VI[n] ?? String(n);
+  return NUMBER_WORDS[n] ?? String(n);
 }
 
 /** "một, hai, ba": the counting aloud, with commas so the voice pauses between numbers. */
@@ -273,7 +325,7 @@ export function conceptsOf(topic: TopicId, env: Env): string[] {
     case 'letters':
       return [...LETTER_IDS];
     case 'numbers':
-      return [...NUMBER_IDS];
+      return [...NUMBER_IDS, ...BIG_NUMBER_IDS];
     case 'colors':
       return [...COLOR_IDS];
     case 'shapes':
@@ -290,6 +342,18 @@ export function conceptsOf(topic: TopicId, env: Env): string[] {
       return [...SORT_IDS];
     case 'family':
       return familyIds(env);
+    case 'math':
+      return [...MATH_IDS];
+    case 'tones':
+      return [...TONE_IDS];
+    case 'opposites':
+      return [...OPPOSITE_IDS];
+    case 'time':
+      return [...TIME_IDS];
+    case 'leftright':
+      return [...LR_IDS];
+    case 'safety':
+      return [...SAFETY_IDS];
   }
 }
 

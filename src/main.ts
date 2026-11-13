@@ -2,7 +2,9 @@ import { registerSW } from 'virtual:pwa-register';
 import { createAudio } from './core/audio';
 import { createPhotoStore } from './core/photos';
 import { createSpeech } from './core/speech';
+import { createVoiceClips } from './core/voiceClips';
 import { watchViewport } from './core/viewport';
+import { initPerf } from './core/frame';
 import type { InstallState, UpdateState } from './app/deps';
 import { mountAlbum } from './app/album';
 import { mountHome } from './app/home';
@@ -24,9 +26,11 @@ if (!root) throw new Error('#app missing');
 // Before anything is mounted: an app restored from the background can otherwise
 // lay itself out for a screen taller than the one it is on. See core/viewport.ts.
 watchViewport();
+// Weak or previously-struggling device: start in lite mode (see core/frame.ts).
+initPerf();
 
 const audio = createAudio();
-const speech = createSpeech();
+const speech = createSpeech(undefined, createVoiceClips());
 const store = createStore();
 const photos = createPhotoStore();
 const settings = store.settings();

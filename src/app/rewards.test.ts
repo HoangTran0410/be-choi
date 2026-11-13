@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from './storage';
-import { maybeUnlockSticker, STARS_PER_STICKER, starsToNext, STICKERS } from './rewards';
+import { completedSetBy, maybeUnlockSticker, setOf, STARS_PER_STICKER, starsToNext, STICKER_SETS, STICKERS } from './rewards';
 
 function mem(): Storage {
   const m = new Map<string, string>();
@@ -37,5 +37,30 @@ describe('rewards', () => {
     expect(starsToNext(1)).toBe(2);
     expect(starsToNext(2)).toBe(1);
     expect(starsToNext(3)).toBe(3);
+  });
+  it('puts every sticker in exactly one themed set', () => {
+    const all = STICKER_SETS.flatMap((s) => s.emojis);
+    expect(new Set(all).size).toBe(all.length);
+    expect([...all].sort()).toEqual(STICKERS.map((s) => s.emoji).sort());
+  });
+  it('prefers finishing a set the child has started', () => {
+    const store = createStore(mem());
+    store.addSticker('🐻');
+    for (let i = 0; i < 3; i++) store.addStar('g');
+    const s = maybeUnlockSticker(store, () => 0.1);
+    expect(setOf(s!.emoji)?.id).toBe('forest');
+  });
+  it('still surprises with other sets sometimes', () => {
+    const store = createStore(mem());
+    store.addSticker('🐻');
+    for (let i = 0; i < 3; i++) store.addStar('g');
+    const s = maybeUnlockSticker(store, (() => { const v = [0.9, 0.99]; return () => v.shift() ?? 0; })());
+    expect(setOf(s!.emoji)?.id).not.toBe('forest');
+  });
+  it('knows when a set is complete', () => {
+    const food = STICKER_SETS.find((s) => s.id === 'food')!;
+    const last = STICKERS.find((s) => s.emoji === food.emojis[3])!;
+    expect(completedSetBy(last, food.emojis.slice(0, 3))).toBeNull();
+    expect(completedSetBy(last, [...food.emojis])?.id).toBe('food');
   });
 });

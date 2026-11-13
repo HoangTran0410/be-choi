@@ -4,6 +4,7 @@
  * change level, change song); after each one `changed()` brings the sound, the picture, the goals
  * and the save up to date. Nothing can be wrong: a drop that cannot happen just does nothing.
  */
+import type { SampleKey } from '../../core/audio';
 import { perf, startLoop } from '../../core/frame';
 import { h } from '../../core/dom';
 import { photoThumb, type Photo } from '../../core/photos';
@@ -26,7 +27,7 @@ import {
 } from './groove';
 import { createLineup } from './lineup';
 import { QUESTS, currentQuest, loadProgress, newlyDone, saveProgress, unlockedIds, type Progress, type Quest } from './quests';
-import { barsOf, findRobot, playerFor, type RobotDef, type Role } from './robots';
+import { barsOf, findRobot, playerFor, ROBOTS, type RobotDef, type Role } from './robots';
 import { createShelf } from './shelf';
 import { createStage } from './stage';
 import { createNarrator, createSparseVoice, fullLines, newRobotLines, welcomeLines } from './voice';
@@ -97,8 +98,24 @@ export function mountBand(ctx: GameContext): void {
   ctx.stage.append(root);
   ctx.onCleanup(() => root.remove());
 
+  /**
+   * Decode this song's recordings before its first note: a note played before then falls back to
+   * the synth and sounds like a different instrument in the middle of the groove.
+   */
+  function preloadSong(id: SongId): void {
+    const keys = new Set<SampleKey>();
+    for (const r of ROBOTS) {
+      const v = r.voices?.[id] ?? r.timbre;
+      keys.add(isInstrument(v) ? `inst:${v}` : `note:${v}`);
+      for (const inst of Object.values(r.perc?.[id] ?? {})) if (inst) keys.add(`inst:${inst}`);
+    }
+    for (const d of ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell', 'shaker', 'wood', 'ride', 'triangle', 'crash'] as const) keys.add(`drum:${d}`);
+    ctx.audio.preloadInstruments?.([...keys]);
+  }
+
   // ---- drawing helpers ----------------------------------------------------------------------
   function renderSong(): void {
+    preloadSong(songId);
     songIcon.textContent = findSong(songId).icon;
     root.dataset.song = songId;
     stage.setSong(songId);

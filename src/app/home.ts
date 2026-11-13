@@ -9,26 +9,43 @@ import { buzz } from './haptics';
 import { tileStyle } from './tileColor';
 import { dateKeyOf, pickToday } from './today';
 import { openParentPanel, SETTINGS_CHANGED, STARS_CHANGED } from './parentPanel';
+import { createMascot } from './mascot';
 import '../styles/home.css';
 
 const PARENT_HOLD_MS = 1500;
 const SCROLL_KEY = 'be-choi:home-scroll';
+const GROUP_KEY = 'be-choi:home-group';
 
 /** Last scroll offset of the home list, so coming back from a game lands where the child left off. */
 let savedScroll = 0;
+/** Selected group of the top bar: 'all' or a section key. */
+let savedGroup = 'all';
 try {
   savedScroll = Number(sessionStorage.getItem(SCROLL_KEY) ?? 0) || 0;
+  savedGroup = sessionStorage.getItem(GROUP_KEY) ?? 'all';
 } catch {
   /* private mode */
 }
 
 /** Home sections, in display order. A game belongs to the first section listing its skill. */
-const SECTIONS: readonly { icon: string; title: string; skills: readonly Skill[] }[] = [
-  { icon: '🌊', title: 'Thế giới nhỏ', skills: ['nature'] },
-  { icon: '🎵', title: 'Âm nhạc', skills: ['music'] },
-  { icon: '🧩', title: 'Xếp hình & suy nghĩ', skills: ['puzzle', 'logic', 'matching', 'listening', 'sorting', 'memory', 'counting'] },
-  { icon: '🎈', title: 'Chơi vui', skills: ['cause-effect', 'creative', 'care'] },
+const SECTIONS: readonly { key: string; icon: string; title: string; skills: readonly Skill[] }[] = [
+  { key: 'world', icon: '🌊', title: 'Thế giới nhỏ', skills: ['nature'] },
+  { key: 'music', icon: '🎵', title: 'Âm nhạc', skills: ['music'] },
+  { key: 'think', icon: '🧩', title: 'Xếp hình & suy nghĩ', skills: ['puzzle', 'logic', 'matching', 'listening', 'sorting', 'memory', 'counting'] },
+  { key: 'fun', icon: '🎈', title: 'Chơi vui', skills: ['cause-effect', 'creative', 'care'] },
 ];
+
+const SHORT: Record<string, string> = { all: 'Tất cả', world: 'Thế giới', music: 'Nhạc', think: 'Xếp hình', fun: 'Chơi vui' };
+
+/**
+ * Inside a section, little single games (the ones the all-in-one games grew out of) come first for
+ * the youngest children, the big combo games first for older ones. Stable: registry order otherwise.
+ */
+export function orderForAge<T extends { id: string }>(games: readonly T[], age: number): T[] {
+  const singlesFirst = age === 0 || age <= 3;
+  const rank = (g: T) => (isLegacy(g.id) === singlesFirst ? 0 : 1);
+  return games.map((g, i) => ({ g, i })).sort((a, b) => rank(a.g) - rank(b.g) || a.i - b.i).map((x) => x.g);
+}
 
 /**
  * A section heading a child can read without letters: a big picture first, the
@@ -141,6 +158,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
   });
 
   const grid = h('main', { class: 'sections' });
+  const scroller = h('div', { class: 'home-scroll' });
   const albumTile = () => {
     const n = deps.store.stickers().length;
     const el = h(
@@ -181,7 +199,8 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
       h('span', { class: 'resume-text' }, h('span', { class: 'resume-play' }, '▶️'), h('span', { class: 'tile-title' }, entry.title)),
     );
   };
-  const render = () => {
+  let render = () => {
+    const group = savedGroup;
     const tileOf = (g: GameEntry) => tile(g, deps, render);
     // Favourites come first, in the order they were picked — and stay in their usual
     // section too. Taking a game out of its place would shuffle every tile after it,
@@ -193,12 +212,13 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
       .filter((g): g is GameEntry => g !== undefined);
     const placed = new Set<string>();
     const age = deps.store.settings().age;
-    const resume = resumeTile();
+    const all = group === 'all';
+    const resume = all ? resumeTile() : null;
     const blocks: Array<HTMLElement | null> = [
       resume ? h('section', { class: 'section section-resume' }, h('div', { class: 'grid' }, resume)) : null,
-      h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile())),
+      all ? h('section', { class: 'section section-album' }, h('div', { class: 'grid' }, albumTile())) : null,
     ];
-    if (deps.store.settings().todayPick) {
+    if (all && deps.store.settings().todayPick) {
       const today = todaysGames(deps);
       if (today.length)
         blocks.push(
@@ -210,7 +230,7 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
           ),
         );
     }
-    if (favorites.length)
+    if (all && favorites.length)
       blocks.push(
         h(
           'section',
@@ -219,9 +239,14 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
           h('div', { class: 'grid' }, ...favorites.map(tileOf)),
         ),
       );
+    // Single games sit in their section like any other tile: nothing is banished to the bottom.
     blocks.push(
       ...SECTIONS.map((section) => {
-        const games = GAMES.filter((g) => suitsAge(g, age) && !isLegacy(g.id) && !placed.has(g.id) && section.skills.includes(g.skill));
+        if (!all && section.key !== group) return null;
+        const games = orderForAge(
+          GAMES.filter((g) => suitsAge(g, age) && !placed.has(g.id) && section.skills.includes(g.skill)),
+          age,
+        );
         games.forEach((g) => placed.add(g.id));
         if (games.length === 0) return null;
         return h(
@@ -232,53 +257,91 @@ export function mountHome(root: HTMLElement, deps: AppDeps): () => void {
         );
       }),
     );
-    const rest = GAMES.filter((g) => suitsAge(g, age) && !isLegacy(g.id) && !placed.has(g.id));
+    const rest = all ? orderForAge(GAMES.filter((g) => suitsAge(g, age) && !placed.has(g.id)), age) : [];
     if (rest.length) blocks.push(h('section', { class: 'section' }, h('div', { class: 'grid' }, ...rest.map(tileOf))));
-    // Games folded into a newer all-in-one game: still here, but last.
-    const legacy = GAMES.filter((g) => suitsAge(g, age) && isLegacy(g.id));
-    if (legacy.length)
-      blocks.push(
-        h(
-          'section',
-          { class: 'section section-regular section-legacy' },
-          heading('🗂️', 'Game lẻ'),
-          h('div', { class: 'grid' }, ...legacy.map(tileOf)),
-        ),
-      );
     // The favourites row growing or shrinking above pushes everything below it: move
     // the scroll by the same amount, so the tile under the child's finger stays put.
     const anchor = grid.querySelector('.section-regular');
     const before = anchor?.getBoundingClientRect().top;
     grid.replaceChildren(...blocks.filter((b): b is HTMLElement => b !== null));
     const after = grid.querySelector('.section-regular')?.getBoundingClientRect().top;
-    if (before !== undefined && after !== undefined && after !== before) grid.scrollTop += after - before;
+    if (before !== undefined && after !== undefined && after !== before) scroller.scrollTop += after - before;
+  };
+  /** Top bar of big picture buttons: one tap filters the grid to that group. */
+  const groups = [{ key: 'all', icon: '🏠', title: 'Tất cả', say: 'Tất cả trò chơi' }, ...SECTIONS.map((s) => ({ key: s.key, icon: s.icon, title: s.title, say: s.title }))];
+  if (!groups.some((g) => g.key === savedGroup)) savedGroup = 'all';
+  const groupBtns = groups.map((g) =>
+    h(
+      'button',
+      {
+        class: 'group-btn',
+        'aria-label': g.title,
+        onClick: () => {
+          if (savedGroup === g.key) return;
+          deps.audio.pop();
+          buzz();
+          deps.speech.speak(g.say);
+          savedGroup = g.key;
+          try {
+            sessionStorage.setItem(GROUP_KEY, g.key);
+          } catch {
+            /* ignore */
+          }
+          render();
+          scroller.scrollTop = 0;
+        },
+      },
+      h('span', { class: 'group-icon', 'aria-hidden': 'true' }, g.icon),
+      h('span', { class: 'group-name' }, SHORT[g.key]!),
+    ),
+  );
+  const syncGroups = () => groupBtns.forEach((b, i) => b.classList.toggle('group-on', groups[i]!.key === savedGroup));
+  const baseRender = render;
+  render = () => {
+    baseRender();
+    syncGroups();
   };
   render();
   window.addEventListener(STARS_CHANGED, render);
   window.addEventListener(SETTINGS_CHANGED, render);
 
-  const home = h(
-    'div',
-    { class: 'home' },
-    h('header', { class: 'home-header' }, h('span', { class: 'mascot' }, '🐣'), h('h1', null, 'Bé Chơi'), parentBtn),
+  const mascot = createMascot(
+    deps,
+    () => todaysGames(deps),
+    (id) => {
+      const title = GAMES.find((g) => g.id === id)?.title;
+      const t = [...grid.querySelectorAll<HTMLElement>('.today-tile')].find((el) => el.getAttribute('aria-label') === title);
+      if (!t) return;
+      t.classList.remove('anim-wiggle');
+      void t.offsetWidth;
+      t.classList.add('anim-wiggle');
+    },
+  );
+  // Header and group bar scroll away with the games: a fixed top bar left phones in landscape
+  // only a sliver of list to scroll.
+  scroller.append(
+    h('header', { class: 'home-header' }, mascot.el, h('h1', null, 'Bé Chơi'), parentBtn),
+    h('nav', { class: 'group-bar', 'aria-label': 'Nhóm trò chơi' }, ...groupBtns),
     grid,
   );
+  const home = h('div', { class: 'home' }, scroller);
   root.replaceChildren(home);
-  grid.scrollTop = savedScroll;
+  scroller.scrollTop = savedScroll;
   const remember = () => {
-    savedScroll = grid.scrollTop;
+    savedScroll = scroller.scrollTop;
     try {
       sessionStorage.setItem(SCROLL_KEY, String(savedScroll));
     } catch {
       /* ignore */
     }
   };
-  grid.addEventListener('scroll', remember, { passive: true });
+  scroller.addEventListener('scroll', remember, { passive: true });
 
   return () => {
     remember();
-    grid.removeEventListener('scroll', remember);
+    scroller.removeEventListener('scroll', remember);
     disposeHold();
+    mascot.dispose();
     window.removeEventListener(STARS_CHANGED, render);
     window.removeEventListener(SETTINGS_CHANGED, render);
     root.replaceChildren();

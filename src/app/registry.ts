@@ -57,6 +57,11 @@ import { meta as brain } from '../games/brain/meta';
 import { meta as harvest } from '../games/harvest/meta';
 import { meta as singalong } from '../games/singalong/meta';
 import { meta as draw } from '../games/draw/meta';
+import { meta as treasure } from '../games/treasure/meta';
+import { meta as writing } from '../games/writing/meta';
+import { meta as show } from '../games/show/meta';
+import { meta as guess } from '../games/guess/meta';
+import { meta as kidsband } from '../games/kidsband/meta';
 
 export interface GameEntry extends GameMeta {
   /** Lazy-load the game module so the home screen stays light. */
@@ -122,7 +127,12 @@ export const GAMES: readonly GameEntry[] = [
   { ...harvest, load: () => import('../games/harvest/index') },
   { ...singalong, load: () => import('../games/singalong/index') },
   { ...draw, load: () => import('../games/draw/index') },
+  { ...treasure, load: () => import('../games/treasure/index') },
+  { ...writing, load: () => import('../games/writing/index') },
   { ...day, load: () => import('../games/day/index') },
+  { ...show, load: () => import('../games/show/index') },
+  { ...guess, load: () => import('../games/guess/index') },
+  { ...kidsband, load: () => import('../games/kidsband/index') },
 ];
 
 /**

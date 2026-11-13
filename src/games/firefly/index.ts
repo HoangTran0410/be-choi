@@ -732,7 +732,7 @@ function start(ctx: GameContext): void {
   // One on the way in: the button is worth finding, and the sky says so first.
   later(() => launch(BURSTS[0]), 900);
 
-  startLoop(ctx, frame);
+  startLoop(ctx, frame, { lowFps: 30 });
 
   /** Nudge whatever is nearest to hand, without asking for anything in particular. */
   ctx.hint.arm(() => {

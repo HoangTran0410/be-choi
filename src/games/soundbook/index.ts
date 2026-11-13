@@ -3,7 +3,8 @@ import type { Clip } from '../../core/audio';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
 import { PAGES, pageDone, scatter, type Page, type Thing } from './logic';
-import { SOUND_IDS, soundUrl } from './sounds';
+import { SOUND_IDS, SOUND_TAKES, soundUrl } from './sounds';
+import { nextVariant } from '../../core/variant';
 import { readRaw, writeRaw } from '../../core/save';
 import './style.css';
 import { makeTappable } from '../../core/tap';
@@ -39,6 +40,8 @@ function start(ctx: GameContext): void {
   let playing: Clip | null = null;
   /** Bumped on every tap; a sound that finishes after a newer tap says nothing. */
   let turn = 0;
+  /** Which recording of each item played last, so the next press is a different one. */
+  const lastTake = new Map<string, number>();
   const heard = new Map<string, Set<string>>();
   /** Pages whose star has been given this visit. */
   const starred = new Set<string>();
@@ -85,7 +88,12 @@ function start(ctx: GameContext): void {
     set.add(thing.id);
     el.classList.add('sb-heard');
 
-    const clip = SOUND_IDS.has(thing.id) ? await ctx.audio.clip(soundUrl(thing.id)) : null;
+    let clip: Clip | null = null;
+    if (SOUND_IDS.has(thing.id)) {
+      const take = nextVariant(SOUND_TAKES[thing.id] ?? 1, lastTake.get(thing.id));
+      lastTake.set(thing.id, take);
+      clip = await ctx.audio.clip(soundUrl(thing.id, take));
+    }
     if (!alive || mine !== turn) {
       clip?.stop();
       return;
@@ -165,7 +173,11 @@ function start(ctx: GameContext): void {
       }),
     );
     scene.dataset.count = String(p.things.length);
-    ctx.audio.preload(p.things.filter((t) => SOUND_IDS.has(t.id)).map((t) => soundUrl(t.id)));
+    ctx.audio.preload(
+      p.things
+        .filter((t) => SOUND_IDS.has(t.id))
+        .flatMap((t) => Array.from({ length: SOUND_TAKES[t.id] ?? 1 }, (_, n) => soundUrl(t.id, n))),
+    );
   }
 
   show(page);

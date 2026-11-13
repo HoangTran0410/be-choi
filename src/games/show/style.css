@@ -1,0 +1,246 @@
+.show {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 1.2vmin;
+  padding: 1.5vmin 2vmin 1vmin;
+  overflow: hidden;
+  touch-action: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 62%, rgba(180, 90, 30, 0.22) 100%),
+    radial-gradient(ellipse at 50% 38%, #fff7e0 0%, #fde6b8 48%, #f8c97c 100%);
+}
+.show button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+/* ---- the bear and its instrument ---- */
+.show-cell {
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+.show-performer {
+  position: relative;
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
+}
+.show-bear {
+  position: absolute;
+  inset: -6% 0 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.show-performer .bear-head {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+}
+.show-performer.is-bob .bear-head {
+  animation: show-nod 0.32s ease-out;
+}
+.show-inst {
+  position: absolute;
+  left: 15%;
+  bottom: -2%;
+  width: 70%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: block;
+  transform-origin: 50% 50%;
+}
+.show-inst-art {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: 50% 85%;
+  filter: drop-shadow(0 1.2vmin 1.4vmin rgba(80, 40, 10, 0.22));
+  pointer-events: none;
+}
+.show-inst[data-action='keys'] { --rot: 0deg; --sy: 0.975; --ty: 1.5%; }
+.show-inst[data-action='strum'] { --rot: -4deg; --sy: 1; --ty: 0%; }
+.show-inst[data-action='bow'] { --rot: 2.5deg; --sy: 1; --ty: 0%; }
+.show-inst[data-action='blow'] { --rot: -2deg; --sy: 1.03; --ty: -1%; }
+.show-inst[data-action='mallet'] { --rot: 1.5deg; --sy: 0.98; --ty: 1%; }
+.show-inst[data-action='hit'] { --rot: 0deg; --sy: 0.95; --ty: 2%; }
+.show-inst[data-action='pluck'] { --rot: 1.5deg; --sy: 1; --ty: -1%; }
+.show-inst[data-action='shake'] { --rot: 5deg; --sy: 1; --ty: -1%; }
+.show-inst[data-action='squeeze'] { --rot: 0deg; --sy: 0.94; --ty: 0%; }
+.show-inst.is-hit .show-inst-art {
+  animation: show-hit 0.2s ease-out;
+}
+.show-inst.is-hit[data-action='bow'] .show-bow {
+  animation: show-bow 0.32s ease-in-out;
+}
+
+/* The bear's two arms sit on top of the instrument; the one that plays moves. */
+.show-arms {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.show-arm.is-tap {
+  animation: show-arm-down 0.24s ease-out;
+}
+.show-arms[data-mode='sweep'] .show-arm.is-tap {
+  animation: show-arm-sweep 0.34s ease-in-out;
+}
+.show-arms[data-mode='shake'] .show-arm.is-tap {
+  animation: show-arm-shake 0.3s ease-in-out;
+}
+.show-floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.show-note,
+.show-star {
+  position: absolute;
+  bottom: 52%;
+  font-size: clamp(26px, 6vmin, 48px);
+  line-height: 1;
+  color: #c2410c;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.8);
+  animation: show-float 0.95s ease-out forwards;
+}
+.show-star {
+  font-size: clamp(44px, 10vmin, 84px);
+  left: 42% !important;
+  animation-duration: 1.2s;
+}
+
+/* ---- shelf: a strip that scrolls sideways, tiles never smaller than 76px ---- */
+.show-shelf {
+  --tile: clamp(76px, 12.5vmin, 124px);
+  --rows: 2;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--rows), var(--tile));
+  grid-auto-columns: var(--tile);
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 4px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+.show-shelf::-webkit-scrollbar {
+  display: none;
+}
+.show .show-shelf .show-pick {
+  touch-action: pan-x;
+}
+.show-pick {
+  position: relative;
+  min-width: 0;
+  width: var(--tile);
+  height: var(--tile);
+  padding: 5px;
+  border: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fffdf6, #fdecc8);
+  box-shadow:
+    inset 0 -0.9vmin 0 rgba(160, 90, 20, 0.16),
+    0 0.6vmin 0 rgba(120, 60, 10, 0.14);
+  transition: transform 0.1s;
+}
+.show-pick:active {
+  transform: scale(0.95);
+}
+.show-pick.is-on {
+  background: linear-gradient(180deg, #fff3c9, #ffd978);
+  box-shadow:
+    0 0 0 3px #f97316,
+    inset 0 -0.9vmin 0 rgba(160, 90, 20, 0.16);
+}
+.show-pick-art {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .show {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 1.6vmin 3vmin;
+  }
+  .show-cell {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  /* Side by side with the bear the shelf has the height: it scrolls down, like any list. */
+  .show-shelf {
+    --tile: clamp(76px, 15vh, 100px);
+    grid-column: 2;
+    grid-row: 1;
+    grid-auto-flow: row;
+    grid-template-rows: none;
+    grid-template-columns: repeat(auto-fill, var(--tile));
+    grid-auto-rows: var(--tile);
+    justify-content: center;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 6px 4px 24px;
+    touch-action: pan-y;
+  }
+  .show .show-shelf .show-pick {
+    touch-action: pan-y;
+  }
+}
+
+[data-lite] .show-inst-art {
+  filter: none;
+}
+
+@keyframes show-nod {
+  0% { transform: translateY(0) rotate(0); }
+  40% { transform: translateY(2.5%) rotate(-2deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+@keyframes show-hit {
+  0% { transform: translateY(var(--ty, 0)) rotate(var(--rot, 0deg)) scaleY(var(--sy, 1)); }
+  100% { transform: none; }
+}
+@keyframes show-bow {
+  0% { transform: translate(-6px, 5px); }
+  50% { transform: translate(8px, -5px); }
+  100% { transform: none; }
+}
+@keyframes show-arm-down {
+  0% { transform: none; }
+  35% { transform: translateY(8px); }
+  100% { transform: none; }
+}
+@keyframes show-arm-sweep {
+  0% { transform: translate(-5px, 4px); }
+  50% { transform: translate(7px, -4px); }
+  100% { transform: none; }
+}
+@keyframes show-arm-shake {
+  0% { transform: none; }
+  30% { transform: rotate(-7deg); }
+  65% { transform: rotate(6deg); }
+  100% { transform: none; }
+}
+@keyframes show-float {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  15% { opacity: 1; transform: translateY(-10%) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-120%) scale(1); }
+}

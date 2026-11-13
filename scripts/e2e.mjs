@@ -84,7 +84,7 @@ for (let round = 0; round < 2; round++) {
 check('rewards: sticker reveal after 3 stars', (await page.locator('.sticker-reveal').count()) === 1);
 await page.goto(`${base}/#/album`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
-check('album: one sticker collected', (await page.locator('.album-sticker:not(.album-locked)').count()) === 1);
+check('album: one sticker collected', (await page.locator('.album-sticker:not(.album-silhouette)').count()) === 1);
 await page.waitForTimeout(3500); // let the sticker overlay auto-close before the next game
 
 // ---- bubbles: tap a bubble ----
@@ -211,6 +211,7 @@ await tap(page.locator('.aquarium-canvas'));
 // One button opens a picker of every species, each drawn as the animal it adds.
 check('aquarium: the water is not covered by a tray', (await page.locator('.aquarium-tray').count()) === 0);
 await tap(page.locator('.aquarium-add'));
+await page.waitForTimeout(300); // the picker ignores taps for 250 ms after it opens
 const tiles = page.locator('.aquarium-pick');
 check('aquarium: the picker offers every fish', (await tiles.count()) >= 10);
 const chipArt = await tiles
@@ -339,6 +340,7 @@ check('terrarium: the animals are walking about', vivA !== vivB, `${vivA} vs ${v
 
 // One button opens a picker of every species, each drawn as the animal it adds.
 await tap(page.locator('.terrarium-add'));
+await page.waitForTimeout(300);
 const pets = page.locator('.terrarium-pick');
 check('terrarium: the picker offers every animal', (await pets.count()) >= 10);
 const petArt = await pets
@@ -696,7 +698,9 @@ check('memory: all matched', (await page.locator('.memory-card.matched').count()
 await open('xylo');
 check('xylo: 8 bars', (await page.locator('.xylo-bar').count()) === 8);
 await tap(page.locator('.xylo-bar').first());
-await tap(page.locator('.xylo-song').first());
+// The 🎼 button opens the song picker (ee29c8c replaced the strip of song buttons).
+await tap(page.locator('.xylo-pick'));
+await tap(page.locator('.pp-tile').first());
 check('xylo: song mode glows a bar', (await page.locator('.xylo-glow').count()) === 1);
 const glowBefore = await page
   .locator('.xylo-glow')
@@ -780,7 +784,7 @@ const ans = await page.locator('.pattern').getAttribute('data-answer');
 await tap(page.locator(`.pattern-choice[data-emoji="${ans}"]`));
 check('pattern: correct choice fills the slot', (await page.locator('.pattern-slot.filled').count()) === 1);
 
-// ---- orchestra: toggle two animals, stop ----
+// ---- orchestra: toggle two animals (no stop button since ee29c8c: tap an animal again to quiet it) ----
 await open('orchestra');
 check('orchestra: 6 animals', (await page.locator('.orchestra-animal').count()) === 6);
 await tap(page.locator('.orchestra-animal').nth(0));
@@ -791,7 +795,6 @@ const activeCls = await page
   .nth(0)
   .evaluate((el) => el.className);
 check('orchestra: tapped animal is active', /active/.test(activeCls), activeCls);
-await tap(page.locator('.orchestra-stop'));
 
 // ---- bricks: drop a template on the plate ----
 await open('bricks');
@@ -860,16 +863,15 @@ check('jam: 4 kits + 12 pads', (await page.locator('.jam-kit').count()) === 4 &&
 await tap(page.locator('.jam-pad').first());
 await tap(page.locator('.jam-kit').nth(2));
 await tap(page.locator('.jam-pad').nth(3));
-await tap(page.locator('.jam-beat').nth(1));
+// Beats live behind the 🥁 drum-machine button (ee29c8c): open it, pick a beat, the button lights up.
+await tap(page.locator('.jam-machine'));
+await page.waitForTimeout(300);
+await tap(page.locator('.pp-tile[data-id^="beat:"]:not([data-id="beat:stop"])').first());
 await page.waitForTimeout(800);
-check(
-  'jam: beat selected',
-  await page
-    .locator('.jam-beat')
-    .nth(1)
-    .evaluate((el) => el.classList.contains('active')),
-);
-await tap(page.locator('.jam-beat').nth(0));
+check('jam: beat selected', await page.locator('.jam-machine').evaluate((el) => el.classList.contains('active')));
+await tap(page.locator('.jam-machine'));
+await page.waitForTimeout(300);
+await tap(page.locator('.pp-tile[data-id="beat:stop"]'));
 
 // ---- sing: pick a song, turn the microphone on, watch the words move ----
 await open('sing');

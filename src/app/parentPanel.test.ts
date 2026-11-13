@@ -319,3 +319,17 @@ describe('parent panel: naming family photos', () => {
     expect(document.querySelectorAll('.photo-name').length).toBe(2);
   });
 });
+
+describe('parent report', () => {
+  it('shows the report section and offers ages 5 and 6', () => {
+    localStorage.clear();
+    const d = deps();
+    d.store.recordPlay('count');
+    openParentPanel(d);
+    const html = document.body.textContent ?? '';
+    expect(html).toContain('Bé đã chơi');
+    expect(html).toContain('5 tuổi');
+    expect(html).toContain('6 tuổi');
+    document.querySelector('.overlay')?.remove();
+  });
+});

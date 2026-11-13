@@ -31,6 +31,9 @@ export default defineConfig({
       },
     },
   },
+  // The voice/sample build scripts rewrite thousands of files under public/: watching them
+  // swamps the file watcher until it stops seeing edits to src/ at all.
+  server: { watch: { usePolling: !!process.env.VITE_POLL, interval: 400, ignored: ['**/public/voice/**', '**/public/instruments/**', '**/public/sfx/**', '**/screenshots/**'] } },
   plugins: [
     {
       // What the server is serving now, for the app to compare with what it is running
@@ -73,12 +76,25 @@ export default defineConfig({
         // …except the background loops of Bé tạo cảnh: seven megabytes nobody has
         // asked for yet. Each is kept the first time it plays, so the ones a child
         // actually uses work offline from then on.
-        globIgnores: ['**/ambience/**'],
+        // The recorded voice lines (public/voice) are thousands of small clips: kept as each is
+        // first heard, never all at once. Offline, a line not heard yet falls back to the
+        // device voice (src/core/voiceClips.ts).
+        globIgnores: ['**/ambience/**', '**/voice/**'],
         runtimeCaching: [
           {
             urlPattern: /\/ambience\/[\w-]+\.m4a$/,
             handler: 'CacheFirst',
             options: { cacheName: 'ambience', expiration: { maxEntries: 60 } },
+          },
+          {
+            urlPattern: /\/voice\/manifest\.json$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'voice-manifest' },
+          },
+          {
+            urlPattern: /\/voice\/[0-9a-f]{8}\.m4a$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'voice', expiration: { maxEntries: 6000 } },
           },
           {
             // The photographs it can play over: same deal, kept once seen.

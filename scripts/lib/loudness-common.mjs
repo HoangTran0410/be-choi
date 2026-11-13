@@ -31,6 +31,9 @@ export const A_WEIGHT = [
 ];
 export const A_GAIN = 1.2589;
 
+/** `{ 'file:<base>-0.m4a': db, … 'file:<base>-<n-1>.m4a': db }` for a recording's takes. */
+const takes = (base, n, db) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`file:${base}-${i}.m4a`, db]));
+
 /**
  * Sounds meant to sit off the house level. A UI click as loud as a lion is not
  * levelling, it is nagging; a reward no louder than a click is not a reward.
@@ -61,10 +64,15 @@ export const INTENT_DB = {
   // A frog's croak is all attack: at the house level its peak reaches the ceiling.
   'fx:frog': -1.5,
   'drum:triangle': -3,
-  'file:sounds/bird.m4a': -3,
-  'file:sfx/chirp-0.m4a': -3,
-  'file:sounds/kettle.m4a': -3,
-  'file:sounds/kiss.m4a': -3,
+  // Recordings come in takes (`bird-0` … `bird-3`): the whole family sits lower, so one take
+  // is never brighter than its siblings.
+  ...takes('sfx/chirp', 5, -3),
+  ...takes('sounds/bird', 4, -3),
+  ...takes('sounds/chick', 4, -3),
+  ...takes('sounds/kettle', 4, -3),
+  ...takes('sounds/kiss', 1, -3),
+  // A snip is all attack: its peak hits the ceiling before its level reaches the house mark.
+  'file:sounds/scissors-1.m4a': -4.5,
 };
 
 /**

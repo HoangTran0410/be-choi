@@ -99,6 +99,12 @@ const TOPIC_IDS: readonly string[] = [
   'pattern',
   'sorting',
   'family',
+  'math',
+  'tones',
+  'opposites',
+  'time',
+  'leftright',
+  'safety',
 ];
 
 const SPEC: VersionedSpec<LearnState> = {

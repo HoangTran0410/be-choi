@@ -3,6 +3,8 @@
  * voice is usually available offline. When there is no Vietnamese voice we stay
  * silent instead of reading Vietnamese with an English voice.
  */
+import type { VoiceClips } from './voiceClips';
+
 export interface SpeakOptions {
   interrupt?: boolean;
   rate?: number;
@@ -69,8 +71,17 @@ function silentMs(text: string): number {
   return text ? 500 + text.length * 70 : 0;
 }
 
-export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null): Speech {
+/**
+ * `clips`: pre-recorded lines (see voiceClips.ts). A line with a clip plays the clip; any
+ * other line, or a clip that fails to play, goes to the device voice.
+ */
+export function createSpeech(
+  synth: SpeechSynthesis | null = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null,
+  clips: VoiceClips | null = null,
+): Speech {
   let enabled = true;
+  /** A single (non-sequence) line is playing from a clip. */
+  let clipLine = false;
   let voice: SpeechSynthesisVoice | null = null;
   let preferred: string | null = null;
   let pitch: number = VOICE_PITCHES.normal;
@@ -127,6 +138,7 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
 
   return {
     warm() {
+      clips?.warm();
       if (!synth) return;
       try {
         const u = makeUtterance('');
@@ -151,22 +163,46 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
     },
     available() {
       if (!voice) findVoice();
-      return voice !== null;
+      return voice !== null || (clips?.ready() ?? false);
     },
     speak(text, opts = {}) {
-      if (!synth || !enabled) return;
-      if (!voice) findVoice();
-      if (!voice) return;
-      try {
-        if (opts.interrupt ?? true) {
-          abortSeq();
-          synth.cancel();
+      if (!enabled) return;
+      const tts = (): void => {
+        if (!synth) return;
+        if (!voice) findVoice();
+        if (!voice) return;
+        try {
+          const u = makeUtterance(text, opts.rate);
+          if (u) synth.speak(u);
+        } catch {
+          /* ignore */
         }
-        const u = makeUtterance(text, opts.rate);
-        if (u) synth.speak(u);
-      } catch {
-        /* ignore */
+      };
+      if (opts.interrupt ?? true) {
+        abortSeq();
+        clips?.stop();
+        clipLine = false;
+        try {
+          synth?.cancel();
+        } catch {
+          /* ignore */
+        }
       }
+      if (clips && clips.lengthOf(text) > 0) {
+        clipLine = true;
+        const played = clips.play(text, {
+          onEnd: () => {
+            clipLine = false;
+          },
+          onFail: () => {
+            clipLine = false;
+            tts();
+          },
+        });
+        if (played) return;
+        clipLine = false;
+      }
+      tts();
     },
     speakSeq(parts) {
       abortSeq();
@@ -174,6 +210,9 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
       const live = (): boolean => token === mine;
       if (synth && enabled && !voice) findVoice();
       const engine = synth && enabled && voice ? synth : null;
+      clips?.stop();
+      clipLine = false;
+      clips?.prefetch?.(parts.map((p) => p.text).filter(Boolean));
       if (engine) {
         try {
           engine.cancel();
@@ -220,6 +259,32 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
             /* a game's callback must not break the voice */
           }
           let spoken = false;
+          const clipMs = enabled && clips && part.text ? clips.lengthOf(part.text) : 0;
+          if (clipMs > 0) {
+            const sayIt = (): void => {
+              // The clip failed: fall back to the device voice for this part, or move on.
+              if (!live() || finished) return;
+              if (engine) {
+                try {
+                  const u = makeUtterance(part.text, rate);
+                  if (u) {
+                    u.onend = next;
+                    u.onerror = next;
+                    engine.speak(u);
+                    later(endTimeoutMs(part.text, rate), next);
+                    return;
+                  }
+                } catch {
+                  /* fall through */
+                }
+              }
+              next();
+            };
+            if (clips!.play(part.text, { onEnd: next, onFail: sayIt })) {
+              later(clipMs + 1500, next);
+              return;
+            }
+          }
           if (engine && part.text) {
             try {
               const u = makeUtterance(part.text, rate);
@@ -240,7 +305,7 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
       });
     },
     speaking() {
-      if (stopSeq !== null) return true;
+      if (stopSeq !== null || clipLine) return true;
       try {
         return synth?.speaking ?? false;
       } catch {
@@ -249,6 +314,8 @@ export function createSpeech(synth: SpeechSynthesis | null = typeof speechSynthe
     },
     cancel() {
       abortSeq();
+      clips?.stop();
+      clipLine = false;
       try {
         synth?.cancel();
       } catch {

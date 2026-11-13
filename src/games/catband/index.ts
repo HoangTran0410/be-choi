@@ -51,6 +51,9 @@ const HARMONY_BARS = 12;
 /** The same words are not repeated more often than this. */
 /** One step of the count-up scale. */
 const SCALE_STEP_MS = 720;
+/** Backing levels (velocity) under the singing cats; the cats sing at full level. */
+export const BAND_MIX = { drum: 0.4, bass: 0.45, chord: 0.4 } as const;
+
 /** A cat lit again after its own note, so a repeated note is a new light. */
 const RELIGHT_MS = 170;
 const NOTE_COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7', '#ec4899'];
@@ -388,12 +391,15 @@ function start(ctx: GameContext): void {
   /* ----------------------------------------------------------- the band */
 
   function playBand(ev: BandEvent, beatMs: number): void {
+    // The band backs the cats: recorded instruments are levelled to play alone, so here they
+    // sit well under the meows, and a chord shares one level between its notes.
     if (ev.kind === 'drum') {
-      ctx.audio.drum(ev.drum);
+      ctx.audio.drum(ev.drum, 0, BAND_MIX.drum);
     } else if (ev.kind === 'bass') {
-      ctx.audio.note(ev.hz, Math.max(0.15, (ev.dur * beatMs) / 1000), 'bass');
+      ctx.audio.note(ev.hz, Math.max(0.15, (ev.dur * beatMs) / 1000), 'bass', 0, BAND_MIX.bass);
     } else {
-      for (const hz of ev.hz) ctx.audio.note(hz, Math.max(0.2, (ev.dur * beatMs) / 1000), ev.timbre);
+      const vel = BAND_MIX.chord / Math.sqrt(Math.max(1, ev.hz.length));
+      for (const hz of ev.hz) ctx.audio.note(hz, Math.max(0.2, (ev.dur * beatMs) / 1000), ev.timbre, 0, vel);
     }
   }
 

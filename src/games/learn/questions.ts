@@ -7,7 +7,9 @@ import { SETS, expand, itemsFor, visibleLength, type PatternType } from '../patt
 import {
   ANIMAL_LOOKALIKES,
   COLOR_NEIGHBOURS,
+  BIG_NUMBER_IDS,
   COUNT_THINGS,
+  NUMBER_IDS,
   LETTER_LOOKALIKES,
   LETTER_WORDS,
   ONOMATOPOEIA,
@@ -24,7 +26,9 @@ import {
   shapeById,
   topicOf,
 } from './curriculum';
-import { optionCount, pickConcepts, statOf, type Mastery } from './picker';
+import { mathQuestion } from './mathq';
+import { packQuestion } from './packq';
+import { isKnown, optionCount, pickConcepts, statOf, type Mastery } from './picker';
 import type { ChooseQuestion, DragQuestion, Env, Option, Question, Slot, SlotKind, TopicId, Visual } from './types';
 
 type Rng = () => number;
@@ -136,10 +140,12 @@ function letterQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
 function numberQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
   const n = Number(key);
   const word = numberWord(n);
-  const kinds = lvl === 0 ? ['count'] : lvl === 1 ? ['count', 'numeral'] : ['count', 'numeral', 'group'];
+  const big = n > 10;
+  // Eleven and up: pictures of that many things are too small to tell apart in a tile.
+  const kinds = lvl === 0 ? ['count'] : lvl === 1 || big ? ['count', 'numeral'] : ['count', 'numeral', 'group'];
   const kind = oneOf(kinds, rng);
   const thing = oneOf(COUNT_THINGS, rng);
-  const nums = Array.from({ length: 10 }, (_, i) => String(i + 1));
+  const nums = Array.from({ length: big ? 20 : 10 }, (_, i) => String(i + 1)).filter((x) => (big ? Number(x) >= 8 : Number(x) <= 10));
   const near = lvl >= 2;
   const wrongNums = near
     ? shuffle(
@@ -149,7 +155,10 @@ function numberQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
     : distractors(nums, key, optionCount(lvl) - 1, rng);
   const ids = [key, ...wrongNums];
   while (ids.length < optionCount(lvl)) {
-    const extra = oneOf(nums.filter((x) => !ids.includes(x)), rng);
+    const extra = oneOf(
+      nums.filter((x) => !ids.includes(x)),
+      rng,
+    );
     ids.push(extra);
   }
   const numeral = (x: string): Option => ({ id: x, visual: { k: 'text', v: x }, name: `số ${numberWord(Number(x))}` });
@@ -300,13 +309,11 @@ function sizeQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
   const want = big ? Math.max(...scales) : Math.min(...scales);
   const degree = n === 2 ? 'hơn' : 'nhất';
   const word = big ? 'to' : 'nhỏ';
-  const options = scales.map(
-    (s, i): Option => ({
-      id: `s${i}`,
-      visual: { k: 'emoji', v: item.emoji, scale: s },
-      name: big ? 'cái nhỏ hơn' : 'cái to hơn',
-    }),
-  );
+  const options = scales.map((s, i): Option => ({
+    id: `s${i}`,
+    visual: { k: 'emoji', v: item.emoji, scale: s },
+    name: big ? 'cái nhỏ hơn' : 'cái to hơn',
+  }));
   return {
     type: 'choose',
     topic: 'sizes',
@@ -331,7 +338,17 @@ function animalQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
   const base = { type: 'choose' as const, topic: 'animals' as const, concept: `A:${key}` };
   const kind = lvl === 0 ? oneOf(['name', 'sound'], rng) : oneOf(['sound', 'hear'], rng);
   if (kind === 'name') {
-    const ids = [key, ...distractors(ANIMALS.map((x) => x.emoji), key, n, rng, false, ANIMAL_LOOKALIKES)];
+    const ids = [
+      key,
+      ...distractors(
+        ANIMALS.map((x) => x.emoji),
+        key,
+        n,
+        rng,
+        false,
+        ANIMAL_LOOKALIKES,
+      ),
+    ];
     return {
       ...base,
       say: [`${capFirst(a.name)}`, 'đâu nào?'],
@@ -370,7 +387,17 @@ function animalQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
 function shadowQuestion(key: string, lvl: number, rng: Rng): ChooseQuestion {
   const a = animalByEmoji(key);
   const n = optionCount(lvl) - 1;
-  const ids = [key, ...distractors(ANIMALS.map((x) => x.emoji), key, n, rng, lvl >= 2, ANIMAL_LOOKALIKES)];
+  const ids = [
+    key,
+    ...distractors(
+      ANIMALS.map((x) => x.emoji),
+      key,
+      n,
+      rng,
+      lvl >= 2,
+      ANIMAL_LOOKALIKES,
+    ),
+  ];
   return {
     type: 'choose',
     topic: 'shadows',
@@ -464,7 +491,13 @@ function familyQuestion(key: string, lvl: number, rng: Rng, env: Env): ChooseQue
   const kind = oneOf(kinds, rng);
   if (kind === 'who') {
     const chipPeople = shuffle(
-      [person, ...shuffle(named.filter((q) => q.key !== person.key), rng).slice(0, optionCount(lvl) - 1)],
+      [
+        person,
+        ...shuffle(
+          named.filter((q) => q.key !== person.key),
+          rng,
+        ).slice(0, optionCount(lvl) - 1),
+      ],
       rng,
     );
     return {
@@ -498,7 +531,11 @@ function familyQuestion(key: string, lvl: number, rng: Rng, env: Env): ChooseQue
     say: ['Tìm ảnh giống thế này nhé'],
     bubble: 'Tìm ảnh giống thế này nhé',
     stimulus: { k: 'photo', url: first },
-    options: group.map((q): Option => ({ id: q.key, visual: q.key === person.key ? { k: 'photo', url: second } : photoOf(q), name: q.name ?? '' })),
+    options: group.map((q): Option => ({
+      id: q.key,
+      visual: q.key === person.key ? { k: 'photo', url: second } : photoOf(q),
+      name: q.name ?? '',
+    })),
     answerId: person.key,
     again: ['Mình tìm ảnh giống nhau nhé.'],
     reveal: ['Đúng rồi! Hai ảnh giống nhau'],
@@ -537,7 +574,10 @@ function sizeDrag(lvl: number, rng: Rng): DragQuestion {
   const item = oneOf(SIZE_ITEMS, rng);
   const total = lvl >= 2 ? 5 : 4;
   const bigCount = Math.floor(total / 2) + (rng() < 0.5 ? 0 : total % 2);
-  const flags = shuffle(Array.from({ length: total }, (_, i) => i < bigCount), rng);
+  const flags = shuffle(
+    Array.from({ length: total }, (_, i) => i < bigCount),
+    rng,
+  );
   return {
     type: 'drag',
     topic: 'sizes',
@@ -619,6 +659,10 @@ export function buildQuestion(topic: TopicId, slot: Slot, m: Mastery, env: Env, 
       return sortChoose(key, lvl, rng);
     case 'family':
       return familyQuestion(key, lvl, rng, env);
+    case 'math':
+      return mathQuestion(key, lvl, rng);
+    default:
+      return packQuestion(topic, key, lvl, rng);
   }
 }
 
@@ -630,9 +674,23 @@ export function slotKinds(topic: TopicId): SlotKind[] {
 }
 
 /** Which concepts each of the station's five questions is about. Pure given (mastery, turn, rng). */
-export function planStation(topic: TopicId, m: Mastery, turn: number, env: Env, rng: Rng): Slot[] {
-  const order = conceptsOf(topic, env);
+/** At most this many questions per station are day-based reviews (what the shared skill store says is due). */
+export const REVIEWS_PER_STATION = 2;
+
+export function planStation(
+  topic: TopicId,
+  m: Mastery,
+  turn: number,
+  env: Env,
+  rng: Rng,
+  isDue: (id: string) => boolean = () => false,
+): Slot[] {
+  let order = conceptsOf(topic, env);
+  // 11 to 20 wait until every number to ten is steady: a small child is not overwhelmed.
+  if (topic === 'numbers' && !NUMBER_IDS.every((id) => isKnown(m, id))) order = order.filter((id) => !BIG_NUMBER_IDS.includes(id));
   const used: string[] = [];
+  // Met before, not asked yet today and due again after a day or more: bring it back first.
+  const due = order.filter((id) => statOf(m, id).a > 0 && isDue(id)).slice(0, REVIEWS_PER_STATION);
   return slotKinds(topic).map((kind, i): Slot => {
     let concepts: string[];
     if (kind === 'drag' && topic === 'sizes') {
@@ -642,7 +700,8 @@ export function planStation(topic: TopicId, m: Mastery, turn: number, env: Env, 
       const steady = met.length >= 3 && met.every((id) => statOf(m, id).l >= 1);
       concepts = pickConcepts(order, m, Math.min(steady ? 3 : 2, order.length), turn + i, rng, used);
     } else {
-      concepts = pickConcepts(order, m, 1, turn + i, rng, used);
+      const review = due.find((id) => !used.includes(id));
+      concepts = review ? [review] : pickConcepts(order, m, 1, turn + i, rng, used);
     }
     used.push(...concepts);
     return { kind, concepts };

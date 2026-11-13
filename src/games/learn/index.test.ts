@@ -79,6 +79,37 @@ describe('map', () => {
   });
 });
 
+describe('map gating', () => {
+  const setAge = (age: number) => localStorage.setItem('be-choi:v1', JSON.stringify({ settings: { age } }));
+
+  it('shows the friendly ten to a three-year-old and all sixteen to a five-year-old', async () => {
+    setAge(3);
+    game.start(ctx);
+    await settle(100);
+    expect(ctx.stage.querySelectorAll('.lm-st').length).toBe(10);
+    expect(ctx.stage.querySelector('.lm-st[data-topic="math"]')).toBeNull();
+  });
+
+  it('opens maths and the rest for older children, and a new station can be played', async () => {
+    setAge(5);
+    game.start(ctx);
+    await settle(100);
+    expect(ctx.stage.querySelectorAll('.lm-st').length).toBe(16);
+    for (const t of ['math', 'tones', 'opposites', 'time', 'leftright', 'safety']) {
+      expect(station(t).classList.contains('locked')).toBe(false);
+    }
+    tap(station('math'));
+    await settle(100);
+    for (let i = 0; i < 5; i++) {
+      await settle(1500);
+      solveChoose();
+      await settle(i === 4 ? 5200 : 9000);
+    }
+    expect(ctx.stars).toBe(1);
+    expect(JSON.parse(localStorage.getItem(SAVE_KEY)!).runs.math).toBe(1);
+  });
+});
+
 describe('a station', () => {
   it('asks five questions, never punishes a wrong tap, then gives a star and a present', async () => {
     game.start(ctx);

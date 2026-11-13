@@ -213,7 +213,7 @@ export function createWater(ctx: ChildContext, opts: WaterOptions): Scene {
   tick = window.setInterval(flush, 6000);
 
   build();
-  startLoop(ctx, loop);
+  startLoop(ctx, loop, { lowFps: 30 });
 
   function addFriend(key: string, quiet = false): void {
     const kind = kindByKey(key);

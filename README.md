@@ -1,6 +1,6 @@
 # 🐣 Bé Chơi
 
-**58 trò chơi nhỏ cho bé 2–4 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
+**60 trò chơi nhỏ cho bé 2–6 tuổi**, chạy ngay trên trình duyệt, cài lên điện thoại/iPad như app
 và **chơi được khi không có mạng**.
 
 Không quảng cáo · không cần biết chữ · không có "thua" · không đếm giờ · bấm lung tung cũng không sao.
@@ -11,8 +11,8 @@ Không quảng cáo · không cần biết chữ · không có "thua" · không 
 |---|---|
 | 🎵 **Âm nhạc** | 🎤 Hát cùng bé · 🎤 Sân khấu nhạc · 🎹 Đàn thú · 🎼 Đàn gõ · 🥁 Trống · 🎺 Nhạc cụ · 🎶 Nhớ giai điệu · 🎪 Ban nhạc thú · 🎻 Bảo tàng nhạc cụ · 🤖 Ban nhạc robot · 🐱 Dàn mèo hát · 🎙️ Ca sĩ nhí · 🦜 Vẹt nhại giọng · 🐦 Hát cho chim bay |
 | 👂 **Nghe & xem** | 📣 Bấm nghe tiếng · 🔊 Ai kêu đấy? · 📺 Xem nhạc |
-| 🦉 **Học cùng bé** | Một cô giáo cú hỏi chậm bằng giọng và hình, mười trạm trên bản đồ: chữ cái · số · màu · hình · to nhỏ · con vật · cái bóng · quy luật · phân loại · người thân (ảnh gia đình). Độ khó tự tăng khi bé đúng liên tiếp; sai thì cô dạy chứ không phạt. Có chế độ Khám phá (chạm là nghe, không hỏi). |
-| 🧩 **Suy nghĩ** | 🧱 Xưởng xếp hình · 🧠 Trí nhớ & suy nghĩ · 🎨 Xưởng vẽ của bé · 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
+| 🦉 **Học cùng bé** | Một cô giáo cú hỏi chậm bằng giọng và hình, 16 trạm trên bản đồ: chữ cái · số (tới 20) · màu · hình · to nhỏ · con vật · cái bóng · quy luật · phân loại · người thân (ảnh gia đình) · **toán** (cộng/trừ bằng đồ vật, nhiều/ít, số liền trước/sau) · **vần & dấu thanh** · trái nghĩa · thời gian · trái/phải · an toàn (các trạm mới mở theo tuổi trong Góc phụ huynh). Bài bé đã đúng sẽ được hỏi lại sau 1, 2, 4, 7, 14 ngày. Độ khó tự tăng khi bé đúng liên tiếp; sai thì cô dạy chứ không phạt. Có chế độ Khám phá (chạm là nghe, không hỏi). |
+| 🧩 **Suy nghĩ** | ✍️ Tập viết chữ · 🦉 Cú tìm kho báu · 🧱 Xưởng xếp hình · 🧠 Trí nhớ & suy nghĩ · 🎨 Xưởng vẽ của bé · 🧩 Ghép tranh · 🔤 Chữ & số · ✏️ Tập vẽ · 🏠 Xếp khối · 🧱 Xếp gạch · 🧪 Xếp bi màu · 🧺 Phân loại đồ · 🔴 Quy luật · 🔷 Ghép hình · 🎨 Màu sắc · 🐘 To nhỏ · 🐾 Tìm bóng · 🔢 Đếm số · 🃏 Lật thẻ |
 | 🌊 **Thế giới nhỏ** | 🐠 Thế giới nhỏ của bé (bể cá · biển · rừng nhỏ · ao câu, một sổ bạn bè) · 🌻 Nông trại & vườn · 🐠 Bể cá · 🦎 Bể cạn · 🎣 Câu cá · 🌻 Vườn cây · 🐔 Nông trại · 🚗 Bé lái xe · 🌠 Đêm hè |
 | 🎈 **Chơi vui** | 🧸 Ngày của bạn nhỏ · 🌦️ Bé tạo cảnh · 🫧 Bong bóng · 🎂 Sinh nhật · 🍳 Nấu ăn · 🪥 Đánh răng · 👕 Mặc đồ & dọn đồ · 🖍️ Tô màu · 🙈 Ú oà · 🌙 Giờ đi ngủ · 🍎 Cho ăn · 🧽 Tắm sạch · 🥰 Cảm xúc · 🎭 Biến hình |
 
@@ -36,14 +36,13 @@ Vài trò nổi bật:
 - **🎙️ Ca sĩ nhí** — 14 bài thiếu nhi có nhạc đệm, bé hát vào mic thì sân khấu sáng lên.
 - **🤖 Ban nhạc robot** — kéo các bạn robot (mỗi bạn một nhạc cụ: trống, bass, piano, ghi-ta, sáo, kèn, vi-ô-lông…) lên sân khấu 8 chỗ; ban nhạc luôn hoà âm vì mọi robot chơi theo cùng một nhịp, một tông và chuỗi hợp âm 4 ô nhịp. Chạm robot để đổi kiểu chơi (dễ/vừa/rộn), kéo xuống kệ hoặc chạm giữ để tạm biệt, nút to đổi bài (vui / disco / êm). Robot nhảy đúng nhịp; tên nhạc cụ hiện bằng chữ, **không đọc mỗi lần bấm/đặt/chạm** (mục tiêu là nghe nhạc) — giọng đọc chỉ có một câu ngắn ở vài mốc lớn: lần đầu vào game, đủ sân khấu, có robot mới, và cách nhau ≥ 30 giây; nhiệm vụ bằng hình mở khoá thêm robot (5 → 47). Ảnh gia đình ở Góc phụ huynh hiện làm mặt robot và phông sân khấu.
 
-Chơi xong được ⭐, đủ 3 ⭐ mở một sticker để dùng trong Tô màu.
+Chơi xong được ⭐, đủ 3 ⭐ mở một sticker (11 bộ theo chủ đề trong Album). Mỗi ngày có một hộp quà 🎁 ở bạn gà con trên màn hình chính. Máy yếu tự chạy chế độ nhẹ.
 
 ## Cho bố mẹ
 
 - **Cài lên máy:** iOS mở bằng Safari → Chia sẻ → *Thêm vào MH chính*. Android: menu ⋮ → *Cài đặt ứng dụng*.
-- **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé (đặt tên Mẹ/Ba/Bà… dưới mỗi ảnh để *Học cùng bé* hỏi "Ai đây?").
+- **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé (đặt tên Mẹ/Ba/Bà… dưới mỗi ảnh để *Học cùng bé* hỏi "Ai đây?"), chọn tuổi (2–6), nhắc nghỉ, **nói thêm tiếng Anh**, và xem **Bé đã chơi / Bé đã thuộc** (thời gian 7 ngày, game hay chơi, chủ đề bé đã thuộc).
 - **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic và camera tắt. *Biến hình* không chụp, không lưu, không gửi hình đi đâu — chỉ hiện lên màn hình.
-- **Góc phụ huynh:** giữ nút 👪 1,5 giây — bật/tắt âm thanh, giọng đọc, pháo hoa, chế độ tối, thêm ảnh của bé.
 - **Riêng tư:** micro, camera và ảnh chỉ xử lý trên máy, không gửi đi đâu. Rời game là mic và camera tắt. *Hát cùng bé* chỉ đo to/nhỏ/cao/thấp tức thời; giọng bé thu cho *Vẹt nhại* nằm trong bộ nhớ tạm, không lưu, không gửi đi, mất khi rời game. *Biến hình* không chụp, không lưu, không gửi hình đi đâu — chỉ hiện lên màn hình.
 - **Giọng đọc tiếng Việt** dùng giọng có sẵn của máy (iOS: Cài đặt → Trợ năng → Nội dung đọc → Giọng nói → Tiếng Việt).
 
@@ -86,7 +85,7 @@ thư mục `dist` lên.
 Mỗi game là một thư mục `src/games/<id>/` gồm `meta.ts` (tên, icon, màu), `logic.ts` (+ test),
 `index.ts` và `style.css`, rồi thêm một dòng vào `src/app/registry.ts`. Xem `bubbles` làm mẫu.
 
-Ba nguyên tắc cho bé 2 tuổi:
+Ba nguyên tắc cho bé 2–4 tuổi (bé 5–6 tuổi có thêm trạm khó hơn, vẫn không có "thua"):
 
 1. **Không ép thứ tự** — cái gì trên màn hình cũng bấm được, xong khi *đủ* chứ không cần *đúng thứ tự*.
 2. **Không có sai** — bấm nhầm chỉ nghe "boing" nhẹ rồi thôi.

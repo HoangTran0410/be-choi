@@ -2,7 +2,7 @@ import { h, replay } from '../../core/dom';
 import { makeTappable } from '../../core/tap';
 import type { GameContext, GameModule } from '../../core/types';
 import { meta } from './meta';
-import { makeCountRound, minDistFor, numberWord } from './logic';
+import { makeCountRound, minDistFor, nextBonus, numberWord } from './logic';
 import './style.css';
 import { sayText } from '../../core/say';
 
@@ -17,6 +17,8 @@ const TOTAL_MS = 700;
 function start(ctx: GameContext): void {
   let round = 0;
   let lastEmoji: string | undefined;
+  /** Grows by one for every round counted without a hint, so the count climbs from 5 towards 10. */
+  let bonus = 0;
   let alive = true;
   const timers = new Set<ReturnType<typeof setTimeout>>();
 
@@ -46,7 +48,8 @@ function start(ctx: GameContext): void {
 
   function play(): void {
     const minDist = minDistFor(board.clientWidth, board.clientHeight, fruitPx());
-    const r = makeCountRound(round, Math.random, lastEmoji, minDist);
+    const r = makeCountRound(round, Math.random, lastEmoji, minDist, bonus);
+    let helped = false;
     lastEmoji = r.item.emoji;
     let counted = 0;
 
@@ -85,6 +88,7 @@ function start(ctx: GameContext): void {
       void sayText(ctx, t);
     };
     ctx.hint.arm(() => {
+      helped = true;
       nudge('Chạm vào từng quả để đếm nhé!');
       const next = fruits.find((f) => !f.classList.contains('counted'));
       if (next) replay(next, 'anim-wiggle');
@@ -101,6 +105,7 @@ function start(ctx: GameContext): void {
           if (!alive) return;
           ctx.addStar();
           round++;
+          bonus = nextBonus(bonus, helped);
           play();
         });
       }, TOTAL_MS);

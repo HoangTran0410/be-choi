@@ -1,4 +1,5 @@
 import { majorFrom, pentaFrom, tune } from './scale';
+import { lg, rnd, type Stop } from './art';
 import { ell, Frame, line, linGrad, rect, shade, wrap, zg } from './svg';
 import type { Board, Harmony, Zone } from './types';
 import { inst, note, RAINBOW } from './voices';
@@ -13,7 +14,7 @@ const STYLE: Record<BarKind, { name: string; tubes: boolean; bg: string; color: 
     bg: '#bfdbfe',
     color: (i) => ['#e0f2fe', '#dbeafe', '#e0e7ff', '#ede9fe', '#fae8ff', '#fce7f3', '#ffe4e6', '#fef9c3'][i]!,
   },
-  marimba: { name: 'Đàn marimba', tubes: true, bg: '#fed7aa', color: (i) => shade('#7c2d12', i * 0.07) },
+  marimba: { name: 'Đàn marimba', tubes: true, bg: '#fed7aa', color: (i) => shade('#7c2d12', i * 0.035) },
   vibraphone: { name: 'Đàn vibraphone', tubes: true, bg: '#c7d2fe', color: (i) => shade('#94a3b8', i * 0.05 - 0.1) },
 };
 
@@ -35,13 +36,25 @@ export function layoutBars(kind: BarKind, w: number, h: number, harmony: Harmony
     const t = tune(m, harmony);
     return kind === 'xylo' ? note('xylo', t, 0.9) : kind === 'bell' ? note('bell', t, 0.9) : inst(kind, t);
   };
-  const defs = linGrad('bar-gl', 'rgba(255,255,255,.55)', 'rgba(255,255,255,0)');
-  let art = rect(0, 0, w, h, 0, st.bg);
+  const metal = kind === 'bell' || kind === 'vibraphone';
+  const gu = portrait ? [0, 0, 0, 1] : [0, 0, 1, 0]; // gradient along the keyboard (across one bar)
+  const alongU = (id: string, stops: Stop[]) => lg(id, stops, gu[0], gu[1], gu[2], gu[3]);
+  let defs =
+    linGrad('bar-gl', 'rgba(255,255,255,.55)', 'rgba(255,255,255,0)') +
+    lg('bar-bg', [[0, shade(st.bg, 0.4)], [1, st.bg]]) +
+    alongU('bar-rail', metal
+      ? [[0, '#64748b'], [0.25, '#e2e8f0'], [0.5, '#94a3b8'], [0.8, '#cbd5e1'], [1, '#475569']]
+      : [[0, '#6b3410'], [0.3, '#c0782a'], [0.55, '#8f4f16'], [1, '#4a2308']]) +
+    alongU('bar-tube', kind === 'marimba'
+      ? [[0, '#5a3108'], [0.22, '#e9b25a'], [0.45, '#b9772a'], [0.8, '#8a521a'], [1, '#4a2806']]
+      : [[0, '#64748b'], [0.2, '#f8fafc'], [0.45, '#b6bec9'], [0.8, '#8a94a3'], [1, '#475569']]);
+  let art = rect(0, 0, w, h, 0, 'url(#bar-bg)');
   const railA = vc - barArea * 0.3;
   const railB = vc + barArea * 0.3;
-  const frameCol = kind === 'bell' || kind === 'vibraphone' ? '#475569' : '#78350f';
-  art += f.rect(pad, railA - 5, f.U - pad * 2, 10, 5, frameCol);
-  art += f.rect(pad, railB - 5, f.U - pad * 2, 10, 5, frameCol);
+  art += f.rect(pad + 3, railA - 4, f.U - pad * 2, 12, 6, 'rgba(0,0,0,.16)');
+  art += f.rect(pad + 3, railB - 4, f.U - pad * 2, 12, 6, 'rgba(0,0,0,.16)');
+  art += f.rect(pad, railA - 5, f.U - pad * 2, 10, 5, 'url(#bar-rail)', 'stroke="rgba(0,0,0,.3)" stroke-width="1.2"');
+  art += f.rect(pad, railB - 5, f.U - pad * 2, 10, 5, 'url(#bar-rail)', 'stroke="rgba(0,0,0,.3)" stroke-width="1.2"');
   const zones: Zone[] = [];
   notes.forEach((m, i) => {
     const len = barArea * (0.98 - i * 0.075);
@@ -49,29 +62,31 @@ export function layoutBars(kind: BarKind, w: number, h: number, harmony: Harmony
     const u = pad + i * sw + (sw - bt) / 2;
     const col = st.color(i);
     const dim = harmony === 'pentatonic' && tune(m, harmony) !== m;
+    defs += alongU(`bar-c${i}`, metal
+      ? [[0, shade(col, -0.3)], [0.2, shade(col, 0.35)], [0.45, col], [0.7, shade(col, -0.08)], [1, shade(col, -0.35)]]
+      : [[0, shade(col, -0.32)], [0.16, shade(col, 0.05)], [0.34, shade(col, 0.32)], [0.6, col], [1, shade(col, -0.36)]]);
     if (st.tubes) {
       const tl = (f.V - pad * 2) * 0.34 * (0.98 - i * 0.085);
       const tv = pad + barArea + 4;
-      art += f.rect(
-        u + bt * 0.1,
-        tv,
-        bt * 0.8,
-        tl,
-        bt * 0.25,
-        kind === 'marimba' ? '#a16207' : '#94a3b8',
-        'stroke="rgba(0,0,0,.25)" stroke-width="1.5"',
-      );
-      art += f.rect(u + bt * 0.28, tv + 4, bt * 0.14, tl - 10, 3, 'rgba(255,255,255,.35)');
-      art += f.ell(u + bt / 2, tv + tl, bt * 0.4, bt * 0.12, 'rgba(0,0,0,.35)');
+      art += f.rect(u + bt * 0.1 + 3, tv + 3, bt * 0.8, tl, bt * 0.25, 'rgba(0,0,0,.18)');
+      art += f.rect(u + bt * 0.1, tv, bt * 0.8, tl, bt * 0.25, 'url(#bar-tube)', 'stroke="rgba(0,0,0,.3)" stroke-width="1.2"');
+      art += f.ell(u + bt / 2, tv + tl - 1, bt * 0.38, bt * 0.11, '#1c1208', 'stroke="rgba(255,255,255,.3)" stroke-width="1.4"');
     }
     const v = vc - len / 2;
     zones.push({ id: `b${m}`, shape: f.shapeRect(pad + i * sw, v, sw, len), role: 'play', voices: [voiceOf(m)], dim });
+    let grain = '';
+    if (!metal && kind === 'marimba')
+      for (let k = 1; k < 6; k++) grain += f.line(u + (bt * k) / 6, v + 6, u + (bt * k) / 6 + (rnd(i * 7 + k) - 0.5) * 3, v + len - 6, 'rgba(255,220,170,.14)', 1.2);
+    if (metal) for (let k = 1; k < 9; k++) grain += f.line(u + 5, v + (len * k) / 9, u + bt - 5, v + (len * k) / 9, 'rgba(255,255,255,.08)', 1);
     art += zg(
       `b${m}`,
-      f.rect(u, v, bt, len, bt * 0.28, col, `stroke="${shade(col, -0.35)}" stroke-width="2" ${dim ? 'opacity=".55"' : ''}`) +
-        f.rect(u + bt * 0.14, v + 5, bt * 0.2, len - 10, 4, 'url(#bar-gl)') +
-        f.ell(u + bt / 2, railA, bt * 0.07, bt * 0.07, 'rgba(0,0,0,.4)') +
-        f.ell(u + bt / 2, railB, bt * 0.07, bt * 0.07, 'rgba(0,0,0,.4)'),
+      f.rect(u + 2, v + 4, bt, len, bt * 0.22, 'rgba(0,0,0,.2)') +
+        f.rect(u, v, bt, len, bt * 0.22, `url(#bar-c${i})`, `stroke="${shade(col, -0.45)}" stroke-width="1.8" ${dim ? 'opacity=".55"' : ''}`) +
+        grain +
+        f.rect(u + bt * 0.12, v + 4, bt * 0.18, len - 8, 4, 'url(#bar-gl)') +
+        f.rect(u + 3, v + len - 7, bt - 6, 3, 1.5, 'rgba(0,0,0,.18)') +
+        f.ell(u + bt / 2, railA, bt * 0.07, bt * 0.07, 'rgba(0,0,0,.55)', 'stroke="rgba(255,255,255,.3)" stroke-width="1"') +
+        f.ell(u + bt / 2, railB, bt * 0.07, bt * 0.07, 'rgba(0,0,0,.55)', 'stroke="rgba(255,255,255,.3)" stroke-width="1"'),
     );
   });
   return { kind, family: 'bars', w, h, portrait, harmony, zones, svg: wrap(w, h, defs, art, st.name), glide: true };
@@ -114,22 +129,30 @@ export function layoutTines(w: number, h: number, harmony: Harmony): Board {
   return { kind: 'kalimba', family: 'tines', w, h, portrait, harmony, zones, svg: wrap(w, h, defs, art, 'Đàn kalimba'), glide: true };
 }
 
-/** Wind chimes: metal tubes hanging from a bar, long for low and short for high; hold one to still it. */
+/** Wind chimes: metal tubes hanging from a wooden ring, long for low and short for high; hold one to still it. */
 export function layoutChimes(w: number, h: number, harmony: Harmony): Board {
   const portrait = h > w;
   const n = portrait ? 5 : 8;
   const notes = pentaFrom(72, n);
   const pad = 4;
   const sw = (w - pad * 2) / n;
-  let art = rect(0, 0, w, h, 0, '#e0f2fe');
-  art += rect(pad, 8, w - pad * 2, 16, 8, '#92400e');
-  art += line(w / 2, 24, w / 2, 56, '#78350f', 3);
+  const defs =
+    lg('ch-bg', [[0, '#f0f9ff'], [1, '#bae6fd']]) +
+    lg('ch-wood', [[0, '#e0954a'], [0.35, '#b9651f'], [1, '#5c2a08']], 0, 0, 0, 1) +
+    lg('ch-cord', [[0, '#4a2f12'], [0.5, '#d9b27a'], [1, '#4a2f12']], 0, 0, 1, 0) +
+    lg('ch-tubeA', [[0, '#52607a'], [0.18, '#dbe3ee'], [0.34, '#ffffff'], [0.55, '#9aa7ba'], [0.85, '#d1d8e3'], [1, '#475569']], 0, 0, 1, 0) +
+    lg('ch-tubeB', [[0, '#6b4a1e'], [0.18, '#f3d58a'], [0.34, '#fff4c6'], [0.55, '#c98d12'], [0.85, '#e7b43a'], [1, '#5a3a0a']], 0, 0, 1, 0);
+  let art = rect(0, 0, w, h, 0, 'url(#ch-bg)');
+  // wooden suspension bar with grain, a hook to hang it from
+  art += rect(pad, 8, w - pad * 2, 18, 9, 'url(#ch-wood)', 'stroke="#3d1a06" stroke-width="2.5"');
+  for (let k = 0; k < 5; k++) art += line(pad + 12, 12 + k * 3, w - pad - 12, 12 + k * 3 + (k % 2 ? 1 : -1), k % 2 ? 'rgba(255,225,170,.25)' : 'rgba(60,25,4,.25)', 1.2);
+  art += line(w / 2, 4, w / 2, -4, '#78350f', 3);
+  art += `<path d="M${(w / 2 - 14).toFixed(1)} 22 L${(w / 2).toFixed(1)} 2 L${(w / 2 + 14).toFixed(1)} 22" fill="none" stroke="#3b2410" stroke-width="3.5" stroke-linecap="round"/>`;
   const zones: Zone[] = [];
   notes.forEach((m, i) => {
     const cx = pad + i * sw + sw / 2;
     const len = (h - 70) * (0.98 - (i / (n - 1)) * 0.5);
-    const top = 44;
-    art += line(cx, 24, cx, top, '#78350f', 2.5);
+    const top = 50;
     const tw = Math.min(sw * 0.5, 44);
     zones.push({
       id: `c${m}`,
@@ -138,13 +161,20 @@ export function layoutChimes(w: number, h: number, harmony: Harmony): Board {
       voices: [inst('chimes', tune(m, harmony))],
       mute: true,
     });
+    const gold = i % 2 === 1;
+    art += line(cx, 26, cx, top + 10, '#3b2410', 3.6) + line(cx, 26, cx, top + 10, 'url(#ch-cord)', 1.8);
     art += zg(
       `c${m}`,
-      rect(cx - tw / 2, top, tw, len, tw * 0.3, i % 2 ? '#cbd5e1' : '#94a3b8', 'stroke="#475569" stroke-width="2"') +
-        rect(cx - tw / 2 + 5, top + 8, tw * 0.22, len - 16, 4, 'rgba(255,255,255,.6)') +
-        ell(cx, top + len, tw * 0.5, tw * 0.14, 'rgba(0,0,0,.35)'),
+      // the tube: shaded cylinder with a dark brass plug at the top, a threaded eye, and a hollow mouth below
+      rect(cx - tw / 2 + 3, top + 3, tw, len, tw * 0.22, 'rgba(0,0,0,.14)') +
+        rect(cx - tw / 2, top, tw, len, tw * 0.22, `url(#${gold ? 'ch-tubeB' : 'ch-tubeA'})`, `stroke="${gold ? '#6b4a0e' : '#475569'}" stroke-width="2"`) +
+        rect(cx - tw / 2, top + 4, tw, tw * 0.28, tw * 0.1, gold ? '#8a5a0b' : '#64748b') +
+        rect(cx - tw / 2 + 2, top + 5, tw - 4, 2, 1, 'rgba(255,255,255,.55)') +
+        ell(cx, top + 14, 3.2, 3.2, '#1c1208', 'stroke="rgba(255,255,255,.5)" stroke-width="1.2"') +
+        rect(cx - tw / 2, top + len * 0.5, tw, 2.5, 1, 'rgba(0,0,0,.15)') +
+        ell(cx, top + len, tw * 0.5, tw * 0.13, '#0f172a', `stroke="${gold ? '#f3d58a' : '#e2e8f0'}" stroke-width="1.8"`),
     );
   });
   art += ell(w / 2, h - 12, w * 0.3, 6, 'rgba(0,0,0,.08)');
-  return { kind: 'chimes', family: 'chimes', w, h, portrait, harmony, zones, svg: wrap(w, h, '', art, 'Chuông gió'), glide: true };
+  return { kind: 'chimes', family: 'chimes', w, h, portrait, harmony, zones, svg: wrap(w, h, defs, art, 'Chuông gió'), glide: true };
 }

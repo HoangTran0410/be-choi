@@ -20,6 +20,8 @@ export interface FrameOptions {
   maxDt?: number;
   /** Run at most this many times a second (e.g. 30 for a slow ambient scene). Default: every frame. */
   maxFps?: number;
+  /** Cap used instead of `maxFps` while `perf.low` is on (ambient scenes: 30). */
+  lowFps?: number;
 }
 
 export interface Perf {
@@ -35,11 +37,15 @@ const OK_ABOVE = 55;
 /** Windows in a row before the quality flips: one slow second is not a trend. */
 const LOW_WINDOWS = 2;
 const OK_WINDOWS = 3;
+/** A device already known to be slow needs a long, steady spell at full rate before it is trusted again (~1 min). */
+const SLOW_DEVICE_OK_WINDOWS = 60;
+const LOW_KEY = 'bechoi.lowperf';
 
 interface Sub {
   fn: FrameFn;
   maxDt: number;
   minGap: number;
+  lowGap: number;
   lastRun: number;
   alive: boolean;
 }
@@ -56,6 +62,47 @@ let winFrames = 0;
 let badWindows = 0;
 let goodWindows = 0;
 let watching = false;
+/** Low was decided before measuring (weak hardware, or remembered): recovery needs a long good spell. */
+let sticky = false;
+
+function mirror(): void {
+  if (typeof document === 'undefined') return;
+  if (perf.low) document.documentElement.dataset.lite = '';
+  else delete document.documentElement.dataset.lite;
+}
+
+function remember(low: boolean): void {
+  try {
+    if (low) localStorage.setItem(LOW_KEY, '1');
+    else localStorage.removeItem(LOW_KEY);
+  } catch {
+    /* private mode / no storage: the measurement still works per session */
+  }
+}
+
+/** Weak hardware as the browser reports it. Undefined values (Safari) count as "unknown", not weak. */
+export function looksWeak(nav: { deviceMemory?: number; hardwareConcurrency?: number } | undefined): boolean {
+  if (!nav) return false;
+  const mem = nav.deviceMemory;
+  const cores = nav.hardwareConcurrency;
+  return (typeof mem === 'number' && mem > 0 && mem <= 2) || (typeof cores === 'number' && cores > 0 && cores <= 4);
+}
+
+/** Call once at boot: start in lite mode on weak or previously-struggling devices instead of waiting to stutter first. */
+export function initPerf(): void {
+  let remembered = false;
+  try {
+    remembered = localStorage.getItem(LOW_KEY) === '1';
+  } catch {
+    /* ignore */
+  }
+  const weak = typeof navigator !== 'undefined' && looksWeak(navigator as never);
+  if (remembered || weak) {
+    perf.low = true;
+    sticky = true;
+  }
+  mirror();
+}
 
 function hidden(): boolean {
   return typeof document !== 'undefined' && document.visibilityState === 'hidden';
@@ -90,9 +137,20 @@ function measure(now: number): void {
     goodWindows = 0;
   }
   const was = perf.low;
-  if (!perf.low && badWindows >= LOW_WINDOWS) perf.low = true;
-  else if (perf.low && goodWindows >= OK_WINDOWS) perf.low = false;
+  if (!perf.low && badWindows >= LOW_WINDOWS) {
+    perf.low = true;
+    remember(true);
+  } else if (perf.low && goodWindows >= (sticky ? SLOW_DEVICE_OK_WINDOWS : OK_WINDOWS)) {
+    perf.low = false;
+    sticky = false;
+  }
+  // The stored verdict is forgotten only after a long steady spell at full rate.
+  if (goodWindows >= SLOW_DEVICE_OK_WINDOWS) {
+    sticky = false;
+    remember(false);
+  }
   if (perf.low !== was) {
+    mirror();
     for (const cb of [...perfListeners]) cb(perf.low);
   }
 }
@@ -104,8 +162,9 @@ function tick(now: number): void {
   measure(now);
   for (const s of [...subs]) {
     if (!s.alive) continue;
-    if (s.minGap && s.lastRun && now - s.lastRun < s.minGap) continue;
-    const dt = s.lastRun && s.minGap ? now - s.lastRun : raw;
+    const gap = perf.low && s.lowGap ? s.lowGap : s.minGap;
+    if (gap && s.lastRun && now - s.lastRun < gap) continue;
+    const dt = s.lastRun && gap ? now - s.lastRun : raw;
     s.lastRun = now;
     let keep: void | boolean = true;
     try {
@@ -161,6 +220,7 @@ export function onFrame(fn: FrameFn, opts: FrameOptions = {}): () => void {
     fn,
     maxDt: opts.maxDt ?? 250,
     minGap: opts.maxFps && opts.maxFps > 0 ? 1000 / opts.maxFps - 2 : 0,
+    lowGap: opts.lowFps && opts.lowFps > 0 ? 1000 / opts.lowFps - 2 : 0,
     lastRun: 0,
     alive: true,
   };
@@ -196,6 +256,8 @@ export function resetFrameLoop(): void {
   perfListeners.clear();
   perf.fps = 60;
   perf.low = false;
+  sticky = false;
+  mirror();
   badWindows = 0;
   goodWindows = 0;
 }

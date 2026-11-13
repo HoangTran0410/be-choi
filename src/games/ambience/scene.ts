@@ -94,7 +94,8 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     const raw = dtMs / 1000;
     const dt = Math.min(0.05, raw);
     // The first frame (and the first after the tab was hidden) has no gap to judge by.
-    if (dtMs > 0) adapt(raw);
+    // While perf.low the loop is capped at 30 fps on purpose: judge against that cap, not 60.
+    if (dtMs > 0) adapt(perf.low ? raw / 2 : raw);
     c.time += dt;
     // Ease every effect and sky towards what is wanted: in over ~1 s, out over ~1.5 s.
     for (const [id, w] of want) {
@@ -163,7 +164,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     drawSparkles(c, dt);
   }
   // maxDt 1000: `adapt` tells a slow picture from a tab that was away by the size of the gap.
-  stopLoop = onFrame(frame, { maxDt: 1000 });
+  stopLoop = onFrame(frame, { maxDt: 1000, lowFps: 30 });
 
   return {
     setOn(ids) {

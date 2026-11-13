@@ -14,6 +14,8 @@ const NOTE_MS = 700;
  * crosses. Multi-touch, no rounds, no stars. Left alone it wiggles a key and says one nudge.
  */
 function start(ctx: GameContext): void {
+  // Fetch the recorded sounds ahead (falls back to the synth until they land).
+  ctx.audio.preloadInstruments?.(['note:piano']);
   const piano = h('div', { class: 'piano' });
   const keyEls = KEYS.map((k, i) =>
     h(

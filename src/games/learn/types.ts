@@ -10,7 +10,13 @@ export type TopicId =
   | 'shadows'
   | 'pattern'
   | 'sorting'
-  | 'family';
+  | 'family'
+  | 'math'
+  | 'tones'
+  | 'opposites'
+  | 'time'
+  | 'leftright'
+  | 'safety';
 
 /** Everything a picture on screen can be. One small renderer (visual.ts) draws them all. */
 export type Visual =
@@ -20,8 +26,8 @@ export type Visual =
   | { k: 'shape'; path: string; hex: string }
   | { k: 'basket'; hex: string }
   | { k: 'photo'; url: string }
-  /** `n` copies of one emoji, e.g. three apples. */
-  | { k: 'group'; v: string; n: number }
+  /** `n` copies of one emoji, e.g. three apples. `gone` of them (the last ones) fly away a moment after it appears. */
+  | { k: 'group'; v: string; n: number; gone?: number }
   /** A row of pictures, e.g. a pattern with its missing piece. */
   | { k: 'row'; items: Visual[] }
   | { k: 'chip'; v: string };

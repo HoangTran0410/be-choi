@@ -90,11 +90,4 @@
   pointer-events: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .inst .z.blow.blowing {
-    animation: none;
-  }
-  .inst .z.sinkable {
-    transition: none;
-  }
-}
+/* Reduce motion keeps the press and the breathing: they are the feedback (fx.ts only makes the swings smaller). */

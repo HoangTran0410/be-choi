@@ -6,11 +6,13 @@
 import { LOUDNESS } from './loudness';
 import { FILE_TRIM } from './loudness-files';
 import { SFX_TAKES, sfxUrl } from './sfx';
+import { nextVariant } from './variant';
 import { VOICE_HZ } from './voicepitch';
 import { renderCatNote } from './catvoice';
 import { SCALE_C, noteFreq } from './music';
 import type { RenderReply, RenderRequest } from './renderWorker';
 import { HELD, INSTRUMENT_IDS, INSTRUMENT_REF, renderInstrument, type InstrumentId } from './instruments';
+import { createSampleBank, type SampleVoice } from './samplesBank';
 
 export type { InstrumentId };
 /** World instruments the synth can render (see instruments.ts). */
@@ -51,6 +53,8 @@ type SynthFx =
 export type FxKind =
   SynthFx | 'cluck' | 'horse' | 'goat' | 'monkey' | 'growl' | 'squeak' | 'parrot' | 'penguin' | 'horn' | 'train' | 'tractor';
 
+/** The timbres that are a sustained sound (their recordings loop while the note is held). */
+const HELD_TIMBRES: ReadonlySet<Timbre> = new Set<Timbre>(['flute', 'trumpet', 'violin', 'sax']);
 export const TIMBRES: readonly Timbre[] = ['piano', 'xylo', 'bell', 'guitar', 'flute', 'trumpet', 'violin', 'sax', 'bass'];
 export const DRUMS: readonly DrumKind[] = ['kick', 'snare', 'hat', 'tom', 'clap', 'cowbell', 'shaker', 'wood', 'ride', 'triangle', 'crash'];
 export const FX: readonly FxKind[] = [
@@ -154,6 +158,12 @@ export interface AudioEngine {
    * gets every note exactly on the grid, however the clock steps or the main thread stalls.
    */
   clock?(): number;
+  /**
+   * Run `fn` and send every sound it starts (now or pre-scheduled with `delay`) through one bus,
+   * so the whole group can be cut off at once: `stop(fadeMs)` fades the bus out (default 60 ms,
+   * no click) and silences notes still waiting to start. Optional: absent on stubs, then `fn` just runs.
+   */
+  group?(fn: () => void): SoundGroup;
   /** A soft breath of air (blowing out a candle). */
   puff(): void;
   /** Sound effect / animal voice. */
@@ -184,11 +194,26 @@ export interface AudioEngine {
    */
   preloadFx(kinds: readonly FxKind[]): void;
   /**
+   * Fetch and decode the recordings of these instruments in the background (`inst:marimba`,
+   * `note:piano`, `drum:kick`; see public/instruments). Until a recording has landed, or if it
+   * cannot load, the instrument plays its synth, so this only makes the first tap sound real.
+   * Optional so that a stand-in engine need not have it.
+   */
+  preloadInstruments?(keys: readonly SampleKey[]): void;
+  /**
    * Play a recording round and round until stopped, fading in — a background
    * (rain, birds, the sea) under everything else. Null when sound is off or the
    * file cannot play.
    */
   loop(url: string, volume?: number): Promise<Loop | null>;
+}
+
+/** An instrument that has recordings: `inst:<id>`, `note:<timbre>` or `drum:<kind>`. */
+export type SampleKey = `inst:${InstrumentId}` | `note:${Timbre}` | `drum:${DrumKind}`;
+
+export interface SoundGroup {
+  /** Fade out everything the group started or still has queued. Safe to call twice. */
+  stop(fadeMs?: number): void;
 }
 
 export interface InstVoice {
@@ -357,6 +382,26 @@ export function createAudio(): AudioEngine {
   }
 
   /**
+   * The recorded instruments (public/instruments). A note whose recording is ready plays it;
+   * every other note, for as long as that is so, plays the synth.
+   */
+  const samples = createSampleBank({ ctx: () => getCtx(), master: () => master, base: import.meta.env.BASE_URL });
+  /** Where the recorded instruments sit against the synth's trims: files are levelled at build time. */
+  const SAMPLE_LEVEL = 1;
+
+  /**
+   * The recorded version of the sound being built (`trim` is set), or null to play the synth. The
+   * synth's loudness trim does not apply to a recording, which is levelled in its file, so only
+   * what the caller asked for (its gain, or the touch) is kept.
+   */
+  function recorded(id: SoundId, freq: number, o: { vel?: number; dur?: number; damp?: boolean; refFreq?: number } = {}): SampleVoice | null {
+    const c = getCtx();
+    if (!c) return null;
+    const asked = trim / (LOUDNESS[id] || 1);
+    return samples.play(id, freq, { level: SAMPLE_LEVEL * asked * (0.97 + Math.random() * 0.06), t0: startTime(c), ...o });
+  }
+
+  /**
    * Recorded animal voices, decoded and ready to play. A voice with none here
    * keeps its synthesized version, so a missing or unplayable file is a
    * downgrade rather than silence.
@@ -502,6 +547,7 @@ export function createAudio(): AudioEngine {
       }
       void ctx.resume().catch(() => undefined);
       startKeepAlive();
+      samples.flush();
     } catch {
       ctx = null;
       master = null;
@@ -549,6 +595,52 @@ export function createAudio(): AudioEngine {
       trim = 1;
       shift = 0;
     }
+  }
+
+  /** The bus of the group being built, so a note that finishes rendering later still lands in it. */
+  let curGroup: { node: GainNode; dead: boolean } | null = null;
+
+  function group(fn: () => void): SoundGroup {
+    const c = getCtx();
+    if (!c || !master) {
+      fn();
+      return { stop() {} };
+    }
+    const node = c.createGain();
+    node.connect(master);
+    const g = { node, dead: false };
+    const outer = master;
+    const outerGroup = curGroup;
+    master = node;
+    curGroup = g;
+    try {
+      fn();
+    } finally {
+      master = outer;
+      curGroup = outerGroup;
+    }
+    return {
+      stop(fadeMs = 60) {
+        if (g.dead) return;
+        g.dead = true;
+        try {
+          const t = c.currentTime;
+          node.gain.cancelScheduledValues(t);
+          node.gain.setValueAtTime(node.gain.value, t);
+          node.gain.linearRampToValueAtTime(0, t + Math.max(0.005, fadeMs / 1000));
+        } catch {
+          /* context gone */
+        }
+        // Leave the bus connected until the fade is over, then drop it (its pending sources go with it).
+        setTimeout(() => {
+          try {
+            node.disconnect();
+          } catch {
+            /* already gone */
+          }
+        }, fadeMs + 150);
+      },
+    };
   }
 
   interface ToneOpts {
@@ -1121,7 +1213,15 @@ export function createAudio(): AudioEngine {
   }
 
   function note(freq: number, dur = 0.5, timbre: Timbre = 'piano', delay = 0, vel = 1): void {
-    at(`note:${timbre}`, () => playNote(freq, dur, timbre), delay, vel);
+    at(
+      `note:${timbre}`,
+      () => {
+        // A struck note is let go a little after its written length; a held one when it ends.
+        if (!recorded(`note:${timbre}`, freq, { dur: HELD_TIMBRES.has(timbre) ? dur : dur * 1.4, damp: true })) playNote(freq, dur, timbre);
+      },
+      delay,
+      vel,
+    );
   }
 
   /**
@@ -1209,6 +1309,8 @@ export function createAudio(): AudioEngine {
       const key = `${id}|${Math.round(f * 10)}|${v}|${dur && HELD.has(id) ? (Math.round(dur * 20) / 20).toFixed(2) : ''}`;
       const level = trim * (0.95 + Math.random() * 0.1);
       const t0 = startTime(c);
+      const rec = recorded(`inst:${id}`, f, { vel, dur, damp, refFreq: INSTRUMENT_REF[id] });
+      if (rec) return rec;
       const cached = instCache.get(key);
       if (cached) {
         instCache.delete(key);
@@ -1222,15 +1324,20 @@ export function createAudio(): AudioEngine {
       if (!job) return strike(c, keepInst(key, c, renderInstrument(id, f, v, c.sampleRate, { dur })), level, t0, dur, damp);
       let voice: InstVoice | null = null;
       let stopped = false;
+      const grp = curGroup;
       void job.then((buf) => {
         // Too late to be in time: a missing note is better than one out of time.
-        if (stopped || c.currentTime > t0 + LATE_NOTE_S) return;
+        if (stopped || grp?.dead || c.currentTime > t0 + LATE_NOTE_S) return;
+        const outer = master;
         try {
           // No buffer back (the worker died): still in time, so render it here.
           const ready = buf ?? keepInst(key, c, renderInstrument(id, f, v, c.sampleRate, { dur }));
+          if (grp) master = grp.node; // a note of a group lands on its bus, not on the master
           voice = strike(c, ready, level, Math.max(t0, c.currentTime), dur, damp);
         } catch {
           /* the context went away while it rendered */
+        } finally {
+          master = outer;
         }
       });
       return {
@@ -1302,18 +1409,28 @@ export function createAudio(): AudioEngine {
   }
 
   function drum(kind: DrumKind, delay = 0, vel = 1): void {
-    at(`drum:${kind}`, () => playDrum(kind), delay, vel);
+    at(`drum:${kind}`, () => void (recorded(`drum:${kind}`, 0) || playDrum(kind)), delay, vel);
   }
 
   /**
    * One of the recorded takes of this animal, picked at random so that twenty
    * taps are twenty slightly different cats. False when there are none.
    */
+  /** The take each voice played last, so the next tap is never the same recording again. */
+  const lastTake = new Map<FxKind, AudioBuffer>();
+
+  function chooseTake(kind: FxKind, list: readonly AudioBuffer[]): AudioBuffer | undefined {
+    const last = lastTake.get(kind);
+    const buf = list[nextVariant(list.length, last ? list.indexOf(last) : undefined)];
+    if (buf) lastTake.set(kind, buf);
+    return buf;
+  }
+
   function playTake(kind: FxKind): boolean {
     const list = takes.get(kind);
     const c = getCtx();
     if (!list || list.length === 0 || !c || !master) return false;
-    const buf = list[Math.floor(Math.random() * list.length)];
+    const buf = chooseTake(kind, list);
     if (!buf) return false;
     try {
       const src = c.createBufferSource();
@@ -1434,7 +1551,7 @@ export function createAudio(): AudioEngine {
     const list = takes.get(kind)?.filter((b) => takeHz.has(b)) ?? [];
     const c = getCtx();
     if (!c || !master || !(hz > 0)) return;
-    const buf = list.length ? list[Math.floor(Math.random() * list.length)] : undefined;
+    const buf = list.length ? chooseTake(kind, list) : undefined;
     const base = buf ? takeHz.get(buf) : undefined;
     if (!buf || !base) {
       void loadVoice(kind);
@@ -1678,10 +1795,14 @@ export function createAudio(): AudioEngine {
     note,
     drum,
     inst,
+    group,
     fx,
     pitched,
     ready() {
       return Promise.all([...loading.values()]).then(() => undefined);
+    },
+    preloadInstruments(keys) {
+      samples.request(keys);
     },
     preloadFx(kinds) {
       for (const kind of kinds) {

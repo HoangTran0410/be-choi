@@ -15,6 +15,8 @@ import './style.css';
  * the instruments that have been collected. This file only moves between screens.
  */
 function start(ctx: GameContext): void {
+  // Fetch the recorded sounds ahead (falls back to the synth until they land).
+  ctx.audio.preloadInstruments?.(['note:piano', 'note:guitar', 'inst:marimba', 'inst:harp', 'inst:handpan', 'inst:kalimba', 'drum:kick', 'drum:snare']);
   const album = loadAlbum();
   const root = h('div', { class: 'mu' });
   ctx.stage.append(root);

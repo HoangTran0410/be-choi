@@ -50,6 +50,8 @@ function saveRec(events: readonly RecEvent[]): void {
  * (the last recording survives in localStorage). No fail state, no timer.
  */
 function start(ctx: GameContext): void {
+  // Fetch the recorded sounds ahead (falls back to the synth until they land).
+  ctx.audio.preloadInstruments?.(['note:xylo']);
   let alive = true;
   let song: Song | null = null;
   let index = 0;

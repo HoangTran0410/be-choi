@@ -19,54 +19,44 @@
  */
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CACHE, creditRow, encode, pick, withMeta } from './lib/freesound.mjs';
+import { CACHE, creditRow, encode, pick, VOICES, withMeta } from './lib/freesound.mjs';
 
 const OUT_DIR = 'public/sfx';
 const MANIFEST = 'src/core/sfx.ts';
 const CREDITS = join(OUT_DIR, 'CREDITS.md');
 const PICKS = join(CACHE, 'sfx-picks.json');
 /** Different recordings per voice, when there are that many good ones. */
-const TAKES = 3;
+const TAKES = 5;
 
-/** Keyed by FxKind (see Source in scripts/lib/freesound.mjs). */
-const SOURCES = {
-  meow: { q: ['cat meow', 'kitten meow'], prompt: 'a cat meowing', len: 1.8 },
-  bark: { q: ['dog bark', 'dog barking'], prompt: 'a dog barking woof woof', len: 1.8 },
-  quack: { q: ['duck quack', 'duck quacking'], prompt: 'a duck quacking', len: 1.8 },
-  moo: { q: ['cow moo', 'cow mooing'], prompt: 'a cow mooing', len: 2.5 },
-  chirp: { q: ['bird chirp', 'bird tweet'], prompt: 'a small bird chirping tweet tweet', len: 2 },
-  roar: { q: ['lion roar', 'lion'], prompt: 'a lion roaring', len: 2.5 },
-  frog: { q: ['frog croak', 'frog ribbit'], prompt: 'a frog croaking ribbit', len: 2 },
-  pig: { q: ['pig oink', 'pig grunt'], prompt: 'a pig oinking and grunting', len: 2 },
-  owl: { q: ['owl hoot', 'owl hooting'], prompt: 'an owl hooting', len: 2.5 },
-  elephant: { q: ['elephant trumpet', 'elephant'], prompt: 'an elephant trumpeting', len: 2.5 },
-  sheep: { q: ['sheep baa', 'sheep bleat'], prompt: 'a sheep bleating baa', len: 2 },
-  cricket: { q: ['cricket chirping', 'cricket'], prompt: 'a cricket chirping', len: 2 },
-  cluck: { q: ['chicken cluck', 'hen clucking'], prompt: 'a hen clucking', len: 2 },
-  horse: {
-    q: ['horse neigh', 'horse whinny', 'horse neighing', 'horse'],
-    prompt: 'a horse neighing and whinnying',
-    len: 2.5,
-  },
-  goat: { q: ['goat bleat', 'goat', 'goat baa', 'goat meh'], prompt: 'a goat bleating', len: 2 },
-  monkey: { q: ['monkey', 'monkey chatter'], prompt: 'a monkey screeching ooh ooh aah aah', len: 2.5 },
-  growl: { q: ['bear growl', 'bear roar'], prompt: 'a bear growling', len: 2.5 },
-  squeak: { q: ['mouse squeak', 'mouse squeaking', 'rat squeak'], prompt: 'a little mouse squeaking', len: 1.5 },
-  parrot: { q: ['parrot squawk', 'parrot'], prompt: 'a parrot squawking', len: 2 },
-  penguin: { q: ['penguin', 'penguin call', 'penguins'], prompt: 'a penguin braying and squawking', len: 2.5 },
-  siren: {
-    q: ['fire truck siren', 'fire engine siren', 'fire engine', 'siren wail'],
-    prompt: 'a fire engine siren wailing',
-    len: 3,
-  },
-  horn: { q: ['car horn', 'car horn honk'], prompt: 'a car horn honking beep beep', len: 1.5 },
-  train: {
-    q: ['steam train whistle', 'train whistle', 'steam train', 'steam locomotive'],
-    prompt: 'a steam train whistling and chugging choo choo',
-    len: 3,
-  },
-  tractor: { q: ['tractor', 'tractor engine'], prompt: 'a tractor engine running', len: 2.5 },
+/** Keyed by FxKind: which voice (scripts/lib/freesound.mjs) it is, and how long a cut may be. */
+const KINDS = {
+  meow: ['cat', 1.8],
+  bark: ['dog', 1.8],
+  quack: ['duck', 1.8],
+  moo: ['cow', 2.5],
+  chirp: ['bird', 2],
+  roar: ['lion', 2.5],
+  frog: ['frog', 2],
+  pig: ['pig', 2],
+  owl: ['owl', 2.5],
+  elephant: ['elephant', 2.5],
+  sheep: ['sheep', 2],
+  cricket: ['cricket', 2],
+  cluck: ['hen', 2],
+  horse: ['horse', 2.5],
+  goat: ['goat', 2],
+  monkey: ['monkey', 2.5],
+  growl: ['bear', 2.5],
+  squeak: ['mouse', 1.5],
+  parrot: ['parrot', 2],
+  penguin: ['penguin', 2.5],
+  // Sirens and trains are the sounds that need time to be what they are.
+  siren: ['firetruck', 3],
+  horn: ['car', 1.5],
+  train: ['train', 3],
+  tractor: ['tractor', 2.5],
 };
+const SOURCES = Object.fromEntries(Object.entries(KINDS).map(([kind, [voice, len]]) => [kind, { ...VOICES[voice], len }]));
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -79,12 +69,22 @@ const todo = kinds.filter((k) => (only.length ? only.includes(k) : force || take
 
 const picks = existsSync(PICKS) ? JSON.parse(readFileSync(PICKS, 'utf8')) : {};
 const sources = Object.fromEntries(Object.entries(SOURCES).map(([k, s]) => [k, { ...s, takes: TAKES }]));
-Object.assign(picks, await pick(sources, todo, 'sfx'));
+const fresh = await pick(sources, todo, 'sfx');
+// Only recordings the models agreed on (see pick_sounds.py). A voice with none keeps what it had.
+const rebuilt = new Set();
+for (const [kind, takes] of Object.entries(fresh)) {
+  const good = takes.filter((t) => t.ok);
+  if (good.length === 0) console.warn(`  ${kind}: nothing passed recognition, keeping the old files`);
+  else {
+    picks[kind] = good;
+    rebuilt.add(kind);
+  }
+}
 writeFileSync(PICKS, JSON.stringify(picks, null, 1));
 
-for (const kind of todo) {
+for (const kind of todo.filter((k) => rebuilt.has(k))) {
   for (const f of takesOf(kind)) rmSync(join(OUT_DIR, f));
-  (picks[kind] ?? []).forEach((take, i) => encode(take, join(OUT_DIR, `${kind}-${i}.m4a`), { rate: 32000, bitrate: '48k' }));
+  (picks[kind] ?? []).forEach((take, i) => encode(take, join(OUT_DIR, `${kind}-${i}.m4a`), { rate: 32000, bitrate: '40k' }));
 }
 // Files of voices no longer in the list would be loaded for nothing.
 for (const f of readdirSync(OUT_DIR)) {

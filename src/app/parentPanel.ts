@@ -2,10 +2,16 @@ import { h } from '../core/dom';
 import { MAX_NAME, MAX_PHOTOS } from '../core/photos';
 import type { VoicePitch } from '../core/speech';
 import { currentBuild, formatBuildTime } from './buildTime';
-import type { AgeFilter } from './ages';
+import { AGE_CHOICES, type AgeFilter } from './ages';
+import { BREAK_PRESETS } from './breakTimer';
+import { GAMES } from './registry';
+import { SKILL_LABELS } from './skills';
+import { DOMAIN_NAMES, dayNumber, loadSkills, summarize } from '../core/mastery';
+import { englishOn, englishVoice, sayEnglish, setEnglishOn } from '../core/english';
 import type { AppDeps } from './deps';
 import type { Theme } from './storage';
 import { applyTheme } from './theme';
+import '../styles/parent.css';
 
 export const STARS_CHANGED = 'be-choi:stars';
 /** Fired when a setting that changes what the home screen shows (child's age) is changed. */
@@ -138,7 +144,11 @@ export function openParentPanel(deps: AppDeps): void {
     'div',
     { class: 'panel-section' },
     h('h3', null, '📷 Ảnh của bé ', photoCount),
-    h('p', { class: 'panel-note' }, 'Dùng cho Ghép tranh, Tô màu, Sinh nhật và Học cùng bé. Gõ tên (Mẹ, Ba, Bà…) dưới ảnh để bé tập nhận ra người thân. Ảnh chỉ lưu trên máy này, không gửi đi đâu.'),
+    h(
+      'p',
+      { class: 'panel-note' },
+      'Dùng cho Ghép tranh, Tô màu, Sinh nhật và Học cùng bé. Gõ tên (Mẹ, Ba, Bà…) dưới ảnh để bé tập nhận ra người thân. Ảnh chỉ lưu trên máy này, không gửi đi đâu.',
+    ),
     h('button', { class: 'panel-btn primary', type: 'button', onClick: () => photoInput.click() }, '➕ Thêm ảnh / chụp ảnh'),
     photoInput,
     photoGrid,
@@ -239,12 +249,7 @@ export function openParentPanel(deps: AppDeps): void {
     : null;
 
   // ---- child's age: hides games that are still too hard (0 = show all) ----
-  const AGES: { id: AgeFilter; label: string }[] = [
-    { id: 0, label: 'Tất cả' },
-    { id: 2, label: '2 tuổi' },
-    { id: 3, label: '3 tuổi' },
-    { id: 4, label: '4 tuổi' },
-  ];
+  const AGES: { id: AgeFilter; label: string }[] = AGE_CHOICES.map((id) => ({ id, label: id === 0 ? 'Tất cả' : `${id} tuổi` }));
   const ageBtns = AGES.map((a) =>
     h(
       'button',
@@ -270,7 +275,10 @@ export function openParentPanel(deps: AppDeps): void {
   );
 
   // ---- rest reminder: off by default, never stops the game ----
-  const BREAKS = [0, 10, 15, 20, 30];
+  // A value saved by an older build (10') stays visible and selected.
+  const BREAKS = BREAK_PRESETS.includes(settings.breakMinutes)
+    ? [...BREAK_PRESETS]
+    : [...BREAK_PRESETS, settings.breakMinutes].sort((a, b) => a - b);
   const breakBtns = BREAKS.map((m) =>
     h(
       'button',
@@ -281,7 +289,7 @@ export function openParentPanel(deps: AppDeps): void {
           store.setSettings({ breakMinutes: m });
           breakBtns.forEach((b, i) => b.classList.toggle('active', BREAKS[i] === m));
           audio.tick();
-          if (m > 0) speech.speak('Bé ơi, mình nghỉ một chút nhé!');
+          if (m > 0) speech.speak('Bé nghỉ mắt chút nhé!');
         },
       },
       m === 0 ? 'Tắt' : `${m}'`,
@@ -295,11 +303,13 @@ export function openParentPanel(deps: AppDeps): void {
     h(
       'p',
       { class: 'panel-note' },
-      'Sau chừng ấy phút chơi, bé nghe một lời nhắc nhẹ "nghỉ một chút nhé". Game không dừng, không mất sao — bé chỉ bấm ▶️ để chơi tiếp.',
+      'Sau chừng ấy phút chơi, chú gấu ngáp rồi ngủ, có tiếng ru nhẹ và lời "bé nghỉ mắt chút nhé". Game không dừng, không khoá, không mất sao — bé chỉ bấm ▶️ để chơi tiếp. Mặc định: Tắt.',
     ),
   );
 
-  const installRow =install.isStandalone
+  const reportRow = buildReport(store);
+
+  const installRow = install.isStandalone
     ? h('p', { class: 'panel-note' }, '✅ Đã cài lên màn hình chính.')
     : install.available()
       ? h('button', { class: 'panel-btn primary', onClick: () => install.prompt() }, '📲 Cài lên màn hình chính')
@@ -441,9 +451,21 @@ export function openParentPanel(deps: AppDeps): void {
       window.dispatchEvent(new Event(STARS_CHANGED));
     }),
     settings.todayPick ? null : h('p', { class: 'panel-note' }, 'Màn hình chính không còn hàng 3 game gợi ý mỗi ngày.'),
+    toggle('🇬🇧 Nói thêm tiếng Anh', englishOn(), (v) => {
+      setEnglishOn(v);
+      if (v) sayEnglish('Hello!', 0);
+    }),
+    h(
+      'p',
+      { class: 'panel-note' },
+      englishVoice()
+        ? 'Sau tên tiếng Việt (màu, hình, con vật, số…), máy đọc thêm từ tiếng Anh.'
+        : 'Máy này chưa có giọng tiếng Anh nên bật cũng chưa nghe được.',
+    ),
     speech.available() ? null : h('p', { class: 'panel-note' }, 'Máy này chưa có giọng đọc tiếng Việt, game vẫn chơi được bằng âm thanh.'),
     voiceRow,
     installRow,
+    reportRow,
     ageRow,
     breakRow,
     themeRow,
@@ -456,4 +478,120 @@ export function openParentPanel(deps: AppDeps): void {
 
   const overlay = h('div', { class: 'overlay', onClick: close }, panel);
   document.body.append(overlay);
+}
+
+const fmtMin = (ms: number): string => {
+  const m = Math.round(ms / 60_000);
+  if (m < 60) return `${m} phút`;
+  return `${Math.floor(m / 60)} giờ ${String(m % 60).padStart(2, '0')}`;
+};
+
+const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+/** "Bé đã chơi": time today and over the last week, favourite games, skills practised, stars. */
+export function buildReport(store: AppDeps['store']): HTMLElement {
+  const days = store.playReport(7);
+  const today = days[days.length - 1]!;
+  const weekMs = days.reduce((a, d) => a + d.ms, 0);
+  const weekStars = days.reduce((a, d) => a + d.stars, 0);
+  const peak = Math.max(1, ...days.map((d) => d.ms));
+
+  const bars = h(
+    'div',
+    { class: 'report-days' },
+    ...days.map((d, i) => {
+      const wd = WEEKDAY[new Date(`${d.key}T12:00:00`).getDay()]!;
+      return h(
+        'div',
+        { class: `report-day${i === days.length - 1 ? ' today' : ''}`, title: `${d.key}: ${fmtMin(d.ms)}` },
+        h('span', null, d.ms ? `${Math.round(d.ms / 60_000)}'` : ''),
+        h('div', { class: 'report-day-bar', style: `height:${Math.round((d.ms / peak) * 100) * 0.6}%` }),
+        h('span', null, wd),
+      );
+    }),
+  );
+
+  const perGame: Record<string, number> = {};
+  for (const d of days) for (const [id, ms] of Object.entries(d.games)) perGame[id] = (perGame[id] ?? 0) + ms;
+  const top = Object.entries(perGame)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const topMax = top[0]?.[1] ?? 1;
+  const rows = (items: { icon: string; label: string; ms: number }[], max: number) =>
+    items.map((it) =>
+      h(
+        'div',
+        { class: 'report-row' },
+        h('span', null, it.icon),
+        h('span', null, it.label),
+        h('div', { class: 'report-track' }, h('div', { class: 'report-fill', style: `width:${Math.round((it.ms / max) * 100)}%` })),
+        h('span', null, fmtMin(it.ms)),
+      ),
+    );
+
+  const skillMs: Record<string, number> = {};
+  for (const [id, ms] of top.length ? Object.entries(perGame) : []) {
+    const g = GAMES.find((x) => x.id === id);
+    if (g) skillMs[g.skill] = (skillMs[g.skill] ?? 0) + ms;
+  }
+  const skills = Object.entries(skillMs).sort((a, b) => b[1] - a[1]);
+
+  return h(
+    'div',
+    { class: 'panel-section' },
+    h('h3', null, '📊 Bé đã chơi'),
+    h(
+      'div',
+      { class: 'report-head' },
+      h('span', null, `Hôm nay: ${fmtMin(today.ms)} · ⭐ ${today.stars}`),
+      h('span', null, `7 ngày: ${fmtMin(weekMs)} · ⭐ ${weekStars}`),
+    ),
+    bars,
+    top.length
+      ? h(
+          'div',
+          null,
+          h('div', { class: 'report-sub' }, '🎮 Chơi nhiều nhất'),
+          ...rows(
+            top.map(([id, ms]) => {
+              const g = GAMES.find((x) => x.id === id);
+              return { icon: g?.icon ?? '🎮', label: g?.title ?? id, ms };
+            }),
+            topMax,
+          ),
+          h('div', { class: 'report-sub' }, '🧠 Bé đang luyện'),
+          ...rows(
+            skills.map(([k, ms]) => ({
+              icon: SKILL_LABELS[k as keyof typeof SKILL_LABELS]?.[0] ?? '✨',
+              label: SKILL_LABELS[k as keyof typeof SKILL_LABELS]?.[1] ?? k,
+              ms,
+            })),
+            skills[0]?.[1] ?? 1,
+          ),
+        )
+      : h('p', { class: 'panel-note' }, 'Chưa có dữ liệu. Thời gian chơi được ghi từ giờ trở đi, chỉ lưu trên máy này.'),
+    buildLearned(),
+  );
+}
+
+/** "Bé đã thuộc": per topic, how many things the child has met / knows across days / needs reviewing. */
+export function buildLearned(state = loadSkills(), day = dayNumber()): HTMLElement | null {
+  const rows = summarize(state, day);
+  if (rows.length === 0) return null;
+  const max = Math.max(1, ...rows.map((r) => r.met));
+  return h(
+    'div',
+    { class: 'report-learned' },
+    h('div', { class: 'report-sub' }, '🎓 Bé đã thuộc (đúng ngay lần đầu, qua nhiều ngày)'),
+    ...rows.map((r) =>
+      h(
+        'div',
+        { class: 'report-row' },
+        h('span', null, '•'),
+        h('span', null, DOMAIN_NAMES[r.domain] ?? r.domain),
+        h('div', { class: 'report-track' }, h('div', { class: 'report-fill', style: `width:${Math.round((r.solid / max) * 100)}%` })),
+        h('span', null, `${r.solid}/${r.met}${r.due ? ` · ôn ${r.due}` : ''}`),
+      ),
+    ),
+  );
 }

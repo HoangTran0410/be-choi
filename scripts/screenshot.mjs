@@ -17,6 +17,8 @@ const base = (process.env.BASE_URL ?? server.resolvedUrls?.local[0] ?? 'http://1
 const only = process.argv.slice(2);
 const GAMES = [
   'bubbles',
+  'writing',
+  'treasure',
   'aquarium',
   'terrarium',
   'fishing',
@@ -74,6 +76,9 @@ const GAMES = [
   'singalong',
   'draw',
   'day',
+  'show',
+  'guess',
+  'kidsband',
 ];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },

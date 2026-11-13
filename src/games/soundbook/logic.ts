@@ -1,13 +1,13 @@
 /**
  * The book: one page per kind of thing, each thing with its own recording
- * (`public/sounds/<id>.m4a`, built by `scripts/soundbook.mjs`).
+ * (`public/sounds/<id>-<n>.m4a`, built by `scripts/soundbook.mjs`).
  */
 
 /** How the picture moves while its sound plays. */
 export type Motion = 'hop' | 'drive' | 'shake' | 'wiggle' | 'sway';
 
 export interface Thing {
-  /** Recording id: `public/sounds/<id>.m4a`. */
+  /** Recording id: `public/sounds/<id>-<n>.m4a`. */
   id: string;
   emoji: string;
   /** Vietnamese name, said after the sound. */

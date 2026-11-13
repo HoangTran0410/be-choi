@@ -8,7 +8,7 @@ export interface Point {
 
 export interface CountRound {
   item: Item;
-  /** 1 … `maxCount(roundIndex)`. */
+  /** 1 … `maxCount(roundIndex, bonus)`. */
   count: number;
   /** Normalized board positions (POS_MIN … POS_MAX), pairwise ≥ `MIN_DIST` apart. */
   positions: Point[];
@@ -23,11 +23,25 @@ export const POS_MAX = 0.88;
 /** Rejection-sampling attempts per point before falling back to the grid. */
 const ATTEMPTS = 60;
 
-/** Round 0 counts up to 2, round 1 up to 3, later rounds up to 5. */
-export function maxCount(roundIndex: number): number {
+/** The most a child can be asked to count. */
+export const CEILING = 10;
+/** Most extra fruit `bonus` can add on top of the usual 5. */
+export const MAX_BONUS = CEILING - 5;
+
+/**
+ * Round 0 counts up to 2, round 1 up to 3, later rounds up to 5. `bonus` (earned by counting
+ * rounds without needing a hint, see `nextBonus`) lifts the later rounds up to 10; the first two
+ * rounds stay easy whatever it is.
+ */
+export function maxCount(roundIndex: number, bonus = 0): number {
   if (roundIndex <= 0) return 2;
   if (roundIndex === 1) return 3;
-  return 5;
+  return 5 + Math.max(0, Math.min(MAX_BONUS, Math.floor(bonus)));
+}
+
+/** After a round: one more fruit next time if the child counted without a hint, one fewer if they needed help. */
+export function nextBonus(bonus: number, neededHelp: boolean): number {
+  return Math.max(0, Math.min(MAX_BONUS, bonus + (neededHelp ? -1 : 1)));
 }
 
 /** Vietnamese number word; `''` when out of range. */
@@ -39,16 +53,22 @@ function dist(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-/** Cell-centred grid with ⌈√n⌉ columns: always `n` points, ≥ 0.25 apart for n ≤ 9. */
+/**
+ * Grid with ⌈√n⌉ columns spread edge to edge: always `n` points, ≥ MIN_DIST apart for n ≤ 10.
+ * A short last row is centred.
+ */
 function grid(n: number): Point[] {
   const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
   const rows = Math.max(1, Math.ceil(n / cols));
   const span = POS_MAX - POS_MIN;
+  const at = (i: number, count: number): number => (count <= 1 ? POS_MIN + span / 2 : POS_MIN + (span * i) / (count - 1));
   const out: Point[] = [];
-  for (let i = 0; i < n; i++) {
-    const c = i % cols;
-    const r = Math.floor(i / cols);
-    out.push({ x: POS_MIN + span * ((c + 0.5) / cols), y: POS_MIN + span * ((r + 0.5) / rows) });
+  for (let r = 0; r < rows; r++) {
+    const inRow = Math.min(cols, n - r * cols);
+    for (let c = 0; c < inRow; c++) {
+      const x = inRow === cols ? at(c, cols) : POS_MIN + span / 2 + (c - (inRow - 1) / 2) * (span / (cols - 1));
+      out.push({ x, y: at(r, rows) });
+    }
   }
   return out;
 }
@@ -93,8 +113,9 @@ export function makeCountRound(
   rng: () => number = Math.random,
   excludeEmoji?: string,
   minDist: number = MIN_DIST,
+  bonus = 0,
 ): CountRound {
-  const count = randInt(1, maxCount(roundIndex), rng);
+  const count = randInt(1, maxCount(roundIndex, bonus), rng);
   const pool = FRUITS.filter((f) => f.emoji !== excludeEmoji);
   const item = pool[randInt(0, pool.length - 1, rng)];
   if (!item) throw new Error('count: no fruit available');

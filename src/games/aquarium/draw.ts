@@ -1,4 +1,5 @@
 import { solveTwoBone, type Point } from '../../core/creature';
+import { perf } from '../../core/frame';
 import type { Bubble, Creature, Plant, Rock, Tank } from './logic';
 
 /**
@@ -401,7 +402,7 @@ export function drawCreature(g: CanvasRenderingContext2D, cr: Creature, index: n
     g.rotate(Math.sin(scene.clock * 22) * 0.16);
     g.translate(-cr.x, -cr.y);
     g.shadowColor = 'rgba(3,32,54,0.45)';
-    g.shadowBlur = cr.length * 0.35;
+    if (!perf.low) g.shadowBlur = cr.length * 0.35;
   }
   if (cr.species.kind === 'jelly') drawJelly(g, cr);
   else if (cr.species.kind === 'ray') drawRay(g, cr, index);

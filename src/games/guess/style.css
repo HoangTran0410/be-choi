@@ -1,0 +1,130 @@
+.guess {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 2vmin;
+  padding: 2vmin;
+  overflow: hidden;
+  touch-action: none;
+  background: radial-gradient(ellipse at 50% 20%, #f0f9ff 0%, #bae6fd 60%, #7dd3fc 100%);
+}
+.guess button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.guess-ear {
+  justify-self: center;
+  width: clamp(84px, 20vmin, 150px);
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 50%;
+  font-size: clamp(44px, 11vmin, 80px);
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 34% 26%, #fff 0%, #fef3c7 45%, #fcd34d 100%);
+  box-shadow:
+    inset 0 -1vmin 0 rgba(180, 120, 0, 0.25),
+    0 1vmin 0 rgba(0, 80, 140, 0.22);
+}
+.guess-ear:active {
+  transform: scale(0.94);
+}
+.guess-ear.is-playing {
+  animation: guess-pulse 0.5s ease-in-out infinite;
+}
+.guess-cards {
+  min-height: 0;
+  display: grid;
+  gap: 2vmin;
+  grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+.guess-cards[data-n='4'] {
+  --cols: 2;
+}
+.guess-card {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 1.5vmin;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #ffffff, #fdf3da);
+  box-shadow:
+    inset 0 -1vmin 0 rgba(160, 100, 20, 0.15),
+    0 0.8vmin 0 rgba(0, 80, 140, 0.2);
+  transition: transform 0.1s, opacity 0.3s, filter 0.3s;
+  container-type: size;
+}
+.guess-card:active {
+  transform: scale(0.97);
+}
+.guess-card .guess-art {
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
+  overflow: visible;
+  pointer-events: none;
+}
+.guess-card.is-wrong {
+  animation: guess-shake 0.4s ease-in-out;
+}
+.guess-card.is-right {
+  background: linear-gradient(180deg, #fffbe0, #fde68a);
+  box-shadow:
+    0 0 0 1.2vmin #22c55e,
+    inset 0 -1vmin 0 rgba(160, 100, 20, 0.15);
+  animation: guess-pop 0.5s ease-out;
+}
+.guess-card.is-off {
+  opacity: 0.35;
+  filter: grayscale(0.4);
+  pointer-events: none;
+}
+.guess-card.is-sound {
+  animation: guess-bob 0.32s ease-out;
+}
+.guess-pulse-ring {
+  position: absolute;
+  inset: 0;
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .guess {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    gap: 3vmin;
+  }
+  .guess-cards,
+  .guess-cards[data-n='4'] {
+    height: 100%;
+    grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr));
+    grid-auto-rows: unset;
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+[data-lite] .guess-ear.is-playing {
+  animation: none;
+}
+@keyframes guess-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+@keyframes guess-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2.5%) rotate(-1.5deg); }
+  75% { transform: translateX(2.5%) rotate(1.5deg); }
+}
+@keyframes guess-pop {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+@keyframes guess-bob {
+  0% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}

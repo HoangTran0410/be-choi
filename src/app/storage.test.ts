@@ -104,3 +104,32 @@ describe('store', () => {
     expect(createStore(s).favorites()).toEqual(['bubbles']);
   });
 });
+
+describe('play report', () => {
+  it('adds up play time per day and game, ignoring gaps', () => {
+    let t = new Date(2026, 10, 13, 10, 0, 0).getTime();
+    const st = createStore(null, () => t);
+    st.recordPlay('count');
+    t += 30_000;
+    st.tickPlay();
+    t += 5 * 60_000; // asleep: not counted
+    st.tickPlay();
+    t += 10_000;
+    st.endPlay();
+    st.addStar('count');
+    const r = st.playReport(7);
+    expect(r).toHaveLength(7);
+    expect(r[6]!.ms).toBe(40_000);
+    expect(r[6]!.games.count).toBe(40_000);
+    expect(r[6]!.stars).toBe(1);
+    expect(r[0]!.ms).toBe(0);
+  });
+  it('keeps old saves and odd ages loadable', () => {
+    const mem = new Map<string, string>();
+    const fake = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) } as unknown as Storage;
+    mem.set('be-choi:v1', JSON.stringify({ stars: { a: 1 }, settings: { age: 9 } }));
+    expect(createStore(fake).settings().age).toBe(0);
+    mem.set('be-choi:v1', JSON.stringify({ settings: { age: 6 } }));
+    expect(createStore(fake).settings().age).toBe(6);
+  });
+});

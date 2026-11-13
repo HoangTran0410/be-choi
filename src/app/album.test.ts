@@ -56,4 +56,17 @@ describe('the album', () => {
     expect(root.querySelector('.album-use')).toBeNull();
     expect(root.querySelector('.album-empty')).not.toBeNull();
   });
+
+  it('shows sets with silhouettes for missing stickers and a near-complete hint', () => {
+    const d = deps();
+    for (const e of ['🍦', '🍩', '🍭']) d.store.addSticker(e);
+    mountAlbum(root, d);
+    const food = root.querySelector('[data-set="food"]');
+    expect(food?.classList.contains('near')).toBe(true);
+    expect(food?.querySelectorAll('.album-dots i.on').length).toBe(3);
+    expect(food?.querySelectorAll('.album-silhouette').length).toBe(1);
+    expect(root.querySelectorAll('.album-set').length).toBeGreaterThan(5);
+    // Closest-to-full set is listed first.
+    expect(root.querySelector('.album-set')?.getAttribute('data-set')).toBe('food');
+  });
 });

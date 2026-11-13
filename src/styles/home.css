@@ -35,9 +35,98 @@
   text-shadow: 0 3px 0 var(--title-shadow);
 }
 .mascot {
-  font-size: clamp(40px, 8vmin, 72px);
+  position: relative;
+  min-width: 72px;
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  background: none;
+  font-size: clamp(44px, 8vmin, 72px);
   line-height: 1;
+  touch-action: manipulation;
+}
+.mascot-face {
+  display: block;
   animation: pulse 1.6s ease-in-out infinite;
+}
+.mascot-face.anim-wiggle {
+  animation: wiggle 0.5s ease-in-out 2;
+}
+/* The daily gift, held at the mascot's side. */
+.mascot-gift {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  font-size: 0.55em;
+  animation: bounce 1.2s ease-in-out infinite;
+}
+.mascot-gift[hidden] {
+  display: none;
+}
+.mascot-gift-open {
+  animation: pop 0.6s ease-out forwards;
+  transform: translateY(-40px) scale(1.8);
+  opacity: 0;
+  transition:
+    transform 0.8s,
+    opacity 0.8s;
+}
+
+/* Group bar: big picture buttons, vertical scrolling stays on the grid below. */
+.group-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 6px 6px;
+  background: var(--home-panel);
+}
+.group-btn {
+  flex: 1 1 72px;
+  min-width: 72px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 3px solid transparent;
+  color: var(--home-heading);
+  touch-action: manipulation;
+}
+.group-btn:active {
+  transform: scale(0.95);
+}
+.group-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+.group-name {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.group-on {
+  background: #fff;
+  border-color: var(--c-orange, #fb923c);
+  color: #1e3a5f; /* dark text on the white chip, whatever the theme's heading colour */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .group-btn {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  :root:not([data-theme='light']) .group-on {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+}
+:root[data-theme='dark'] .group-btn {
+  background: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme='dark'] .group-on {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 .home-header .btn-round {
   width: calc(var(--tap) * 0.8);
@@ -45,10 +134,14 @@
   font-size: calc(var(--tap) * 0.4);
 }
 
-.sections {
+.home-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.sections {
   padding: 0 3vmin 4vmin;
   display: flex;
   flex-direction: column;

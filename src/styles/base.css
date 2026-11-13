@@ -357,3 +357,28 @@ button {
 .is-tapped {
   filter: brightness(1.07);
 }
+
+/* ---- Lite mode: <html data-lite> mirrors perf.low (see core/frame.ts). Looks only, never behaviour. ---- */
+[data-lite] *,
+[data-lite] *::before,
+[data-lite] *::after {
+  will-change: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Soft, wide shadows are the costly kind; the hard 0 Npx 0 "button lip" ones stay. */
+[data-lite] .pp-panel,
+[data-lite] .break-banner {
+  box-shadow: none !important;
+}
+/* Slow decorative loops: hold still. Hit feedback (bounce, pop, wiggle, shake) is untouched. */
+[data-lite] .fly-star::after,
+[data-lite] .fly-blade-body,
+[data-lite] .hb-reveal-rays {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-lite] .anim-pulse {
+    animation: none !important;
+  }
+}
