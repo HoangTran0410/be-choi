@@ -23,13 +23,17 @@
 .band-grid {
   /* Landscape: 4 columns × 2 rows; the last row (3 tiles) is centred, so the
      corner buttons need half a tile of free space on each side of it. */
-  /* Fallback for browsers without container-query units (iOS < 16): estimate the stage from the viewport. */
+  /* Fallback for browsers without container-query units (iOS < 16): estimate the stage's content
+     box from the viewport — minus the 44px top bar and .band's padding on both sides (leaving the
+     padding out made four tiles wider than the screen on an old iPad). */
+  --band-w: calc(100vw - 2 * var(--band-pad));
+  --band-h: calc(100vh - 44px - 2 * var(--band-pad));
   --band-tile: clamp(
     var(--band-min),
     min(
-      calc((100vw - 3 * var(--band-gap)) / 4),
-      calc((100vw - 4 * var(--band-gap) - 2 * var(--tap)) / 3),
-      calc((100dvh - var(--tap) * 0.8 - 6vmin - var(--band-gap)) / 2)
+      calc((var(--band-w) - 3 * var(--band-gap)) / 4),
+      calc((var(--band-w) - 4 * var(--band-gap) - 2 * var(--tap)) / 3),
+      calc((var(--band-h) - var(--band-gap)) / 2)
     ),
     var(--band-max)
   );
@@ -40,6 +44,18 @@
   gap: var(--band-gap);
   width: calc(4 * var(--band-tile) + 3 * var(--band-gap));
   max-width: 100%;
+}
+@supports (height: 1dvh) {
+  .band-grid {
+    --band-h: calc(100dvh - 44px - 2 * var(--band-pad));
+  }
+}
+/* A landscape phone has the bar down the left side instead (shell.css). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .band-grid {
+    --band-w: calc(100vw - 60px - env(safe-area-inset-left) - 2 * var(--band-pad));
+    --band-h: calc(100vh - 2 * var(--band-pad));
+  }
 }
 @supports (width: 1cqw) {
   .band-grid {
