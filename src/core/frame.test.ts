@@ -215,8 +215,24 @@ describe('frame rate watch', () => {
   });
 
   it('boot: fresh device with unknown hardware starts normal', () => {
-    initPerf();
-    expect(perf.low).toBe(false);
+    // jsdom reports the host's real core count (a 4-core CI runner would read as weak): hide it.
+    const spy = vi.spyOn(navigator, 'hardwareConcurrency', 'get').mockReturnValue(undefined as unknown as number);
+    try {
+      initPerf();
+      expect(perf.low).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('boot: a 4-core device starts in lite mode', () => {
+    const spy = vi.spyOn(navigator, 'hardwareConcurrency', 'get').mockReturnValue(4);
+    try {
+      initPerf();
+      expect(perf.low).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
